@@ -1,6 +1,6 @@
 import { genkit, z } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
-import { buyAsset } from '@nexuspay/merchant-agent';
+
 
 // Initialize Genkit
 const ai = genkit({
@@ -25,7 +25,19 @@ const capturingBuyAssetTool = ai.defineTool(
     },
     async (input) => {
         console.log(`[Tool] Executing buyAsset for ${input.amount} ${input.symbol}...`);
-        const result: any = await (buyAsset as any)(input);
+
+        const MERCHANT_AGENT_API = process.env.MERCHANT_AGENT_API || 'http://localhost:3002/api';
+        const response = await fetch(`${MERCHANT_AGENT_API}/buy`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+
+        if (!response.ok) {
+            throw new Error(`Merchant Agent error: ${response.statusText}`);
+        }
+
+        const result: any = await response.json();
         capturedPayment = result;
         console.log(`[Tool] Payment captured for order: ${result.orderId}`);
         return result;

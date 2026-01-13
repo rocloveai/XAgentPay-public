@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { getOrders, confirmPayment, getOrderStatus } from './index';
+import { getOrders, confirmPayment, getOrderStatus, buyAsset } from './index';
 
 const app = express();
 const PORT = 3002;
@@ -31,6 +31,16 @@ app.get('/api/agent-card', (req, res) => {
             }
         ]
     });
+});
+
+app.post('/api/buy', async (req, res) => {
+    try {
+        const result = await buyAsset(req.body);
+        res.json(result);
+    } catch (error: any) {
+        console.error('Error in buyAsset:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.get('/api/orders', async (req, res) => {
