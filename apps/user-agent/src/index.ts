@@ -12,34 +12,53 @@ const ai = genkit({
 // Note: In a production multi-user environment, this would need to be stored in a session or context.
 let capturedPayment: any = null;
 
-// The capturing tool is now defined globally once.
-const capturingBuyAssetTool = ai.defineTool(
+// The capturing tools are now defined globally once.
+const buyETHTool = ai.defineTool(
     {
-        name: 'buyAsset',
-        description: 'Buys a cryptocurrency asset given a symbol and amount. Returns the payment action details. IMPORTANT: The "symbol" argument MUST be the CoinGecko API ID (e.g. "ethereum" not "ETH", "bitcoin" not "BTC").',
+        name: 'buyETH',
+        description: 'Buys Ethereum (ETH) from the Nexus ETH Shop. Returns payment action details.',
         inputSchema: z.object({
-            symbol: z.string().describe('The CoinGecko ID of the asset (e.g., "bitcoin", "ethereum").'),
-            amount: z.number().describe('The amount to buy. Any positive decimal number is valid.'),
+            amount: z.number().describe('The amount of ETH to buy.'),
         }),
         outputSchema: z.any(),
     },
     async (input) => {
-        console.log(`[Tool] Executing buyAsset for ${input.amount} ${input.symbol}...`);
-
+        console.log(`[Tool] Executing buyETH for ${input.amount}...`);
         const MERCHANT_AGENT_API = process.env.MERCHANT_AGENT_API || 'http://localhost:3002/api';
-        const response = await fetch(`${MERCHANT_AGENT_API}/buy`, {
+        const response = await fetch(`${MERCHANT_AGENT_API}/buy-eth`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(input)
         });
-
-        if (!response.ok) {
-            throw new Error(`Merchant Agent error: ${response.statusText}`);
-        }
-
+        if (!response.ok) throw new Error(`ETH Merchant error: ${response.statusText}`);
         const result: any = await response.json();
         capturedPayment = result;
-        console.log(`[Tool] Payment captured for order: ${result.orderId}`);
+        console.log(`[Tool] Payment captured from ETH Shop: ${result.orderId}`);
+        return result;
+    }
+);
+
+const buyBTCTool = ai.defineTool(
+    {
+        name: 'buyBTC',
+        description: 'Buys Bitcoin (BTC) from the Nexus BTC Store. Returns payment action details.',
+        inputSchema: z.object({
+            amount: z.number().describe('The amount of BTC to buy.'),
+        }),
+        outputSchema: z.any(),
+    },
+    async (input) => {
+        console.log(`[Tool] Executing buyBTC for ${input.amount}...`);
+        const MERCHANT_AGENT_API = process.env.MERCHANT_AGENT_API || 'http://localhost:3002/api';
+        const response = await fetch(`${MERCHANT_AGENT_API}/buy-btc`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(input)
+        });
+        if (!response.ok) throw new Error(`BTC Merchant error: ${response.statusText}`);
+        const result: any = await response.json();
+        capturedPayment = result;
+        console.log(`[Tool] Payment captured from BTC Store: ${result.orderId}`);
         return result;
     }
 );
@@ -68,18 +87,16 @@ export const shoppingAssistant = ai.defineFlow(
             const response = await ai.generate({
                 prompt: userInput,
                 system: `You are a shopping assistant for NexusPay. 
-                Your goal is to help users buy cryptocurrency.
+                Your goal is to help users buy cryptocurrency by delegating to specific merchants.
                 
-                Symbol Mapping Rules:
-                - BTC / btc -> bitcoin
-                - ETH / eth -> ethereum
-                - SOL / sol -> solana
+                Merchants Available:
+                - Nexus ETH Shop: Use buyETH for any Ethereum (ETH) related purchases.
+                - Nexus BTC Store: Use buyBTC for any Bitcoin (BTC) related purchases.
                 
                 Important: 
                 - Any positive amount is valid (e.g., 0.1, 0.001, 1). 
-                - There is NO minimum amount like 1e-8.
                 - If you trigger a purchase, you MUST include the keyword 'PAYMENT_DETECTED' in your response.`,
-                tools: [capturingBuyAssetTool],
+                tools: [buyETHTool, buyBTCTool],
             });
 
             text = response.text || (capturedPayment ? `I've prepared a payment request for your order.` : "I couldn't process that request.");

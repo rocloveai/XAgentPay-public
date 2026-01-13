@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { getOrders, confirmPayment, getOrderStatus, buyAsset } from './index.js';
+import { getOrders, confirmPayment, getOrderStatus, buyETH, buyBTC } from './index.js';
 
 const app = express();
 const PORT = 3002;
@@ -12,9 +12,9 @@ app.use(bodyParser.json());
 app.get('/api/agent-card', (req, res) => {
     res.json({
         id: "nexus-mer-01",
-        name: "Nexus OTC Merchant",
-        description: "Standard OTC Merchant providing crypto purchase services via NexusPay.",
-        version: "1.0.0",
+        name: "Nexus Multi-Merchant OTC",
+        description: "Simulated multi-merchant platform for ETH and BTC purchases via NexusPay.",
+        version: "1.1.0",
         capabilities: ["crypto_purchase", "ucp_payment"],
         endpoints: {
             payment: "http://localhost:3002/api/confirm",
@@ -22,10 +22,16 @@ app.get('/api/agent-card', (req, res) => {
         },
         flows: [
             {
-                name: "buyAsset",
-                description: "Purchase crypto assets with USD/USDC",
+                name: "merchant_eth/buy",
+                description: "Purchase ETH from Nexus ETH Shop",
                 inputSchema: {
-                    symbol: "string",
+                    amount: "number"
+                }
+            },
+            {
+                name: "merchant_btc/buy",
+                description: "Purchase BTC from Nexus BTC Store",
+                inputSchema: {
                     amount: "number"
                 }
             }
@@ -33,12 +39,22 @@ app.get('/api/agent-card', (req, res) => {
     });
 });
 
-app.post('/api/buy', async (req, res) => {
+app.post('/api/buy-eth', async (req, res) => {
     try {
-        const result = await buyAsset(req.body);
+        const result = await buyETH(req.body);
         res.json(result);
     } catch (error: any) {
-        console.error('Error in buyAsset:', error);
+        console.error('Error in buyETH:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/buy-btc', async (req, res) => {
+    try {
+        const result = await buyBTC(req.body);
+        res.json(result);
+    } catch (error: any) {
+        console.error('Error in buyBTC:', error);
         res.status(500).json({ error: error.message });
     }
 });

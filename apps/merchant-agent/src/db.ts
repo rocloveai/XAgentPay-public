@@ -15,6 +15,7 @@ export interface Order {
     unitPrice: number;
     totalPriceUSD: number;
     status: 'PENDING_PAYMENT' | 'PAID';
+    merchant_name: string;
     createdAt: string;
     iso2022Data?: any;
     protocol_trace: {

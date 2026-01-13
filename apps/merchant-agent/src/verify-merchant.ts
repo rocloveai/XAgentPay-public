@@ -1,20 +1,19 @@
-import { buyAsset, getOrders, confirmPayment } from './index.js';
+import { buyETH, getOrders, confirmPayment } from './index.js';
 
 async function verify() {
-    console.log('--- Merchant Agent Verification (V1 + Persistence) ---');
+    console.log('--- Merchant Agent Verification (Multi-Merchant: ETH Shop) ---');
 
     const input = {
-        symbol: 'ethereum',
         amount: 0.1,
     };
 
     try {
-        console.log('1. Checking Initial Orders (should be empty)...');
+        console.log('1. Checking Initial Orders...');
         const initialOrders: any = await getOrders();
         console.log('Orders:', initialOrders.length);
 
-        console.log('\n2. Running buyAsset...');
-        const result: any = await buyAsset(input);
+        console.log('\n2. Running buyETH...');
+        const result: any = await buyETH(input);
         console.log('Buy Result:', result.status, result.orderId);
         console.log('Formatted Cost:', result.formattedTotal);
 
@@ -25,6 +24,7 @@ async function verify() {
         const latestOrder = updatedOrders.find((o: any) => o.id === result.orderId);
         if (!latestOrder) throw new Error("New order not found in DB");
         console.log('Latest Order Status:', latestOrder.status);
+        console.log('Merchant Name:', latestOrder.merchant_name);
 
         console.log('\n4. Confirming Payment...');
         if (!result.orderId) throw new Error("No Order ID returned");

@@ -17,7 +17,7 @@ const createPaymentActionFlow = definePaymentAction(ai, {
  * Generates ISO 20022 compliant JSON data for the order.
  * Follows a simplified pain.001 structure.
  */
-function generateISO20022Data(orderId: string, symbol: string, amount: number, priceUSD: number, signature?: string) {
+function generateISO20022Data(orderId: string, symbol: string, amount: number, priceUSD: number, merchantName: string, signature?: string) {
     const now = new Date().toISOString();
     const totalUSD = (priceUSD * amount).toFixed(2);
 
@@ -41,7 +41,7 @@ function generateISO20022Data(orderId: string, symbol: string, amount: number, p
                         Nm: "Customer"
                     },
                     Cdtr: {
-                        Nm: "Nexus OTC Merchant"
+                        Nm: merchantName
                     },
                     CdtTrfTxInf: {
                         PmtId: {
@@ -82,86 +82,113 @@ const BuyAssetOutputSchema = z.object({
     payment_actions: z.array(z.any()),
 });
 
-export const buyAsset = ai.defineFlow(
+async function processCryptoPurchase(input: { symbol: string, amount: number, merchantName: string, merchantDid: string }) {
+    console.log(`Fetching price for ${input.symbol} for ${input.merchantName}...`);
+
+    // 1. Fetch real-time price from CoinGecko
+    const response = await fetch(
+        `https://api.coingecko.com/api/v3/simple/price?ids=${input.symbol}&vs_currencies=usd`
+    );
+
+    if (!response.ok) {
+        throw new Error(`Failed to fetch price: ${response.statusText}`);
+    }
+
+    const data: any = await response.json();
+    if (!data[input.symbol] || !data[input.symbol].usd) {
+        throw new Error(`Symbol ${input.symbol} not found or no USD price.`);
+    }
+
+    const price = data[input.symbol].usd;
+    console.log(`Price of ${input.symbol}: $${price}`);
+
+    // 2. Calculate Total
+    const totalUSD = price * input.amount;
+    const usdcAmount = Math.round(totalUSD * 1000000).toString();
+
+    const orderId = `OTC-${input.symbol.toUpperCase()}-${Date.now()}`;
+
+    // 3. Call Nexus Payment Flow
+    const paymentIntent: PaymentIntent = {
+        amount: usdcAmount,
+        currency: 'USDC',
+        merchantDid: input.merchantDid,
+        orderId: orderId,
+        expiry: Math.floor(Date.now() / 1000) + 3600,
+    };
+
+    // Call the flow directly
+    const paymentResult = await createPaymentActionFlow(paymentIntent);
+
+    // 4. Persist Order
+    const newOrder = {
+        id: orderId,
+        symbol: input.symbol,
+        amount: input.amount,
+        unitPrice: price,
+        totalPriceUSD: totalUSD,
+        status: 'PENDING_PAYMENT' as const,
+        merchant_name: input.merchantName,
+        createdAt: new Date().toISOString(),
+        iso2022Data: generateISO20022Data(orderId, input.symbol, input.amount, price, input.merchantName, paymentResult.actionPayload.data.signature),
+        protocol_trace: {
+            ucp_payload: paymentResult.actionPayload,
+            nexus_signature: paymentResult.actionPayload.data.signature,
+            merchant_did: paymentResult.actionPayload.data.merchant_did,
+            timestamp: Date.now(),
+        }
+    };
+
+    const currentOrders = getOrdersDB();
+    currentOrders.push(newOrder);
+    saveOrdersDB(currentOrders);
+
+    console.log(`Order created: ${orderId} by ${input.merchantName}`);
+
+    // 5. Return Result
+    return {
+        status: 'PENDING_PAYMENT',
+        description: `Buying ${input.amount} ${input.symbol.toUpperCase()} at $${price}/unit from ${input.merchantName}`,
+        formattedTotal: `$${totalUSD.toFixed(2)}`,
+        orderId: orderId,
+        card: paymentResult,
+        payment_actions: [paymentResult.actionPayload],
+    };
+}
+
+export const buyETH = ai.defineFlow(
     {
-        name: 'buyAsset',
+        name: 'merchant_eth/buy',
         inputSchema: z.object({
-            symbol: z.string(),
             amount: z.number(),
         }),
         outputSchema: BuyAssetOutputSchema,
     },
     async (input) => {
-        console.log(`Fetching price for ${input.symbol}...`);
-
-        // 1. Fetch real-time price from CoinGecko
-        const response = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${input.symbol}&vs_currencies=usd`
-        );
-
-        if (!response.ok) {
-            throw new Error(`Failed to fetch price: ${response.statusText}`);
-        }
-
-        const data: any = await response.json();
-        if (!data[input.symbol] || !data[input.symbol].usd) {
-            throw new Error(`Symbol ${input.symbol} not found or no USD price.`);
-        }
-
-        const price = data[input.symbol].usd;
-        console.log(`Price of ${input.symbol}: $${price}`);
-
-        // 2. Calculate Total
-        const totalUSD = price * input.amount;
-        const usdcAmount = Math.round(totalUSD * 1000000).toString();
-
-        const orderId = `OTC-${input.symbol}-${Date.now()}`;
-
-        // 3. Call Nexus Payment Flow
-        const paymentIntent: PaymentIntent = {
-            amount: usdcAmount,
-            currency: 'USDC',
-            merchantDid: 'did:platon:nexus_otc',
-            orderId: orderId,
-            expiry: Math.floor(Date.now() / 1000) + 3600,
-        };
-
-        // Call the flow directly
-        const paymentResult = await createPaymentActionFlow(paymentIntent);
-
-        // 4. Persist Order
-        const newOrder = {
-            id: orderId,
-            symbol: input.symbol,
+        return processCryptoPurchase({
+            symbol: 'ethereum',
             amount: input.amount,
-            unitPrice: price,
-            totalPriceUSD: totalUSD,
-            status: 'PENDING_PAYMENT' as const,
-            createdAt: new Date().toISOString(),
-            iso2022Data: generateISO20022Data(orderId, input.symbol, input.amount, price, paymentResult.actionPayload.data.signature),
-            protocol_trace: {
-                ucp_payload: paymentResult.actionPayload,
-                nexus_signature: paymentResult.actionPayload.data.signature,
-                merchant_did: paymentResult.actionPayload.data.merchant_did,
-                timestamp: Date.now(),
-            }
-        };
+            merchantName: 'Nexus ETH Shop',
+            merchantDid: 'did:platon:merchant_eth_001'
+        });
+    }
+);
 
-        const currentOrders = getOrdersDB();
-        currentOrders.push(newOrder);
-        saveOrdersDB(currentOrders);
-
-        console.log(`Order created: ${orderId}`);
-
-        // 5. Return Result
-        return {
-            status: 'PENDING_PAYMENT',
-            description: `Buying ${input.amount} ${input.symbol} at $${price}/unit`,
-            formattedTotal: `$${totalUSD.toFixed(2)}`,
-            orderId: orderId,
-            card: paymentResult,
-            payment_actions: [paymentResult.actionPayload],
-        };
+export const buyBTC = ai.defineFlow(
+    {
+        name: 'merchant_btc/buy',
+        inputSchema: z.object({
+            amount: z.number(),
+        }),
+        outputSchema: BuyAssetOutputSchema,
+    },
+    async (input) => {
+        return processCryptoPurchase({
+            symbol: 'bitcoin',
+            amount: input.amount,
+            merchantName: 'Nexus BTC Store',
+            merchantDid: 'did:platon:merchant_btc_002'
+        });
     }
 );
 
