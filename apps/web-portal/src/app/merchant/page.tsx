@@ -78,7 +78,7 @@ export default function MerchantPage() {
                                                 ? 'bg-indigo-900/40 text-indigo-400 border-indigo-800'
                                                 : 'bg-orange-900/40 text-orange-400 border-orange-800'
                                                 }`}>
-                                                {order.merchant_name || 'Legacy'}
+                                                {order.merchant_name || 'Legacy (v2)'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 font-mono text-sm text-gray-500 truncate max-w-[150px]" title={order.id}>

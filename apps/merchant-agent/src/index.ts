@@ -144,6 +144,9 @@ async function processCryptoPurchase(input: { symbol: string, amount: number, me
     currentOrders.push(newOrder);
     saveOrdersDB(currentOrders);
 
+    console.log(`[DB] Order saved with merchant_name: ${newOrder.merchant_name}`);
+    console.log(`[DB] Current order count: ${currentOrders.length}`);
+
     console.log(`Order created: ${orderId} by ${input.merchantName}`);
 
     // 5. Return Result
@@ -200,7 +203,9 @@ export const getOrders = ai.defineFlow(
         outputSchema: z.array(z.any()),
     },
     async () => {
-        return getOrdersDB();
+        const orders = getOrdersDB();
+        console.log(`[API] getOrders called, returning ${orders.length} orders. Sample merchant_name: ${orders[0]?.merchant_name}`);
+        return orders;
     }
 );
 
