@@ -12,7 +12,7 @@
         "zod": "^3.23.0"
     },
     "scripts": {
-        "build": "tsc",
+        "build": "npm run build -w @nexuspay/core && tsc",
         "verify": "tsc && node dist/verify-user.js",
         "serve": "tsc && node dist/server.js",
         "start": "node dist/server.js"
