@@ -15,7 +15,8 @@
     "scripts": {
         "build": "tsc",
         "verify": "tsc && node dist/verify-user.js",
-        "serve": "tsc && node dist/server.js"
+        "serve": "tsc && node dist/server.js",
+        "start": "node dist/server.js"
     },
     "devDependencies": {
         "@types/body-parser": "^1.19.6",

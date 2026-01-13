@@ -7,7 +7,8 @@
     "scripts": {
         "build": "tsc",
         "verify": "tsc && node dist/verify-merchant.js",
-        "serve": "tsc && node dist/server.js"
+        "serve": "tsc && node dist/server.js",
+        "start": "node dist/server.js"
     },
     "dependencies": {
         "@nexuspay/core": "*",
