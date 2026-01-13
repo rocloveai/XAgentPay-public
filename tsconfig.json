@@ -17,7 +17,13 @@
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
-        "outDir": "dist"
+        "outDir": "dist",
+        "baseUrl": ".",
+        "paths": {
+            "@nexuspay/core": [
+                "packages/nexuspay-core/src/index.ts"
+            ]
+        }
     },
     "exclude": [
         "node_modules",
