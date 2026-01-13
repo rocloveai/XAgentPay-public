@@ -5,6 +5,7 @@ export const PaymentIntentSchema = z.object({
     amount: z.string(),
     currency: z.string(),
     merchantDid: z.string(),
+    merchantName: z.string().optional(),
     orderId: z.string(),
     expiry: z.number().optional(),
 });
@@ -99,7 +100,7 @@ export function definePaymentAction(ai: any, options: NexusPayOptions) {
             return {
                 kind: 'nexus_pay_card' as const,
                 title: `Order ${input.orderId}`,
-                merchantName: options.merchantName || "Nexus Merchant",
+                merchantName: input.merchantName || options.merchantName || "Nexus Merchant",
                 amountDisplay: `${(parseInt(input.amount) / 1000000).toFixed(2)} ${input.currency}`,
                 status: 'PENDING' as const,
                 actionPayload: actionPayload,

@@ -113,6 +113,7 @@ async function processCryptoPurchase(input: { symbol: string, amount: number, me
         amount: usdcAmount,
         currency: 'USDC',
         merchantDid: input.merchantDid,
+        merchantName: input.merchantName,
         orderId: orderId,
         expiry: Math.floor(Date.now() / 1000) + 3600,
     };
