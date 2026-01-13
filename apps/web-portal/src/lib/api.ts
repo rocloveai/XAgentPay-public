@@ -22,6 +22,7 @@ export interface Order {
     unitPrice: number;
     totalPriceUSD: number;
     status: string;
+    merchant_name?: string;
     createdAt: string;
     iso2022Data?: any;
     protocol_trace?: {

@@ -53,6 +53,7 @@ export default function MerchantPage() {
                     <table className="w-full text-left">
                         <thead className="bg-gray-950 text-gray-400 uppercase text-xs tracking-wider">
                             <tr>
+                                <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[10px] text-gray-500">Merchant</th>
                                 <th className="px-6 py-4 font-semibold">Order ID</th>
                                 <th className="px-6 py-4 font-semibold">Asset</th>
                                 <th className="px-6 py-4 font-semibold">Amount</th>
@@ -64,7 +65,7 @@ export default function MerchantPage() {
                         <tbody className="divide-y divide-gray-800">
                             {orders.length === 0 && (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">
+                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500 italic">
                                         No orders found. Use the Chat Interface to create one.
                                     </td>
                                 </tr>
@@ -72,6 +73,14 @@ export default function MerchantPage() {
                             {orders.map((order) => (
                                 <React.Fragment key={order.id}>
                                     <tr className="hover:bg-gray-800/50 transition-colors cursor-pointer" onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}>
+                                        <td className="px-6 py-4">
+                                            <span className={`text-[10px] font-bold px-2 py-1 rounded border ${order.merchant_name?.includes('ETH')
+                                                ? 'bg-indigo-900/40 text-indigo-400 border-indigo-800'
+                                                : 'bg-orange-900/40 text-orange-400 border-orange-800'
+                                                }`}>
+                                                {order.merchant_name || 'Legacy'}
+                                            </span>
+                                        </td>
                                         <td className="px-6 py-4 font-mono text-sm text-gray-500 truncate max-w-[150px]" title={order.id}>
                                             <span className="text-indigo-500 mr-2">{expandedOrder === order.id ? '▼' : '▶'}</span>
                                             {order.id.split('-').slice(2).join('-')}...
@@ -101,7 +110,7 @@ export default function MerchantPage() {
                                     </tr>
                                     {expandedOrder === order.id && (
                                         <tr className="bg-gray-950/50">
-                                            <td colSpan={6} className="px-6 py-6 border-l-2 border-indigo-500">
+                                            <td colSpan={7} className="px-6 py-6 border-l-2 border-indigo-500">
                                                 <div className="space-y-4">
                                                     <div className="flex justify-between items-center">
                                                         <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-widest">ISO 20022 Data Details</h3>

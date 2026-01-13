@@ -70,8 +70,8 @@ export default function ExplorerPage() {
                         <button
                             onClick={() => setIsPolling(!isPolling)}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${isPolling
-                                    ? 'bg-green-500/10 text-green-400 border-green-500/20'
-                                    : 'bg-slate-800 text-slate-400 border-white/5'
+                                ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                                : 'bg-slate-800 text-slate-400 border-white/5'
                                 }`}
                         >
                             <RefreshCw className={`w-3 h-3 ${isPolling ? 'animate-spin' : ''}`} />
@@ -233,6 +233,13 @@ export default function ExplorerPage() {
                                     </div>
                                     <div className="flex-1 space-y-6">
                                         <div className="grid grid-cols-1 gap-4">
+                                            <div className="bg-black/40 rounded-xl p-4 border border-white/5">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Database className="w-3 h-3 text-indigo-400" />
+                                                    <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Simulated Merchant</span>
+                                                </div>
+                                                <p className="text-sm font-bold text-white">{selectedTransaction.merchant_name || 'Generic OTC'}</p>
+                                            </div>
                                             <div className="bg-black/40 rounded-xl p-4 border border-white/5">
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <Database className="w-3 h-3 text-indigo-400" />
