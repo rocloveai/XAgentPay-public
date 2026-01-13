@@ -1,6 +1,6 @@
 import { genkit, z } from 'genkit';
 import { definePaymentAction, PaymentIntent } from '@nexuspay/core';
-import { getOrdersDB, saveOrdersDB } from './db';
+import { getOrdersDB, saveOrdersDB } from './db.js';
 
 // Initialize Genkit
 const ai = genkit({

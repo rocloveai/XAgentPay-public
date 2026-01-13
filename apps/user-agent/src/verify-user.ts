@@ -1,4 +1,4 @@
-import { shoppingAssistant } from './index';
+import { shoppingAssistant } from './index.js';
 
 async function verify() {
     console.log('--- User Agent Verification ---');

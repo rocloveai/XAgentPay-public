@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { shoppingAssistant } from './index';
+import { shoppingAssistant } from './index.js';
 
 const app = express();
 const PORT = 3001;

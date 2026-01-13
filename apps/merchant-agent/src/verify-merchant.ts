@@ -1,4 +1,4 @@
-import { buyAsset, getOrders, confirmPayment } from './index';
+import { buyAsset, getOrders, confirmPayment } from './index.js';
 
 async function verify() {
     console.log('--- Merchant Agent Verification (V1 + Persistence) ---');

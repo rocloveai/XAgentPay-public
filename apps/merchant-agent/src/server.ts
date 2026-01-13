@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { getOrders, confirmPayment, getOrderStatus, buyAsset } from './index';
+import { getOrders, confirmPayment, getOrderStatus, buyAsset } from './index.js';
 
 const app = express();
 const PORT = 3002;
