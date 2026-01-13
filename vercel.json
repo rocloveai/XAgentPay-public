@@ -1,9 +1,0 @@
-{
-    "version": 2,
-    "public": true,
-    "cleanUrls": true,
-    "framework": "nextjs",
-    "buildCommand": "npm run build --workspace=web-portal",
-    "installCommand": "npm install",
-    "outputDirectory": "apps/web-portal/.next"
-}
