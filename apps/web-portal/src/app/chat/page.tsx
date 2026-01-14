@@ -3,12 +3,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { api, ChatResponse } from '@/lib/api';
 import { PaymentCard } from '@/components/PaymentCard';
+import { BatchCard } from '@/components/BatchCard';
 
 interface Message {
     id: string;
     sender: 'user' | 'bot';
     text: string;
     data?: ChatResponse['payment'];
+    batchCard?: any;
 }
 
 export default function ChatPage() {
@@ -37,11 +39,12 @@ export default function ChatPage() {
                 id: (Date.now() + 1).toString(),
                 sender: 'bot',
                 text: res.text,
-                data: res.payment
+                data: res.payment,
+                batchCard: res.batchCard
             };
             setMessages(prev => [...prev, botMsg]);
         } catch (error) {
-            setMessages(prev => [...prev, { id: 'err', sender: 'bot', text: 'Sorry, I encountered an error connecting to the agent.' }]);
+            setMessages(prev => [...prev, { id: `err-${Date.now()}`, sender: 'bot', text: 'Sorry, I encountered an error connecting to the agent.' }]);
         } finally {
             setLoading(false);
         }
@@ -64,15 +67,21 @@ export default function ChatPage() {
                 {messages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl ${msg.sender === 'user'
-                                ? 'bg-gradient-to-br from-indigo-600 to-purple-700 text-white rounded-br-sm shadow-lg'
-                                : 'bg-gray-800/80 border border-gray-700 rounded-bl-sm text-gray-200'
+                            ? 'bg-gradient-to-br from-indigo-600 to-purple-700 text-white rounded-br-sm shadow-lg'
+                            : 'bg-gray-800/80 border border-gray-700 rounded-bl-sm text-gray-200'
                             }`}>
                             <div className="whitespace-pre-wrap leading-relaxed">{msg.text}</div>
 
                             {/* Payment Card Render */}
-                            {msg.data && (
+                            {msg.data && !msg.batchCard && (
                                 <div className="mt-2">
                                     <PaymentCard data={msg.data} />
+                                </div>
+                            )}
+
+                            {msg.batchCard && (
+                                <div className="mt-2">
+                                    <BatchCard batch={msg.batchCard} />
                                 </div>
                             )}
                         </div>

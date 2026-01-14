@@ -13,6 +13,22 @@ export interface PaymentData {
 export interface ChatResponse {
     text: string;
     payment?: PaymentData;
+    paymentDetails?: any;
+    batchCard?: any;
+}
+
+export interface Batch {
+    id: string;
+    integrity_signature: string;
+    order_ids: string[];
+    total_amount: string;
+    sub_orders: Array<{
+        merchant_did: string;
+        order_id: string;
+        amount: string;
+        merchant_name?: string;
+    }>;
+    createdAt: string;
 }
 
 export interface Order {
@@ -23,6 +39,7 @@ export interface Order {
     totalPriceUSD: number;
     status: string;
     merchant_name?: string;
+    parent_batch_id?: string; // LINK
     createdAt: string;
     iso2022Data?: any;
     protocol_trace?: {
@@ -47,6 +64,12 @@ export const api = {
     getOrders: async (): Promise<Order[]> => {
         const res = await fetch(`${MERCHANT_AGENT_API}/orders`);
         if (!res.ok) throw new Error('Failed to fetch orders');
+        return res.json();
+    },
+
+    getBatches: async (): Promise<Batch[]> => {
+        const res = await fetch(`${MERCHANT_AGENT_API}/batches`);
+        if (!res.ok) throw new Error('Failed to fetch batches');
         return res.json();
     },
 

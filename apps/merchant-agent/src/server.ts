@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import bodyParser from 'body-parser';
-import { getOrders, confirmPayment, getOrderStatus, buyETH, buyBTC } from './index.js';
+import { getOrders, confirmPayment, getOrderStatus, buyETH, buyBTC, registerBatch, getBatches } from './index.js';
 
 const app = express();
 const PORT = 3002;
@@ -55,6 +55,26 @@ app.post('/api/buy-btc', async (req, res) => {
         res.json(result);
     } catch (error: any) {
         console.error('Error in buyBTC:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/api/register-batch', async (req, res) => {
+    try {
+        const result = await registerBatch(req.body);
+        res.json(result);
+    } catch (error: any) {
+        console.error('Error in registerBatch:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.get('/api/batches', async (req, res) => {
+    try {
+        const result = await getBatches();
+        res.json(result);
+    } catch (error: any) {
+        console.error('Error fetching batches:', error);
         res.status(500).json({ error: error.message });
     }
 });

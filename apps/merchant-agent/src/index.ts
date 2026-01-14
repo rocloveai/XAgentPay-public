@@ -1,6 +1,6 @@
 import { genkit, z } from 'genkit';
 import { definePaymentAction, PaymentIntent } from '@nexuspay/core';
-import { getOrdersDB, saveOrdersDB } from './db.js';
+import { getOrdersDB, saveOrdersDB, getBatchesDB, saveBatchesDB, Batch } from './db.js';
 
 // Initialize Genkit
 const ai = genkit({
@@ -85,22 +85,28 @@ const BuyAssetOutputSchema = z.object({
 async function processCryptoPurchase(input: { symbol: string, amount: number, merchantName: string, merchantDid: string }) {
     console.log(`Fetching price for ${input.symbol} for ${input.merchantName}...`);
 
-    // 1. Fetch real-time price from CoinGecko
-    const response = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${input.symbol}&vs_currencies=usd`
-    );
+    let price = input.symbol === 'ethereum' ? 3300 : 95000;
 
-    if (!response.ok) {
-        throw new Error(`Failed to fetch price: ${response.statusText}`);
+    try {
+        // 1. Fetch real-time price from CoinGecko
+        const response = await fetch(
+            `https://api.coingecko.com/api/v3/simple/price?ids=${input.symbol}&vs_currencies=usd`
+        );
+
+        if (response.ok) {
+            const data: any = await response.json();
+            console.log(`[Merchant] CoinGecko response:`, JSON.stringify(data));
+            if (data[input.symbol] && data[input.symbol].usd) {
+                price = data[input.symbol].usd;
+            }
+        } else {
+            console.warn(`[Merchant] Price fetch failed (${response.statusText}), using fallback.`);
+        }
+    } catch (err) {
+        console.error(`[Merchant] Error fetching price, using fallback:`, err);
     }
 
-    const data: any = await response.json();
-    if (!data[input.symbol] || !data[input.symbol].usd) {
-        throw new Error(`Symbol ${input.symbol} not found or no USD price.`);
-    }
-
-    const price = data[input.symbol].usd;
-    console.log(`Price of ${input.symbol}: $${price}`);
+    console.log(`[Merchant] Final price for ${input.symbol}: $${price}`);
 
     // 2. Calculate Total
     const totalUSD = price * input.amount;
@@ -116,6 +122,8 @@ async function processCryptoPurchase(input: { symbol: string, amount: number, me
         merchantName: input.merchantName,
         orderId: orderId,
         expiry: Math.floor(Date.now() / 1000) + 3600,
+        tokenAmount: input.amount,
+        tokenSymbol: input.symbol,
     };
 
     // Call the flow directly
@@ -237,5 +245,49 @@ export const getOrderStatus = ai.defineFlow(
         const orders = getOrdersDB();
         const order = orders.find(o => o.id === orderId);
         return order ? { status: order.status } : undefined;
+    }
+);
+
+export const registerBatch = ai.defineFlow(
+    {
+        name: 'merchant/registerBatch',
+        inputSchema: z.object({
+            id: z.string(),
+            integrity_signature: z.string(),
+            order_ids: z.array(z.string()),
+            total_amount: z.string(),
+            sub_orders: z.array(z.any()), // Capture semantic metadata
+        }),
+        outputSchema: z.any(),
+    },
+    async (input: any) => {
+        console.log(`[Flow] Registering batch ${input.id}...`);
+        const batches = getBatchesDB();
+        const newBatch: Batch = {
+            ...input,
+            createdAt: new Date().toISOString()
+        };
+        batches.push(newBatch);
+        saveBatchesDB(batches);
+
+        // Link orders
+        const orders = getOrdersDB();
+        input.order_ids.forEach((oid: string) => {
+            const order = orders.find(o => o.id === oid);
+            if (order) order.parent_batch_id = input.id;
+        });
+        saveOrdersDB(orders);
+        return { success: true, batch: newBatch };
+    }
+);
+
+export const getBatches = ai.defineFlow(
+    {
+        name: 'merchant/getBatches',
+        inputSchema: z.void().optional(),
+        outputSchema: z.array(z.any()),
+    },
+    async () => {
+        return getBatchesDB();
     }
 );

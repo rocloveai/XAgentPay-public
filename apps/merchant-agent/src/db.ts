@@ -2,11 +2,11 @@ import fs from 'fs';
 import path from 'path';
 
 const DB_FILE = '/tmp/nexus_orders.json';
+const BATCH_DB_FILE = '/tmp/nexus_batches.json';
 
-// Ensure DB file exists
-if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify([]));
-}
+// Ensure DB files exist
+if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify([]));
+if (!fs.existsSync(BATCH_DB_FILE)) fs.writeFileSync(BATCH_DB_FILE, JSON.stringify([]));
 
 export interface Order {
     id: string;
@@ -17,13 +17,23 @@ export interface Order {
     status: 'PENDING_PAYMENT' | 'PAID';
     merchant_name: string;
     createdAt: string;
+    parent_batch_id?: string; // LINK TO BATCH
     iso2022Data?: any;
     protocol_trace: {
-        ucp_payload: any; // The full payment_action object
+        ucp_payload: any;
         nexus_signature: string;
         merchant_did: string;
         timestamp: number;
     };
+}
+
+export interface Batch {
+    id: string;
+    integrity_signature: string;
+    order_ids: string[];
+    total_amount: string;
+    sub_orders: any[]; // NEW: Semantic breakdown
+    createdAt: string;
 }
 
 export const getOrdersDB = (): Order[] => {
@@ -39,8 +49,15 @@ export const saveOrdersDB = (orders: Order[]) => {
     fs.writeFileSync(DB_FILE, JSON.stringify(orders, null, 2));
 };
 
-// Proxy array to simulate the previous in-memory API if needed, 
-// but it's better to expose functions.
-export const orders: any[] = getOrdersDB();
-// Warning: This export is only a snapshot at startup if used directly.
-// We must refactor index.ts to use getOrdersDB() and saveOrdersDB().
+export const getBatchesDB = (): Batch[] => {
+    try {
+        const data = fs.readFileSync(BATCH_DB_FILE, 'utf-8');
+        return JSON.parse(data);
+    } catch (e) {
+        return [];
+    }
+};
+
+export const saveBatchesDB = (batches: Batch[]) => {
+    fs.writeFileSync(BATCH_DB_FILE, JSON.stringify(batches, null, 2));
+};

@@ -8,6 +8,8 @@ export const PaymentIntentSchema = z.object({
     merchantName: z.string().optional(),
     orderId: z.string(),
     expiry: z.number().optional(),
+    tokenAmount: z.number().optional(),
+    tokenSymbol: z.string().optional(),
 });
 
 export const NexusPaymentActionSchema = z.object({
@@ -19,6 +21,8 @@ export const NexusPaymentActionSchema = z.object({
         amount: z.string(),
         reference_id: z.string(),
         signature: z.string(),
+        token_amount: z.number().optional(),
+        token_symbol: z.string().optional(),
     }).passthrough(),
 });
 
@@ -31,6 +35,38 @@ export const NexusCardSchema = z.object({
     // The underlying protocol data (hidden from UI, used for logic)
     actionPayload: NexusPaymentActionSchema,
 });
+
+export const BatchInputSchema = z.object({
+    items: z.array(NexusPaymentActionSchema),
+    merchantNames: z.array(z.string()).optional(), // Helper for semantic metadata
+    payerAddress: z.string().optional()
+});
+
+export const NexusBatchActionSchema = z.object({
+    type: z.literal('urn:ucp:payment:nexus_batch_v1'),
+    description: z.string(),
+    data: z.object({
+        chain_id: z.number(),
+        contract_address: z.string(),
+        currency_contract: z.string(),
+        total_amount: z.string(),
+        recipients: z.array(z.string()),
+        amounts: z.array(z.string()),
+        reference_ids: z.array(z.string()),
+        // SEMANTIC SUB-ORDERS FOR AUTO-SPLITTING
+        sub_orders: z.array(z.object({
+            merchant_did: z.string(),
+            order_id: z.string(),
+            amount: z.string(),
+            merchant_name: z.string().optional(),
+            token_amount: z.number().optional(),
+            token_symbol: z.string().optional(),
+        })),
+        integrity_signature: z.string(),
+    })
+});
+
+export { aggregate } from './aggregator.js';
 
 export const NexusAgentManifestSchema = z.object({
     id: z.string(),
@@ -94,6 +130,8 @@ export function definePaymentAction(ai: any, options: NexusPayOptions) {
                     amount: input.amount,
                     reference_id: input.orderId,
                     signature: signature,
+                    token_amount: input.tokenAmount,
+                    token_symbol: input.tokenSymbol,
                 },
             };
 
@@ -107,4 +145,32 @@ export function definePaymentAction(ai: any, options: NexusPayOptions) {
             };
         }
     );
+}
+
+/**
+ * Helper to define the Batch Orchestration flow.
+ */
+export function defineBatchPaymentAction(ai: any) {
+    return ai.defineFlow(
+        {
+            name: 'nexus/orchestrateBatch',
+            inputSchema: BatchInputSchema,
+            outputSchema: NexusBatchActionSchema,
+        },
+        async (input: any) => {
+            const { aggregate } = await import('./aggregator.js');
+            return aggregate(input.items, input.merchantNames);
+        }
+    );
+}
+
+/**
+ * Main Plugin to register all NexusPay related flows.
+ */
+export function nexusPayPlugin(ai: any, options: NexusPayOptions) {
+    // 1. Single Payment Action (existing)
+    definePaymentAction(ai, options);
+
+    // 2. Batch Orchestration
+    defineBatchPaymentAction(ai);
 }

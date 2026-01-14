@@ -32,3 +32,6 @@ yarn-error.log*
 /tmp
 *.png
 !apps/web-portal/public/bg-hero.png
+temp-mcp/
+list_models.js
+apps/user-agent/src/test-chat.ts

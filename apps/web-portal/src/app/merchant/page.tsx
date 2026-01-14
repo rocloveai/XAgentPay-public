@@ -7,6 +7,7 @@ export default function MerchantPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(false);
     const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+    const [selectedMerchant, setSelectedMerchant] = useState<string>('All');
 
     const fetchOrders = async () => {
         try {
@@ -35,17 +36,34 @@ export default function MerchantPage() {
         }
     };
 
+    const uniqueMerchants = ['All', ...Array.from(new Set(orders.map(o => o.merchant_name || 'Legacy (v2)')))];
+
+    const filteredOrders = selectedMerchant === 'All'
+        ? orders
+        : orders.filter(o => (o.merchant_name || 'Legacy (v2)') === selectedMerchant);
+
     return (
         <div className="min-h-screen bg-black text-gray-200 p-8 font-sans">
             <div className="max-w-6xl mx-auto">
                 <div className="flex justify-between items-center mb-8 border-b border-gray-800 pb-6">
                     <h1 className="text-3xl font-bold text-white tracking-tight">Merchant Dashboard</h1>
-                    <div className="text-sm text-gray-500 flex items-center gap-2">
-                        <span className="relative flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-600"></span>
-                        </span>
-                        Live Updates
+                    <div className="flex items-center gap-6">
+                        <select
+                            value={selectedMerchant}
+                            onChange={(e) => setSelectedMerchant(e.target.value)}
+                            className="bg-gray-900 border border-gray-800 text-gray-300 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-48 p-2.5"
+                        >
+                            {uniqueMerchants.map(m => (
+                                <option key={m} value={m}>{m}</option>
+                            ))}
+                        </select>
+                        <div className="text-sm text-gray-500 flex items-center gap-2">
+                            <span className="relative flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-500 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-600"></span>
+                            </span>
+                            Live Updates
+                        </div>
                     </div>
                 </div>
 
@@ -53,7 +71,6 @@ export default function MerchantPage() {
                     <table className="w-full text-left">
                         <thead className="bg-gray-950 text-gray-400 uppercase text-xs tracking-wider">
                             <tr>
-                                <th className="px-6 py-4 font-semibold uppercase tracking-wider text-[10px] text-gray-500">Merchant</th>
                                 <th className="px-6 py-4 font-semibold">Order ID</th>
                                 <th className="px-6 py-4 font-semibold">Asset</th>
                                 <th className="px-6 py-4 font-semibold">Amount</th>
@@ -63,24 +80,16 @@ export default function MerchantPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-800">
-                            {orders.length === 0 && (
+                            {filteredOrders.length === 0 && (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500 italic">
-                                        No orders found. Use the Chat Interface to create one.
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500 italic">
+                                        No orders found for the selected merchant.
                                     </td>
                                 </tr>
                             )}
-                            {orders.map((order) => (
+                            {filteredOrders.map((order) => (
                                 <React.Fragment key={order.id}>
                                     <tr className="hover:bg-gray-800/50 transition-colors cursor-pointer" onClick={() => setExpandedOrder(expandedOrder === order.id ? null : order.id)}>
-                                        <td className="px-6 py-4">
-                                            <span className={`text-[10px] font-bold px-2 py-1 rounded border ${order.merchant_name?.includes('ETH')
-                                                ? 'bg-indigo-900/40 text-indigo-400 border-indigo-800'
-                                                : 'bg-orange-900/40 text-orange-400 border-orange-800'
-                                                }`}>
-                                                {order.merchant_name || 'Legacy (v2)'}
-                                            </span>
-                                        </td>
                                         <td className="px-6 py-4 font-mono text-sm text-gray-500 truncate max-w-[150px]" title={order.id}>
                                             <span className="text-indigo-500 mr-2">{expandedOrder === order.id ? '▼' : '▶'}</span>
                                             {order.id.split('-').slice(2).join('-')}...
@@ -110,7 +119,7 @@ export default function MerchantPage() {
                                     </tr>
                                     {expandedOrder === order.id && (
                                         <tr className="bg-gray-950/50">
-                                            <td colSpan={7} className="px-6 py-6 border-l-2 border-indigo-500">
+                                            <td colSpan={6} className="px-6 py-6 border-l-2 border-indigo-500">
                                                 <div className="space-y-4">
                                                     <div className="flex justify-between items-center">
                                                         <h3 className="text-sm font-bold text-indigo-400 uppercase tracking-widest">ISO 20022 Data Details</h3>

@@ -43,7 +43,8 @@ app.post('/api/chat', async (req, res) => {
 
         res.json({
             text: response.text,
-            payment: paymentData
+            payment: paymentData,
+            batchCard: (response as any).batchCard
         });
     } catch (error: any) {
         console.error('Error processing request:', error);
