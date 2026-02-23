@@ -35,7 +35,7 @@ interface DuffelOfferRequestResponse {
 
 export async function searchFlights(
   params: SearchParams,
-  apiToken: string
+  apiToken: string,
 ): Promise<{ offers: readonly FlightOffer[]; error?: string }> {
   if (!apiToken) {
     return {
@@ -45,34 +45,32 @@ export async function searchFlights(
   }
 
   try {
-    const response = await fetch(
-      "https://api.duffel.com/air/offer_requests",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          "Duffel-Version": "v2",
-          "Content-Type": "application/json",
-          Accept: "application/json",
+    const response = await fetch("https://api.duffel.com/air/offer_requests", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        "Duffel-Version": "v2",
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        data: {
+          slices: [
+            {
+              origin: params.origin,
+              destination: params.destination,
+              departure_date: params.date,
+            },
+          ],
+          passengers: Array.from({ length: params.passengers }, () => ({
+            type: "adult",
+          })),
+          cabin_class: "economy",
+          currency: "USD",
         },
-        body: JSON.stringify({
-          data: {
-            slices: [
-              {
-                origin: params.origin,
-                destination: params.destination,
-                departure_date: params.date,
-              },
-            ],
-            passengers: Array.from({ length: params.passengers }, () => ({
-              type: "adult",
-            })),
-            cabin_class: "economy",
-          },
-        }),
-        signal: AbortSignal.timeout(15_000),
-      }
-    );
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
 
     if (!response.ok) {
       const errorBody = await response.text();
