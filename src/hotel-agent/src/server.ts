@@ -154,6 +154,7 @@ server.tool(
           text:
             `Nexus Payment Quote Generated\n` +
             `Order Ref: ${order.order_ref}\n` +
+            `Amount: ${totalAmount} USDC\n` +
             `Status: ${order.status}\n` +
             `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
             `NUPS Payload:\n${JSON.stringify(quote, null, 2)}`,
@@ -337,7 +338,9 @@ async function startHttpMode() {
   console.error(
     `Hotel Agent MCP Server started (HTTP/SSE mode on port ${config.portalPort})`,
   );
-  console.error(`  SSE endpoint:     http://localhost:${config.portalPort}/sse`);
+  console.error(
+    `  SSE endpoint:     http://localhost:${config.portalPort}/sse`,
+  );
   console.error(
     `  Messages endpoint: http://localhost:${config.portalPort}/messages`,
   );
