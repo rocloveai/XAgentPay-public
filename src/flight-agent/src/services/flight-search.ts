@@ -66,7 +66,6 @@ export async function searchFlights(
             type: "adult",
           })),
           cabin_class: "economy",
-          currency: "USD",
         },
       }),
       signal: AbortSignal.timeout(15_000),
@@ -95,9 +94,31 @@ export async function searchFlights(
   }
 }
 
+// Approximate exchange rates to USD (updated periodically)
+const USD_RATES: Record<string, number> = {
+  USD: 1,
+  AUD: 0.64,
+  EUR: 1.08,
+  GBP: 1.27,
+  CAD: 0.74,
+  SGD: 0.75,
+  JPY: 0.0067,
+  CNY: 0.14,
+  HKD: 0.13,
+  KRW: 0.00074,
+  THB: 0.029,
+};
+
+function toUsd(amount: string, currency: string): string {
+  const rate = USD_RATES[currency];
+  if (!rate) return amount;
+  return (parseFloat(amount) * rate).toFixed(2);
+}
+
 function mapDuffelOffer(offer: DuffelOffer): FlightOffer {
   const firstSlice = offer.slices[0];
   const firstSegment = firstSlice?.segments[0];
+  const isUsd = offer.total_currency === "USD";
 
   return {
     offer_id: offer.id,
@@ -110,8 +131,10 @@ function mapDuffelOffer(offer: DuffelOffer): FlightOffer {
     duration: firstSlice?.duration ?? "N/A",
     cabin_class: offer.cabin_class ?? "economy",
     price: {
-      amount: offer.total_amount,
-      currency: offer.total_currency,
+      amount: isUsd
+        ? offer.total_amount
+        : toUsd(offer.total_amount, offer.total_currency),
+      currency: "USD",
     },
   };
 }
