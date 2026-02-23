@@ -1,6 +1,8 @@
 export interface Config {
   readonly merchantDid: string;
   readonly portalPort: number;
+  readonly amadeusApiKey: string;
+  readonly amadeusApiSecret: string;
 }
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -15,6 +17,8 @@ function parsePort(raw: string | undefined, fallback: number): number {
 export function loadConfig(): Config {
   const merchantDid = process.env.MERCHANT_DID ?? "did:nexus:210425:demo_hotel";
   const portalPort = parsePort(process.env.PORTAL_PORT, 3002);
+  const amadeusApiKey = process.env.AMADEUS_API_KEY ?? "";
+  const amadeusApiSecret = process.env.AMADEUS_API_SECRET ?? "";
 
-  return { merchantDid, portalPort };
+  return { merchantDid, portalPort, amadeusApiKey, amadeusApiSecret };
 }

@@ -1,14 +1,18 @@
+#!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
 import { loadConfig } from "./config.js";
 import { searchFlights } from "./services/flight-search.js";
 import { buildQuote } from "./services/quote-builder.js";
 import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
-import { startPortal } from "./portal.js";
+import { startPortal, registerSseHandler } from "./portal.js";
 import type { FlightOffer } from "./types.js";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 const config = loadConfig();
+const transportMode = process.env.TRANSPORT ?? "stdio";
 
 if (!config.duffelApiToken) {
   console.error(
@@ -261,10 +265,72 @@ server.prompt(
 // ── Start server ──────────────────────────────────────────────────────────────
 
 async function main() {
+  if (transportMode === "http") {
+    await startHttpMode();
+  } else {
+    await startStdioMode();
+  }
+}
+
+async function startStdioMode() {
   startPortal(config);
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Flight Agent MCP Server started");
+  console.error("Flight Agent MCP Server started (stdio mode)");
+}
+
+async function startHttpMode() {
+  const transports = new Map<string, SSEServerTransport>();
+
+  registerSseHandler(
+    async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      url: URL,
+    ): Promise<boolean> => {
+      const path = url.pathname;
+
+      if (path === "/sse" && req.method === "GET") {
+        const transport = new SSEServerTransport("/messages", res);
+        transports.set(transport.sessionId, transport);
+
+        res.on("close", () => {
+          transports.delete(transport.sessionId);
+        });
+
+        await server.connect(transport);
+        return true;
+      }
+
+      if (path === "/messages" && req.method === "POST") {
+        const sessionId = url.searchParams.get("sessionId") ?? "";
+        const transport = transports.get(sessionId);
+
+        if (!transport) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Invalid or missing sessionId" }));
+          return true;
+        }
+
+        await transport.handlePostMessage(req, res);
+        return true;
+      }
+
+      return false;
+    },
+  );
+
+  startPortal(config);
+  console.error(
+    `Flight Agent MCP Server started (HTTP/SSE mode on port ${config.portalPort})`,
+  );
+  console.error(`  SSE endpoint:     http://localhost:${config.portalPort}/sse`);
+  console.error(
+    `  Messages endpoint: http://localhost:${config.portalPort}/messages`,
+  );
+  console.error(
+    `  Skill:            http://localhost:${config.portalPort}/skill.md`,
+  );
 }
 
 main().catch((err) => {

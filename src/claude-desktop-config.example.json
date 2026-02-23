@@ -14,6 +14,21 @@
       "env": {
         "MERCHANT_DID": "did:nexus:210425:demo_hotel"
       }
+    },
+    "flight-agent-npx": {
+      "command": "npx",
+      "args": ["-y", "@nexuspay/flight-agent"],
+      "env": {
+        "DUFFEL_API_TOKEN": "duffel_test_your_token_here",
+        "MERCHANT_DID": "did:nexus:210425:demo_flight"
+      }
+    },
+    "hotel-agent-npx": {
+      "command": "npx",
+      "args": ["-y", "@nexuspay/hotel-agent"],
+      "env": {
+        "MERCHANT_DID": "did:nexus:210425:demo_hotel"
+      }
     }
   }
 }

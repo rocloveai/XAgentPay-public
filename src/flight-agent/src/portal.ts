@@ -1,8 +1,12 @@
 import {
   createServer,
   type IncomingMessage,
+  type Server,
   type ServerResponse,
 } from "node:http";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Config } from "./config.js";
 import { listOrders, getOrder } from "./services/order-store.js";
 import type { Order } from "./types.js";
@@ -10,6 +14,22 @@ import type { Order } from "./types.js";
 const AGENT_NAME = "Nexus Flight Agent";
 const PRIMARY_COLOR = "#2563eb";
 const startedAt = Date.now();
+
+// ── SSE handler registry (injected by server.ts in HTTP mode) ───────────────
+
+type SseHandler = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+) => Promise<boolean>;
+
+let sseHandler: SseHandler | null = null;
+
+export function registerSseHandler(handler: SseHandler): void {
+  sseHandler = handler;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 interface Stats {
   readonly total: number;
@@ -57,8 +77,26 @@ function sendHtml(res: ServerResponse, html: string): void {
   res.end(html);
 }
 
+function sendText(
+  res: ServerResponse,
+  text: string,
+  contentType: string,
+): void {
+  res.writeHead(200, {
+    "Content-Type": contentType,
+    "Access-Control-Allow-Origin": "*",
+  });
+  res.end(text);
+}
+
 function send404(res: ServerResponse): void {
   sendJson(res, 404, { error: "Not found" });
+}
+
+function loadSkillMd(): string {
+  const currentDir = dirname(fileURLToPath(import.meta.url));
+  const skillPath = resolve(currentDir, "..", "skill.md");
+  return readFileSync(skillPath, "utf-8");
 }
 
 function formatUptime(ms: number): string {
@@ -68,6 +106,8 @@ function formatUptime(ms: number): string {
   const s = seconds % 60;
   return `${h}h ${m}m ${s}s`;
 }
+
+// ── API handlers ────────────────────────────────────────────────────────────
 
 function handleApiInfo(res: ServerResponse, config: Config): void {
   sendJson(res, 200, {
@@ -107,6 +147,8 @@ function handleApiStats(res: ServerResponse): void {
   const stats = computeStats(listOrders());
   sendJson(res, 200, stats);
 }
+
+// ── Dashboard HTML ──────────────────────────────────────────────────────────
 
 function renderDashboard(): string {
   return `<!DOCTYPE html>
@@ -235,19 +277,37 @@ setInterval(refresh, 5000);
 </html>`;
 }
 
-function handleRequest(
+// ── Request router ──────────────────────────────────────────────────────────
+
+async function handleRequest(
   config: Config,
   req: IncomingMessage,
   res: ServerResponse,
-): void {
+): Promise<void> {
   const url = new URL(
     req.url ?? "/",
     `http://${req.headers.host ?? "localhost"}`,
   );
   const path = url.pathname;
 
+  // MCP SSE routes (handled by server.ts when in HTTP mode)
+  if (sseHandler && (path === "/sse" || path === "/messages")) {
+    const handled = await sseHandler(req, res, url);
+    if (handled) return;
+  }
+
   if (path === "/" && req.method === "GET") {
     sendHtml(res, renderDashboard());
+    return;
+  }
+
+  if (path === "/skill.md" && req.method === "GET") {
+    try {
+      const content = loadSkillMd();
+      sendText(res, content, "text/markdown; charset=utf-8");
+    } catch {
+      sendJson(res, 500, { error: "skill.md not found" });
+    }
     return;
   }
 
@@ -275,10 +335,19 @@ function handleRequest(
   send404(res);
 }
 
-export function startPortal(config: Config): void {
-  const server = createServer((req, res) => handleRequest(config, req, res));
+// ── Start portal ────────────────────────────────────────────────────────────
 
-  server.on("error", (err: NodeJS.ErrnoException) => {
+export function startPortal(config: Config): Server {
+  const httpServer = createServer((req, res) => {
+    handleRequest(config, req, res).catch((err) => {
+      console.error("[Portal] Request error:", err);
+      if (!res.headersSent) {
+        sendJson(res, 500, { error: "Internal server error" });
+      }
+    });
+  });
+
+  httpServer.on("error", (err: NodeJS.ErrnoException) => {
     if (err.code === "EADDRINUSE") {
       console.error(
         `[Portal] Port ${config.portalPort} is in use, portal disabled`,
@@ -286,12 +355,15 @@ export function startPortal(config: Config): void {
     } else {
       console.error("[Portal] Server error:", err);
     }
-    server.close();
+    httpServer.close();
   });
 
-  server.listen(config.portalPort, "127.0.0.1", () => {
+  const host = process.env.PORTAL_HOST ?? "0.0.0.0";
+  httpServer.listen(config.portalPort, host, () => {
     console.error(
       `[Portal] ${AGENT_NAME} dashboard at http://localhost:${config.portalPort}`,
     );
   });
+
+  return httpServer;
 }

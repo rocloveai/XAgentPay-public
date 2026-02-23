@@ -1,14 +1,24 @@
+#!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
 import { loadConfig } from "./config.js";
 import { searchHotels } from "./services/hotel-search.js";
 import { buildQuote } from "./services/quote-builder.js";
 import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
-import { startPortal } from "./portal.js";
+import { startPortal, registerSseHandler } from "./portal.js";
 import type { HotelOffer } from "./types.js";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 const config = loadConfig();
+const transportMode = process.env.TRANSPORT ?? "stdio";
+
+if (!config.amadeusApiKey || !config.amadeusApiSecret) {
+  console.error(
+    "Warning: AMADEUS_API_KEY/AMADEUS_API_SECRET not set. Hotel search will return demo data only.",
+  );
+}
 
 // In-memory cache: offer_id -> { offer, nights } (for quote generation)
 const offerCache = new Map<string, { offer: HotelOffer; nights: number }>();
@@ -38,12 +48,11 @@ server.tool(
       .describe("Number of guests (1-10)"),
   },
   async ({ city, check_in, check_out, guests }) => {
-    const { offers, nights, error } = searchHotels({
-      city,
-      check_in,
-      check_out,
-      guests,
-    });
+    const { offers, nights, error } = await searchHotels(
+      { city, check_in, check_out, guests },
+      config.amadeusApiKey,
+      config.amadeusApiSecret,
+    );
 
     if (error) {
       return {
@@ -266,10 +275,75 @@ server.prompt(
 // ── Start server ──────────────────────────────────────────────────────────────
 
 async function main() {
+  if (transportMode === "http") {
+    await startHttpMode();
+  } else {
+    await startStdioMode();
+  }
+}
+
+async function startStdioMode() {
   startPortal(config);
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Hotel Agent MCP Server started");
+  console.error("Hotel Agent MCP Server started (stdio mode)");
+}
+
+async function startHttpMode() {
+  // SSE session registry
+  const transports = new Map<string, SSEServerTransport>();
+
+  registerSseHandler(
+    async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      url: URL,
+    ): Promise<boolean> => {
+      const path = url.pathname;
+
+      // GET /sse — establish SSE stream
+      if (path === "/sse" && req.method === "GET") {
+        const transport = new SSEServerTransport("/messages", res);
+        transports.set(transport.sessionId, transport);
+
+        res.on("close", () => {
+          transports.delete(transport.sessionId);
+        });
+
+        await server.connect(transport);
+        return true;
+      }
+
+      // POST /messages?sessionId=xxx — send message to server
+      if (path === "/messages" && req.method === "POST") {
+        const sessionId = url.searchParams.get("sessionId") ?? "";
+        const transport = transports.get(sessionId);
+
+        if (!transport) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Invalid or missing sessionId" }));
+          return true;
+        }
+
+        await transport.handlePostMessage(req, res);
+        return true;
+      }
+
+      return false;
+    },
+  );
+
+  startPortal(config);
+  console.error(
+    `Hotel Agent MCP Server started (HTTP/SSE mode on port ${config.portalPort})`,
+  );
+  console.error(`  SSE endpoint:     http://localhost:${config.portalPort}/sse`);
+  console.error(
+    `  Messages endpoint: http://localhost:${config.portalPort}/messages`,
+  );
+  console.error(
+    `  Skill:            http://localhost:${config.portalPort}/skill.md`,
+  );
 }
 
 main().catch((err) => {

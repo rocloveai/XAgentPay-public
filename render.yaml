@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: nexus-hotel-agent
+    runtime: docker
+    dockerfilePath: src/hotel-agent/Dockerfile
+    dockerContext: src/hotel-agent
+    plan: free
+    envVars:
+      - key: TRANSPORT
+        value: http
+      - key: PORTAL_PORT
+        value: "10000"
+      - key: PORTAL_HOST
+        value: "0.0.0.0"
+      - key: AMADEUS_API_KEY
+        sync: false
+      - key: AMADEUS_API_SECRET
+        sync: false
+      - key: MERCHANT_DID
+        value: "did:nexus:210425:demo_hotel"
+
+  - type: web
+    name: nexus-flight-agent
+    runtime: docker
+    dockerfilePath: src/flight-agent/Dockerfile
+    dockerContext: src/flight-agent
+    plan: free
+    envVars:
+      - key: TRANSPORT
+        value: http
+      - key: PORTAL_PORT
+        value: "10000"
+      - key: PORTAL_HOST
+        value: "0.0.0.0"
+      - key: DUFFEL_API_TOKEN
+        sync: false
+      - key: MERCHANT_DID
+        value: "did:nexus:210425:demo_flight"
