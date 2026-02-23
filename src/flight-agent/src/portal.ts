@@ -40,6 +40,16 @@ interface Stats {
   readonly currency: string;
 }
 
+const USDC_DECIMALS = 6;
+
+/** Convert uint256 string (e.g. "373120000") back to human-readable (e.g. "373.12") */
+function fromUint256(raw: string, decimals: number = USDC_DECIMALS): string {
+  const padded = raw.padStart(decimals + 1, "0");
+  const intPart = padded.slice(0, -decimals) || "0";
+  const fracPart = padded.slice(-decimals).replace(/0+$/, "") || "0";
+  return `${intPart}.${fracPart}`;
+}
+
 function computeStats(orders: readonly Order[]): Stats {
   let unpaid = 0;
   let paid = 0;
@@ -50,7 +60,8 @@ function computeStats(orders: readonly Order[]): Stats {
     if (order.status === "UNPAID") unpaid++;
     else if (order.status === "PAID") paid++;
     else if (order.status === "EXPIRED") expired++;
-    totalCents += Math.round(parseFloat(order.quote_payload.amount) * 100);
+    const readable = fromUint256(order.quote_payload.amount);
+    totalCents += Math.round(parseFloat(readable) * 100);
   }
 
   return {
@@ -126,7 +137,7 @@ function handleApiOrders(res: ServerResponse): void {
     orders.map((o) => ({
       order_ref: o.order_ref,
       status: o.status,
-      amount: o.quote_payload.amount,
+      amount: fromUint256(o.quote_payload.amount),
       currency: o.quote_payload.currency,
       summary: o.quote_payload.context.summary,
       created_at: o.created_at,
