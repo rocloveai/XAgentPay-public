@@ -22,7 +22,24 @@ Hotel booking merchant agent powered by Nexus Protocol. Searches hotels across p
 
 ## Quick Setup
 
-### Option A: npx (recommended)
+### Option A: Remote SSE (recommended for cloud)
+
+Connect to the hosted agent via SSE transport. No local installation needed.
+
+```json
+{
+  "mcpServers": {
+    "hotel-agent": {
+      "url": "https://nexus-hotel-agent.onrender.com/sse"
+    }
+  }
+}
+```
+
+SSE endpoint: `https://nexus-hotel-agent.onrender.com/sse`
+Messages endpoint: `https://nexus-hotel-agent.onrender.com/messages`
+
+### Option B: npx (local)
 
 ```json
 {
@@ -38,7 +55,7 @@ Hotel booking merchant agent powered by Nexus Protocol. Searches hotels across p
 }
 ```
 
-### Option B: Local path
+### Option C: Local path
 
 ```json
 {

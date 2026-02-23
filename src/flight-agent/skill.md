@@ -22,7 +22,24 @@ Flight booking merchant agent powered by Nexus Protocol. Searches real flights v
 
 ## Quick Setup
 
-### Option A: npx (recommended)
+### Option A: Remote SSE (recommended for cloud)
+
+Connect to the hosted agent via SSE transport. No local installation needed.
+
+```json
+{
+  "mcpServers": {
+    "flight-agent": {
+      "url": "https://nexus-flight-agent.onrender.com/sse"
+    }
+  }
+}
+```
+
+SSE endpoint: `https://nexus-flight-agent.onrender.com/sse`
+Messages endpoint: `https://nexus-flight-agent.onrender.com/messages`
+
+### Option B: npx (local)
 
 ```json
 {
@@ -39,7 +56,7 @@ Flight booking merchant agent powered by Nexus Protocol. Searches real flights v
 }
 ```
 
-### Option B: Local path
+### Option C: Local path
 
 ```json
 {
