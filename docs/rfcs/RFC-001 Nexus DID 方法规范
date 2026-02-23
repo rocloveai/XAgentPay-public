@@ -1,0 +1,145 @@
+RFC-001 Nexus DID 方法规范
+来源指南
+这份文档定义了 Nexus DID 方法规范，旨在为 AI Agent 商业网络中的商户提供一套基于 EVM 区块链的去中心化身份解决方案。该规范通过三段式结构（did:nexus:链ID:唯一名称）确立了身份标识，并利用智能合约实现了身份的注册、解析与更新。其核心价值在于实现了密钥分离机制，将负责高频签名的身份密钥与负责资金接收的收款地址解耦，从而显著提升了商业支付场景下的安全性。此外，该协议深度兼容账户抽象与 EIP-1271 标准，确保了无论是传统私钥钱包还是多签合约账户，都能在 Nexus 生态中进行安全、无缝的身份验证与价值交换。
+
+
+
+
+
+
+
+
+
+
+
+这是为您起草的 **Nexus DID 方法规范 (RFC Draft)**。这份文档严格遵循 W3C DID Core 1.0 标准格式，并专门针对 NexusPay 的商业支付场景（UCP + EVM）进行了适配，特别是**合约钱包兼容性**部分。
+您可以在项目文档库中归档为 `docs/specs/RFC-001-DID-NEXUS.md`。
+---
+# RFC-001: Nexus DID Method Specification
+| 元数据 | 内容 |
+| --- | --- |
+| **Title** | The `did:nexus` Method Specification |
+| **Version** | 1.0.0 |
+| **Status** | Draft |
+| **Author** | Cipher & Nexus Architect Team |
+| **Created** | 2026-01-20 |
+| **Target Layer** | Google UCP Payment Extension / EVM Chains |
+## Abstract (摘要)
+Nexus DID 方法 (`did:nexus`) 是一种基于 EVM 区块链（如 PlatON, Ethereum）的去中心化标识符方案。它旨在为 AI Agent 商业网络（UCP）中的商户实体提供可验证的身份、支付路由和签名验证能力。本方法支持账户抽象（Account Abstraction），允许商户将“资金保管账户”（如 Gnosis Safe）与“高频签名账户”（如热钱包）分离。
+## 1. Method Name (方法名称)
+本 DID 方法的名称为 `nexus`。
+DID 字符串必须以此前缀开头：`did:nexus:`。
+## 2. DID Syntax (语法规范)
+Nexus DID 采用简单的**三段式结构**，通过链上注册表（Registry Contract）解析。
+### 2.1 ABNF 定义
+```abnf
+nexus-did = "did:nexus:" chain-id ":" unique-id
+chain-id = 1*DIGIT ; EVM Chain ID (e.g., 210425)
+unique-id = 1*id-char ; Merchant's unique registered name
+id-char = ALPHA / DIGIT / "_" / "-"
+```
+### 2.2 示例
+* **Trip.com (PlatON 主网):** `did:nexus:210425:trip_com`
+* **Nexus OTC (本地开发网):** `did:nexus:31337:nexus_otc_01`
+---
+## 3. DID Document (文档结构)
+当 User Agent 解析一个 `did:nexus` 时，它应当返回一个标准的 DID Document JSON。该文档由链上 `NexusMerchantRegistry` 合约中的数据动态生成。
+### 3.1 数据模型映射
+链上注册表包含以下字段，映射到 DID Document：
+| Registry Field | DID Document Section | 说明 |
+| --- | --- | --- |
+| `name` | `id` | 唯一标识符 |
+| `signer` | `verificationMethod` | **鉴权密钥**：用于验证 UCP 响应的签名 |
+| `paymentAddress` | `service` (type: PaymentEndpoint) | **资金入口**：用于接收 Token 转账 |
+| `metadata` | `service` (type: MetadataService) | 商户 Logo、联系方式等 |
+### 3.2 完整 DID Document 示例
+```json
+{
+"@context": [
+"https://www.w3.org/ns/did/v1",
+"https://w3id.org/security/suites/secp256k1-2019/v1"
+],
+"id": "did:nexus:210425:trip_com",
+// 1. 验证方法 (谁有权代表该商户签字？)
+// 支持 EOA 或 EIP-1271 合约
+"verificationMethod": [{
+"id": "did:nexus:210425:trip_com#key-1",
+"type": "EcdsaSecp256k1RecoveryMethod2020",
+"controller": "did:nexus:210425:trip_com",
+"blockchainAccountId": "eip155:210425:0xSignerAddress..."
+}],
+// 2. 鉴权关系 (Authentication)
+"authentication": [
+"did:nexus:210425:trip_com#key-1"
+],
+// 3. 服务端点 (钱往哪打？元数据在哪？)
+"service": [
+{
+"id": "#payment",
+"type": "NexusPaymentEndpoint",
+"serviceEndpoint": "eip155:210425:0xTreasurySafeContractAddress..."
+},
+{
+"id": "#metadata",
+"type": "MerchantMetadata",
+"serviceEndpoint": "https://api.trip.com/nexus/metadata.json"
+}
+]
+}
+```
+---
+## 4. CRUD Operations (操作定义)
+所有操作均通过调用智能合约 `NexusMerchantRegistry` 执行。
+### 4.1 Create (注册)
+商户调用合约方法：
+```solidity
+function register(
+string calldata name,
+address paymentAddress,
+address signer,
+string calldata metadata
+) external;
+```
+* **约束：** `name` 必须在当前 `chain-id` 下未被占用。
+* **费用：** 需支付少量 Gas 费。
+### 4.2 Read (解析)
+解析器（Resolver）即 User Agent 或 Nexus Explorer。
+1. 解析 DID 字符串，提取 `chain-id` 和 `name`。
+2. 连接到对应链的 RPC 节点。
+3. 调用合约 `getMerchant(name)` 获取结构体。
+4. 按照 3.2 节格式组装 JSON 返回。
+### 4.3 Update (更新)
+商户（必须是 `signer` 或合约 Owner）调用：
+```solidity
+function updateMerchant(
+string calldata name,
+address newSigner,
+address newPaymentAddress
+) external;
+```
+* **场景：** 企业更换了热钱包私钥，或者更换了收款的多签合约。
+### 4.4 Deactivate (注销)
+商户调用 `deregister(name)`。
+* 注销后，DID Document 为空。
+* `name` 被释放（或根据治理规则保留）。
+---
+## 5. Security & Compatibility (安全与兼容性)
+### 5.1 密钥分离 (Key Separation)
+本规范强制支持**资金与权力的分离**。
+* `service.serviceEndpoint` (PaymentAddress) 可以是冷钱包或多签合约。
+* `verificationMethod` (Signer) 可以是服务器上的热钱包。
+* **安全优势：** 即使服务器被黑，黑客只能发布虚假报价（可被风控拦截），无法盗取商户资金。
+### 5.2 合约钱包支持 (EIP-1271 Compliance)
+当 User Agent 验证签名时，必须遵循以下逻辑：
+1. 从 DID Document 提取 `verificationMethod` 中的地址 `A`。
+2. 获取签名 `S` 和数据 Hash `H`。
+3. 检查地址 `A` 是否包含代码（`extcodesize > 0`）。
+* **NO (EOA):** 使用 `ecrecover(H, S)` 验证是否等于 `A`。
+* **YES (Contract):** 调用 `A.isValidSignature(H, S)`。若返回 `0x1626ba7e` (Magic Value)，则验证通过。
+---
+## 6. Implementation Notes (执行指引)
+### 6.1 Antigravity 任务清单
+根据本 RFC，需执行以下开发任务：
+1. **Contract:** 编写 `NexusMerchantRegistry.sol`，实现 `register` / `update` 逻辑及 `MerchantProfile` 存储。
+2. **SDK:** 在 `@nexus/ucp-adapter` 中实现 `NexusResolver` 类，输入 DID，输出上述 JSON Document。
+3. **Validation:** 在 SDK 的验签函数中，集成 `viem` 或 `ethers` 的通用验签方法，自动处理 EIP-1271。

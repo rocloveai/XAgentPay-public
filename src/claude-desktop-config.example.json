@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "flight-agent": {
+      "command": "node",
+      "args": ["src/flight-agent/build/server.js"],
+      "env": {
+        "DUFFEL_API_TOKEN": "duffel_test_your_token_here",
+        "MERCHANT_DID": "did:nexus:210425:demo_flight"
+      }
+    },
+    "hotel-agent": {
+      "command": "node",
+      "args": ["src/hotel-agent/build/server.js"],
+      "env": {
+        "MERCHANT_DID": "did:nexus:210425:demo_hotel"
+      }
+    }
+  }
+}
