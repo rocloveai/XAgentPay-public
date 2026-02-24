@@ -18,7 +18,7 @@ tools:
 
 # Nexus Hotel Agent
 
-Hotel booking merchant agent powered by Nexus Protocol. Searches hotels across popular travel cities via Amadeus API, generates NUPS payment quotes, and verifies on-chain payments.
+Hotel booking merchant agent powered by Nexus Protocol. Searches hotels across popular cities (Tokyo, Singapore, Shanghai, Bangkok, Hong Kong), generates NUPS payment quotes, and verifies on-chain payments.
 
 ## MCP Connection
 

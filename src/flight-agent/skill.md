@@ -1,7 +1,7 @@
 ---
 name: nexus-flight-agent
 version: "0.1.0"
-description: Flight booking with Nexus Payment — search real flights, generate NUPS quotes, verify on-chain payments
+description: Flight booking with Nexus Payment — search flights, generate NUPS quotes, verify on-chain payments
 merchant_did: "did:nexus:210425:demo_flight"
 protocol: NUPS/1.5
 category: travel.flights
@@ -18,7 +18,7 @@ tools:
 
 # Nexus Flight Agent
 
-Flight booking merchant agent powered by Nexus Protocol. Searches real flights via Duffel API, generates NUPS payment quotes, and verifies on-chain payments.
+Flight booking merchant agent powered by Nexus Protocol. Searches flights across popular Asia-Pacific routes (PVG, NRT, SIN, HKG, BKK), generates NUPS payment quotes, and verifies on-chain payments.
 
 ## MCP Connection
 
