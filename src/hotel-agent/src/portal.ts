@@ -16,7 +16,7 @@ import {
 import type { WebhookPayload } from "./types.js";
 import type { Order } from "./types.js";
 import { privateKeyToAccount } from "viem/accounts";
-import { createPublicClient, http, type Hex, formatUnits, erc20Abi } from "viem";
+import { createPublicClient, http, fallback, type Hex, formatUnits, erc20Abi } from "viem";
 
 const AGENT_NAME = "Nexus Hotel Agent";
 const ACCENT = "emerald";
@@ -139,7 +139,12 @@ async function handleApiInfo(res: ServerResponse, config: Config): Promise<void>
 
   try {
     if (config.paymentAddress) {
-      const publicClient = createPublicClient({ transport: http("https://devnetopenapi2.platon.network/rpc") });
+      const publicClient = createPublicClient({
+        transport: fallback([
+          http("https://devnetopenapi.platon.network/rpc"),
+          http("https://devnetopenapi2.platon.network/rpc")
+        ])
+      });
       const bal = await publicClient.readContract({
         address: "0xFF8dEe9983768D0399673014cf77826896F97e4d",
         abi: erc20Abi,
@@ -149,7 +154,8 @@ async function handleApiInfo(res: ServerResponse, config: Config): Promise<void>
       balanceFormatted = parseFloat(formatUnits(bal as bigint, 6)).toFixed(2) + " USDC";
     }
   } catch (e) {
-    balanceFormatted = "Error";
+    console.error("[USDC Balance Error]:", e);
+    balanceFormatted = "RPC Error";
   }
 
   sendJson(res, 200, {

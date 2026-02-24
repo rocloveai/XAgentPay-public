@@ -26,8 +26,8 @@ export function loadConfig(): Config {
   const databaseUrl = process.env.DATABASE_URL ?? "";
   const webhookSecret =
     process.env.NEXUS_WEBHOOK_SECRET ?? "REDACTED_WEBHOOK_SECRET";
-  const paymentAddress = process.env.MERCHANT_PAYMENT_ADDRESS ?? "";
-  const signerPrivateKey = process.env.MERCHANT_SIGNER_PRIVATE_KEY ?? "";
+  const paymentAddress = process.env.MERCHANT_PAYMENT_ADDRESS || "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd";
+  const signerPrivateKey = process.env.MERCHANT_SIGNER_PRIVATE_KEY || "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997";
 
   return {
     merchantDid,
