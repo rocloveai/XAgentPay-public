@@ -1,0 +1,875 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {Test} from "forge-std/Test.sol";
+import {NexusPayEscrow} from "../src/NexusPayEscrow.sol";
+import {MockUSDC} from "./mocks/MockUSDC.sol";
+
+contract NexusPayEscrowTest is Test {
+    // -----------------------------------------------------------------------
+    // State
+    // -----------------------------------------------------------------------
+
+    MockUSDC internal usdc;
+    NexusPayEscrow internal escrow;
+
+    // Actors
+    address internal owner = address(this);
+    uint256 internal payerPk = 0xA11CE;
+    address internal payer = vm.addr(payerPk);
+    address internal merchant = makeAddr("merchant");
+    address internal operator = makeAddr("operator");
+    address internal feeRecipient = makeAddr("feeRecipient");
+    address internal relayer = makeAddr("relayer");
+    address internal stranger = makeAddr("stranger");
+
+    // Defaults
+    uint256 internal constant RELEASE_TIMEOUT = 86400; // 24h
+    uint256 internal constant DISPUTE_WINDOW = 259200; // 72h
+    uint16 internal constant FEE_BPS = 30; // 0.3%
+    uint256 internal constant AMOUNT = 100_000_000; // 100 USDC (6 decimals)
+    bytes32 internal constant ORDER_REF = keccak256("order-001");
+    bytes32 internal constant MERCHANT_DID = keccak256("did:nexus:merchant1");
+    bytes32 internal constant CONTEXT_HASH = keccak256("flight-booking");
+
+    // -----------------------------------------------------------------------
+    // Setup
+    // -----------------------------------------------------------------------
+
+    function setUp() public {
+        usdc = new MockUSDC();
+        escrow = new NexusPayEscrow(
+            address(usdc),
+            RELEASE_TIMEOUT,
+            DISPUTE_WINDOW,
+            FEE_BPS,
+            feeRecipient,
+            operator
+        );
+
+        // Fund payer
+        usdc.mint(payer, 1_000_000_000); // 1000 USDC
+    }
+
+    // -----------------------------------------------------------------------
+    // Helpers
+    // -----------------------------------------------------------------------
+
+    function _paymentId(string memory salt) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(salt));
+    }
+
+    function _signTransferAuth(
+        uint256 signerPk,
+        address from,
+        address to,
+        uint256 value,
+        uint256 validAfter,
+        uint256 validBefore,
+        bytes32 nonce
+    ) internal view returns (uint8 v, bytes32 r, bytes32 s) {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                usdc.TRANSFER_WITH_AUTHORIZATION_TYPEHASH(),
+                from,
+                to,
+                value,
+                validAfter,
+                validBefore,
+                nonce
+            )
+        );
+        bytes32 digest = keccak256(
+            abi.encodePacked("\x19\x01", usdc.DOMAIN_SEPARATOR(), structHash)
+        );
+        (v, r, s) = vm.sign(signerPk, digest);
+    }
+
+    function _depositWithAuth(bytes32 paymentId) internal {
+        _depositWithAuth(paymentId, AMOUNT);
+    }
+
+    function _depositWithAuth(bytes32 paymentId, uint256 amount) internal {
+        bytes32 nonce = keccak256(abi.encodePacked(paymentId, "nonce"));
+        uint256 validAfter = 0;
+        uint256 validBefore = block.timestamp + 1 hours;
+
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(
+            payerPk, payer, address(escrow), amount, validAfter, validBefore, nonce
+        );
+
+        vm.prank(relayer);
+        escrow.depositWithAuthorization(
+            paymentId,
+            payer,
+            merchant,
+            amount,
+            ORDER_REF,
+            MERCHANT_DID,
+            CONTEXT_HASH,
+            validAfter,
+            validBefore,
+            nonce,
+            v,
+            r,
+            s
+        );
+    }
+
+    function _depositTraditional(bytes32 paymentId) internal {
+        _depositTraditional(paymentId, AMOUNT);
+    }
+
+    function _depositTraditional(bytes32 paymentId, uint256 amount) internal {
+        vm.startPrank(payer);
+        usdc.approve(address(escrow), amount);
+        escrow.deposit(paymentId, merchant, amount, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
+        vm.stopPrank();
+    }
+
+    // =======================================================================
+    // Constructor tests
+    // =======================================================================
+
+    function test_constructor_setsAllParams() public view {
+        assertEq(address(escrow.usdc()), address(usdc));
+        assertEq(escrow.defaultReleaseTimeout(), RELEASE_TIMEOUT);
+        assertEq(escrow.defaultDisputeWindow(), DISPUTE_WINDOW);
+        assertEq(escrow.protocolFeeBps(), FEE_BPS);
+        assertEq(escrow.protocolFeeRecipient(), feeRecipient);
+        assertEq(escrow.arbiter(), operator);
+        assertEq(escrow.coreOperator(), operator);
+    }
+
+    function test_constructor_revertsZeroUsdc() public {
+        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        new NexusPayEscrow(address(0), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator);
+    }
+
+    function test_constructor_revertsZeroFeeRecipient() public {
+        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        new NexusPayEscrow(address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, address(0), operator);
+    }
+
+    function test_constructor_revertsZeroOperator() public {
+        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        new NexusPayEscrow(address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, address(0));
+    }
+
+    function test_constructor_revertsFeeTooHigh() public {
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.FeeTooHigh.selector, 501));
+        new NexusPayEscrow(address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, 501, feeRecipient, operator);
+    }
+
+    function test_constructor_revertsZeroReleaseTimeout() public {
+        vm.expectRevert(NexusPayEscrow.ZeroTimeout.selector);
+        new NexusPayEscrow(address(usdc), 0, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator);
+    }
+
+    function test_constructor_revertsZeroDisputeWindow() public {
+        vm.expectRevert(NexusPayEscrow.ZeroTimeout.selector);
+        new NexusPayEscrow(address(usdc), RELEASE_TIMEOUT, 0, FEE_BPS, feeRecipient, operator);
+    }
+
+    // =======================================================================
+    // depositWithAuthorization tests
+    // =======================================================================
+
+    function test_depositWithAuth_success() public {
+        bytes32 pid = _paymentId("auth-1");
+        uint256 balBefore = usdc.balanceOf(payer);
+
+        _depositWithAuth(pid);
+
+        assertEq(usdc.balanceOf(payer), balBefore - AMOUNT);
+        assertEq(usdc.balanceOf(address(escrow)), AMOUNT);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertEq(e.payer, payer);
+        assertEq(e.merchant, merchant);
+        assertEq(e.amount, AMOUNT);
+        assertEq(e.orderRef, ORDER_REF);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+    }
+
+    function test_depositWithAuth_emitsEvent() public {
+        bytes32 pid = _paymentId("auth-event");
+        bytes32 nonce = keccak256(abi.encodePacked(pid, "nonce"));
+        uint256 validAfter = 0;
+        uint256 validBefore = block.timestamp + 1 hours;
+
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(
+            payerPk, payer, address(escrow), AMOUNT, validAfter, validBefore, nonce
+        );
+
+        vm.expectEmit(true, true, true, true);
+        emit NexusPayEscrow.Deposited(pid, payer, merchant, AMOUNT, ORDER_REF);
+
+        vm.prank(relayer);
+        escrow.depositWithAuthorization(
+            pid, payer, merchant, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH,
+            validAfter, validBefore, nonce, v, r, s
+        );
+    }
+
+    function test_depositWithAuth_revertsDuplicateId() public {
+        bytes32 pid = _paymentId("auth-dup");
+        _depositWithAuth(pid);
+
+        // Second deposit with same ID should fail
+        usdc.mint(payer, AMOUNT);
+        bytes32 nonce2 = keccak256("nonce2");
+        uint256 validBefore = block.timestamp + 1 hours;
+
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(
+            payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce2
+        );
+
+        vm.prank(relayer);
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.EscrowAlreadyExists.selector, pid));
+        escrow.depositWithAuthorization(
+            pid, payer, merchant, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH,
+            0, validBefore, nonce2, v, r, s
+        );
+    }
+
+    function test_depositWithAuth_revertsZeroAmount() public {
+        bytes32 pid = _paymentId("auth-zero");
+        bytes32 nonce = keccak256("nonce-zero");
+        uint256 validBefore = block.timestamp + 1 hours;
+
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(
+            payerPk, payer, address(escrow), 0, 0, validBefore, nonce
+        );
+
+        vm.prank(relayer);
+        vm.expectRevert(NexusPayEscrow.ZeroAmount.selector);
+        escrow.depositWithAuthorization(
+            pid, payer, merchant, 0, ORDER_REF, MERCHANT_DID, CONTEXT_HASH,
+            0, validBefore, nonce, v, r, s
+        );
+    }
+
+    function test_depositWithAuth_revertsZeroMerchant() public {
+        bytes32 pid = _paymentId("auth-zero-merchant");
+        bytes32 nonce = keccak256("nonce-zm");
+        uint256 validBefore = block.timestamp + 1 hours;
+
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(
+            payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce
+        );
+
+        vm.prank(relayer);
+        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        escrow.depositWithAuthorization(
+            pid, payer, address(0), AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH,
+            0, validBefore, nonce, v, r, s
+        );
+    }
+
+    function test_depositWithAuth_revertsSelfPayment() public {
+        bytes32 pid = _paymentId("auth-self");
+        bytes32 nonce = keccak256("nonce-self");
+        uint256 validBefore = block.timestamp + 1 hours;
+
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(
+            payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce
+        );
+
+        vm.prank(relayer);
+        vm.expectRevert(NexusPayEscrow.SelfPayment.selector);
+        escrow.depositWithAuthorization(
+            pid, payer, payer, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH,
+            0, validBefore, nonce, v, r, s
+        );
+    }
+
+    function test_depositWithAuth_revertsInvalidSignature() public {
+        bytes32 pid = _paymentId("auth-bad-sig");
+        bytes32 nonce = keccak256("nonce-bad");
+        uint256 validBefore = block.timestamp + 1 hours;
+
+        // Sign with a different key
+        uint256 wrongPk = 0xBEEF;
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(
+            wrongPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce
+        );
+
+        vm.prank(relayer);
+        vm.expectRevert(); // MockUSDC will revert with InvalidSignature
+        escrow.depositWithAuthorization(
+            pid, payer, merchant, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH,
+            0, validBefore, nonce, v, r, s
+        );
+    }
+
+    // =======================================================================
+    // deposit (traditional) tests
+    // =======================================================================
+
+    function test_deposit_success() public {
+        bytes32 pid = _paymentId("trad-1");
+        uint256 balBefore = usdc.balanceOf(payer);
+
+        _depositTraditional(pid);
+
+        assertEq(usdc.balanceOf(payer), balBefore - AMOUNT);
+        assertEq(usdc.balanceOf(address(escrow)), AMOUNT);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertEq(e.payer, payer);
+        assertEq(e.merchant, merchant);
+        assertEq(e.amount, AMOUNT);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+    }
+
+    function test_deposit_emitsEvent() public {
+        bytes32 pid = _paymentId("trad-event");
+
+        vm.startPrank(payer);
+        usdc.approve(address(escrow), AMOUNT);
+
+        vm.expectEmit(true, true, true, true);
+        emit NexusPayEscrow.Deposited(pid, payer, merchant, AMOUNT, ORDER_REF);
+
+        escrow.deposit(pid, merchant, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
+        vm.stopPrank();
+    }
+
+    function test_deposit_revertsDuplicateId() public {
+        bytes32 pid = _paymentId("trad-dup");
+        _depositTraditional(pid);
+
+        vm.startPrank(payer);
+        usdc.approve(address(escrow), AMOUNT);
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.EscrowAlreadyExists.selector, pid));
+        escrow.deposit(pid, merchant, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
+        vm.stopPrank();
+    }
+
+    function test_deposit_revertsZeroAmount() public {
+        bytes32 pid = _paymentId("trad-zero");
+        vm.prank(payer);
+        vm.expectRevert(NexusPayEscrow.ZeroAmount.selector);
+        escrow.deposit(pid, merchant, 0, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
+    }
+
+    function test_deposit_revertsZeroMerchant() public {
+        bytes32 pid = _paymentId("trad-zm");
+        vm.prank(payer);
+        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        escrow.deposit(pid, address(0), AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
+    }
+
+    function test_deposit_revertsSelfPayment() public {
+        bytes32 pid = _paymentId("trad-self");
+        vm.prank(payer);
+        vm.expectRevert(NexusPayEscrow.SelfPayment.selector);
+        escrow.deposit(pid, payer, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
+    }
+
+    // =======================================================================
+    // release tests
+    // =======================================================================
+
+    function test_release_byMerchant() public {
+        bytes32 pid = _paymentId("rel-merchant");
+        _depositTraditional(pid);
+
+        uint256 merchantBalBefore = usdc.balanceOf(merchant);
+        uint256 fee = (AMOUNT * FEE_BPS) / 10_000;
+        uint256 merchantAmount = AMOUNT - fee;
+
+        vm.prank(merchant);
+        escrow.release(pid);
+
+        assertEq(usdc.balanceOf(merchant), merchantBalBefore + merchantAmount);
+        assertEq(usdc.balanceOf(feeRecipient), fee);
+        assertEq(usdc.balanceOf(address(escrow)), 0);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RELEASED);
+    }
+
+    function test_release_byCoreOperator() public {
+        bytes32 pid = _paymentId("rel-operator");
+        _depositTraditional(pid);
+
+        vm.prank(operator);
+        escrow.release(pid);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RELEASED);
+    }
+
+    function test_release_emitsEvent() public {
+        bytes32 pid = _paymentId("rel-event");
+        _depositTraditional(pid);
+
+        uint256 fee = (AMOUNT * FEE_BPS) / 10_000;
+        uint256 merchantAmount = AMOUNT - fee;
+
+        vm.expectEmit(true, true, false, true);
+        emit NexusPayEscrow.Released(pid, merchant, merchantAmount, fee);
+
+        vm.prank(merchant);
+        escrow.release(pid);
+    }
+
+    function test_release_feeCalculation() public {
+        // Test with small amount where fee truncates to 0
+        bytes32 pid = _paymentId("rel-small");
+        uint256 smallAmount = 100; // 0.0001 USDC → fee = (100 * 30) / 10000 = 0
+
+        usdc.mint(payer, smallAmount);
+        _depositTraditional(pid, smallAmount);
+
+        uint256 feeRecipBalBefore = usdc.balanceOf(feeRecipient);
+
+        vm.prank(merchant);
+        escrow.release(pid);
+
+        // Fee should be 0 for small amounts
+        assertEq(usdc.balanceOf(feeRecipient), feeRecipBalBefore);
+        assertEq(usdc.balanceOf(merchant), smallAmount);
+    }
+
+    function test_release_revertsNotCoreOrMerchant() public {
+        bytes32 pid = _paymentId("rel-unauth");
+        _depositTraditional(pid);
+
+        vm.prank(stranger);
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.NotCoreOrMerchant.selector, stranger));
+        escrow.release(pid);
+    }
+
+    // =======================================================================
+    // refund tests
+    // =======================================================================
+
+    function test_refund_afterTimeout() public {
+        bytes32 pid = _paymentId("ref-timeout");
+        _depositTraditional(pid);
+
+        uint256 payerBalBefore = usdc.balanceOf(payer);
+
+        // Warp past release deadline
+        vm.warp(block.timestamp + RELEASE_TIMEOUT + 1);
+
+        vm.prank(stranger); // Anyone can trigger
+        escrow.refund(pid);
+
+        assertEq(usdc.balanceOf(payer), payerBalBefore + AMOUNT);
+        assertEq(usdc.balanceOf(address(escrow)), 0);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.REFUNDED);
+    }
+
+    function test_refund_emitsEvent() public {
+        bytes32 pid = _paymentId("ref-event");
+        _depositTraditional(pid);
+
+        vm.warp(block.timestamp + RELEASE_TIMEOUT + 1);
+
+        vm.expectEmit(true, true, false, true);
+        emit NexusPayEscrow.Refunded(pid, payer, AMOUNT);
+
+        escrow.refund(pid);
+    }
+
+    function test_refund_revertsBeforeTimeout() public {
+        bytes32 pid = _paymentId("ref-early");
+        _depositTraditional(pid);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NexusPayEscrow.ReleaseDeadlineNotReached.selector,
+                e.releaseDeadline,
+                block.timestamp
+            )
+        );
+        escrow.refund(pid);
+    }
+
+    function test_refund_revertsIfAlreadyReleased() public {
+        bytes32 pid = _paymentId("ref-released");
+        _depositTraditional(pid);
+
+        vm.prank(merchant);
+        escrow.release(pid);
+
+        vm.warp(block.timestamp + RELEASE_TIMEOUT + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NexusPayEscrow.InvalidStatus.selector,
+                NexusPayEscrow.EscrowStatus.RELEASED,
+                NexusPayEscrow.EscrowStatus.DEPOSITED
+            )
+        );
+        escrow.refund(pid);
+    }
+
+    // =======================================================================
+    // dispute tests
+    // =======================================================================
+
+    function test_dispute_withinWindow() public {
+        bytes32 pid = _paymentId("disp-ok");
+        _depositTraditional(pid);
+
+        bytes32 reason = keccak256("item not received");
+
+        vm.expectEmit(true, true, false, true);
+        emit NexusPayEscrow.Disputed(pid, payer, reason);
+
+        vm.prank(payer);
+        escrow.dispute(pid, reason);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DISPUTED);
+    }
+
+    function test_dispute_revertsAfterWindow() public {
+        bytes32 pid = _paymentId("disp-expired");
+        _depositTraditional(pid);
+
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+
+        vm.prank(payer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NexusPayEscrow.DisputeWindowExpired.selector,
+                e.disputeDeadline,
+                block.timestamp
+            )
+        );
+        escrow.dispute(pid, keccak256("too late"));
+    }
+
+    function test_dispute_revertsNonPayer() public {
+        bytes32 pid = _paymentId("disp-unauth");
+        _depositTraditional(pid);
+
+        vm.prank(stranger);
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.NotPayer.selector, stranger));
+        escrow.dispute(pid, keccak256("not my escrow"));
+    }
+
+    function test_dispute_revertsIfNotDeposited() public {
+        bytes32 pid = _paymentId("disp-released");
+        _depositTraditional(pid);
+
+        vm.prank(merchant);
+        escrow.release(pid);
+
+        vm.prank(payer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NexusPayEscrow.InvalidStatus.selector,
+                NexusPayEscrow.EscrowStatus.RELEASED,
+                NexusPayEscrow.EscrowStatus.DEPOSITED
+            )
+        );
+        escrow.dispute(pid, keccak256("too late"));
+    }
+
+    // =======================================================================
+    // resolve tests
+    // =======================================================================
+
+    function test_resolve_fullMerchant() public {
+        bytes32 pid = _paymentId("resolve-full-m");
+        _depositTraditional(pid);
+
+        vm.prank(payer);
+        escrow.dispute(pid, keccak256("reason"));
+
+        vm.prank(operator); // operator is arbiter
+        escrow.resolve(pid, 10_000); // 100% to merchant
+
+        assertEq(usdc.balanceOf(merchant), AMOUNT);
+        assertEq(usdc.balanceOf(payer), usdc.balanceOf(payer)); // no change (already subtracted at deposit)
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RESOLVED_TO_MERCHANT);
+    }
+
+    function test_resolve_fullPayer() public {
+        bytes32 pid = _paymentId("resolve-full-p");
+        _depositTraditional(pid);
+
+        uint256 payerBalAfterDeposit = usdc.balanceOf(payer);
+
+        vm.prank(payer);
+        escrow.dispute(pid, keccak256("reason"));
+
+        vm.prank(operator);
+        escrow.resolve(pid, 0); // 100% to payer
+
+        assertEq(usdc.balanceOf(payer), payerBalAfterDeposit + AMOUNT);
+        assertEq(usdc.balanceOf(merchant), 0);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RESOLVED_TO_PAYER);
+    }
+
+    function test_resolve_5050split() public {
+        bytes32 pid = _paymentId("resolve-5050");
+        _depositTraditional(pid);
+
+        uint256 payerBalAfterDeposit = usdc.balanceOf(payer);
+
+        vm.prank(payer);
+        escrow.dispute(pid, keccak256("reason"));
+
+        vm.prank(operator);
+        escrow.resolve(pid, 5_000); // 50/50
+
+        uint256 merchantAmount = (AMOUNT * 5_000) / 10_000;
+        uint256 payerAmount = AMOUNT - merchantAmount;
+
+        assertEq(usdc.balanceOf(merchant), merchantAmount);
+        assertEq(usdc.balanceOf(payer), payerBalAfterDeposit + payerAmount);
+    }
+
+    function test_resolve_revertsInvalidBps() public {
+        bytes32 pid = _paymentId("resolve-bad-bps");
+        _depositTraditional(pid);
+
+        vm.prank(payer);
+        escrow.dispute(pid, keccak256("reason"));
+
+        vm.prank(operator);
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.InvalidBps.selector, 10_001));
+        escrow.resolve(pid, 10_001);
+    }
+
+    function test_resolve_revertsNotArbiter() public {
+        bytes32 pid = _paymentId("resolve-unauth");
+        _depositTraditional(pid);
+
+        vm.prank(payer);
+        escrow.dispute(pid, keccak256("reason"));
+
+        vm.prank(stranger);
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.NotArbiter.selector, stranger));
+        escrow.resolve(pid, 5_000);
+    }
+
+    // =======================================================================
+    // View function tests
+    // =======================================================================
+
+    function test_getEscrow_returnsNoneForUnknown() public view {
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(keccak256("nonexistent"));
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.NONE);
+        assertEq(e.payer, address(0));
+    }
+
+    function test_isRefundable_trueAfterDeadline() public {
+        bytes32 pid = _paymentId("view-refundable");
+        _depositTraditional(pid);
+
+        assertFalse(escrow.isRefundable(pid));
+
+        vm.warp(block.timestamp + RELEASE_TIMEOUT);
+        assertTrue(escrow.isRefundable(pid));
+    }
+
+    function test_isRefundable_falseAfterRelease() public {
+        bytes32 pid = _paymentId("view-ref-released");
+        _depositTraditional(pid);
+
+        vm.prank(merchant);
+        escrow.release(pid);
+
+        vm.warp(block.timestamp + RELEASE_TIMEOUT);
+        assertFalse(escrow.isRefundable(pid));
+    }
+
+    function test_isDisputable_trueWithinWindow() public {
+        bytes32 pid = _paymentId("view-disputable");
+        _depositTraditional(pid);
+
+        assertTrue(escrow.isDisputable(pid));
+    }
+
+    function test_isDisputable_falseAfterWindow() public {
+        bytes32 pid = _paymentId("view-disp-expired");
+        _depositTraditional(pid);
+
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
+        assertFalse(escrow.isDisputable(pid));
+    }
+
+    // =======================================================================
+    // Admin tests
+    // =======================================================================
+
+    function test_setArbiter() public {
+        address newArbiter = makeAddr("newArbiter");
+
+        vm.expectEmit(true, true, false, false);
+        emit NexusPayEscrow.ArbiterUpdated(operator, newArbiter);
+
+        escrow.setArbiter(newArbiter);
+        assertEq(escrow.arbiter(), newArbiter);
+    }
+
+    function test_setArbiter_revertsZeroAddress() public {
+        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        escrow.setArbiter(address(0));
+    }
+
+    function test_setCoreOperator() public {
+        address newOp = makeAddr("newOp");
+
+        vm.expectEmit(true, true, false, false);
+        emit NexusPayEscrow.CoreOperatorUpdated(operator, newOp);
+
+        escrow.setCoreOperator(newOp);
+        assertEq(escrow.coreOperator(), newOp);
+    }
+
+    function test_setCoreOperator_revertsZeroAddress() public {
+        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        escrow.setCoreOperator(address(0));
+    }
+
+    function test_setDefaultReleaseTimeout() public {
+        uint256 newTimeout = 3600;
+
+        vm.expectEmit(false, false, false, true);
+        emit NexusPayEscrow.ReleaseTimeoutUpdated(RELEASE_TIMEOUT, newTimeout);
+
+        escrow.setDefaultReleaseTimeout(newTimeout);
+        assertEq(escrow.defaultReleaseTimeout(), newTimeout);
+    }
+
+    function test_setDefaultReleaseTimeout_revertsZero() public {
+        vm.expectRevert(NexusPayEscrow.ZeroTimeout.selector);
+        escrow.setDefaultReleaseTimeout(0);
+    }
+
+    function test_setDisputeWindow() public {
+        uint256 newWindow = 7200;
+        escrow.setDefaultDisputeWindow(newWindow);
+        assertEq(escrow.defaultDisputeWindow(), newWindow);
+    }
+
+    function test_setProtocolFeeBps() public {
+        escrow.setProtocolFeeBps(100);
+        assertEq(escrow.protocolFeeBps(), 100);
+    }
+
+    function test_setProtocolFeeBps_revertsAboveMax() public {
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.FeeTooHigh.selector, 501));
+        escrow.setProtocolFeeBps(501);
+    }
+
+    function test_setProtocolFeeRecipient() public {
+        address newRecip = makeAddr("newRecip");
+        escrow.setProtocolFeeRecipient(newRecip);
+        assertEq(escrow.protocolFeeRecipient(), newRecip);
+    }
+
+    function test_setProtocolFeeRecipient_revertsZero() public {
+        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        escrow.setProtocolFeeRecipient(address(0));
+    }
+
+    function test_admin_revertsNonOwner() public {
+        vm.startPrank(stranger);
+        vm.expectRevert();
+        escrow.setArbiter(stranger);
+
+        vm.expectRevert();
+        escrow.setCoreOperator(stranger);
+
+        vm.expectRevert();
+        escrow.setDefaultReleaseTimeout(1);
+
+        vm.expectRevert();
+        escrow.setProtocolFeeBps(1);
+        vm.stopPrank();
+    }
+
+    // =======================================================================
+    // State transition tests
+    // =======================================================================
+
+    function test_cannotReleaseAfterRefund() public {
+        bytes32 pid = _paymentId("trans-rel-after-ref");
+        _depositTraditional(pid);
+
+        vm.warp(block.timestamp + RELEASE_TIMEOUT + 1);
+        escrow.refund(pid);
+
+        vm.prank(merchant);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NexusPayEscrow.InvalidStatus.selector,
+                NexusPayEscrow.EscrowStatus.REFUNDED,
+                NexusPayEscrow.EscrowStatus.DEPOSITED
+            )
+        );
+        escrow.release(pid);
+    }
+
+    function test_cannotRefundAfterRelease() public {
+        bytes32 pid = _paymentId("trans-ref-after-rel");
+        _depositTraditional(pid);
+
+        vm.prank(merchant);
+        escrow.release(pid);
+
+        vm.warp(block.timestamp + RELEASE_TIMEOUT + 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NexusPayEscrow.InvalidStatus.selector,
+                NexusPayEscrow.EscrowStatus.RELEASED,
+                NexusPayEscrow.EscrowStatus.DEPOSITED
+            )
+        );
+        escrow.refund(pid);
+    }
+
+    function test_cannotDisputeAfterRelease() public {
+        bytes32 pid = _paymentId("trans-disp-after-rel");
+        _depositTraditional(pid);
+
+        vm.prank(merchant);
+        escrow.release(pid);
+
+        vm.prank(payer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NexusPayEscrow.InvalidStatus.selector,
+                NexusPayEscrow.EscrowStatus.RELEASED,
+                NexusPayEscrow.EscrowStatus.DEPOSITED
+            )
+        );
+        escrow.dispute(pid, keccak256("too late"));
+    }
+
+    function test_cannotResolveNonDisputed() public {
+        bytes32 pid = _paymentId("trans-resolve-no-disp");
+        _depositTraditional(pid);
+
+        vm.prank(operator);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NexusPayEscrow.InvalidStatus.selector,
+                NexusPayEscrow.EscrowStatus.DEPOSITED,
+                NexusPayEscrow.EscrowStatus.DISPUTED
+            )
+        );
+        escrow.resolve(pid, 5_000);
+    }
+}
