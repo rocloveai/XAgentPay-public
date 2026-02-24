@@ -141,14 +141,30 @@ server.tool(
 
     const order = await createOrder(quote);
 
-    const paymentMethodsWrapper = {
-      payment_methods: [
+    const ucpCheckoutResponse = {
+      ucp: {
+        version: "2026-01-11",
+        payment_handlers: {
+          "urn:ucp:payment:nexus_v1": [
+            {
+              id: "nexus_handler_1",
+              version: "v1",
+              config: quote,
+            },
+          ],
+        },
+      },
+      id: order.order_ref,
+      status: "ready_for_complete",
+      currency: "USDC",
+      totals: [
         {
-          type: "urn:ucp:payment:nexus_v1",
-          payload: quote,
+          type: "total",
+          amount: Math.round(parseFloat(totalAmount) * 1e6).toString(),
         },
       ],
     };
+
 
     return {
       content: [
@@ -162,7 +178,7 @@ server.tool(
             `Pay Amount: 0.10 USDC\n` +
             `Status: ${order.status}\n` +
             `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
-            `NUPS Payload:\n${JSON.stringify(paymentMethodsWrapper, null, 2)}`,
+            `NUPS Payload (UCP Checkout Format):\n${JSON.stringify(ucpCheckoutResponse, null, 2)}`,
         },
       ],
     };
