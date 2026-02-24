@@ -140,10 +140,7 @@ async function handleApiInfo(res: ServerResponse, config: Config): Promise<void>
   try {
     if (config.paymentAddress) {
       const publicClient = createPublicClient({
-        transport: fallback([
-          http("https://devnetopenapi.platon.network/rpc"),
-          http("https://devnetopenapi2.platon.network/rpc")
-        ])
+        transport: http("https://devnet3openapi.platon.network/rpc")
       });
       const bal = await publicClient.readContract({
         address: "0xFF8dEe9983768D0399673014cf77826896F97e4d",
@@ -315,7 +312,7 @@ tailwind.config = {
             </div>
             <div class="bg-slate-950 rounded-lg border border-slate-700 p-3">
               <div class="text-xs text-slate-500 mb-1">Protocol</div>
-              <span class="text-xs text-slate-300">NUPS/1.5 &middot; Chain 210425 &middot; USDC</span>
+              <span class="text-xs text-slate-300">NUPS/1.5 &middot; Chain 20250407 &middot; USDC</span>
             </div>
           </div>
         </div>

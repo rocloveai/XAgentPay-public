@@ -23,7 +23,7 @@ services:
       - key: MERCHANT_PAYMENT_ADDRESS
         value: "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd"
       - key: MERCHANT_DID
-        value: "did:nexus:210425:demo_hotel"
+        value: "did:nexus:20250407:demo_hotel"
 
   - type: web
     name: nexus-flight-agent
@@ -47,4 +47,4 @@ services:
       - key: MERCHANT_PAYMENT_ADDRESS
         value: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1"
       - key: MERCHANT_DID
-        value: "did:nexus:210425:demo_flight"
+        value: "did:nexus:20250407:demo_flight"

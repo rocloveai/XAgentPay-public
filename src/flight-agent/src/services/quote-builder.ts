@@ -22,7 +22,7 @@ const VERIFYING_CONTRACT = "0x0000000000000000000000000000000000000000" as Addre
 const NEXUS_DOMAIN = {
   name: "NexusPay",
   version: "1",
-  chainId: 210425,
+  chainId: 20250407,
   verifyingContract: VERIFYING_CONTRACT,
 } as const;
 
@@ -76,7 +76,7 @@ export async function buildQuote(params: BuildQuoteParams): Promise<NexusQuotePa
   const account = privateKeyToAccount((process.env.MERCHANT_SIGNER_PRIVATE_KEY || "0x") as Hex);
   const walletClient = createWalletClient({
     account,
-    transport: http("https://devnetopenapi2.platon.network/rpc"),
+    transport: http("https://devnet3openapi.platon.network/rpc"),
   });
 
   const signature = await walletClient.signTypedData({
@@ -88,7 +88,7 @@ export async function buildQuote(params: BuildQuoteParams): Promise<NexusQuotePa
       merchant_order_ref: params.orderRef,
       amount: BigInt(discountedUint256),
       currency: params.currency,
-      chain_id: BigInt(210425),
+      chain_id: BigInt(20250407),
       expiry: BigInt(expiry),
       context_hash: contextHash,
     },
@@ -99,7 +99,7 @@ export async function buildQuote(params: BuildQuoteParams): Promise<NexusQuotePa
     merchant_order_ref: params.orderRef,
     amount: discountedUint256,
     currency: params.currency,
-    chain_id: 210425,
+    chain_id: 20250407,
     expiry,
     context,
     signature,

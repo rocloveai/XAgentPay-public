@@ -80,7 +80,7 @@ export const ARBITRATION_TIMEOUT_S = 7 * 24 * 60 * 60;
 // ---------------------------------------------------------------------------
 
 /** PlatON mainnet chain ID */
-export const PLATON_CHAIN_ID = 210425;
+export const PLATON_CHAIN_ID = 20250407;
 
 /** PlatON devnet chain ID */
 export const PLATON_DEVNET_CHAIN_ID = 20250407;
