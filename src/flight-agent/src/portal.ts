@@ -16,7 +16,7 @@ import {
 import type { WebhookPayload } from "./types.js";
 import type { Order } from "./types.js";
 import { privateKeyToAccount } from "viem/accounts";
-import { createPublicClient, http, type Hex, formatEther } from "viem";
+import { createPublicClient, http, type Hex, formatUnits, erc20Abi } from "viem";
 
 const AGENT_NAME = "Nexus Flight Agent";
 const ACCENT = "blue";
@@ -140,8 +140,13 @@ async function handleApiInfo(res: ServerResponse, config: Config): Promise<void>
   try {
     if (config.paymentAddress) {
       const publicClient = createPublicClient({ transport: http("https://devnetopenapi2.platon.network/rpc") });
-      const bal = await publicClient.getBalance({ address: config.paymentAddress as Hex });
-      balanceFormatted = parseFloat(formatEther(bal)).toFixed(4) + " LAT";
+      const bal = await publicClient.readContract({
+        address: "0xFF8dEe9983768D0399673014cf77826896F97e4d",
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [config.paymentAddress as Hex]
+      });
+      balanceFormatted = parseFloat(formatUnits(bal as bigint, 6)).toFixed(2) + " USDC";
     }
   } catch (e) {
     balanceFormatted = "Error";
@@ -239,15 +244,20 @@ tailwind.config = {
         ONLINE
       </span>
     </div>
-    <div class="text-sm text-slate-400 text-right space-y-0.5">
-      <div id="did" class="font-mono text-xs"></div>
-      <div class="font-mono text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer" id="signer-address-container" title="Signer Address">
-        Sig: <span id="signer-address" class="text-slate-300"></span>
+    <div class="flex flex-col items-end gap-1.5">
+      <div id="did" class="font-mono text-xs text-slate-400"></div>
+      <div class="flex flex-col sm:flex-row items-end sm:items-center gap-1.5 sm:gap-3">
+        <div class="bg-slate-800/80 rounded-md border border-slate-700/50 flex items-center px-2 py-1 hover:border-slate-500/50 transition-colors cursor-pointer shadow-sm" id="signer-address-container" title="Signer Address">
+          <span class="text-slate-500 text-[10px] uppercase font-bold tracking-wider mr-2">Sig</span>
+          <span id="signer-address" class="font-mono text-xs text-slate-300"></span>
+        </div>
+        <div class="bg-slate-800/80 rounded-md border border-slate-700/50 flex items-center px-2 py-1 hover:border-slate-500/50 transition-colors cursor-pointer shadow-sm" id="payment-address-container" title="Payment Address">
+          <span class="text-slate-500 text-[10px] uppercase font-bold tracking-wider mr-2">Rcv</span>
+          <span id="payment-address" class="font-mono text-xs text-slate-300"></span>
+          <span id="payment-balance" class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ml-2"></span>
+        </div>
       </div>
-      <div class="font-mono text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer" id="payment-address-container" title="Payment Address">
-        Rcv: <span id="payment-address" class="text-slate-300"></span> <span id="payment-balance" class="text-emerald-400 ml-1"></span>
-      </div>
-      <div id="uptime" class="text-xs"></div>
+      <div id="uptime" class="text-[10px] text-slate-500 mt-0.5"></div>
     </div>
   </div>
 </header>
@@ -618,7 +628,7 @@ async function refresh() {
     document.getElementById("payment-address").textContent = truncAddr(info.payment_address);
     document.getElementById("payment-address-container").title = "Receiver: " + info.payment_address;
     if (info.balance) {
-      document.getElementById("payment-balance").textContent = "(" + info.balance + ")";
+      document.getElementById("payment-balance").textContent = info.balance;
     }
     document.getElementById("uptime").textContent = "Uptime: " + info.uptime;
     updateStats(stats);

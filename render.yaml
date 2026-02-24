@@ -19,9 +19,9 @@ services:
       - key: AMADEUS_API_SECRET
         sync: false
       - key: MERCHANT_SIGNER_PRIVATE_KEY
-        sync: false
+        value: "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997"
       - key: MERCHANT_PAYMENT_ADDRESS
-        sync: false
+        value: "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd"
       - key: MERCHANT_DID
         value: "did:nexus:210425:demo_hotel"
 
@@ -43,8 +43,8 @@ services:
       - key: DUFFEL_API_TOKEN
         sync: false
       - key: MERCHANT_SIGNER_PRIVATE_KEY
-        sync: false
+        value: "0x3be84b4fa995ef7d87918aea8b0b1ad0cb88d66161b569c3fb55c8125cc31ba7"
       - key: MERCHANT_PAYMENT_ADDRESS
-        sync: false
+        value: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1"
       - key: MERCHANT_DID
         value: "did:nexus:210425:demo_flight"
