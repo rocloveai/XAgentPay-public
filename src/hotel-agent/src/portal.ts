@@ -12,7 +12,7 @@ import { listOrders, getOrder } from "./services/order-store.js";
 import type { Order } from "./types.js";
 
 const AGENT_NAME = "Nexus Hotel Agent";
-const PRIMARY_COLOR = "#059669";
+const ACCENT = "emerald";
 const startedAt = Date.now();
 
 // ── SSE handler registry (injected by server.ts in HTTP mode) ───────────────
@@ -175,52 +175,112 @@ function renderDashboard(): string {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${AGENT_NAME} Portal</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'] }
+    }
+  }
+}
+</script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; }
-  .header { background: ${PRIMARY_COLOR}; color: white; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
-  .header h1 { font-size: 22px; font-weight: 600; }
-  .header .meta { font-size: 13px; opacity: 0.85; text-align: right; line-height: 1.6; }
-  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; background: rgba(255,255,255,0.2); }
-  .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .stat-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); text-align: center; }
-  .stat-card .value { font-size: 32px; font-weight: 700; color: ${PRIMARY_COLOR}; }
-  .stat-card .label { font-size: 13px; color: #64748b; margin-top: 4px; }
-  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
-  th { background: #f1f5f9; text-align: left; padding: 12px 16px; font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-  td { padding: 12px 16px; border-top: 1px solid #f1f5f9; font-size: 14px; }
-  tr.clickable { cursor: pointer; transition: background 0.15s; }
-  tr.clickable:hover { background: #f8fafc; }
-  .status-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; color: white; }
-  .detail-row { display: none; }
-  .detail-row.open { display: table-row; }
-  .detail-row td { background: #f8fafc; padding: 16px; }
-  pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
-  .empty { text-align: center; padding: 60px 20px; color: #94a3b8; }
-  .empty h2 { font-size: 18px; margin-bottom: 8px; color: #64748b; }
-  .refresh-hint { text-align: center; font-size: 12px; color: #94a3b8; margin-top: 16px; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in { animation: fadeIn 0.2s ease-out; }
+  @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
 </style>
 </head>
-<body>
-<div class="header">
-  <div>
-    <h1>${AGENT_NAME}</h1>
-    <span class="badge" id="status-badge">ONLINE</span>
+<body class="bg-slate-900 text-slate-50 min-h-screen font-sans antialiased">
+
+<!-- Header -->
+<header class="border-b border-slate-800 px-6 py-4">
+  <div class="max-w-6xl mx-auto flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-${ACCENT}-500/20 flex items-center justify-center">
+        <svg class="w-5 h-5 text-${ACCENT}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21" />
+        </svg>
+      </div>
+      <h1 class="text-lg font-semibold tracking-tight">${AGENT_NAME}</h1>
+      <span class="flex items-center gap-1.5 bg-emerald-500/15 text-emerald-400 text-xs font-medium px-2.5 py-1 rounded-full">
+        <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full pulse-dot"></span>
+        ONLINE
+      </span>
+    </div>
+    <div class="text-sm text-slate-400 text-right space-y-0.5">
+      <div id="did" class="font-mono text-xs"></div>
+      <div id="uptime" class="text-xs"></div>
+    </div>
   </div>
-  <div class="meta">
-    <div id="did"></div>
-    <div id="uptime"></div>
+</header>
+
+<!-- Stats -->
+<div class="max-w-6xl mx-auto px-6 pt-6 pb-2">
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="stats">
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 text-center">
+      <div class="text-2xl font-bold text-slate-50" data-stat="total">-</div>
+      <div class="text-xs text-slate-400 mt-1 uppercase tracking-wider">Total Orders</div>
+    </div>
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 text-center">
+      <div class="text-2xl font-bold text-amber-400" data-stat="unpaid">-</div>
+      <div class="text-xs text-slate-400 mt-1 uppercase tracking-wider">Unpaid</div>
+    </div>
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 text-center">
+      <div class="text-2xl font-bold text-emerald-400" data-stat="paid">-</div>
+      <div class="text-xs text-slate-400 mt-1 uppercase tracking-wider">Paid</div>
+    </div>
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 text-center">
+      <div class="text-2xl font-bold text-red-400" data-stat="expired">-</div>
+      <div class="text-xs text-slate-400 mt-1 uppercase tracking-wider">Expired</div>
+    </div>
+    <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 text-center">
+      <div class="text-2xl font-bold text-${ACCENT}-400" data-stat="totalAmount">-</div>
+      <div class="text-xs text-slate-400 mt-1 uppercase tracking-wider">Total Volume</div>
+    </div>
   </div>
 </div>
-<div class="container">
-  <div class="stats" id="stats"></div>
-  <div id="orders"></div>
-  <div class="refresh-hint">Auto-refreshes every 5 seconds</div>
+
+<!-- Orders -->
+<div class="max-w-6xl mx-auto px-6 py-4">
+  <div id="orders-wrapper">
+    <div id="empty-state" class="bg-slate-800 rounded-xl border border-slate-700 p-16 text-center">
+      <div class="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center mx-auto mb-4">
+        <svg class="w-6 h-6 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21" />
+        </svg>
+      </div>
+      <h2 class="text-base font-medium text-slate-300 mb-1">No orders yet</h2>
+      <p class="text-sm text-slate-500">Create orders via the MCP tools and they will appear here.</p>
+    </div>
+    <div id="orders-table" class="hidden bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b border-slate-700">
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Order Ref</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Original</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Pay</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Summary</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Created</th>
+          </tr>
+        </thead>
+        <tbody id="order-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="text-center text-xs text-slate-600 mt-4">Auto-refreshes every 5 seconds</div>
 </div>
+
 <script>
-const PRIMARY = "${PRIMARY_COLOR}";
-const STATUS_COLORS = { UNPAID: "#f59e0b", PAID: "#10b981", EXPIRED: "#ef4444" };
+const ACCENT = "${ACCENT}";
+const STATUS_CLASSES = {
+  UNPAID:  "bg-amber-400/15 text-amber-400",
+  PAID:    "bg-emerald-400/15 text-emerald-400",
+  EXPIRED: "bg-red-400/15 text-red-400",
+};
+const CHAIN_NAMES = { 84532: "Base Sepolia", 8453: "Base", 1: "Ethereum", 10: "Optimism" };
 
 function esc(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
@@ -232,45 +292,180 @@ async function fetchJson(path) {
   return res.json();
 }
 
-function renderStats(s) {
-  return [
-    { label: "Total Orders", value: s.total },
-    { label: "Unpaid", value: s.unpaid },
-    { label: "Paid", value: s.paid },
-    { label: "Expired", value: s.expired },
-    { label: "Total Amount", value: s.totalAmount + " " + s.currency },
-  ].map(c => '<div class="stat-card"><div class="value">' + esc(c.value) + '</div><div class="label">' + esc(c.label) + '</div></div>').join("");
+// ── Targeted DOM updates (no innerHTML replacement) ──
+
+function updateStats(stats) {
+  const mapping = {
+    total: String(stats.total),
+    unpaid: String(stats.unpaid),
+    paid: String(stats.paid),
+    expired: String(stats.expired),
+    totalAmount: stats.totalAmount + " " + stats.currency,
+  };
+  for (const [key, val] of Object.entries(mapping)) {
+    const el = document.querySelector('[data-stat="' + key + '"]');
+    if (el && el.textContent !== val) {
+      el.textContent = val;
+    }
+  }
 }
 
-function renderOrders(orders) {
-  if (orders.length === 0) {
-    return '<div class="empty"><h2>No orders yet</h2><p>Create orders via the MCP tools and they will appear here.</p></div>';
+function statusBadgeHtml(status) {
+  const cls = STATUS_CLASSES[status] || "bg-slate-500/15 text-slate-400";
+  return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ' + cls + '">' + esc(status) + '</span>';
+}
+
+function createOrderRow(order) {
+  const tr = document.createElement("tr");
+  tr.setAttribute("data-ref", order.order_ref);
+  tr.className = "border-b border-slate-700/50 cursor-pointer hover:bg-slate-700/30 transition-colors";
+  tr.onclick = function() { toggleDetail(this); };
+  tr.innerHTML =
+    '<td class="px-4 py-3 font-mono text-sm text-slate-300">' + esc(order.order_ref) + '</td>' +
+    '<td class="px-4 py-3">' + statusBadgeHtml(order.status) + '</td>' +
+    '<td class="px-4 py-3 text-sm text-slate-500 line-through">' + esc(order.original_amount + ' ' + order.currency) + '</td>' +
+    '<td class="px-4 py-3 text-sm font-semibold text-emerald-400">' + esc(order.pay_amount + ' ' + order.currency) + '</td>' +
+    '<td class="px-4 py-3 text-sm text-slate-300">' + esc(order.summary) + '</td>' +
+    '<td class="px-4 py-3 text-sm text-slate-400">' + esc(new Date(order.created_at).toLocaleString()) + '</td>';
+
+  const detailTr = document.createElement("tr");
+  detailTr.setAttribute("data-detail-for", order.order_ref);
+  detailTr.className = "hidden";
+  detailTr.innerHTML = '<td colspan="6" class="p-0"><div class="px-4 py-4 bg-slate-850"></div></td>';
+
+  const frag = document.createDocumentFragment();
+  frag.appendChild(tr);
+  frag.appendChild(detailTr);
+  return frag;
+}
+
+function patchRow(row, order) {
+  const cells = row.children;
+  const statusCell = cells[1];
+  const newBadge = statusBadgeHtml(order.status);
+  if (statusCell.innerHTML !== newBadge) statusCell.innerHTML = newBadge;
+
+  const origCell = cells[2];
+  const origText = order.original_amount + ' ' + order.currency;
+  if (origCell.textContent !== origText) origCell.textContent = origText;
+
+  const payCell = cells[3];
+  const payText = order.pay_amount + ' ' + order.currency;
+  if (payCell.textContent !== payText) payCell.textContent = payText;
+}
+
+function updateOrders(newOrders) {
+  const empty = document.getElementById("empty-state");
+  const table = document.getElementById("orders-table");
+  const tbody = document.getElementById("order-tbody");
+
+  if (newOrders.length === 0) {
+    empty.classList.remove("hidden");
+    table.classList.add("hidden");
+    return;
   }
-  let html = '<table><thead><tr><th>Order Ref</th><th>Status</th><th>Original</th><th>Pay</th><th>Summary</th><th>Created</th></tr></thead><tbody>';
-  for (const o of orders) {
-    const bg = STATUS_COLORS[o.status] || "#64748b";
-    html += '<tr class="clickable" onclick="toggleDetail(this)"><td>' + esc(o.order_ref) + '</td><td><span class="status-badge" style="background:' + bg + '">' + esc(o.status) + '</span></td><td style="text-decoration:line-through;color:#94a3b8">' + esc(o.original_amount + " " + o.currency) + '</td><td style="font-weight:600;color:#10b981">' + esc(o.pay_amount + " " + o.currency) + '</td><td>' + esc(o.summary) + '</td><td>' + esc(new Date(o.created_at).toLocaleString()) + '</td></tr>';
-    html += '<tr class="detail-row"><td colspan="6"><div data-ref="' + esc(o.order_ref) + '">Loading...</div></td></tr>';
+
+  empty.classList.add("hidden");
+  table.classList.remove("hidden");
+
+  const seen = new Set();
+
+  for (const order of newOrders) {
+    seen.add(order.order_ref);
+    const existing = tbody.querySelector('tr[data-ref="' + order.order_ref + '"]');
+    if (existing) {
+      patchRow(existing, order);
+    } else {
+      const frag = createOrderRow(order);
+      tbody.prepend(frag);
+    }
   }
-  html += '</tbody></table>';
+
+  // Remove stale rows (but preserve detail state during removal)
+  tbody.querySelectorAll("tr[data-ref]").forEach(function(row) {
+    if (!seen.has(row.dataset.ref)) {
+      const detail = row.nextElementSibling;
+      if (detail && detail.hasAttribute("data-detail-for")) detail.remove();
+      row.remove();
+    }
+  });
+}
+
+// ── Order detail panel ──
+
+async function toggleDetail(row) {
+  const ref = row.dataset.ref;
+  const detailRow = row.nextElementSibling;
+  if (!detailRow || detailRow.getAttribute("data-detail-for") !== ref) return;
+
+  if (!detailRow.classList.contains("hidden")) {
+    detailRow.classList.add("hidden");
+    return;
+  }
+
+  detailRow.classList.remove("hidden");
+  const container = detailRow.querySelector("td > div");
+
+  // Already loaded? Just toggle visibility
+  if (container.hasAttribute("data-loaded")) return;
+
+  container.innerHTML = '<div class="flex items-center gap-2 text-slate-400 text-sm"><svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Loading...</div>';
+
+  try {
+    const data = await fetchJson("/api/orders/" + encodeURIComponent(ref));
+    container.setAttribute("data-loaded", "1");
+    container.innerHTML = renderDetailPanel(data);
+  } catch {
+    container.innerHTML = '<div class="text-red-400 text-sm">Failed to load order details</div>';
+  }
+}
+
+function renderDetailPanel(order) {
+  const q = order.quote_payload;
+  const chainName = CHAIN_NAMES[q.chain_id] || ("Chain " + q.chain_id);
+  const expiry = new Date(q.expiry * 1000).toLocaleString();
+  const statusCls = STATUS_CLASSES[order.status] || "";
+
+  let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4 fade-in">';
+
+  // Payment Details card
+  html += '<div class="bg-slate-900/50 rounded-lg border border-slate-700 p-4">';
+  html += '<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Payment Details</h4>';
+  html += '<dl class="space-y-2 text-sm">';
+  html += detailRow("Merchant DID", q.merchant_did, "font-mono text-xs break-all");
+  html += detailRow("Order Ref", q.merchant_order_ref, "font-mono");
+  html += detailRow("Chain", chainName + ' (' + q.chain_id + ')');
+  html += detailRow("Currency", q.currency);
+  html += detailRow("Expiry", expiry);
+  html += '<div class="flex justify-between items-center"><dt class="text-slate-500">Status</dt><dd><span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ' + statusCls + '">' + esc(order.status) + '</span></dd></div>';
+  html += '</dl></div>';
+
+  // Line Items card
+  html += '<div class="bg-slate-900/50 rounded-lg border border-slate-700 p-4">';
+  html += '<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Line Items</h4>';
+  html += '<table class="w-full text-sm"><thead><tr class="text-slate-500"><th class="text-left pb-2 font-medium">Item</th><th class="text-right pb-2 font-medium">Qty</th><th class="text-right pb-2 font-medium">Amount</th></tr></thead><tbody>';
+
+  for (const item of (q.context.line_items || [])) {
+    html += '<tr class="border-t border-slate-700/50"><td class="py-1.5 text-slate-300">' + esc(item.name) + '</td><td class="py-1.5 text-right text-slate-400">' + esc(item.qty) + '</td><td class="py-1.5 text-right text-slate-300">' + esc(item.amount) + '</td></tr>';
+  }
+
+  html += '</tbody></table></div>';
+  html += '</div>';
+
+  // Raw JSON toggle
+  html += '<div class="mt-3">';
+  html += '<button onclick="this.nextElementSibling.classList.toggle(\'hidden\'); this.textContent = this.nextElementSibling.classList.contains(\'hidden\') ? \'\\u25B6 Show Raw JSON\' : \'\\u25BC Hide Raw JSON\'" class="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">\\u25B6 Show Raw JSON</button>';
+  html += '<pre class="hidden mt-2 bg-slate-950 text-slate-300 p-4 rounded-lg border border-slate-700 overflow-x-auto text-xs leading-relaxed">' + esc(JSON.stringify(order, null, 2)) + '</pre>';
+  html += '</div>';
+
   return html;
 }
 
-async function toggleDetail(row) {
-  const detailRow = row.nextElementSibling;
-  if (detailRow.classList.contains("open")) {
-    detailRow.classList.remove("open");
-    return;
-  }
-  detailRow.classList.add("open");
-  const ref = row.children[0].textContent;
-  try {
-    const data = await fetchJson("/api/orders/" + encodeURIComponent(ref));
-    detailRow.querySelector("td div").innerHTML = '<pre>' + JSON.stringify(data, null, 2).replace(/</g, "&lt;") + '</pre>';
-  } catch {
-    detailRow.querySelector("td div").textContent = "Failed to load details";
-  }
+function detailRow(label, value, extraClass) {
+  return '<div class="flex justify-between items-start gap-4"><dt class="text-slate-500 shrink-0">' + esc(label) + '</dt><dd class="text-slate-300 text-right ' + (extraClass || '') + '">' + esc(value) + '</dd></div>';
 }
+
+// ── Refresh loop ──
 
 async function refresh() {
   try {
@@ -279,10 +474,10 @@ async function refresh() {
       fetchJson("/api/stats"),
       fetchJson("/api/orders"),
     ]);
-    document.getElementById("did").textContent = "DID: " + info.did;
+    document.getElementById("did").textContent = info.did;
     document.getElementById("uptime").textContent = "Uptime: " + info.uptime;
-    document.getElementById("stats").innerHTML = renderStats(stats);
-    document.getElementById("orders").innerHTML = renderOrders(orders);
+    updateStats(stats);
+    updateOrders(orders);
   } catch (e) {
     console.error("Refresh failed:", e);
   }
