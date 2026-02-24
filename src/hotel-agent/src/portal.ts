@@ -143,6 +143,7 @@ async function handleApiOrders(res: ServerResponse): Promise<void> {
       pay_amount: fromUint256(o.quote_payload.amount),
       currency: o.quote_payload.currency,
       summary: o.quote_payload.context.summary,
+      payer_wallet: o.payer_wallet ?? null,
       created_at: o.created_at,
     })),
   );
@@ -216,8 +217,64 @@ tailwind.config = {
   </div>
 </header>
 
-<!-- Stats -->
+<!-- Install -->
 <div class="max-w-6xl mx-auto px-6 pt-6 pb-2">
+  <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+    <button id="install-toggle" class="w-full flex items-center justify-between px-5 py-3 hover:bg-slate-700/30 transition-colors cursor-pointer">
+      <div class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-${ACCENT}-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+        </svg>
+        <span class="text-sm font-semibold text-slate-300">Setup &amp; Installation</span>
+      </div>
+      <svg id="install-chevron" class="w-4 h-4 text-slate-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+      </svg>
+    </button>
+    <div id="install-body" class="hidden border-t border-slate-700">
+      <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- MCP Config -->
+        <div>
+          <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">MCP Connection (Claude Desktop / Cursor)</h4>
+          <div class="relative">
+            <pre id="mcp-config" class="bg-slate-950 text-slate-300 p-4 rounded-lg border border-slate-700 text-xs leading-relaxed overflow-x-auto"></pre>
+            <button id="copy-config" class="absolute top-2 right-2 p-1.5 rounded-md bg-slate-800 hover:bg-slate-600 transition-colors" title="Copy to clipboard">
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <!-- Skill File & Links -->
+        <div>
+          <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Resources</h4>
+          <div class="space-y-3">
+            <a href="/skill.md" target="_blank" class="flex items-center gap-2 bg-slate-950 rounded-lg border border-slate-700 p-3 hover:border-${ACCENT}-500/50 transition-colors">
+              <svg class="w-4 h-4 text-${ACCENT}-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+              <div>
+                <div class="text-sm font-medium text-slate-300">skill.md</div>
+                <div class="text-xs text-slate-500">Full agent capability manifest &amp; API documentation</div>
+              </div>
+            </a>
+            <div class="bg-slate-950 rounded-lg border border-slate-700 p-3">
+              <div class="text-xs text-slate-500 mb-1">SSE Endpoint</div>
+              <code id="sse-url" class="text-xs text-${ACCENT}-400 font-mono break-all"></code>
+            </div>
+            <div class="bg-slate-950 rounded-lg border border-slate-700 p-3">
+              <div class="text-xs text-slate-500 mb-1">Protocol</div>
+              <span class="text-xs text-slate-300">NUPS/1.5 &middot; Chain 210425 &middot; USDC</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="max-w-6xl mx-auto px-6 pt-4 pb-2">
   <div class="grid grid-cols-2 md:grid-cols-5 gap-4" id="stats">
     <div class="bg-slate-800 rounded-xl border border-slate-700 p-4 text-center">
       <div class="text-2xl font-bold text-slate-50" data-stat="total">-</div>
@@ -260,6 +317,7 @@ tailwind.config = {
           <tr class="border-b border-slate-700">
             <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Order Ref</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Payer</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Original</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Pay</th>
             <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Summary</th>
@@ -274,6 +332,29 @@ tailwind.config = {
 </div>
 
 <script>
+// ── Install panel ──
+var sseUrl = window.location.origin + "/sse";
+var mcpConfig = JSON.stringify({ mcpServers: { "hotel-agent": { url: sseUrl } } }, null, 2);
+document.getElementById("mcp-config").textContent = mcpConfig;
+document.getElementById("sse-url").textContent = sseUrl;
+
+document.getElementById("install-toggle").addEventListener("click", function() {
+  var body = document.getElementById("install-body");
+  var chevron = document.getElementById("install-chevron");
+  body.classList.toggle("hidden");
+  chevron.style.transform = body.classList.contains("hidden") ? "" : "rotate(180deg)";
+});
+
+document.getElementById("copy-config").addEventListener("click", function() {
+  navigator.clipboard.writeText(mcpConfig).then(function() {
+    var btn = document.getElementById("copy-config");
+    btn.innerHTML = '<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>';
+    setTimeout(function() {
+      btn.innerHTML = '<svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" /></svg>';
+    }, 2000);
+  });
+});
+
 const ACCENT = "${ACCENT}";
 const STATUS_CLASSES = {
   UNPAID:  "bg-amber-400/15 text-amber-400",
@@ -310,6 +391,11 @@ function updateStats(stats) {
   }
 }
 
+function truncAddr(addr) {
+  if (!addr) return "-";
+  return addr.slice(0, 6) + "..." + addr.slice(-4);
+}
+
 function statusBadgeHtml(status) {
   const cls = STATUS_CLASSES[status] || "bg-slate-500/15 text-slate-400";
   return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ' + cls + '">' + esc(status) + '</span>';
@@ -323,6 +409,7 @@ function createOrderRow(order) {
   tr.innerHTML =
     '<td class="px-4 py-3 font-mono text-sm text-slate-300">' + esc(order.order_ref) + '</td>' +
     '<td class="px-4 py-3">' + statusBadgeHtml(order.status) + '</td>' +
+    '<td class="px-4 py-3 font-mono text-xs text-slate-400" title="' + esc(order.payer_wallet || '') + '">' + esc(truncAddr(order.payer_wallet)) + '</td>' +
     '<td class="px-4 py-3 text-sm text-slate-500 line-through">' + esc(order.original_amount + ' ' + order.currency) + '</td>' +
     '<td class="px-4 py-3 text-sm font-semibold text-emerald-400">' + esc(order.pay_amount + ' ' + order.currency) + '</td>' +
     '<td class="px-4 py-3 text-sm text-slate-300">' + esc(order.summary) + '</td>' +
@@ -331,7 +418,7 @@ function createOrderRow(order) {
   const detailTr = document.createElement("tr");
   detailTr.setAttribute("data-detail-for", order.order_ref);
   detailTr.className = "hidden";
-  detailTr.innerHTML = '<td colspan="6" class="p-0"><div class="px-4 py-4 bg-slate-850"></div></td>';
+  detailTr.innerHTML = '<td colspan="7" class="p-0"><div class="px-4 py-4 bg-slate-850"></div></td>';
 
   const frag = document.createDocumentFragment();
   frag.appendChild(tr);
@@ -345,11 +432,15 @@ function patchRow(row, order) {
   const newBadge = statusBadgeHtml(order.status);
   if (statusCell.innerHTML !== newBadge) statusCell.innerHTML = newBadge;
 
-  const origCell = cells[2];
+  const payerCell = cells[2];
+  const payerText = truncAddr(order.payer_wallet);
+  if (payerCell.textContent !== payerText) payerCell.textContent = payerText;
+
+  const origCell = cells[3];
   const origText = order.original_amount + ' ' + order.currency;
   if (origCell.textContent !== origText) origCell.textContent = origText;
 
-  const payCell = cells[3];
+  const payCell = cells[4];
   const payText = order.pay_amount + ' ' + order.currency;
   if (payCell.textContent !== payText) payCell.textContent = payText;
 }
@@ -433,6 +524,7 @@ function renderDetailPanel(order) {
   html += '<h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Payment Details</h4>';
   html += '<dl class="space-y-2 text-sm">';
   html += detailRow("Merchant DID", q.merchant_did, "font-mono text-xs break-all");
+  html += detailRow("Payer Wallet", order.payer_wallet || q.context.payer_wallet || "-", "font-mono text-xs break-all");
   html += detailRow("Order Ref", q.merchant_order_ref, "font-mono");
   html += detailRow("Chain", chainName + ' (' + q.chain_id + ')');
   html += detailRow("Currency", q.currency);

@@ -97,8 +97,12 @@ server.tool(
     flight_offer_id: z
       .string()
       .describe("The offer_id from search_flights results"),
+    payer_wallet: z
+      .string()
+      .regex(/^0x[a-fA-F0-9]{40}$/)
+      .describe("Payer's EVM wallet address (0x...)"),
   },
-  async ({ flight_offer_id }) => {
+  async ({ flight_offer_id, payer_wallet }) => {
     const offer = offerCache.get(flight_offer_id);
     if (!offer) {
       return {
@@ -132,6 +136,7 @@ server.tool(
         },
         { name: "Tax & Fees", qty: 1, amount: taxAmount },
       ],
+      payerWallet: payer_wallet,
     });
 
     const order = await createOrder(quote);

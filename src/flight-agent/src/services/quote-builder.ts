@@ -7,6 +7,7 @@ interface BuildQuoteParams {
   readonly currency: string;
   readonly summary: string;
   readonly lineItems: readonly LineItem[];
+  readonly payerWallet: string;
 }
 
 const USDC_DECIMALS = 6;
@@ -52,6 +53,7 @@ export function buildQuote(params: BuildQuoteParams): NexusQuotePayload {
       summary: params.summary,
       line_items: lineItemsUint256,
       original_amount: originalUint256,
+      payer_wallet: params.payerWallet,
     },
     signature: "PENDING_NEXUS_CORE",
   };

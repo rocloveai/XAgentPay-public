@@ -103,8 +103,12 @@ server.tool(
     hotel_offer_id: z
       .string()
       .describe("The offer_id from search_hotels results"),
+    payer_wallet: z
+      .string()
+      .regex(/^0x[a-fA-F0-9]{40}$/)
+      .describe("Payer's EVM wallet address (0x...)"),
   },
-  async ({ hotel_offer_id }) => {
+  async ({ hotel_offer_id, payer_wallet }) => {
     const cached = offerCache.get(hotel_offer_id);
     if (!cached) {
       return {
@@ -146,6 +150,7 @@ server.tool(
         { name: "Tax (10%)", qty: 1, amount: taxAmount },
         { name: "Service Charge (5%)", qty: 1, amount: serviceCharge },
       ],
+      payerWallet: payer_wallet,
     });
 
     const order = await createOrder(quote);

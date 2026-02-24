@@ -65,8 +65,9 @@ Generates a Nexus Payment (NUPS) quote for a selected flight offer. Required bef
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `flight_offer_id` | string | Yes | The `offer_id` from `search_flights` results |
+| `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
 
-**Returns:** NUPS quote payload with `merchant_order_ref`, amount, currency, expiry, line items, and signature.
+**Returns:** NUPS quote payload with `merchant_order_ref`, amount, currency, expiry, line items, payer wallet, and signature.
 
 ---
 
@@ -86,6 +87,6 @@ Checks the payment status of a flight order.
 
 1. **Discover** — Ask the user for departure city, destination, and travel date.
 2. **Search** — Call `search_flights` with IATA codes and date. Present results to the user.
-3. **Quote** — When the user selects a flight, call `nexus_generate_quote` with the `offer_id`. Display the NUPS payment payload.
+3. **Quote** — When the user selects a flight, collect their EVM wallet address, then call `nexus_generate_quote` with the `offer_id` and `payer_wallet`. Display the NUPS payment payload.
 4. **Pay** — User completes payment via Nexus Protocol using the NUPS payload (on-chain USDC transfer).
 5. **Verify** — After user confirms payment, call `nexus_check_status` to verify. Only confirm booking when status is `PAID`.

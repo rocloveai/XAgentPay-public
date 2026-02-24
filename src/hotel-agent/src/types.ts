@@ -18,6 +18,7 @@ export interface Order {
   readonly order_ref: string;
   readonly status: OrderStatus;
   readonly quote_payload: NexusQuotePayload;
+  readonly payer_wallet?: string;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -39,6 +40,7 @@ export interface NexusQuotePayload {
     readonly summary: string;
     readonly line_items: readonly LineItem[];
     readonly original_amount?: string;
+    readonly payer_wallet?: string;
   };
   readonly signature: string;
 }

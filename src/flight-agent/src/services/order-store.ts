@@ -20,15 +20,20 @@ function nowISO(): string {
   return new Date().toISOString();
 }
 
-export async function createOrder(quotePayload: NexusQuotePayload): Promise<Order> {
+export async function createOrder(
+  quotePayload: NexusQuotePayload,
+): Promise<Order> {
+  const payerWallet = quotePayload.context.payer_wallet;
+
   if (isPoolInitialized()) {
-    return insertOrder(quotePayload);
+    return insertOrder(quotePayload, payerWallet);
   }
 
   const order: Order = {
     order_ref: quotePayload.merchant_order_ref,
     status: "UNPAID",
     quote_payload: quotePayload,
+    payer_wallet: payerWallet,
     created_at: nowISO(),
     updated_at: nowISO(),
   };
