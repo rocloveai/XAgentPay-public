@@ -2,11 +2,11 @@
 name: nexus-hotel-agent
 version: "0.1.0"
 description: Hotel booking with Nexus Payment — search hotels across popular cities, generate NUPS quotes, verify on-chain payments
-merchant_did: "did:nexus:210425:demo_hotel"
+merchant_did: "did:nexus:20250407:demo_hotel"
 protocol: NUPS/1.5
 category: travel.hotels
 currencies: [USDC]
-chain_id: 210425
+chain_id: 20250407
 tools:
   - name: search_hotels
     role: search

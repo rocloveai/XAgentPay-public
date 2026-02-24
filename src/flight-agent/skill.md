@@ -2,11 +2,11 @@
 name: nexus-flight-agent
 version: "0.1.0"
 description: Flight booking with Nexus Payment — search flights, generate NUPS quotes, verify on-chain payments
-merchant_did: "did:nexus:210425:demo_flight"
+merchant_did: "did:nexus:20250407:demo_flight"
 protocol: NUPS/1.5
 category: travel.flights
 currencies: [USDC]
-chain_id: 210425
+chain_id: 20250407
 tools:
   - name: search_flights
     role: search
