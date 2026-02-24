@@ -143,7 +143,9 @@ server.tool(
           text:
             `Nexus Payment Quote Generated\n` +
             `Order Ref: ${order.order_ref}\n` +
-            `Amount: ${totalAmount} USDC\n` +
+            `Original Amount: ${totalAmount} USDC\n` +
+            `Demo Discount: 0.10 USDC (test mode)\n` +
+            `Pay Amount: 0.10 USDC\n` +
             `Status: ${order.status}\n` +
             `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
             `NUPS Payload:\n${JSON.stringify(quote, null, 2)}`,

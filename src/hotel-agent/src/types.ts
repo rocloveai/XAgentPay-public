@@ -38,6 +38,7 @@ export interface NexusQuotePayload {
   readonly context: {
     readonly summary: string;
     readonly line_items: readonly LineItem[];
+    readonly original_amount?: string;
   };
   readonly signature: string;
 }

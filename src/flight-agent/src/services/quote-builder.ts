@@ -11,6 +11,7 @@ interface BuildQuoteParams {
 
 const USDC_DECIMALS = 6;
 const QUOTE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const DEMO_DISCOUNT_AMOUNT = "0.10"; // 0.1 USDC for testing
 
 /**
  * Convert a human-readable amount (e.g. "530.00") to uint256 string
@@ -33,7 +34,8 @@ export function toUint256(
 }
 
 export function buildQuote(params: BuildQuoteParams): NexusQuotePayload {
-  const amountUint256 = toUint256(params.amount);
+  const originalUint256 = toUint256(params.amount);
+  const discountedUint256 = toUint256(DEMO_DISCOUNT_AMOUNT);
   const lineItemsUint256 = params.lineItems.map((item) => ({
     ...item,
     amount: toUint256(item.amount),
@@ -42,13 +44,14 @@ export function buildQuote(params: BuildQuoteParams): NexusQuotePayload {
   return {
     merchant_did: params.merchantDid,
     merchant_order_ref: params.orderRef,
-    amount: amountUint256,
+    amount: discountedUint256,
     currency: params.currency,
     chain_id: 210425,
     expiry: Math.floor((Date.now() + QUOTE_TTL_MS) / 1000),
     context: {
       summary: params.summary,
       line_items: lineItemsUint256,
+      original_amount: originalUint256,
     },
     signature: "PENDING_NEXUS_CORE",
   };

@@ -137,7 +137,10 @@ async function handleApiOrders(res: ServerResponse): Promise<void> {
     orders.map((o) => ({
       order_ref: o.order_ref,
       status: o.status,
-      amount: fromUint256(o.quote_payload.amount),
+      original_amount: o.quote_payload.context.original_amount
+        ? fromUint256(o.quote_payload.context.original_amount)
+        : fromUint256(o.quote_payload.amount),
+      pay_amount: fromUint256(o.quote_payload.amount),
       currency: o.quote_payload.currency,
       summary: o.quote_payload.context.summary,
       created_at: o.created_at,
@@ -145,7 +148,10 @@ async function handleApiOrders(res: ServerResponse): Promise<void> {
   );
 }
 
-async function handleApiOrderDetail(res: ServerResponse, ref: string): Promise<void> {
+async function handleApiOrderDetail(
+  res: ServerResponse,
+  ref: string,
+): Promise<void> {
   const order = await getOrder(ref);
   if (!order) {
     sendJson(res, 404, { error: `Order "${ref}" not found` });
@@ -240,11 +246,11 @@ function renderOrders(orders) {
   if (orders.length === 0) {
     return '<div class="empty"><h2>No orders yet</h2><p>Create orders via the MCP tools and they will appear here.</p></div>';
   }
-  let html = '<table><thead><tr><th>Order Ref</th><th>Status</th><th>Amount</th><th>Summary</th><th>Created</th></tr></thead><tbody>';
+  let html = '<table><thead><tr><th>Order Ref</th><th>Status</th><th>Original</th><th>Pay</th><th>Summary</th><th>Created</th></tr></thead><tbody>';
   for (const o of orders) {
     const bg = STATUS_COLORS[o.status] || "#64748b";
-    html += '<tr class="clickable" onclick="toggleDetail(this)"><td>' + esc(o.order_ref) + '</td><td><span class="status-badge" style="background:' + bg + '">' + esc(o.status) + '</span></td><td>' + esc(o.amount + " " + o.currency) + '</td><td>' + esc(o.summary) + '</td><td>' + esc(new Date(o.created_at).toLocaleString()) + '</td></tr>';
-    html += '<tr class="detail-row"><td colspan="5"><div data-ref="' + esc(o.order_ref) + '">Loading...</div></td></tr>';
+    html += '<tr class="clickable" onclick="toggleDetail(this)"><td>' + esc(o.order_ref) + '</td><td><span class="status-badge" style="background:' + bg + '">' + esc(o.status) + '</span></td><td style="text-decoration:line-through;color:#94a3b8">' + esc(o.original_amount + " " + o.currency) + '</td><td style="font-weight:600;color:#10b981">' + esc(o.pay_amount + " " + o.currency) + '</td><td>' + esc(o.summary) + '</td><td>' + esc(new Date(o.created_at).toLocaleString()) + '</td></tr>';
+    html += '<tr class="detail-row"><td colspan="6"><div data-ref="' + esc(o.order_ref) + '">Loading...</div></td></tr>';
   }
   html += '</tbody></table>';
   return html;
