@@ -454,7 +454,7 @@ function renderDetailPanel(order) {
 
   // Raw JSON toggle
   html += '<div class="mt-3">';
-  html += '<button onclick="this.nextElementSibling.classList.toggle(\'hidden\'); this.textContent = this.nextElementSibling.classList.contains(\'hidden\') ? \'\\u25B6 Show Raw JSON\' : \'\\u25BC Hide Raw JSON\'" class="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">\\u25B6 Show Raw JSON</button>';
+  html += '<button data-toggle-json class="text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer">\\u25B6 Show Raw JSON</button>';
   html += '<pre class="hidden mt-2 bg-slate-950 text-slate-300 p-4 rounded-lg border border-slate-700 overflow-x-auto text-xs leading-relaxed">' + esc(JSON.stringify(order, null, 2)) + '</pre>';
   html += '</div>';
 
@@ -464,6 +464,17 @@ function renderDetailPanel(order) {
 function detailRow(label, value, extraClass) {
   return '<div class="flex justify-between items-start gap-4"><dt class="text-slate-500 shrink-0">' + esc(label) + '</dt><dd class="text-slate-300 text-right ' + (extraClass || '') + '">' + esc(value) + '</dd></div>';
 }
+
+// ── Delegated event: JSON toggle button ──
+
+document.addEventListener("click", function(e) {
+  var btn = e.target.closest("[data-toggle-json]");
+  if (!btn) return;
+  var pre = btn.nextElementSibling;
+  if (!pre) return;
+  pre.classList.toggle("hidden");
+  btn.textContent = pre.classList.contains("hidden") ? "\\u25B6 Show Raw JSON" : "\\u25BC Hide Raw JSON";
+});
 
 // ── Refresh loop ──
 
