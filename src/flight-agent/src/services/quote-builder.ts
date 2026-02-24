@@ -1,4 +1,6 @@
 import type { LineItem, NexusQuotePayload } from "../types.js";
+import { createWalletClient, http, type Address, type Hex, keccak256, toHex } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 
 interface BuildQuoteParams {
   readonly merchantDid: string;
@@ -14,10 +16,28 @@ const USDC_DECIMALS = 6;
 const QUOTE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const DEMO_DISCOUNT_AMOUNT = "0.10"; // 0.1 USDC for testing
 
-/**
- * Convert a human-readable amount (e.g. "530.00") to uint256 string
- * with the specified decimal precision.
- */
+// NexusPay Core Contract Address (Demo)
+const VERIFYING_CONTRACT = "0x0000000000000000000000000000000000000000" as Address;
+
+const NEXUS_DOMAIN = {
+  name: "NexusPay",
+  version: "1",
+  chainId: 210425,
+  verifyingContract: VERIFYING_CONTRACT,
+} as const;
+
+const NEXUS_QUOTE_TYPES = {
+  NexusQuote: [
+    { name: "merchant_did", type: "string" },
+    { name: "merchant_order_ref", type: "string" },
+    { name: "amount", type: "uint256" },
+    { name: "currency", type: "string" },
+    { name: "chain_id", type: "uint256" },
+    { name: "expiry", type: "uint256" },
+    { name: "context_hash", type: "bytes32" },
+  ],
+} as const;
+
 export function toUint256(
   amount: string,
   decimals: number = USDC_DECIMALS,
@@ -34,7 +54,7 @@ export function toUint256(
   return raw.replace(/^0+/, "") || "0";
 }
 
-export function buildQuote(params: BuildQuoteParams): NexusQuotePayload {
+export async function buildQuote(params: BuildQuoteParams): Promise<NexusQuotePayload> {
   const originalUint256 = toUint256(params.amount);
   const discountedUint256 = toUint256(DEMO_DISCOUNT_AMOUNT);
   const lineItemsUint256 = params.lineItems.map((item) => ({
@@ -42,19 +62,46 @@ export function buildQuote(params: BuildQuoteParams): NexusQuotePayload {
     amount: toUint256(item.amount),
   }));
 
+  const context = {
+    summary: params.summary,
+    line_items: lineItemsUint256,
+    original_amount: originalUint256,
+    payer_wallet: params.payerWallet,
+  };
+
+  const contextHash = keccak256(toHex(JSON.stringify(context)));
+  const expiry = Math.floor((Date.now() + QUOTE_TTL_MS) / 1000);
+
+  // Sign quote using merchant private key
+  const account = privateKeyToAccount((process.env.MERCHANT_SIGNER_PRIVATE_KEY || "0x") as Hex);
+  const walletClient = createWalletClient({
+    account,
+    transport: http("https://devnetopenapi2.platon.network/rpc"),
+  });
+
+  const signature = await walletClient.signTypedData({
+    domain: NEXUS_DOMAIN,
+    types: NEXUS_QUOTE_TYPES,
+    primaryType: "NexusQuote",
+    message: {
+      merchant_did: params.merchantDid,
+      merchant_order_ref: params.orderRef,
+      amount: BigInt(discountedUint256),
+      currency: params.currency,
+      chain_id: BigInt(210425),
+      expiry: BigInt(expiry),
+      context_hash: contextHash,
+    },
+  });
+
   return {
     merchant_did: params.merchantDid,
     merchant_order_ref: params.orderRef,
     amount: discountedUint256,
     currency: params.currency,
     chain_id: 210425,
-    expiry: Math.floor((Date.now() + QUOTE_TTL_MS) / 1000),
-    context: {
-      summary: params.summary,
-      line_items: lineItemsUint256,
-      original_amount: originalUint256,
-      payer_wallet: params.payerWallet,
-    },
-    signature: "PENDING_NEXUS_CORE",
+    expiry,
+    context,
+    signature,
   };
 }

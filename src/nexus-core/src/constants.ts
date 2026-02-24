@@ -17,7 +17,10 @@ export const VALID_TRANSITIONS: ReadonlyMap<
 > = new Map<PaymentStatus, ReadonlySet<PaymentStatus>>([
   ["CREATED", new Set(["AWAITING_TX", "EXPIRED", "RISK_REJECTED"])],
   ["AWAITING_TX", new Set(["BROADCASTED", "EXPIRED", "RISK_REJECTED"])],
-  ["BROADCASTED", new Set(["SETTLED", "ESCROWED", "TX_FAILED", "RISK_REJECTED"])],
+  [
+    "BROADCASTED",
+    new Set(["SETTLED", "ESCROWED", "TX_FAILED", "RISK_REJECTED"]),
+  ],
   ["SETTLED", new Set(["COMPLETED"])],
   ["COMPLETED", new Set()],
   ["EXPIRED", new Set()],
@@ -79,6 +82,17 @@ export const ARBITRATION_TIMEOUT_S = 7 * 24 * 60 * 60;
 /** PlatON mainnet chain ID */
 export const PLATON_CHAIN_ID = 210425;
 
+/** PlatON devnet chain ID */
+export const PLATON_DEVNET_CHAIN_ID = 20250407;
+
+/** PlatON devnet RPC URL */
+export const PLATON_DEVNET_RPC_URL =
+  "https://devnet3openapi.platon.network/rpc";
+
+/** USDC contract address on PlatON devnet (bech32: lat19wan5842fdd7ahj20vhzhwasxugqvz3k2qtk50) */
+export const PLATON_DEVNET_USDC_ADDRESS =
+  "0xFF8dEe9983768D0399673014cf77826896F97e4d" as const;
+
 /** USDC decimals */
 export const USDC_DECIMALS = 6;
 
@@ -94,9 +108,9 @@ export const WEBHOOK_MAX_ATTEMPTS = 6;
 
 /** Retry delays in milliseconds (exponential backoff) */
 export const WEBHOOK_RETRY_DELAYS_MS: readonly number[] = [
-  10_000,   // 10s
-  30_000,   // 30s
-  120_000,  // 2min
-  600_000,  // 10min
+  10_000, // 10s
+  30_000, // 30s
+  120_000, // 2min
+  600_000, // 10min
   1_800_000, // 30min
 ];

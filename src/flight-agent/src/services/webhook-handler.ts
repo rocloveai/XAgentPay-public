@@ -1,0 +1,116 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+import type { WebhookPayload, WebhookEventType } from "../types.js";
+import { updateStatus } from "./order-store.js";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Maximum age of a webhook timestamp before it's rejected (5 minutes) */
+const MAX_TIMESTAMP_DRIFT_S = 300;
+
+/** In-memory idempotency set — prevents duplicate event processing */
+const processedEvents = new Set<string>();
+
+// ---------------------------------------------------------------------------
+// Signature verification
+// ---------------------------------------------------------------------------
+
+export interface VerifyResult {
+  readonly valid: boolean;
+  readonly reason?: string;
+}
+
+export function verifyWebhookSignature(
+  secret: string,
+  rawBody: string,
+  signatureHeader: string | undefined,
+  timestampHeader: string | undefined,
+): VerifyResult {
+  if (!signatureHeader || !timestampHeader) {
+    return { valid: false, reason: "Missing signature or timestamp header" };
+  }
+
+  // Validate timestamp freshness
+  const timestamp = parseInt(timestampHeader, 10);
+  if (isNaN(timestamp)) {
+    return { valid: false, reason: "Invalid timestamp" };
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestamp) > MAX_TIMESTAMP_DRIFT_S) {
+    return { valid: false, reason: "Timestamp outside allowed window" };
+  }
+
+  // Verify HMAC-SHA256
+  const expected = createHmac("sha256", secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest("hex");
+
+  const providedHex = signatureHeader.startsWith("sha256=")
+    ? signatureHeader.slice(7)
+    : signatureHeader;
+
+  const expectedBuf = Buffer.from(expected, "hex");
+  const providedBuf = Buffer.from(providedHex, "hex");
+
+  if (expectedBuf.length !== providedBuf.length) {
+    return { valid: false, reason: "Signature mismatch" };
+  }
+
+  if (!timingSafeEqual(expectedBuf, providedBuf)) {
+    return { valid: false, reason: "Signature mismatch" };
+  }
+
+  return { valid: true };
+}
+
+// ---------------------------------------------------------------------------
+// Event handling
+// ---------------------------------------------------------------------------
+
+/** Maps webhook event types to local order status changes */
+const STATUS_MAP: Partial<Record<WebhookEventType, "PAID" | "EXPIRED">> = {
+  "payment.settled": "PAID",
+  "payment.expired": "EXPIRED",
+};
+
+export interface WebhookHandleResult {
+  readonly accepted: boolean;
+  readonly action: string;
+}
+
+export async function handleWebhookEvent(
+  payload: WebhookPayload,
+): Promise<WebhookHandleResult> {
+  const { event_id, event_type, data } = payload;
+
+  // Idempotency check
+  if (processedEvents.has(event_id)) {
+    return { accepted: true, action: "duplicate_ignored" };
+  }
+
+  const newStatus = STATUS_MAP[event_type];
+
+  if (newStatus) {
+    const updated = await updateStatus(data.merchant_order_ref, newStatus);
+    processedEvents.add(event_id);
+
+    if (updated) {
+      console.error(
+        `[Webhook] ${event_type}: order ${data.merchant_order_ref} → ${newStatus}`,
+      );
+      return { accepted: true, action: `status_updated_to_${newStatus}` };
+    }
+
+    console.error(
+      `[Webhook] ${event_type}: order ${data.merchant_order_ref} not found`,
+    );
+    return { accepted: true, action: "order_not_found" };
+  }
+
+  // Acknowledge other events without state change
+  processedEvents.add(event_id);
+  console.error(`[Webhook] ${event_type}: acknowledged (no status change)`);
+  return { accepted: true, action: "acknowledged" };
+}

@@ -18,6 +18,10 @@ services:
         sync: false
       - key: AMADEUS_API_SECRET
         sync: false
+      - key: MERCHANT_SIGNER_PRIVATE_KEY
+        sync: false
+      - key: MERCHANT_PAYMENT_ADDRESS
+        sync: false
       - key: MERCHANT_DID
         value: "did:nexus:210425:demo_hotel"
 
@@ -37,6 +41,10 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: DUFFEL_API_TOKEN
+        sync: false
+      - key: MERCHANT_SIGNER_PRIVATE_KEY
+        sync: false
+      - key: MERCHANT_PAYMENT_ADDRESS
         sync: false
       - key: MERCHANT_DID
         value: "did:nexus:210425:demo_flight"

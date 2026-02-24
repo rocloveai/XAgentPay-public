@@ -14,6 +14,7 @@
 | RFC-007 | Core Agentic Interface | Hub-Spoke 跨链托管 + Buyer/Seller Plugin | Final Spec |
 | RFC-008 | NMSS (Merchant Skill) | skill.md 标准 + 工具角色分类 | Draft |
 | RFC-009 | Webhook Standard | 支付结果回调 + HMAC + 重试策略 | **Draft (NEW)** |
+| RFC-010 | NexusPay Escrow Contract | 智能合约担保支付 + 纠纷仲裁 + 自动退款 | **Draft (NEW)** |
 | NBSS | Buyer Skills Standard | User Agent 标准接入 SDK | Draft |
 
 ## Architecture: MVP (Direct Settlement)
@@ -56,6 +57,49 @@
 |             chain_id: 210425                     |
 |        USDC (ERC-20) Direct Transfer             |
 +-------------------------------------------------+
+```
+
+## Architecture: MVP+ (Dual Mode - Direct + Escrow, RFC-010)
+
+```
++-------------------------------------------------+
+|                 User Agent (UA)                  |
+|          @nexus/buyer-skills (NBSS)              |
+|  PreparePayment -> ExecutePayment -> TrackOrder  |
++------------------------+------------------------+
+                         | MCP Protocol
++------------------------v------------------------+
+|              NexusPay Core (RFC-005v2 + RFC-010) |
+|  +-------------+ +-----------+ +-------------+  |
+|  |  Security   | |  Order    | |  Chain      |  |
+|  |  Module     | |  State    | |  Watcher    |  |
+|  |             | |  Machine  | |             |  |
+|  | EIP-712     | | 12 States | | PlatON RPC  |  |
+|  | DID Resolve | | Timeout   | | USDC Events |  |
+|  | Nonce Guard | | Escrow    | | Escrow Evts |  |
+|  +-------------+ +-----------+ +-------------+  |
+|  +-------------------------------------------+  |
+|  |  Payment Router                           |  |
+|  |  DIRECT_TRANSFER | ESCROW_CONTRACT        |  |
+|  +-------------------------------------------+  |
+|  +-------------------------------------------+  |
+|  |  Webhook Notifier (RFC-009)               |  |
+|  |  HMAC + Retry + ISO 20022 + Escrow Events |  |
+|  +-------------------------------------------+  |
+|  +-------------------------------------------+  |
+|  |  PostgreSQL (Neon)                        |  |
+|  |  payments | events | merchants | webhooks |  |
+|  +-------------------------------------------+  |
++----------+-----------------+-----------------+--+
+           |                 |
+  Direct Transfer      Escrow Contract
+           |                 |
++----------v-----------------v-----------------+
+|             PlatON Blockchain                 |
+|             chain_id: 210425                  |
+|  USDC (ERC-20)     NexusPayEscrow Contract    |
+|  Direct Transfer    deposit/release/refund    |
++-----------------------------------------------+
 ```
 
 ## Architecture: Full Vision (Future)

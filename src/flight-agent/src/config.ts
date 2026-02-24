@@ -3,6 +3,9 @@ export interface Config {
   readonly merchantDid: string;
   readonly portalPort: number;
   readonly databaseUrl: string;
+  readonly webhookSecret: string;
+  readonly paymentAddress: string;
+  readonly signerPrivateKey: string;
 }
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -20,6 +23,18 @@ export function loadConfig(): Config {
     process.env.MERCHANT_DID ?? "did:nexus:210425:demo_flight";
   const portalPort = parsePort(process.env.PORTAL_PORT, 3001);
   const databaseUrl = process.env.DATABASE_URL ?? "";
+  const webhookSecret =
+    process.env.NEXUS_WEBHOOK_SECRET ?? "REDACTED_WEBHOOK_SECRET";
+  const paymentAddress = process.env.MERCHANT_PAYMENT_ADDRESS ?? "";
+  const signerPrivateKey = process.env.MERCHANT_SIGNER_PRIVATE_KEY ?? "";
 
-  return { duffelApiToken, merchantDid, portalPort, databaseUrl };
+  return {
+    duffelApiToken,
+    merchantDid,
+    portalPort,
+    databaseUrl,
+    webhookSecret,
+    paymentAddress,
+    signerPrivateKey,
+  };
 }

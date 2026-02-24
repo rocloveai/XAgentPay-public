@@ -1,3 +1,13 @@
+// Re-export nexus-core types so existing imports from "../types.js" keep working
+export type {
+  LineItem,
+  NexusQuotePayload,
+  PaymentMethod,
+  PaymentStatus,
+  WebhookEventType,
+  WebhookPayload,
+} from "./types/nexus-core-types.js";
+
 export interface HotelOffer {
   readonly offer_id: string;
   readonly hotel_name: string;
@@ -23,24 +33,5 @@ export interface Order {
   readonly updated_at: string;
 }
 
-export interface LineItem {
-  readonly name: string;
-  readonly qty: number;
-  readonly amount: string;
-}
-
-export interface NexusQuotePayload {
-  readonly merchant_did: string;
-  readonly merchant_order_ref: string;
-  readonly amount: string;
-  readonly currency: string;
-  readonly chain_id: number;
-  readonly expiry: number;
-  readonly context: {
-    readonly summary: string;
-    readonly line_items: readonly LineItem[];
-    readonly original_amount?: string;
-    readonly payer_wallet?: string;
-  };
-  readonly signature: string;
-}
+// Need the concrete import for Order's quote_payload field
+import type { NexusQuotePayload } from "./types/nexus-core-types.js";

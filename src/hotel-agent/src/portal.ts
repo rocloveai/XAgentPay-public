@@ -9,7 +9,14 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Config } from "./config.js";
 import { listOrders, getOrder } from "./services/order-store.js";
+import {
+  verifyWebhookSignature,
+  handleWebhookEvent,
+} from "./services/webhook-handler.js";
+import type { WebhookPayload } from "./types.js";
 import type { Order } from "./types.js";
+import { privateKeyToAccount } from "viem/accounts";
+import { createPublicClient, http, type Hex, formatEther } from "viem";
 
 const AGENT_NAME = "Nexus Hotel Agent";
 const ACCENT = "emerald";
@@ -120,10 +127,32 @@ function formatUptime(ms: number): string {
 
 // ── API handlers ────────────────────────────────────────────────────────────
 
-function handleApiInfo(res: ServerResponse, config: Config): void {
+async function handleApiInfo(res: ServerResponse, config: Config): Promise<void> {
+  let signerAddress = "-";
+  let balanceFormatted = "";
+
+  try {
+    if (config.signerPrivateKey) {
+      signerAddress = privateKeyToAccount((config.signerPrivateKey || "0x") as Hex).address;
+    }
+  } catch (e) { }
+
+  try {
+    if (config.paymentAddress) {
+      const publicClient = createPublicClient({ transport: http("https://devnetopenapi2.platon.network/rpc") });
+      const bal = await publicClient.getBalance({ address: config.paymentAddress as Hex });
+      balanceFormatted = parseFloat(formatEther(bal)).toFixed(4) + " LAT";
+    }
+  } catch (e) {
+    balanceFormatted = "Error";
+  }
+
   sendJson(res, 200, {
     name: AGENT_NAME,
     did: config.merchantDid,
+    payment_address: config.paymentAddress || "-",
+    signer_address: signerAddress,
+    balance: balanceFormatted,
     uptime: formatUptime(Date.now() - startedAt),
     started_at: new Date(startedAt).toISOString(),
   });
@@ -212,6 +241,12 @@ tailwind.config = {
     </div>
     <div class="text-sm text-slate-400 text-right space-y-0.5">
       <div id="did" class="font-mono text-xs"></div>
+      <div class="font-mono text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer" id="signer-address-container" title="Signer Address">
+        Sig: <span id="signer-address" class="text-slate-300"></span>
+      </div>
+      <div class="font-mono text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer" id="payment-address-container" title="Payment Address">
+        Rcv: <span id="payment-address" class="text-slate-300"></span> <span id="payment-balance" class="text-emerald-400 ml-1"></span>
+      </div>
       <div id="uptime" class="text-xs"></div>
     </div>
   </div>
@@ -578,6 +613,13 @@ async function refresh() {
       fetchJson("/api/orders"),
     ]);
     document.getElementById("did").textContent = info.did;
+    document.getElementById("signer-address").textContent = truncAddr(info.signer_address);
+    document.getElementById("signer-address-container").title = "Signer: " + info.signer_address;
+    document.getElementById("payment-address").textContent = truncAddr(info.payment_address);
+    document.getElementById("payment-address-container").title = "Receiver: " + info.payment_address;
+    if (info.balance) {
+      document.getElementById("payment-balance").textContent = "(" + info.balance + ")";
+    }
     document.getElementById("uptime").textContent = "Uptime: " + info.uptime;
     updateStats(stats);
     updateOrders(orders);
@@ -591,6 +633,46 @@ setInterval(refresh, 5000);
 </script>
 </body>
 </html>`;
+}
+
+// ── Webhook handler ─────────────────────────────────────────────────────────
+
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
+    req.on("error", reject);
+  });
+}
+
+async function handleWebhook(
+  config: Config,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const rawBody = await readBody(req);
+
+  const sig = req.headers["x-nexus-signature"] as string | undefined;
+  const ts = req.headers["x-nexus-timestamp"] as string | undefined;
+
+  const result = verifyWebhookSignature(config.webhookSecret, rawBody, sig, ts);
+  if (!result.valid) {
+    console.error(`[Webhook] Rejected: ${result.reason}`);
+    sendJson(res, 401, { error: "Unauthorized", reason: result.reason });
+    return;
+  }
+
+  let payload: WebhookPayload;
+  try {
+    payload = JSON.parse(rawBody) as WebhookPayload;
+  } catch {
+    sendJson(res, 400, { error: "Invalid JSON" });
+    return;
+  }
+
+  const handleResult = await handleWebhookEvent(payload);
+  sendJson(res, 200, handleResult);
 }
 
 // ── Request router ──────────────────────────────────────────────────────────
@@ -628,7 +710,7 @@ async function handleRequest(
   }
 
   if (path === "/api/info" && req.method === "GET") {
-    handleApiInfo(res, config);
+    await handleApiInfo(res, config);
     return;
   }
 
@@ -645,6 +727,11 @@ async function handleRequest(
   const orderMatch = path.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,64})$/);
   if (orderMatch && req.method === "GET") {
     await handleApiOrderDetail(res, decodeURIComponent(orderMatch[1]));
+    return;
+  }
+
+  if (path === "/webhook" && req.method === "POST") {
+    await handleWebhook(config, req, res);
     return;
   }
 

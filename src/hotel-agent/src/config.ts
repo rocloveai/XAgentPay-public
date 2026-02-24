@@ -4,6 +4,9 @@ export interface Config {
   readonly amadeusApiKey: string;
   readonly amadeusApiSecret: string;
   readonly databaseUrl: string;
+  readonly webhookSecret: string;
+  readonly paymentAddress: string;
+  readonly signerPrivateKey: string;
 }
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -21,6 +24,19 @@ export function loadConfig(): Config {
   const amadeusApiKey = process.env.AMADEUS_API_KEY ?? "";
   const amadeusApiSecret = process.env.AMADEUS_API_SECRET ?? "";
   const databaseUrl = process.env.DATABASE_URL ?? "";
+  const webhookSecret =
+    process.env.NEXUS_WEBHOOK_SECRET ?? "REDACTED_WEBHOOK_SECRET";
+  const paymentAddress = process.env.MERCHANT_PAYMENT_ADDRESS ?? "";
+  const signerPrivateKey = process.env.MERCHANT_SIGNER_PRIVATE_KEY ?? "";
 
-  return { merchantDid, portalPort, amadeusApiKey, amadeusApiSecret, databaseUrl };
+  return {
+    merchantDid,
+    portalPort,
+    amadeusApiKey,
+    amadeusApiSecret,
+    databaseUrl,
+    webhookSecret,
+    paymentAddress,
+    signerPrivateKey,
+  };
 }

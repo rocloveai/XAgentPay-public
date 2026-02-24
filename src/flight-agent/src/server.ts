@@ -122,7 +122,7 @@ server.tool(
       parseFloat(offer.price.amount) + parseFloat(taxAmount)
     ).toFixed(2);
 
-    const quote = buildQuote({
+    const quote = await buildQuote({
       merchantDid: config.merchantDid,
       orderRef,
       amount: totalAmount,
@@ -141,6 +141,15 @@ server.tool(
 
     const order = await createOrder(quote);
 
+    const paymentMethodsWrapper = {
+      payment_methods: [
+        {
+          type: "urn:ucp:payment:nexus_v1",
+          payload: quote,
+        },
+      ],
+    };
+
     return {
       content: [
         {
@@ -153,7 +162,7 @@ server.tool(
             `Pay Amount: 0.10 USDC\n` +
             `Status: ${order.status}\n` +
             `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
-            `NUPS Payload:\n${JSON.stringify(quote, null, 2)}`,
+            `NUPS Payload:\n${JSON.stringify(paymentMethodsWrapper, null, 2)}`,
         },
       ],
     };
