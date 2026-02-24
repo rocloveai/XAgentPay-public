@@ -9,15 +9,26 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { z } from "zod";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
 import { loadNexusCoreConfig } from "./config.js";
 import { initPool } from "./db/pool.js";
 import { NeonPaymentRepository } from "./db/payment-repo.js";
 import { NeonMerchantRepository } from "./db/merchant-repo.js";
 import { NeonEventRepository } from "./db/event-repo.js";
 import { NeonGroupRepository } from "./db/group-repo.js";
+import { NeonWebhookRepository } from "./db/webhook-repo.js";
 import { NexusOrchestrator } from "./services/orchestrator.js";
-import type { NexusQuotePayload } from "./types.js";
+import { PaymentStateMachine } from "./services/state-machine.js";
+import { GroupManager } from "./services/group-manager.js";
+import { NexusRelayer } from "./services/relayer.js";
+import { ChainWatcher } from "./services/chain-watcher.js";
+import { TimeoutHandler } from "./services/timeout-handler.js";
+import { WebhookNotifier } from "./services/webhook-notifier.js";
+import type { NexusQuotePayload, Hex } from "./types.js";
 
 const config = loadNexusCoreConfig();
 const transportMode = process.env.TRANSPORT ?? "stdio";
@@ -32,6 +43,12 @@ const paymentRepo = new NeonPaymentRepository();
 const merchantRepo = new NeonMerchantRepository();
 const eventRepo = new NeonEventRepository();
 const groupRepo = new NeonGroupRepository();
+const webhookRepo = new NeonWebhookRepository();
+
+// Core services
+const stateMachine = new PaymentStateMachine(paymentRepo, eventRepo);
+const groupManager = new GroupManager(groupRepo, paymentRepo, eventRepo);
+const webhookNotifier = new WebhookNotifier(webhookRepo, merchantRepo);
 
 // Orchestrator
 const orchestrator = new NexusOrchestrator(
@@ -42,13 +59,35 @@ const orchestrator = new NexusOrchestrator(
   config,
 );
 
+// Relayer (only if private key configured)
+let relayer: NexusRelayer | null = null;
+let watcher: ChainWatcher | null = null;
+let timeoutHandler: TimeoutHandler | null = null;
+
+if (config.relayerPrivateKey) {
+  relayer = new NexusRelayer(config);
+  watcher = new ChainWatcher(
+    config,
+    paymentRepo,
+    stateMachine,
+    groupManager,
+    webhookNotifier,
+  );
+  timeoutHandler = new TimeoutHandler(
+    relayer,
+    paymentRepo,
+    stateMachine,
+    config.timeoutSweepIntervalMs,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // MCP Server
 // ---------------------------------------------------------------------------
 
 const server = new McpServer({
   name: "nexus-core",
-  version: "0.2.0",
+  version: "0.3.0",
 });
 
 // Tool: nexus_orchestrate_payment
@@ -106,12 +145,9 @@ server.tool(
         ],
       };
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       return {
-        content: [
-          { type: "text" as const, text: `Error: ${message}` },
-        ],
+        content: [{ type: "text" as const, text: `Error: ${message}` }],
         isError: true,
       };
     }
@@ -124,7 +160,10 @@ server.tool(
   "Check payment status by nexus_payment_id, merchant_order_ref, or group_id.",
   {
     nexus_payment_id: z.string().optional().describe("Nexus payment ID"),
-    merchant_order_ref: z.string().optional().describe("Merchant order reference"),
+    merchant_order_ref: z
+      .string()
+      .optional()
+      .describe("Merchant order reference"),
     group_id: z.string().optional().describe("Payment group ID"),
   },
   async ({ nexus_payment_id, merchant_order_ref, group_id }) => {
@@ -170,20 +209,264 @@ server.tool(
       }
 
       return {
-        content: [
-          { type: "text" as const, text: parts.join("\n") },
-        ],
+        content: [{ type: "text" as const, text: parts.join("\n") }],
       };
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Unknown error";
+      const message = err instanceof Error ? err.message : "Unknown error";
       return {
-        content: [
-          { type: "text" as const, text: `Error: ${message}` },
-        ],
+        content: [{ type: "text" as const, text: `Error: ${message}` }],
         isError: true,
       };
     }
+  },
+);
+
+// Tool: nexus_submit_eip3009_signature
+server.tool(
+  "nexus_submit_eip3009_signature",
+  "Submit a user's EIP-3009 signature to deposit funds into escrow via the relayer.",
+  {
+    payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+    group_id: z.string().describe("Payment group ID (GRP-...)"),
+    v: z.number().refine((n) => n === 27 || n === 28, "v must be 27 or 28"),
+    r: z
+      .string()
+      .regex(/^0x[0-9a-fA-F]{64}$/)
+      .describe("Signature r (32 bytes hex)"),
+    s: z
+      .string()
+      .regex(/^0x[0-9a-fA-F]{64}$/)
+      .describe("Signature s (32 bytes hex)"),
+    order_ref_hash: z
+      .string()
+      .regex(/^0x[0-9a-fA-F]{64}$/)
+      .describe("keccak256 of merchant order ref"),
+    merchant_did_hash: z
+      .string()
+      .regex(/^0x[0-9a-fA-F]{64}$/)
+      .describe("keccak256 of merchant DID"),
+    context_hash: z
+      .string()
+      .regex(/^0x[0-9a-fA-F]{64}$/)
+      .describe("keccak256 of payment context"),
+  },
+  async ({
+    payment_id,
+    group_id,
+    v,
+    r,
+    s,
+    order_ref_hash,
+    merchant_did_hash,
+    context_hash,
+  }) => {
+    try {
+      if (!relayer) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Relayer not configured (RELAYER_PRIVATE_KEY missing)",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const payment = await stateMachine.getPayment(payment_id);
+      if (!payment) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Payment ${payment_id} not found`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (!payment.payment_id_bytes32) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Payment has no payment_id_bytes32",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (!payment.eip3009_nonce) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Payment has no eip3009_nonce",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      // Transition to AWAITING_TX
+      await stateMachine.transition({
+        nexusPaymentId: payment_id,
+        toStatus: "AWAITING_TX",
+        eventType: "EIP3009_SIGNATURE_RECEIVED",
+        metadata: { group_id, v, r, s },
+      });
+
+      const result = await relayer.submitDeposit({
+        paymentId: payment.payment_id_bytes32 as Hex,
+        from: payment.payer_wallet as Hex,
+        merchant: payment.payment_address as Hex,
+        amount: BigInt(payment.amount),
+        orderRef: order_ref_hash as Hex,
+        merchantDid: merchant_did_hash as Hex,
+        contextHash: context_hash as Hex,
+        validAfter: 0n,
+        validBefore: BigInt(payment.quote_payload.expiry),
+        nonce: payment.eip3009_nonce as Hex,
+        v,
+        r: r as Hex,
+        s: s as Hex,
+      });
+
+      // Transition to BROADCASTED
+      await stateMachine.transition({
+        nexusPaymentId: payment_id,
+        toStatus: "BROADCASTED",
+        eventType: "RELAYER_TX_SUBMITTED",
+        metadata: { tx_hash: result.txHash },
+        fields: { tx_hash: result.txHash },
+      });
+
+      // Notify webhook (fire-and-forget with logging)
+      webhookNotifier
+        .notify(payment, "payment.escrowed")
+        .catch((err) => console.error("[server] webhook notify failed:", err));
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text:
+              `EIP-3009 deposit submitted\n` +
+              `TX Hash: ${result.txHash}\n` +
+              `Block: ${result.blockNumber}\n` +
+              `Status: ${result.status}\n` +
+              `Payment: ${payment_id}\n` +
+              `Group: ${group_id}`,
+          },
+        ],
+      };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return {
+        content: [{ type: "text" as const, text: `Error: ${message}` }],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Tool: nexus_release_payment
+server.tool(
+  "nexus_release_payment",
+  "Release escrowed funds to the merchant. Called by merchant agent after fulfillment.",
+  {
+    payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+  },
+  async ({ payment_id }) => {
+    try {
+      if (!relayer) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Relayer not configured (RELAYER_PRIVATE_KEY missing)",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const payment = await stateMachine.getPayment(payment_id);
+      if (!payment) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Payment ${payment_id} not found`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (!payment.payment_id_bytes32) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Payment has no payment_id_bytes32",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const result = await relayer.submitRelease(
+        payment.payment_id_bytes32 as Hex,
+      );
+
+      // ChainWatcher will handle the Released event and transition state
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text:
+              `Release submitted\n` +
+              `TX Hash: ${result.txHash}\n` +
+              `Block: ${result.blockNumber}\n` +
+              `Status: ${result.status}\n` +
+              `Payment: ${payment_id}`,
+          },
+        ],
+      };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return {
+        content: [{ type: "text" as const, text: `Error: ${message}` }],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Tool: nexus_dispute_payment (placeholder for Phase 5)
+server.tool(
+  "nexus_dispute_payment",
+  "Open a dispute for an escrowed payment. (Phase 5 — currently a placeholder.)",
+  {
+    payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+    reason: z.string().describe("Dispute reason"),
+  },
+  async ({ payment_id, reason }) => {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text:
+            `Dispute functionality is not yet implemented (Phase 5).\n` +
+            `Payment: ${payment_id}\n` +
+            `Reason: ${reason}`,
+        },
+      ],
+    };
   },
 );
 
@@ -193,6 +476,11 @@ server.tool(
 
 async function main(): Promise<void> {
   if (transportMode === "sse") {
+    // Start background services in SSE (server) mode
+    if (watcher) watcher.start();
+    if (timeoutHandler) timeoutHandler.start();
+    webhookNotifier.startRetryLoop(config.webhookRetryIntervalMs);
+
     const sseTransports = new Map<string, SSEServerTransport>();
 
     const httpServer = createServer(
@@ -233,7 +521,7 @@ async function main(): Promise<void> {
         // Health check
         if (url.pathname === "/health") {
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ status: "ok", version: "0.2.0" }));
+          res.end(JSON.stringify({ status: "ok", version: "0.3.0" }));
           return;
         }
 
@@ -243,9 +531,7 @@ async function main(): Promise<void> {
     );
 
     httpServer.listen(config.port, () => {
-      console.error(
-        `[NexusCore] SSE server listening on port ${config.port}`,
-      );
+      console.error(`[NexusCore] SSE server listening on port ${config.port}`);
     });
   } else {
     const transport = new StdioServerTransport();

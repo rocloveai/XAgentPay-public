@@ -50,6 +50,24 @@ function rowToPayment(row: Record<string, unknown>): PaymentRecord {
   };
 }
 
+const ALLOWED_UPDATE_COLUMNS = new Set([
+  "tx_hash",
+  "block_number",
+  "block_timestamp",
+  "settled_at",
+  "completed_at",
+  "escrow_contract",
+  "payment_id_bytes32",
+  "eip3009_nonce",
+  "deposit_tx_hash",
+  "release_tx_hash",
+  "refund_tx_hash",
+  "release_deadline",
+  "dispute_deadline",
+  "protocol_fee",
+  "dispute_reason",
+]);
+
 export class NeonPaymentRepository implements PaymentRepository {
   async insert(params: CreatePaymentParams): Promise<PaymentRecord> {
     const sql = getPool();
@@ -166,6 +184,7 @@ export class NeonPaymentRepository implements PaymentRepository {
     if (fields) {
       for (const [key, value] of Object.entries(fields)) {
         if (value !== undefined) {
+          if (!ALLOWED_UPDATE_COLUMNS.has(key)) continue;
           const suffix =
             key.endsWith("_at") ||
             key === "block_timestamp" ||
@@ -212,5 +231,14 @@ export class NeonPaymentRepository implements PaymentRepository {
       [now],
     );
     return rows.map(rowToPayment);
+  }
+
+  async findByPaymentIdBytes32(bytes32: string): Promise<PaymentRecord | null> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT * FROM payments WHERE payment_id_bytes32 = $1 LIMIT 1`,
+      [bytes32],
+    );
+    return rows.length > 0 ? rowToPayment(rows[0]) : null;
   }
 }

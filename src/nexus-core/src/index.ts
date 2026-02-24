@@ -99,3 +99,13 @@ export {
   buildEscrowInstruction,
   buildGroupEscrowInstruction,
 } from "./services/instruction-builder.js";
+
+// Phase 3+4: Relayer, Chain Watcher, Timeout Handler, Webhook Notifier
+export { NexusRelayer } from "./services/relayer.js";
+export type { DepositParams, RelayerTxResult } from "./services/relayer.js";
+export { ChainWatcher } from "./services/chain-watcher.js";
+export { TimeoutHandler } from "./services/timeout-handler.js";
+export { WebhookNotifier } from "./services/webhook-notifier.js";
+
+// ABI
+export { NEXUS_PAY_ESCROW_ABI } from "./abi/nexus-pay-escrow.js";

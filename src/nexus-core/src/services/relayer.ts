@@ -1,0 +1,190 @@
+/**
+ * NexusPay Core — Relayer service.
+ *
+ * Submits EIP-3009 deposit / release / refund transactions to the
+ * NexusPayEscrow contract on behalf of users.
+ */
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  defineChain,
+  type PublicClient,
+  type WalletClient,
+  type Hex,
+  type Account,
+  type Chain,
+  type HttpTransport,
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import type { NexusCoreConfig } from "../config.js";
+import { NEXUS_PAY_ESCROW_ABI } from "../abi/nexus-pay-escrow.js";
+import { RelayerError } from "../errors.js";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface DepositParams {
+  readonly paymentId: Hex;
+  readonly from: Hex;
+  readonly merchant: Hex;
+  readonly amount: bigint;
+  readonly orderRef: Hex;
+  readonly merchantDid: Hex;
+  readonly contextHash: Hex;
+  readonly validAfter: bigint;
+  readonly validBefore: bigint;
+  readonly nonce: Hex;
+  readonly v: number;
+  readonly r: Hex;
+  readonly s: Hex;
+}
+
+export interface RelayerTxResult {
+  readonly txHash: Hex;
+  readonly blockNumber: bigint;
+  readonly status: "success" | "reverted";
+}
+
+// ---------------------------------------------------------------------------
+// PlatON chain definition (shared by relayer + chain-watcher)
+// ---------------------------------------------------------------------------
+
+export function buildPlatonChain(config: NexusCoreConfig): Chain {
+  return defineChain({
+    id: config.chainId,
+    name: config.chainName,
+    nativeCurrency: { name: "LAT", symbol: "LAT", decimals: 18 },
+    rpcUrls: {
+      default: { http: [config.rpcUrl] },
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Retry helper
+// ---------------------------------------------------------------------------
+
+/** Retry delays — exported for test override */
+export const RETRY_DELAYS_MS: number[] = [1_000, 3_000, 9_000];
+
+async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      // Don't retry if the tx was submitted but reverted on-chain
+      if (err instanceof RelayerError) throw err;
+      lastError = err;
+      if (attempt < RETRY_DELAYS_MS.length) {
+        await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+      }
+    }
+  }
+  const message =
+    lastError instanceof Error ? lastError.message : String(lastError);
+  throw new RelayerError(`${label}: retries exhausted — ${message}`, {
+    attempts: RETRY_DELAYS_MS.length + 1,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// NexusRelayer
+// ---------------------------------------------------------------------------
+
+export class NexusRelayer {
+  private readonly publicClient: PublicClient<HttpTransport, Chain>;
+  private readonly walletClient: WalletClient<HttpTransport, Chain, Account>;
+  private readonly escrowAddress: Hex;
+
+  constructor(config: NexusCoreConfig) {
+    if (!config.relayerPrivateKey) {
+      throw new RelayerError("RELAYER_PRIVATE_KEY is not configured");
+    }
+
+    const chain = buildPlatonChain(config);
+    const transport = http(config.rpcUrl);
+    const account = privateKeyToAccount(config.relayerPrivateKey as Hex);
+
+    this.publicClient = createPublicClient({ chain, transport });
+    this.walletClient = createWalletClient({ chain, transport, account });
+    this.escrowAddress = config.escrowContract as Hex;
+  }
+
+  async submitDeposit(params: DepositParams): Promise<RelayerTxResult> {
+    return withRetry(async () => {
+      const txHash = await this.walletClient.writeContract({
+        address: this.escrowAddress,
+        abi: NEXUS_PAY_ESCROW_ABI,
+        functionName: "depositWithAuthorization",
+        args: [
+          params.paymentId,
+          params.from,
+          params.merchant,
+          params.amount,
+          params.orderRef,
+          params.merchantDid,
+          params.contextHash,
+          params.validAfter,
+          params.validBefore,
+          params.nonce,
+          params.v,
+          params.r,
+          params.s,
+        ],
+      });
+
+      return this.waitForReceipt(txHash);
+    }, "submitDeposit");
+  }
+
+  async submitRelease(paymentIdBytes32: Hex): Promise<RelayerTxResult> {
+    return withRetry(async () => {
+      const txHash = await this.walletClient.writeContract({
+        address: this.escrowAddress,
+        abi: NEXUS_PAY_ESCROW_ABI,
+        functionName: "release",
+        args: [paymentIdBytes32],
+      });
+
+      return this.waitForReceipt(txHash);
+    }, "submitRelease");
+  }
+
+  async submitRefund(paymentIdBytes32: Hex): Promise<RelayerTxResult> {
+    return withRetry(async () => {
+      const txHash = await this.walletClient.writeContract({
+        address: this.escrowAddress,
+        abi: NEXUS_PAY_ESCROW_ABI,
+        functionName: "refund",
+        args: [paymentIdBytes32],
+      });
+
+      return this.waitForReceipt(txHash);
+    }, "submitRefund");
+  }
+
+  private async waitForReceipt(txHash: Hex): Promise<RelayerTxResult> {
+    const receipt = await this.publicClient.waitForTransactionReceipt({
+      hash: txHash,
+      timeout: 120_000, // 2 minutes max
+    });
+
+    const result: RelayerTxResult = {
+      txHash,
+      blockNumber: receipt.blockNumber,
+      status: receipt.status === "success" ? "success" : "reverted",
+    };
+
+    if (result.status === "reverted") {
+      throw new RelayerError("Transaction reverted", {
+        txHash,
+        blockNumber: receipt.blockNumber.toString(),
+      });
+    }
+
+    return result;
+  }
+}

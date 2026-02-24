@@ -154,4 +154,11 @@ export class MockPaymentRepository implements PaymentRepository {
     }
     return results;
   }
+
+  async findByPaymentIdBytes32(bytes32: string): Promise<PaymentRecord | null> {
+    for (const r of this.store.values()) {
+      if (r.payment_id_bytes32 === bytes32) return r;
+    }
+    return null;
+  }
 }

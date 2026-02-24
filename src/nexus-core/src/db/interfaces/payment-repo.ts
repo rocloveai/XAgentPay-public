@@ -54,4 +54,7 @@ export interface PaymentRepository {
 
   /** Find ESCROWED payments past their release_deadline. */
   findExpiredEscrowed(now: string): Promise<readonly PaymentRecord[]>;
+
+  /** Find by on-chain payment_id_bytes32. */
+  findByPaymentIdBytes32(bytes32: string): Promise<PaymentRecord | null>;
 }
