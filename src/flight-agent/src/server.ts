@@ -7,6 +7,7 @@ import { loadConfig } from "./config.js";
 import { searchFlights } from "./services/flight-search.js";
 import { buildQuote } from "./services/quote-builder.js";
 import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
+import { initPool } from "./services/db/pool.js";
 import { startPortal, registerSseHandler } from "./portal.js";
 import type { FlightOffer } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -14,10 +15,11 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 const config = loadConfig();
 const transportMode = process.env.TRANSPORT ?? "stdio";
 
-if (!config.duffelApiToken) {
-  console.error(
-    "Warning: DUFFEL_API_TOKEN not set. Flight search will return demo data only.",
-  );
+// Initialize DB pool if DATABASE_URL is set
+if (config.databaseUrl) {
+  initPool(config.databaseUrl);
+} else {
+  console.error("Warning: DATABASE_URL not set. Using in-memory storage only.");
 }
 
 // In-memory cache: offer_id -> FlightOffer (for quote generation)
@@ -50,15 +52,12 @@ server.tool(
       .describe("Number of passengers (1-9)"),
   },
   async ({ origin, destination, date, passengers }) => {
-    const { offers, error } = await searchFlights(
-      {
-        origin: origin.toUpperCase(),
-        destination: destination.toUpperCase(),
-        date,
-        passengers,
-      },
-      config.duffelApiToken,
-    );
+    const { offers, error } = await searchFlights({
+      origin: origin.toUpperCase(),
+      destination: destination.toUpperCase(),
+      date,
+      passengers,
+    });
 
     // Cache offers for later quote generation
     for (const offer of offers) {
@@ -135,7 +134,7 @@ server.tool(
       ],
     });
 
-    const order = createOrder(quote);
+    const order = await createOrder(quote);
 
     return {
       content: [
@@ -163,7 +162,7 @@ server.tool(
     order_ref: z.string().describe("The order reference (e.g. FLT-...)"),
   },
   async ({ order_ref }) => {
-    const order = getOrder(order_ref);
+    const order = await getOrder(order_ref);
     if (!order) {
       return {
         content: [
@@ -202,7 +201,7 @@ server.resource(
   { description: "Current state of a flight order (RFC-003 compliant)" },
   async (uri) => {
     const orderRef = uri.pathname.split("/")[2] ?? "";
-    const order = getOrder(orderRef);
+    const order = await getOrder(orderRef);
 
     if (!order) {
       return {

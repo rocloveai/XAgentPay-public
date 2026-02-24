@@ -2,6 +2,7 @@ export interface Config {
   readonly duffelApiToken: string;
   readonly merchantDid: string;
   readonly portalPort: number;
+  readonly databaseUrl: string;
 }
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -18,6 +19,7 @@ export function loadConfig(): Config {
   const merchantDid =
     process.env.MERCHANT_DID ?? "did:nexus:210425:demo_flight";
   const portalPort = parsePort(process.env.PORTAL_PORT, 3001);
+  const databaseUrl = process.env.DATABASE_URL ?? "";
 
-  return { duffelApiToken, merchantDid, portalPort };
+  return { duffelApiToken, merchantDid, portalPort, databaseUrl };
 }

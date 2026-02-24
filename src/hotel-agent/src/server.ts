@@ -7,6 +7,7 @@ import { loadConfig } from "./config.js";
 import { searchHotels } from "./services/hotel-search.js";
 import { buildQuote } from "./services/quote-builder.js";
 import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
+import { initPool } from "./services/db/pool.js";
 import { startPortal, registerSseHandler } from "./portal.js";
 import type { HotelOffer } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -14,10 +15,11 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 const config = loadConfig();
 const transportMode = process.env.TRANSPORT ?? "stdio";
 
-if (!config.amadeusApiKey || !config.amadeusApiSecret) {
-  console.error(
-    "Warning: AMADEUS_API_KEY/AMADEUS_API_SECRET not set. Hotel search will return demo data only.",
-  );
+// Initialize DB pool if DATABASE_URL is set
+if (config.databaseUrl) {
+  initPool(config.databaseUrl);
+} else {
+  console.error("Warning: DATABASE_URL not set. Using in-memory storage only.");
 }
 
 // In-memory cache: offer_id -> { offer, nights } (for quote generation)
@@ -48,13 +50,14 @@ server.tool(
       .describe("Number of guests (1-10)"),
   },
   async ({ city, check_in, check_out, guests }) => {
-    const { offers, nights, error } = await searchHotels(
-      { city, check_in, check_out, guests },
-      config.amadeusApiKey,
-      config.amadeusApiSecret,
-    );
+    const { offers, nights, error } = await searchHotels({
+      city,
+      check_in,
+      check_out,
+      guests,
+    });
 
-    if (error) {
+    if (error && offers.length === 0) {
       return {
         content: [{ type: "text" as const, text: `Error: ${error}` }],
         isError: true,
@@ -66,7 +69,7 @@ server.tool(
       offerCache.set(offer.offer_id, { offer, nights });
     }
 
-    const stars = (n: number) => "★".repeat(n) + "☆".repeat(5 - n);
+    const stars = (n: number) => "\u2605".repeat(n) + "\u2606".repeat(5 - n);
 
     const lines = offers.map(
       (o, i) =>
@@ -145,7 +148,7 @@ server.tool(
       ],
     });
 
-    const order = createOrder(quote);
+    const order = await createOrder(quote);
 
     return {
       content: [
@@ -173,7 +176,7 @@ server.tool(
     order_ref: z.string().describe("The order reference (e.g. HTL-...)"),
   },
   async ({ order_ref }) => {
-    const order = getOrder(order_ref);
+    const order = await getOrder(order_ref);
     if (!order) {
       return {
         content: [
@@ -212,7 +215,7 @@ server.resource(
   { description: "Current state of a hotel order (RFC-003 compliant)" },
   async (uri) => {
     const orderRef = uri.pathname.split("/")[2] ?? "";
-    const order = getOrder(orderRef);
+    const order = await getOrder(orderRef);
 
     if (!order) {
       return {

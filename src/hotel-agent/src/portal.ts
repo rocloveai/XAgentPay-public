@@ -129,8 +129,8 @@ function handleApiInfo(res: ServerResponse, config: Config): void {
   });
 }
 
-function handleApiOrders(res: ServerResponse): void {
-  const orders = listOrders();
+async function handleApiOrders(res: ServerResponse): Promise<void> {
+  const orders = await listOrders();
   sendJson(
     res,
     200,
@@ -145,8 +145,8 @@ function handleApiOrders(res: ServerResponse): void {
   );
 }
 
-function handleApiOrderDetail(res: ServerResponse, ref: string): void {
-  const order = getOrder(ref);
+async function handleApiOrderDetail(res: ServerResponse, ref: string): Promise<void> {
+  const order = await getOrder(ref);
   if (!order) {
     sendJson(res, 404, { error: `Order "${ref}" not found` });
     return;
@@ -154,8 +154,9 @@ function handleApiOrderDetail(res: ServerResponse, ref: string): void {
   sendJson(res, 200, order);
 }
 
-function handleApiStats(res: ServerResponse): void {
-  const stats = computeStats(listOrders());
+async function handleApiStats(res: ServerResponse): Promise<void> {
+  const orders = await listOrders();
+  const stats = computeStats(orders);
   sendJson(res, 200, stats);
 }
 
@@ -328,18 +329,18 @@ async function handleRequest(
   }
 
   if (path === "/api/orders" && req.method === "GET") {
-    handleApiOrders(res);
+    await handleApiOrders(res);
     return;
   }
 
   if (path === "/api/stats" && req.method === "GET") {
-    handleApiStats(res);
+    await handleApiStats(res);
     return;
   }
 
   const orderMatch = path.match(/^\/api\/orders\/([A-Za-z0-9_-]{1,64})$/);
   if (orderMatch && req.method === "GET") {
-    handleApiOrderDetail(res, decodeURIComponent(orderMatch[1]));
+    await handleApiOrderDetail(res, decodeURIComponent(orderMatch[1]));
     return;
   }
 

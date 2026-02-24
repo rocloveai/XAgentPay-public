@@ -3,6 +3,7 @@ export interface Config {
   readonly portalPort: number;
   readonly amadeusApiKey: string;
   readonly amadeusApiSecret: string;
+  readonly databaseUrl: string;
 }
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -19,6 +20,7 @@ export function loadConfig(): Config {
   const portalPort = parsePort(process.env.PORTAL_PORT, 3002);
   const amadeusApiKey = process.env.AMADEUS_API_KEY ?? "";
   const amadeusApiSecret = process.env.AMADEUS_API_SECRET ?? "";
+  const databaseUrl = process.env.DATABASE_URL ?? "";
 
-  return { merchantDid, portalPort, amadeusApiKey, amadeusApiSecret };
+  return { merchantDid, portalPort, amadeusApiKey, amadeusApiSecret, databaseUrl };
 }

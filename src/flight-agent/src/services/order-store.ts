@@ -1,6 +1,14 @@
 import type { NexusQuotePayload, Order, OrderStatus } from "../types.js";
+import { isPoolInitialized } from "./db/pool.js";
+import {
+  insertOrder,
+  selectOrder,
+  updateOrderStatus,
+  selectAllOrders,
+} from "./db/order-repo.js";
 
-const orders = new Map<string, Order>();
+// In-memory fallback (used when DATABASE_URL is not set)
+const memOrders = new Map<string, Order>();
 
 function generateOrderRef(): string {
   const ts = Date.now();
@@ -12,7 +20,11 @@ function nowISO(): string {
   return new Date().toISOString();
 }
 
-export function createOrder(quotePayload: NexusQuotePayload): Order {
+export async function createOrder(quotePayload: NexusQuotePayload): Promise<Order> {
+  if (isPoolInitialized()) {
+    return insertOrder(quotePayload);
+  }
+
   const order: Order = {
     order_ref: quotePayload.merchant_order_ref,
     status: "UNPAID",
@@ -20,26 +32,30 @@ export function createOrder(quotePayload: NexusQuotePayload): Order {
     created_at: nowISO(),
     updated_at: nowISO(),
   };
-
-  orders.set(order.order_ref, order);
+  memOrders.set(order.order_ref, order);
   return order;
 }
 
-export function getOrder(ref: string): Order | undefined {
-  return orders.get(ref);
+export async function getOrder(ref: string): Promise<Order | undefined> {
+  if (isPoolInitialized()) {
+    return selectOrder(ref);
+  }
+  return memOrders.get(ref);
 }
 
-export function updateStatus(ref: string, status: OrderStatus): Order | undefined {
-  const existing = orders.get(ref);
+export async function updateStatus(
+  ref: string,
+  status: OrderStatus,
+): Promise<Order | undefined> {
+  if (isPoolInitialized()) {
+    return updateOrderStatus(ref, status);
+  }
+
+  const existing = memOrders.get(ref);
   if (!existing) return undefined;
 
-  const updated: Order = {
-    ...existing,
-    status,
-    updated_at: nowISO(),
-  };
-
-  orders.set(ref, updated);
+  const updated: Order = { ...existing, status, updated_at: nowISO() };
+  memOrders.set(ref, updated);
   return updated;
 }
 
@@ -47,6 +63,9 @@ export function newOrderRef(): string {
   return generateOrderRef();
 }
 
-export function listOrders(): readonly Order[] {
-  return Array.from(orders.values());
+export async function listOrders(): Promise<readonly Order[]> {
+  if (isPoolInitialized()) {
+    return selectAllOrders();
+  }
+  return Array.from(memOrders.values());
 }
