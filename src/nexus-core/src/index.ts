@@ -10,6 +10,7 @@ export type {
   PaymentMethod,
   PaymentEventType,
   WebhookEventType,
+  PaymentGroupStatus,
   LineItem,
   IsoMetadata,
   NexusQuotePayload,
@@ -17,6 +18,10 @@ export type {
   PaymentEvent,
   MerchantRecord,
   WebhookDeliveryLog,
+  PaymentGroupRecord,
+  CreateGroupParams,
+  GroupEscrowInstruction,
+  GroupPaymentDetail,
   PaymentInstruction,
   EIP3009SignData,
   EscrowInstruction,
@@ -45,6 +50,10 @@ export {
   WEBHOOK_RETRY_DELAYS_MS,
 } from "./constants.js";
 
+// Config
+export type { NexusCoreConfig } from "./config.js";
+export { loadNexusCoreConfig } from "./config.js";
+
 // Errors
 export {
   NexusError,
@@ -60,6 +69,7 @@ export type {
   EventRepository,
   MerchantRepository,
   WebhookRepository,
+  GroupRepository,
 } from "./db/interfaces/index.js";
 
 // Concrete repositories
@@ -67,6 +77,25 @@ export { NeonPaymentRepository } from "./db/payment-repo.js";
 export { NeonEventRepository } from "./db/event-repo.js";
 export { NeonMerchantRepository } from "./db/merchant-repo.js";
 export { NeonWebhookRepository } from "./db/webhook-repo.js";
+export { NeonGroupRepository } from "./db/group-repo.js";
 
 // Pool
 export { initPool, getPool, isPoolInitialized } from "./db/pool.js";
+
+// Services
+export { PaymentStateMachine } from "./services/state-machine.js";
+export { GroupManager } from "./services/group-manager.js";
+export { NexusOrchestrator } from "./services/orchestrator.js";
+export { routePayment } from "./services/payment-router.js";
+export {
+  verifyQuoteSignature,
+  resolveMerchantDid,
+  checkNonceGuard,
+  checkQuoteExpiry,
+  computeQuoteHash,
+} from "./services/security.js";
+export {
+  buildDirectTransferInstruction,
+  buildEscrowInstruction,
+  buildGroupEscrowInstruction,
+} from "./services/instruction-builder.js";

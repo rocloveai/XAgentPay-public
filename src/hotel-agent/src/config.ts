@@ -7,6 +7,7 @@ export interface Config {
   readonly webhookSecret: string;
   readonly paymentAddress: string;
   readonly signerPrivateKey: string;
+  readonly nexusCoreUrl: string;
 }
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -19,15 +20,22 @@ function parsePort(raw: string | undefined, fallback: number): number {
 }
 
 export function loadConfig(): Config {
-  const merchantDid = process.env.MERCHANT_DID ?? "did:nexus:20250407:demo_hotel";
+  const merchantDid =
+    process.env.MERCHANT_DID ?? "did:nexus:20250407:demo_hotel";
   const portalPort = parsePort(process.env.PORTAL_PORT, 3002);
   const amadeusApiKey = process.env.AMADEUS_API_KEY ?? "";
   const amadeusApiSecret = process.env.AMADEUS_API_SECRET ?? "";
   const databaseUrl = process.env.DATABASE_URL ?? "";
   const webhookSecret =
     process.env.NEXUS_WEBHOOK_SECRET ?? "REDACTED_WEBHOOK_SECRET";
-  const paymentAddress = process.env.MERCHANT_PAYMENT_ADDRESS || "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd";
-  const signerPrivateKey = process.env.MERCHANT_SIGNER_PRIVATE_KEY || "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997";
+  const paymentAddress =
+    process.env.MERCHANT_PAYMENT_ADDRESS ||
+    "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd";
+  const signerPrivateKey =
+    process.env.MERCHANT_SIGNER_PRIVATE_KEY ||
+    "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997";
+  const nexusCoreUrl =
+    process.env.NEXUS_CORE_URL || "https://nexus-core.onrender.com";
 
   return {
     merchantDid,
@@ -38,5 +46,6 @@ export function loadConfig(): Config {
     webhookSecret,
     paymentAddress,
     signerPrivateKey,
+    nexusCoreUrl,
   };
 }

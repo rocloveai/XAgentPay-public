@@ -17,6 +17,9 @@ export interface PaymentRepository {
   /** Find by quote_hash (only active payments). Returns null if not found. */
   findByQuoteHash(quoteHash: string): Promise<PaymentRecord | null>;
 
+  /** Find all payments belonging to a group. */
+  findByGroupId(groupId: string): Promise<readonly PaymentRecord[]>;
+
   /**
    * Transition payment status atomically.
    * Returns new record on success, null if payment not found.

@@ -164,6 +164,14 @@ server.tool(
               id: "nexus_handler_1",
               version: "v1",
               config: quote,
+              nexus_core: {
+                skill_url: `${config.nexusCoreUrl}/skill.md`,
+                mcp_endpoint: `${config.nexusCoreUrl}/sse`,
+                prompt:
+                  "To pay for this order, use the nexus_orchestrate_payment tool from Nexus Core MCP server. " +
+                  "Pass the quote from config field as one element of the quotes array, along with the user's payer_wallet address. " +
+                  "Multiple nexus_v1 quotes can be combined into a single payment by passing them all in the quotes array.",
+              },
             },
           ],
         },
@@ -178,7 +186,6 @@ server.tool(
         },
       ],
     };
-
 
     return {
       content: [

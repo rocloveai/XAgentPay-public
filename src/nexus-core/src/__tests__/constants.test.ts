@@ -92,7 +92,7 @@ describe("constant values", () => {
   });
 
   it("chain constants", () => {
-    expect(PLATON_CHAIN_ID).toBe(210425);
+    expect(PLATON_CHAIN_ID).toBe(20250407);
     expect(USDC_DECIMALS).toBe(6);
     expect(PROTOCOL_FEE_BPS).toBe(30);
   });

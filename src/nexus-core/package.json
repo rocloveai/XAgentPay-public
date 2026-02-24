@@ -1,24 +1,30 @@
 {
   "name": "@nexuspay/nexus-core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "NexusPay Core — payment orchestration types, constants, and repository layer",
+  "description": "NexusPay Core — payment orchestration, multi-merchant aggregated checkout",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
+  "bin": {
+    "nexus-core": "./build/server.js"
+  },
   "files": [
     "build"
   ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "start": "node build/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
     "@neondatabase/serverless": "^0.10.4",
-    "viem": "^2.46.3"
+    "viem": "^2.46.3",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",

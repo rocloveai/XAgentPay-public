@@ -112,9 +112,79 @@ export interface NexusQuotePayload {
   readonly signature: string;
 }
 
+// ---------------------------------------------------------------------------
+// Payment Group types
+// ---------------------------------------------------------------------------
+
+/** Group-level status (aggregated from child payments) */
+export type PaymentGroupStatus =
+  | "GROUP_CREATED"
+  | "GROUP_AWAITING_TX"
+  | "GROUP_ESCROWED"
+  | "GROUP_SETTLED"
+  | "GROUP_COMPLETED"
+  | "GROUP_EXPIRED"
+  | "GROUP_PARTIAL";
+
+/** Payment group record persisted in `payment_groups` table */
+export interface PaymentGroupRecord {
+  readonly group_id: string;
+  readonly payer_wallet: string;
+  readonly total_amount: string;
+  readonly total_amount_display: string;
+  readonly currency: string;
+  readonly chain_id: number;
+  readonly status: PaymentGroupStatus;
+  readonly payment_count: number;
+  readonly tx_hash: string | null;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+/** Parameters for creating a payment group */
+export interface CreateGroupParams {
+  readonly group_id: string;
+  readonly payer_wallet: string;
+  readonly total_amount: string;
+  readonly total_amount_display: string;
+  readonly currency: string;
+  readonly chain_id: number;
+  readonly payment_count: number;
+}
+
+/** Aggregated escrow instruction for the entire group */
+export interface GroupEscrowInstruction {
+  readonly group_id: string;
+  readonly chain_id: number;
+  readonly chain_name: string;
+  readonly payment_method: "ESCROW_CONTRACT";
+  readonly escrow_contract: Address;
+  readonly token_address: Address;
+  readonly token_symbol: "USDC";
+  readonly token_decimals: 6;
+  readonly total_amount_uint256: string;
+  readonly total_amount_display: string;
+  readonly payments: readonly GroupPaymentDetail[];
+  readonly eip3009_sign_data: EIP3009SignData;
+  readonly user_action: "SIGN_EIP3009";
+  readonly gas_paid_by: "RELAYER";
+}
+
+/** Per-payment detail within a group instruction */
+export interface GroupPaymentDetail {
+  readonly nexus_payment_id: string;
+  readonly merchant_did: string;
+  readonly merchant_order_ref: string;
+  readonly merchant_address: Address;
+  readonly amount_uint256: string;
+  readonly amount_display: string;
+  readonly summary: string;
+}
+
 /** Full payment record persisted in the `payments` table */
 export interface PaymentRecord {
   readonly nexus_payment_id: string;
+  readonly group_id: string | null;
   readonly quote_hash: string;
   readonly merchant_did: string;
   readonly merchant_order_ref: string;
@@ -303,6 +373,7 @@ export interface WebhookPayload {
 /** Parameters for creating a new payment */
 export interface CreatePaymentParams {
   readonly nexus_payment_id: string;
+  readonly group_id: string | null;
   readonly quote_hash: string;
   readonly merchant_did: string;
   readonly merchant_order_ref: string;

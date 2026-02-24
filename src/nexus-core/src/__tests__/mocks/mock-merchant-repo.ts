@@ -8,9 +8,12 @@ export class MockMerchantRepository implements MerchantRepository {
     this.store.clear();
   }
 
-  /** Seed a merchant for testing */
-  seed(record: MerchantRecord): void {
-    this.store.set(record.merchant_did, record);
+  /** Seed one or more merchants for testing */
+  seed(records: MerchantRecord | readonly MerchantRecord[]): void {
+    const list = Array.isArray(records) ? records : [records];
+    for (const r of list) {
+      this.store.set(r.merchant_did, r);
+    }
   }
 
   async findByDid(merchantDid: string): Promise<MerchantRecord | null> {

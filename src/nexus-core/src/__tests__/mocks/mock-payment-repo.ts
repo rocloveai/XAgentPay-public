@@ -16,6 +16,7 @@ export class MockPaymentRepository implements PaymentRepository {
     const now = new Date().toISOString();
     const record: PaymentRecord = {
       nexus_payment_id: params.nexus_payment_id,
+      group_id: params.group_id,
       quote_hash: params.quote_hash,
       merchant_did: params.merchant_did,
       merchant_order_ref: params.merchant_order_ref,
@@ -56,7 +57,9 @@ export class MockPaymentRepository implements PaymentRepository {
     return this.store.get(nexusPaymentId) ?? null;
   }
 
-  async findByOrderRef(merchantOrderRef: string): Promise<PaymentRecord | null> {
+  async findByOrderRef(
+    merchantOrderRef: string,
+  ): Promise<PaymentRecord | null> {
     for (const r of this.store.values()) {
       if (r.merchant_order_ref === merchantOrderRef) return r;
     }
@@ -76,17 +79,39 @@ export class MockPaymentRepository implements PaymentRepository {
     return null;
   }
 
+  async findByGroupId(groupId: string): Promise<readonly PaymentRecord[]> {
+    const results: PaymentRecord[] = [];
+    for (const r of this.store.values()) {
+      if (r.group_id === groupId) {
+        results.push(r);
+      }
+    }
+    return results;
+  }
+
   async updateStatus(
     nexusPaymentId: string,
     newStatus: PaymentStatus,
-    fields?: Partial<Pick<PaymentRecord,
-      | "tx_hash" | "block_number" | "block_timestamp"
-      | "settled_at" | "completed_at"
-      | "escrow_contract" | "payment_id_bytes32" | "eip3009_nonce"
-      | "deposit_tx_hash" | "release_tx_hash" | "refund_tx_hash"
-      | "release_deadline" | "dispute_deadline"
-      | "protocol_fee" | "dispute_reason"
-    >>,
+    fields?: Partial<
+      Pick<
+        PaymentRecord,
+        | "tx_hash"
+        | "block_number"
+        | "block_timestamp"
+        | "settled_at"
+        | "completed_at"
+        | "escrow_contract"
+        | "payment_id_bytes32"
+        | "eip3009_nonce"
+        | "deposit_tx_hash"
+        | "release_tx_hash"
+        | "refund_tx_hash"
+        | "release_deadline"
+        | "dispute_deadline"
+        | "protocol_fee"
+        | "dispute_reason"
+      >
+    >,
   ): Promise<PaymentRecord | null> {
     const existing = this.store.get(nexusPaymentId);
     if (!existing) return null;

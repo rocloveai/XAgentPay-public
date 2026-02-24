@@ -12,6 +12,7 @@ import type {
 function rowToPayment(row: Record<string, unknown>): PaymentRecord {
   return {
     nexus_payment_id: row.nexus_payment_id as string,
+    group_id: (row.group_id as string) ?? null,
     quote_hash: row.quote_hash as string,
     merchant_did: row.merchant_did as string,
     merchant_order_ref: row.merchant_order_ref as string,
@@ -25,7 +26,8 @@ function rowToPayment(row: Record<string, unknown>): PaymentRecord {
     payment_method: row.payment_method as PaymentMethod,
     tx_hash: (row.tx_hash as string) ?? null,
     block_number: row.block_number != null ? Number(row.block_number) : null,
-    block_timestamp: row.block_timestamp != null ? String(row.block_timestamp) : null,
+    block_timestamp:
+      row.block_timestamp != null ? String(row.block_timestamp) : null,
     quote_payload: row.quote_payload as unknown as NexusQuotePayload,
     iso_metadata: (row.iso_metadata as unknown as IsoMetadata) ?? null,
     expires_at: String(row.expires_at),
@@ -39,8 +41,10 @@ function rowToPayment(row: Record<string, unknown>): PaymentRecord {
     deposit_tx_hash: (row.deposit_tx_hash as string) ?? null,
     release_tx_hash: (row.release_tx_hash as string) ?? null,
     refund_tx_hash: (row.refund_tx_hash as string) ?? null,
-    release_deadline: row.release_deadline != null ? String(row.release_deadline) : null,
-    dispute_deadline: row.dispute_deadline != null ? String(row.dispute_deadline) : null,
+    release_deadline:
+      row.release_deadline != null ? String(row.release_deadline) : null,
+    dispute_deadline:
+      row.dispute_deadline != null ? String(row.dispute_deadline) : null,
     protocol_fee: (row.protocol_fee as string) ?? null,
     dispute_reason: (row.dispute_reason as string) ?? null,
   };
@@ -52,18 +56,19 @@ export class NeonPaymentRepository implements PaymentRepository {
     const now = new Date().toISOString();
     const rows = await sql(
       `INSERT INTO payments (
-        nexus_payment_id, quote_hash, merchant_did, merchant_order_ref,
+        nexus_payment_id, group_id, quote_hash, merchant_did, merchant_order_ref,
         payer_wallet, payment_address, amount, amount_display,
         currency, chain_id, status, payment_method,
         quote_payload, iso_metadata, expires_at,
         created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        'CREATED', $11, $12::jsonb, $13::jsonb, $14::timestamptz,
-        $15::timestamptz, $16::timestamptz
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+        'CREATED', $12, $13::jsonb, $14::jsonb, $15::timestamptz,
+        $16::timestamptz, $17::timestamptz
       ) RETURNING *`,
       [
         params.nexus_payment_id,
+        params.group_id,
         params.quote_hash,
         params.merchant_did,
         params.merchant_order_ref,
@@ -93,7 +98,9 @@ export class NeonPaymentRepository implements PaymentRepository {
     return rows.length > 0 ? rowToPayment(rows[0]) : null;
   }
 
-  async findByOrderRef(merchantOrderRef: string): Promise<PaymentRecord | null> {
+  async findByOrderRef(
+    merchantOrderRef: string,
+  ): Promise<PaymentRecord | null> {
     const sql = getPool();
     const rows = await sql(
       `SELECT * FROM payments WHERE merchant_order_ref = $1
@@ -114,17 +121,39 @@ export class NeonPaymentRepository implements PaymentRepository {
     return rows.length > 0 ? rowToPayment(rows[0]) : null;
   }
 
+  async findByGroupId(groupId: string): Promise<readonly PaymentRecord[]> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT * FROM payments WHERE group_id = $1
+       ORDER BY created_at ASC`,
+      [groupId],
+    );
+    return rows.map(rowToPayment);
+  }
+
   async updateStatus(
     nexusPaymentId: string,
     newStatus: PaymentStatus,
-    fields?: Partial<Pick<PaymentRecord,
-      | "tx_hash" | "block_number" | "block_timestamp"
-      | "settled_at" | "completed_at"
-      | "escrow_contract" | "payment_id_bytes32" | "eip3009_nonce"
-      | "deposit_tx_hash" | "release_tx_hash" | "refund_tx_hash"
-      | "release_deadline" | "dispute_deadline"
-      | "protocol_fee" | "dispute_reason"
-    >>,
+    fields?: Partial<
+      Pick<
+        PaymentRecord,
+        | "tx_hash"
+        | "block_number"
+        | "block_timestamp"
+        | "settled_at"
+        | "completed_at"
+        | "escrow_contract"
+        | "payment_id_bytes32"
+        | "eip3009_nonce"
+        | "deposit_tx_hash"
+        | "release_tx_hash"
+        | "refund_tx_hash"
+        | "release_deadline"
+        | "dispute_deadline"
+        | "protocol_fee"
+        | "dispute_reason"
+      >
+    >,
   ): Promise<PaymentRecord | null> {
     const sql = getPool();
     const now = new Date().toISOString();
@@ -137,9 +166,13 @@ export class NeonPaymentRepository implements PaymentRepository {
     if (fields) {
       for (const [key, value] of Object.entries(fields)) {
         if (value !== undefined) {
-          const suffix = key.endsWith("_at") || key === "block_timestamp"
-            || key === "release_deadline" || key === "dispute_deadline"
-            ? "::timestamptz" : "";
+          const suffix =
+            key.endsWith("_at") ||
+            key === "block_timestamp" ||
+            key === "release_deadline" ||
+            key === "dispute_deadline"
+              ? "::timestamptz"
+              : "";
           setClauses.push(`${key} = $${paramIdx}${suffix}`);
           values.push(value);
           paramIdx++;

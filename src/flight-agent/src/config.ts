@@ -6,6 +6,7 @@ export interface Config {
   readonly webhookSecret: string;
   readonly paymentAddress: string;
   readonly signerPrivateKey: string;
+  readonly nexusCoreUrl: string;
 }
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -25,8 +26,14 @@ export function loadConfig(): Config {
   const databaseUrl = process.env.DATABASE_URL ?? "";
   const webhookSecret =
     process.env.NEXUS_WEBHOOK_SECRET ?? "REDACTED_WEBHOOK_SECRET";
-  const paymentAddress = process.env.MERCHANT_PAYMENT_ADDRESS || "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1";
-  const signerPrivateKey = process.env.MERCHANT_SIGNER_PRIVATE_KEY || "0x3be84b4fa995ef7d87918aea8b0b1ad0cb88d66161b569c3fb55c8125cc31ba7";
+  const paymentAddress =
+    process.env.MERCHANT_PAYMENT_ADDRESS ||
+    "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1";
+  const signerPrivateKey =
+    process.env.MERCHANT_SIGNER_PRIVATE_KEY ||
+    "0x3be84b4fa995ef7d87918aea8b0b1ad0cb88d66161b569c3fb55c8125cc31ba7";
+  const nexusCoreUrl =
+    process.env.NEXUS_CORE_URL || "https://nexus-core.onrender.com";
 
   return {
     duffelApiToken,
@@ -36,5 +43,6 @@ export function loadConfig(): Config {
     webhookSecret,
     paymentAddress,
     signerPrivateKey,
+    nexusCoreUrl,
   };
 }
