@@ -99,7 +99,7 @@ NMSS classifies merchant tools into four roles:
 | Role | Lifecycle Phase | Multiplicity | Description |
 |------|----------------|-------------|-------------|
 | `search` | Discovery | 1+ required | Search for available products or services |
-| `quote` | Pricing | 1 required | Generate a NUPS payment quote |
+| `quote` | Pricing | 1 required | Generate a UCP Checkout Session containing a NUPS payment quote |
 | `status` | Verification | 1 required | Check payment/order status |
 | `action` | Post-payment | 0+ optional | Confirm, cancel, refund, or other operations |
 

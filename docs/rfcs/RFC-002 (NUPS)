@@ -56,9 +56,35 @@ line_items: Array<{ name: string; qty: number; price: number }>;
 };
 ```
 * **输出行为:**
-1. 调用底层 SDK (`@nexus/ucp-adapter`)。
-2. 生成符合 RFC-002 标准的 JSON。
-3. **Agent 必须**将此 JSON 原样返回给 User Agent，不得篡改签名。
+1. 调用底层 SDK (`@nexus/ucp-adapter`) 生成包含基于 EIP-712 签名的 NUPS 报价 (Quote) 对象。
+2. 将此 Quote 作为 `config` 封装到符合 [Google UCP Checkout Session API](https://ucp.dev/schemas/shopping/checkout.json) 规范的响应中（置于 `ucp.payment_handlers."urn:ucp:payment:nexus_v1"` 协议数组内）。
+3. **Agent 必须**将组装后的完整 **UCP Checkout Session JSON** 作为工具的结果原样返回给 User Agent（如 Gemini 等大模型），使其能够按标准协议渲染结算卡片并不被破坏签名。
+
+**UCP Checkout Schema 响应结构示例**:
+```json
+{
+  "ucp": {
+    "version": "2026-01-11",
+    "payment_handlers": {
+      "urn:ucp:payment:nexus_v1": [
+        {
+          "id": "nexus_handler_1",
+          "version": "v1",
+          "config": {
+             // ... 商户签名的 NUPS Quote Payload ...
+          }
+        }
+      ]
+    }
+  },
+  "id": "TRIP-888",
+  "status": "ready_for_complete",
+  "currency": "USDC",
+  "totals": [
+    { "type": "total", "amount": "530000000" }
+  ]
+}
+```
 ### 3.2 Skill B: `VerifyReceipt` (验证回执)
 * **认知触发:** 当 User Agent 在对话中声称“已付款”，并提供 `nexus_payment_id` 或 `tx_hash` 时。
 * **输入规范:**
@@ -139,7 +165,7 @@ mcpServer.start();
 | **User Agent** | Ask | "I want to buy the ticket to SG." |
 | **Merchant Agent** | **Think** | *Intent detected. Inventory check passed. Need payment.* |
 | **Merchant Agent** | **Call Tool** | `nexus_generate_quote({ ref: "TRIP-888", amount: 530 })` |
-| **Merchant Agent** | Reply | "Here is the Nexus Payment Card. Please sign." + **[NUPS JSON]** |
+| **Merchant Agent** | Reply | "Here is the Nexus Payment Card. Please confirm." + **[UCP Checkout JSON]** |
 | **User Agent** | **Action** | *User signs & broadcasts on-chain.* |
 | **User Agent** | Reply | "Payment sent. ID is NEX-001." |
 | **Merchant Agent** | **Think** | *User claims payment. I must verify integrity.* |
