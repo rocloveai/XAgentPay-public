@@ -71,8 +71,18 @@ async function execStatements(raw: string): Promise<void> {
 
 async function run(): Promise<void> {
   console.log("Running migrations...");
+
   await execStatements(loadSql("migrations/001_initial_schema.sql"));
   console.log("  001_initial_schema.sql applied");
+
+  await execStatements(loadSql("migrations/002_add_payer_wallet.sql"));
+  console.log("  002_add_payer_wallet.sql applied");
+
+  await execStatements(loadSql("migrations/003_nexus_core_schema.sql"));
+  console.log("  003_nexus_core_schema.sql applied");
+
+  await execStatements(loadSql("migrations/004_escrow_fields.sql"));
+  console.log("  004_escrow_fields.sql applied");
 
   console.log("Seeding flights...");
   await execStatements(loadSql("seed/seed-flights.sql"));
@@ -82,15 +92,21 @@ async function run(): Promise<void> {
   await execStatements(loadSql("seed/seed-hotels.sql"));
   console.log("  seed-hotels.sql applied");
 
+  console.log("Seeding merchants...");
+  await execStatements(loadSql("seed/seed-merchants.sql"));
+  console.log("  seed-merchants.sql applied");
+
   console.log("Done. Verifying row counts...");
 
   const flights = await sql("SELECT count(*) AS cnt FROM flight_templates");
   const hotels = await sql("SELECT count(*) AS cnt FROM hotel_templates");
   const orders = await sql("SELECT count(*) AS cnt FROM orders");
+  const merchants = await sql("SELECT count(*) AS cnt FROM merchant_registry");
 
-  console.log(`  flight_templates: ${flights[0].cnt}`);
-  console.log(`  hotel_templates:  ${hotels[0].cnt}`);
-  console.log(`  orders:           ${orders[0].cnt}`);
+  console.log(`  flight_templates:  ${flights[0].cnt}`);
+  console.log(`  hotel_templates:   ${hotels[0].cnt}`);
+  console.log(`  orders:            ${orders[0].cnt}`);
+  console.log(`  merchant_registry: ${merchants[0].cnt}`);
 }
 
 run().catch((err) => {

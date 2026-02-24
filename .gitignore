@@ -28,6 +28,11 @@ yarn-error.log*
 *.swp
 *.swo
 
+# Foundry
+src/contracts/cache
+src/contracts/out
+src/contracts/lib
+
 # Project specific
 /tmp
 *.png

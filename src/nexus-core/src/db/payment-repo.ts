@@ -1,0 +1,183 @@
+import { getPool } from "./pool.js";
+import type { PaymentRepository } from "./interfaces/payment-repo.js";
+import type {
+  PaymentRecord,
+  PaymentStatus,
+  PaymentMethod,
+  NexusQuotePayload,
+  IsoMetadata,
+  CreatePaymentParams,
+} from "../types.js";
+
+function rowToPayment(row: Record<string, unknown>): PaymentRecord {
+  return {
+    nexus_payment_id: row.nexus_payment_id as string,
+    quote_hash: row.quote_hash as string,
+    merchant_did: row.merchant_did as string,
+    merchant_order_ref: row.merchant_order_ref as string,
+    payer_wallet: (row.payer_wallet as string) ?? null,
+    payment_address: row.payment_address as string,
+    amount: row.amount as string,
+    amount_display: row.amount_display as string,
+    currency: row.currency as string,
+    chain_id: row.chain_id as number,
+    status: row.status as PaymentStatus,
+    payment_method: row.payment_method as PaymentMethod,
+    tx_hash: (row.tx_hash as string) ?? null,
+    block_number: row.block_number != null ? Number(row.block_number) : null,
+    block_timestamp: row.block_timestamp != null ? String(row.block_timestamp) : null,
+    quote_payload: row.quote_payload as unknown as NexusQuotePayload,
+    iso_metadata: (row.iso_metadata as unknown as IsoMetadata) ?? null,
+    expires_at: String(row.expires_at),
+    settled_at: row.settled_at != null ? String(row.settled_at) : null,
+    completed_at: row.completed_at != null ? String(row.completed_at) : null,
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at),
+    escrow_contract: (row.escrow_contract as string) ?? null,
+    payment_id_bytes32: (row.payment_id_bytes32 as string) ?? null,
+    eip3009_nonce: (row.eip3009_nonce as string) ?? null,
+    deposit_tx_hash: (row.deposit_tx_hash as string) ?? null,
+    release_tx_hash: (row.release_tx_hash as string) ?? null,
+    refund_tx_hash: (row.refund_tx_hash as string) ?? null,
+    release_deadline: row.release_deadline != null ? String(row.release_deadline) : null,
+    dispute_deadline: row.dispute_deadline != null ? String(row.dispute_deadline) : null,
+    protocol_fee: (row.protocol_fee as string) ?? null,
+    dispute_reason: (row.dispute_reason as string) ?? null,
+  };
+}
+
+export class NeonPaymentRepository implements PaymentRepository {
+  async insert(params: CreatePaymentParams): Promise<PaymentRecord> {
+    const sql = getPool();
+    const now = new Date().toISOString();
+    const rows = await sql(
+      `INSERT INTO payments (
+        nexus_payment_id, quote_hash, merchant_did, merchant_order_ref,
+        payer_wallet, payment_address, amount, amount_display,
+        currency, chain_id, status, payment_method,
+        quote_payload, iso_metadata, expires_at,
+        created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        'CREATED', $11, $12::jsonb, $13::jsonb, $14::timestamptz,
+        $15::timestamptz, $16::timestamptz
+      ) RETURNING *`,
+      [
+        params.nexus_payment_id,
+        params.quote_hash,
+        params.merchant_did,
+        params.merchant_order_ref,
+        params.payer_wallet,
+        params.payment_address,
+        params.amount,
+        params.amount_display,
+        params.currency,
+        params.chain_id,
+        params.payment_method,
+        JSON.stringify(params.quote_payload),
+        params.iso_metadata ? JSON.stringify(params.iso_metadata) : null,
+        params.expires_at,
+        now,
+        now,
+      ],
+    );
+    return rowToPayment(rows[0]);
+  }
+
+  async findById(nexusPaymentId: string): Promise<PaymentRecord | null> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT * FROM payments WHERE nexus_payment_id = $1`,
+      [nexusPaymentId],
+    );
+    return rows.length > 0 ? rowToPayment(rows[0]) : null;
+  }
+
+  async findByOrderRef(merchantOrderRef: string): Promise<PaymentRecord | null> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT * FROM payments WHERE merchant_order_ref = $1
+       ORDER BY created_at DESC LIMIT 1`,
+      [merchantOrderRef],
+    );
+    return rows.length > 0 ? rowToPayment(rows[0]) : null;
+  }
+
+  async findByQuoteHash(quoteHash: string): Promise<PaymentRecord | null> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT * FROM payments WHERE quote_hash = $1
+       AND status NOT IN ('EXPIRED', 'TX_FAILED')
+       LIMIT 1`,
+      [quoteHash],
+    );
+    return rows.length > 0 ? rowToPayment(rows[0]) : null;
+  }
+
+  async updateStatus(
+    nexusPaymentId: string,
+    newStatus: PaymentStatus,
+    fields?: Partial<Pick<PaymentRecord,
+      | "tx_hash" | "block_number" | "block_timestamp"
+      | "settled_at" | "completed_at"
+      | "escrow_contract" | "payment_id_bytes32" | "eip3009_nonce"
+      | "deposit_tx_hash" | "release_tx_hash" | "refund_tx_hash"
+      | "release_deadline" | "dispute_deadline"
+      | "protocol_fee" | "dispute_reason"
+    >>,
+  ): Promise<PaymentRecord | null> {
+    const sql = getPool();
+    const now = new Date().toISOString();
+
+    // Build SET clause dynamically for optional fields
+    const setClauses = ["status = $1", "updated_at = $2::timestamptz"];
+    const values: unknown[] = [newStatus, now];
+    let paramIdx = 3;
+
+    if (fields) {
+      for (const [key, value] of Object.entries(fields)) {
+        if (value !== undefined) {
+          const suffix = key.endsWith("_at") || key === "block_timestamp"
+            || key === "release_deadline" || key === "dispute_deadline"
+            ? "::timestamptz" : "";
+          setClauses.push(`${key} = $${paramIdx}${suffix}`);
+          values.push(value);
+          paramIdx++;
+        }
+      }
+    }
+
+    values.push(nexusPaymentId);
+
+    const rows = await sql(
+      `UPDATE payments SET ${setClauses.join(", ")}
+       WHERE nexus_payment_id = $${paramIdx}
+       RETURNING *`,
+      values,
+    );
+    return rows.length > 0 ? rowToPayment(rows[0]) : null;
+  }
+
+  async findExpiredAwaiting(now: string): Promise<readonly PaymentRecord[]> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT * FROM payments
+       WHERE status IN ('CREATED', 'AWAITING_TX')
+         AND expires_at <= $1::timestamptz`,
+      [now],
+    );
+    return rows.map(rowToPayment);
+  }
+
+  async findExpiredEscrowed(now: string): Promise<readonly PaymentRecord[]> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT * FROM payments
+       WHERE status = 'ESCROWED'
+         AND release_deadline IS NOT NULL
+         AND release_deadline <= $1::timestamptz`,
+      [now],
+    );
+    return rows.map(rowToPayment);
+  }
+}
