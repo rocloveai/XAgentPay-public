@@ -16,7 +16,13 @@ import {
 import type { WebhookPayload } from "./types.js";
 import type { Order } from "./types.js";
 import { privateKeyToAccount } from "viem/accounts";
-import { createPublicClient, http, fallback, type Hex, formatUnits, erc20Abi } from "viem";
+import {
+  createPublicClient,
+  http,
+  type Hex,
+  formatUnits,
+  erc20Abi,
+} from "viem";
 
 const AGENT_NAME = "Nexus Flight Agent";
 const ACCENT = "blue";
@@ -127,28 +133,34 @@ function formatUptime(ms: number): string {
 
 // ── API handlers ────────────────────────────────────────────────────────────
 
-async function handleApiInfo(res: ServerResponse, config: Config): Promise<void> {
+async function handleApiInfo(
+  res: ServerResponse,
+  config: Config,
+): Promise<void> {
   let signerAddress = "-";
   let balanceFormatted = "";
 
   try {
     if (config.signerPrivateKey) {
-      signerAddress = privateKeyToAccount((config.signerPrivateKey || "0x") as Hex).address;
+      signerAddress = privateKeyToAccount(
+        (config.signerPrivateKey || "0x") as Hex,
+      ).address;
     }
   } catch (e) { }
 
   try {
     if (config.paymentAddress) {
       const publicClient = createPublicClient({
-        transport: http("https://devnet3openapi.platon.network/rpc")
+        transport: http("https://devnet3openapi.platon.network/rpc"),
       });
       const bal = await publicClient.readContract({
         address: "0xFF8dEe9983768D0399673014cf77826896F97e4d",
         abi: erc20Abi,
-        functionName: 'balanceOf',
-        args: [config.paymentAddress as Hex]
+        functionName: "balanceOf",
+        args: [config.paymentAddress as Hex],
       });
-      balanceFormatted = parseFloat(formatUnits(bal as bigint, 6)).toFixed(2) + " USDC";
+      balanceFormatted =
+        parseFloat(formatUnits(bal as bigint, 6)).toFixed(2) + " USDC";
     }
   } catch (e) {
     console.error("[USDC Balance Error]:", e);
@@ -166,8 +178,19 @@ async function handleApiInfo(res: ServerResponse, config: Config): Promise<void>
   });
 }
 
-async function handleApiOrders(res: ServerResponse): Promise<void> {
-  const orders = await listOrders();
+async function handleApiOrders(res: ServerResponse, url: URL): Promise<void> {
+  const dbOrders = await listOrders();
+  let orders = [...dbOrders];
+
+  // Apply sorting: newest first (descending created_at)
+  orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  // Apply filtering: by status
+  const filterStatus = url.searchParams.get("status");
+  if (filterStatus && filterStatus !== "ALL") {
+    orders = orders.filter((o) => o.status === filterStatus);
+  }
+
   sendJson(
     res,
     200,
@@ -264,6 +287,27 @@ tailwind.config = {
     </div>
   </div>
 </header>
+
+<!-- Main Dashboard -->
+<main class="max-w-6xl mx-auto p-6 space-y-8">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-semibold flex items-center gap-2">
+      <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+      Orders
+    </h2>
+    <div class="flex items-center gap-2">
+      <label for="status-filter" class="text-xs text-slate-400 uppercase font-semibold">Status:</label>
+      <select id="status-filter" class="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded focus:ring-blue-500 focus:border-blue-500 block w-full p-1.5" onchange="refresh()">
+        <option value="ALL">All</option>
+        <option value="UNPAID">UNPAID</option>
+        <option value="PAID">PAID</option>
+        <option value="EXPIRED">EXPIRED</option>
+      </select>
+    </div>
+  </div>
+
+
+</main>
 
 <!-- Install -->
 <div class="max-w-6xl mx-auto px-6 pt-6 pb-2">
@@ -409,7 +453,7 @@ const STATUS_CLASSES = {
   PAID:    "bg-emerald-400/15 text-emerald-400",
   EXPIRED: "bg-red-400/15 text-red-400",
 };
-const CHAIN_NAMES = { 84532: "Base Sepolia", 8453: "Base", 1: "Ethereum", 10: "Optimism" };
+const CHAIN_NAMES = { 84532: "Base Sepolia", 8453: "Base", 1: "Ethereum", 10: "Optimism", 20250407: "PlatON Devnet" };
 
 function esc(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
@@ -620,10 +664,11 @@ document.addEventListener("click", function(e) {
 
 async function refresh() {
   try {
+    const statusFilter = document.getElementById("status-filter") ? document.getElementById("status-filter").value : "ALL";
     const [info, stats, orders] = await Promise.all([
       fetchJson("/api/info"),
       fetchJson("/api/stats"),
-      fetchJson("/api/orders"),
+      fetchJson("/api/orders?status=" + encodeURIComponent(statusFilter)),
     ]);
     document.getElementById("did").textContent = info.did;
     document.getElementById("signer-address").textContent = truncAddr(info.signer_address);
@@ -728,7 +773,7 @@ async function handleRequest(
   }
 
   if (path === "/api/orders" && req.method === "GET") {
-    await handleApiOrders(res);
+    await handleApiOrders(res, url);
     return;
   }
 

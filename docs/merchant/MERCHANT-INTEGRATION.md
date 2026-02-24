@@ -5,7 +5,7 @@
 Phase 0 integrates existing merchant agents (flight-agent, hotel-agent) with NexusPay Core infrastructure. This covers:
 
 - **Type alignment** — shared types from `nexus-core` copied into each agent
-- **Quote generation** — `payment_method` field added to `NexusQuotePayload`
+- **Quote generation** — EIP-712 signed quote via `buildQuote()`
 - **Webhook reception** — `POST /webhook` endpoint for payment notifications
 - **Status mapping** — webhook events trigger local order status updates
 
@@ -31,14 +31,14 @@ Types provided:
 | `PaymentStatus` | 12-state machine (Core-side) |
 | `WebhookEventType` | Event types sent to merchants |
 | `LineItem` | Quote line item |
-| `NexusQuotePayload` | Full quote payload with `payment_method?` |
+| `NexusQuotePayload` | Full quote payload (EIP-712 signed) |
 | `WebhookPayload` | Webhook event envelope |
 
 Agent-local types (`FlightOffer`, `HotelOffer`, `Order`, `OrderStatus`) remain in `src/<agent>/src/types.ts` and re-export nexus-core types for backward compatibility.
 
 ## Quote Generation
 
-The `buildQuote()` function now includes `payment_method: "DIRECT_TRANSFER"` in the returned `NexusQuotePayload`. This tells NexusPay Core which payment routing to use.
+The `buildQuote()` function generates an EIP-712 signed `NexusQuotePayload`. The `payment_method` field is **not** set by the merchant — it is determined by the user's interaction with Nexus Core at payment time.
 
 ```typescript
 const quote = buildQuote({
@@ -50,7 +50,8 @@ const quote = buildQuote({
   lineItems: [{ name: "Base fare", qty: 1, amount: "530.00" }],
   payerWallet: "0x1234...",
 });
-// quote.payment_method === "DIRECT_TRANSFER"
+// quote contains: merchant_did, amount, currency, chain_id, expiry, signature, etc.
+// payment_method is NOT set here — Core determines it based on user choice
 ```
 
 ## Webhook Integration
@@ -120,7 +121,7 @@ The agent maintains its own 3-state system (`UNPAID` → `PAID` / `EXPIRED`). Co
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MERCHANT_DID` | `did:nexus:210425:demo_flight` / `demo_hotel` | Agent's merchant DID |
+| `MERCHANT_DID` | `did:nexus:20250407:demo_flight` / `demo_hotel` | Agent's merchant DID |
 | `PORTAL_PORT` | `3001` / `3002` | HTTP server port |
 | `DATABASE_URL` | `""` (in-memory) | PostgreSQL connection |
 | `NEXUS_WEBHOOK_SECRET` | `REDACTED_WEBHOOK_SECRET` / `REDACTED_WEBHOOK_SECRET` | HMAC webhook secret |

@@ -8,6 +8,8 @@ export type {
   WebhookPayload,
 } from "./types/nexus-core-types.js";
 
+import type { NexusQuotePayload } from "./types/nexus-core-types.js";
+
 export interface HotelOffer {
   readonly offer_id: string;
   readonly hotel_name: string;
@@ -32,6 +34,3 @@ export interface Order {
   readonly created_at: string;
   readonly updated_at: string;
 }
-
-// Need the concrete import for Order's quote_payload field
-import type { NexusQuotePayload } from "./types/nexus-core-types.js";
