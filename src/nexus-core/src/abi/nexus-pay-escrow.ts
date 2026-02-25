@@ -3,6 +3,16 @@
  */
 import { parseAbi } from "viem";
 
+/** Events only — used by ChainWatcher getLogs() */
+export const NEXUS_PAY_ESCROW_EVENTS = parseAbi([
+  "event Deposited(bytes32 indexed paymentId, address indexed payer, address indexed merchant, uint256 amount, bytes32 orderRef)",
+  "event Released(bytes32 indexed paymentId, address indexed merchant, uint256 merchantAmount, uint256 feeAmount)",
+  "event Refunded(bytes32 indexed paymentId, address indexed payer, uint256 amount)",
+  "event Disputed(bytes32 indexed paymentId, address indexed payer, bytes32 reason)",
+  "event Resolved(bytes32 indexed paymentId, uint16 merchantBps, uint256 merchantAmount, uint256 payerAmount)",
+]);
+
+/** Full ABI (events + functions) — used by Relayer writeContract() */
 export const NEXUS_PAY_ESCROW_ABI = parseAbi([
   // Events
   "event Deposited(bytes32 indexed paymentId, address indexed payer, address indexed merchant, uint256 amount, bytes32 orderRef)",

@@ -22,7 +22,7 @@ import type {
   PaymentStatus,
   PaymentEventType,
 } from "../types.js";
-import { NEXUS_PAY_ESCROW_ABI } from "../abi/nexus-pay-escrow.js";
+import { NEXUS_PAY_ESCROW_EVENTS } from "../abi/nexus-pay-escrow.js";
 import { buildPlatonChain } from "./relayer.js";
 import type { PaymentStateMachine } from "./state-machine.js";
 import type { GroupManager } from "./group-manager.js";
@@ -151,9 +151,7 @@ export class ChainWatcher {
 
       const logs = await this.client.getLogs({
         address: this.escrowAddress,
-        events: NEXUS_PAY_ESCROW_ABI as readonly unknown[] as [
-          (typeof NEXUS_PAY_ESCROW_ABI)[0],
-        ],
+        events: NEXUS_PAY_ESCROW_EVENTS,
         fromBlock,
         toBlock,
       });
