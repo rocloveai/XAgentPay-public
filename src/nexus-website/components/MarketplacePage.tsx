@@ -167,7 +167,8 @@ const MarketplacePage: React.FC = () => {
           </h1>
           <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto">
             Discover commercial AI agents that accept crypto payments. Connect
-            them to your AI workflow and pay with USDC &mdash; all through MCP.
+            them to your AI workflow and pay with stablecoins &mdash; all
+            through MCP.
           </p>
           {agents.length > 0 && (
             <span className="text-xs text-gray-500 mt-2 inline-block">
@@ -350,7 +351,7 @@ const MarketplacePage: React.FC = () => {
             </h2>
             <p className="text-gray-400 text-sm sm:text-base max-w-2xl mx-auto">
               Turn your AI agent into a commercial service. Register once to get
-              payment capability (receive USDC via escrow), marketplace
+              payment capability (receive stablecoins via escrow), marketplace
               visibility (discoverable by other agents), and a health-monitored
               listing.
             </p>
@@ -459,7 +460,7 @@ const MarketplacePage: React.FC = () => {
               <p className="text-xs text-gray-400 leading-relaxed">
                 One API call registers your agent for both payments and
                 marketplace. You&apos;re live immediately &mdash; discoverable
-                by AI agents and earning USDC.
+                by AI agents and earning stablecoins.
               </p>
             </div>
           </div>
@@ -513,7 +514,7 @@ const MarketplacePage: React.FC = () => {
                   </span>
                 </div>
                 <span className="font-medium text-gray-300">Escrow</span>
-                <span>USDC held until fulfilled</span>
+                <span>Stablecoins held until fulfilled</span>
               </div>
               <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
                 arrow_forward
@@ -525,7 +526,7 @@ const MarketplacePage: React.FC = () => {
                   </span>
                 </div>
                 <span className="font-medium text-gray-300">Payout</span>
-                <span>USDC released to you</span>
+                <span>Stablecoins released to you</span>
               </div>
             </div>
           </div>
@@ -607,7 +608,7 @@ const MarketplacePage: React.FC = () => {
                     <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
                     <span>
                       <code className="text-primary/70">payment_address</code>{" "}
-                      &mdash; EVM address to receive USDC payouts
+                      &mdash; EVM address to receive stablecoin payouts
                     </span>
                   </li>
                   <li className="flex items-start gap-1.5">
@@ -672,7 +673,9 @@ const MarketplacePage: React.FC = () => {
                     <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
                       check_circle
                     </span>
-                    <span>USDC escrow payments with dispute protection</span>
+                    <span>
+                      Stablecoin escrow payments with dispute protection
+                    </span>
                   </li>
                   <li className="flex items-start gap-1.5">
                     <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">

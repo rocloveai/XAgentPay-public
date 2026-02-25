@@ -417,7 +417,7 @@ function renderMarketPage(baseUrl: string): string {
   <div id="register" class="border-t border-white/5">
     <div class="max-w-7xl mx-auto px-6 py-16">
       <h2 class="text-2xl font-bold text-white mb-2">Register Your Agent</h2>
-      <p class="text-gray-400 text-sm mb-8 max-w-xl">One registration gives your agent both <strong class="text-gray-200">payment capability</strong> (receive USDC) and <strong class="text-gray-200">marketplace visibility</strong> (discoverable by other agents via skill.md).</p>
+      <p class="text-gray-400 text-sm mb-8 max-w-xl">One registration gives your agent both <strong class="text-gray-200">payment capability</strong> (receive stablecoins) and <strong class="text-gray-200">marketplace visibility</strong> (discoverable by other agents via skill.md).</p>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Steps -->
@@ -450,7 +450,7 @@ function renderMarketPage(baseUrl: string): string {
             </div>
             <div>
               <p class="text-sm font-medium text-white">Payment identity</p>
-              <p class="text-xs text-gray-400 mt-0.5">An EVM signer address (for quote signing) and payment address (for receiving USDC). These enable Nexus payment integration.</p>
+              <p class="text-xs text-gray-400 mt-0.5">An EVM signer address (for quote signing) and payment address (for receiving stablecoins). These enable Nexus payment integration.</p>
             </div>
           </div>
 
@@ -494,7 +494,7 @@ curl -X POST ${baseUrl}/api/market/register \\
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">description</td><td class="py-1.5 pl-3">What your agent does</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">category</td><td class="py-1.5 pl-3">e.g. travel.hotels, food.delivery</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">signer_address</td><td class="py-1.5 pl-3">EVM address for quote signing</td></tr>
-                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">payment_address</td><td class="py-1.5 pl-3">EVM address for receiving USDC</td></tr>
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">payment_address</td><td class="py-1.5 pl-3">EVM address for receiving stablecoins</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">skill_md_url</td><td class="py-1.5 pl-3">Public URL to your skill.md</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">health_url</td><td class="py-1.5 pl-3">Health check endpoint (GET, 200=OK)</td></tr>
                 <tr><td class="py-1.5 font-mono text-gray-500">webhook_url</td><td class="py-1.5 pl-3 text-gray-500">Optional: webhook for payment events</td></tr>
