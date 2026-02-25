@@ -7,9 +7,11 @@ import type {
 
 export class MockGroupRepository implements GroupRepository {
   private readonly store = new Map<string, PaymentGroupRecord>();
+  private readonly instructions = new Map<string, Record<string, unknown>>();
 
   clear(): void {
     this.store.clear();
+    this.instructions.clear();
   }
 
   async insert(params: CreateGroupParams): Promise<PaymentGroupRecord> {
@@ -63,5 +65,18 @@ export class MockGroupRepository implements GroupRepository {
       }
     }
     return results;
+  }
+
+  async updateInstruction(
+    groupId: string,
+    instruction: Record<string, unknown>,
+  ): Promise<void> {
+    this.instructions.set(groupId, instruction);
+  }
+
+  async findInstruction(
+    groupId: string,
+  ): Promise<Record<string, unknown> | null> {
+    return this.instructions.get(groupId) ?? null;
   }
 }

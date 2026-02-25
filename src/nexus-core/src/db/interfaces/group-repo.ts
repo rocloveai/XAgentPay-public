@@ -20,4 +20,13 @@ export interface GroupRepository {
 
   /** Find groups by payer wallet. */
   findByPayer(payerWallet: string): Promise<readonly PaymentGroupRecord[]>;
+
+  /** Persist a GroupEscrowInstruction JSON to the instruction column. */
+  updateInstruction(
+    groupId: string,
+    instruction: Record<string, unknown>,
+  ): Promise<void>;
+
+  /** Read the persisted instruction JSONB for a group. */
+  findInstruction(groupId: string): Promise<Record<string, unknown> | null>;
 }

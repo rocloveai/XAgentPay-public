@@ -22,6 +22,7 @@ export interface NexusCoreConfig {
   readonly webhookRetryIntervalMs: number;
   readonly arbitrationTimeoutS: number;
   readonly portalToken: string;
+  readonly baseUrl: string;
 }
 
 export interface ConfigValidationError {
@@ -91,5 +92,6 @@ export function loadNexusCoreConfig(): NexusCoreConfig {
     ),
     arbitrationTimeoutS: Number(process.env.ARBITRATION_TIMEOUT_S ?? "604800"),
     portalToken: process.env.PORTAL_TOKEN ?? "",
+    baseUrl: process.env.BASE_URL ?? "",
   };
 }

@@ -40,6 +40,7 @@ import { keccak256, toHex, encodeFunctionData, formatUnits } from "viem";
 import { NEXUS_PAY_ESCROW_ABI } from "./abi/nexus-pay-escrow.js";
 import type { NexusQuotePayload, Hex } from "./types.js";
 import { handlePortalRequest, type PortalDeps } from "./portal.js";
+import { handleCheckoutRequest, type CheckoutDeps } from "./checkout.js";
 import { createLogger } from "./logger.js";
 
 const serverLog = createLogger("NexusCore");
@@ -150,6 +151,9 @@ server.tool(
         payerWallet: payer_wallet,
       });
 
+      const baseUrl = config.baseUrl || `http://localhost:${config.port}`;
+      const checkoutUrl = `${baseUrl}/checkout/${result.group.group_id}`;
+
       return {
         content: [
           {
@@ -167,12 +171,14 @@ server.tool(
                     `  ${i + 1}. ${p.merchant_order_ref} — ${p.amount_display} ${p.currency} (${p.nexus_payment_id})`,
                 )
                 .join("\n") +
-              `\n\nSign the EIP-3009 authorization for ${result.group.total_amount_display} ${result.group.currency} to complete payment.\n\n` +
+              `\n\nCheckout URL: ${checkoutUrl}\n` +
+              `Direct the user to open this URL in their browser to complete payment with MetaMask.\n\n` +
               `UCP Checkout Response:\n` +
               JSON.stringify(
                 {
                   group_id: result.group.group_id,
                   status: result.group.status,
+                  checkout_url: checkoutUrl,
                   instruction: result.instruction,
                 },
                 null,
@@ -914,6 +920,23 @@ async function main(): Promise<void> {
           );
           return;
         }
+
+        // Checkout routes (before portal, since portal handles /)
+        const checkoutDeps: CheckoutDeps = {
+          groupRepo,
+          paymentRepo,
+          stateMachine,
+          relayer,
+          webhookNotifier,
+          config,
+        };
+        const checkoutHandled = await handleCheckoutRequest(
+          checkoutDeps,
+          req,
+          res,
+          url,
+        );
+        if (checkoutHandled) return;
 
         // Portal routes
         const portalDeps: PortalDeps = {

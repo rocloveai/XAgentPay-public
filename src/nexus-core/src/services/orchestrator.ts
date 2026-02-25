@@ -31,6 +31,7 @@ import { routePayment } from "./payment-router.js";
 import { GroupManager } from "./group-manager.js";
 import { buildGroupEscrowInstruction } from "./instruction-builder.js";
 import { NexusError } from "../errors.js";
+import { keccak256, toHex } from "viem";
 
 export interface OrchestrateInput {
   readonly quotes: readonly NexusQuotePayload[];
@@ -68,10 +69,7 @@ export class NexusOrchestrator {
     const { quotes, payerWallet } = input;
 
     if (quotes.length === 0) {
-      throw new NexusError(
-        "EMPTY_QUOTES",
-        "At least one quote is required",
-      );
+      throw new NexusError("EMPTY_QUOTES", "At least one quote is required");
     }
 
     // Phase 1: Validate each quote
@@ -121,6 +119,29 @@ export class NexusOrchestrator {
       this.config,
     );
 
+    // Phase 5: Persist instruction for checkout page
+    await this.groupRepo.updateInstruction(
+      group.group_id,
+      instruction as unknown as Record<string, unknown>,
+    );
+
+    // Phase 6: Persist escrow fields on each payment record
+    for (const payment of payments) {
+      const paymentIdBytes32 = keccak256(toHex(payment.nexus_payment_id));
+      const now = Math.floor(Date.now() / 1000);
+      await this.paymentRepo.updateStatus(payment.nexus_payment_id, "CREATED", {
+        payment_id_bytes32: paymentIdBytes32,
+        eip3009_nonce: instruction.eip3009_sign_data.message.nonce,
+        escrow_contract: this.config.escrowContract,
+        release_deadline: new Date(
+          (now + this.config.releaseTimeoutS) * 1000,
+        ).toISOString(),
+        dispute_deadline: new Date(
+          (now + this.config.disputeWindowS) * 1000,
+        ).toISOString(),
+      });
+    }
+
     return { group, payments, instruction };
   }
 
@@ -136,9 +157,7 @@ export class NexusOrchestrator {
     if (params.nexusPaymentId) {
       payment = await this.paymentRepo.findById(params.nexusPaymentId);
     } else if (params.merchantOrderRef) {
-      payment = await this.paymentRepo.findByOrderRef(
-        params.merchantOrderRef,
-      );
+      payment = await this.paymentRepo.findByOrderRef(params.merchantOrderRef);
     }
 
     const groupId = params.groupId ?? payment?.group_id;

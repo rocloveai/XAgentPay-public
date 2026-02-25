@@ -52,10 +52,9 @@ export class NeonGroupRepository implements GroupRepository {
 
   async findById(groupId: string): Promise<PaymentGroupRecord | null> {
     const sql = getPool();
-    const rows = await sql(
-      `SELECT * FROM payment_groups WHERE group_id = $1`,
-      [groupId],
-    );
+    const rows = await sql(`SELECT * FROM payment_groups WHERE group_id = $1`, [
+      groupId,
+    ]);
     return rows.length > 0 ? rowToGroup(rows[0]) : null;
   }
 
@@ -99,5 +98,34 @@ export class NeonGroupRepository implements GroupRepository {
       [payerWallet],
     );
     return rows.map(rowToGroup);
+  }
+
+  async updateInstruction(
+    groupId: string,
+    instruction: Record<string, unknown>,
+  ): Promise<void> {
+    const sql = getPool();
+    await sql(
+      `UPDATE payment_groups
+       SET instruction = $2, updated_at = NOW()
+       WHERE group_id = $1`,
+      [groupId, JSON.stringify(instruction)],
+    );
+  }
+
+  async findInstruction(
+    groupId: string,
+  ): Promise<Record<string, unknown> | null> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT instruction FROM payment_groups WHERE group_id = $1`,
+      [groupId],
+    );
+    if (rows.length === 0) return null;
+    const raw = rows[0].instruction;
+    if (!raw) return null;
+    return typeof raw === "string"
+      ? JSON.parse(raw)
+      : (raw as Record<string, unknown>);
   }
 }
