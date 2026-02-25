@@ -163,11 +163,11 @@ const MarketplacePage: React.FC = () => {
         {/* Page Header */}
         <div className="text-center mb-12">
           <h1 className="text-3xl md:text-5xl font-bold text-white mb-4">
-            Agent <span className="text-primary">Marketplace</span>
+            Commercial Agent <span className="text-primary">Marketplace</span>
           </h1>
           <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto">
-            Browse and discover verified merchant agents. Add them to your AI
-            workflow with one click.
+            Discover commercial AI agents that accept crypto payments. Connect
+            them to your AI workflow and pay with USDC &mdash; all through MCP.
           </p>
           {agents.length > 0 && (
             <span className="text-xs text-gray-500 mt-2 inline-block">
@@ -348,59 +348,185 @@ const MarketplacePage: React.FC = () => {
             <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
               List Your <span className="text-primary">Agent</span>
             </h2>
-            <p className="text-gray-400 text-sm sm:text-base max-w-xl mx-auto">
-              One registration gives your agent both payment capability and
-              marketplace visibility. Start accepting USDC from AI agents.
+            <p className="text-gray-400 text-sm sm:text-base max-w-2xl mx-auto">
+              Turn your AI agent into a commercial service. Register once to get
+              payment capability (receive USDC via escrow), marketplace
+              visibility (discoverable by other agents), and a health-monitored
+              listing.
             </p>
           </div>
 
-          {/* Steps */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <div className="glass-panel rounded-xl p-6">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <span className="material-icons-round text-primary text-xl">
-                  description
-                </span>
+          {/* Steps — 5-step flow */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-12">
+            {/* Step 1 */}
+            <div className="glass-panel rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-primary">1</span>
+                </div>
+                <h3 className="text-white font-semibold text-sm">
+                  Build Your MCP Agent
+                </h3>
               </div>
-              <h3 className="text-white font-semibold mb-2">
-                1. Create skill.md
-              </h3>
               <p className="text-xs text-gray-400 leading-relaxed">
-                Define your agent's capabilities using the NMSS skill.md spec.
-                Include name, version, tools, and MCP endpoint info.
+                Create an MCP server that exposes your commercial service as
+                tools (e.g.{" "}
+                <code className="text-primary/70 bg-primary/5 px-1 rounded">
+                  search_flights
+                </code>
+                ,{" "}
+                <code className="text-primary/70 bg-primary/5 px-1 rounded">
+                  book_hotel
+                </code>
+                ). Use any framework &mdash; TypeScript SDK, Python, etc.
               </p>
             </div>
-            <div className="glass-panel rounded-xl p-6">
-              <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center mb-4">
-                <span className="material-icons-round text-accent-cyan text-xl">
-                  monitor_heart
-                </span>
+
+            {/* Step 2 */}
+            <div className="glass-panel rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-full bg-accent-cyan/15 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-accent-cyan">2</span>
+                </div>
+                <h3 className="text-white font-semibold text-sm">
+                  Add Payment Tooling
+                </h3>
               </div>
-              <h3 className="text-white font-semibold mb-2">
-                2. Prepare payment identity
-              </h3>
               <p className="text-xs text-gray-400 leading-relaxed">
-                Generate an EVM signer address (for quote signing) and payment
-                address (for receiving USDC). Add a{" "}
-                <code className="text-accent-cyan/80 bg-accent-cyan/5 px-1 rounded">
+                Add a{" "}
+                <code className="text-accent-cyan/70 bg-accent-cyan/5 px-1 rounded">
+                  nexus_generate_quote
+                </code>{" "}
+                tool that returns an EIP-712 signed quote in{" "}
+                <strong className="text-gray-300">UCP Checkout</strong> format.
+                This lets Nexus Core aggregate and escrow payments for you.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="glass-panel rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-full bg-accent-purple/15 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-accent-purple">
+                    3
+                  </span>
+                </div>
+                <h3 className="text-white font-semibold text-sm">
+                  Write skill.md
+                </h3>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Publish a{" "}
+                <code className="text-accent-purple/70 bg-accent-purple/5 px-1 rounded">
+                  skill.md
+                </code>{" "}
+                file at a public URL. It describes your agent&apos;s name,
+                category, tools, MCP endpoint, and currencies accepted. Other
+                agents use this to discover you.
+              </p>
+            </div>
+
+            {/* Step 4 */}
+            <div className="glass-panel rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-full bg-green-500/15 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-green-400">4</span>
+                </div>
+                <h3 className="text-white font-semibold text-sm">
+                  Deploy &amp; Health Check
+                </h3>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Deploy your agent with a public{" "}
+                <code className="text-green-400/70 bg-green-500/5 px-1 rounded">
                   /health
                 </code>{" "}
-                endpoint returning HTTP 200.
+                endpoint (GET, returns 200). Nexus monitors it every 5 minutes
+                and shows live status on your marketplace card.
               </p>
             </div>
-            <div className="glass-panel rounded-xl p-6">
-              <div className="w-10 h-10 rounded-lg bg-accent-purple/10 flex items-center justify-center mb-4">
-                <span className="material-icons-round text-accent-purple text-xl">
-                  rocket_launch
-                </span>
+
+            {/* Step 5 */}
+            <div className="glass-panel rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-full bg-yellow-500/15 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-yellow-400">5</span>
+                </div>
+                <h3 className="text-white font-semibold text-sm">
+                  Register on Nexus
+                </h3>
               </div>
-              <h3 className="text-white font-semibold mb-2">
-                3. Register via API
-              </h3>
               <p className="text-xs text-gray-400 leading-relaxed">
-                One API call registers both payment capability and marketplace
-                presence. Your agent is discoverable immediately.
+                One API call registers your agent for both payments and
+                marketplace. You&apos;re live immediately &mdash; discoverable
+                by AI agents and earning USDC.
               </p>
+            </div>
+          </div>
+
+          {/* How it works diagram */}
+          <div className="glass-panel rounded-xl p-6 max-w-4xl mx-auto mb-10">
+            <h4 className="text-sm font-semibold text-white mb-4">
+              How It Works
+            </h4>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
+              <div className="flex flex-col items-center gap-1 text-center">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <span className="material-icons-round text-primary text-lg">
+                    smart_toy
+                  </span>
+                </div>
+                <span className="font-medium text-gray-300">User Agent</span>
+                <span>Calls discover_agents</span>
+              </div>
+              <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
+                arrow_forward
+              </span>
+              <div className="flex flex-col items-center gap-1 text-center">
+                <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center">
+                  <span className="material-icons-round text-accent-cyan text-lg">
+                    hub
+                  </span>
+                </div>
+                <span className="font-medium text-gray-300">Nexus Core</span>
+                <span>Finds &amp; ranks agents</span>
+              </div>
+              <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
+                arrow_forward
+              </span>
+              <div className="flex flex-col items-center gap-1 text-center">
+                <div className="w-10 h-10 rounded-lg bg-accent-purple/10 flex items-center justify-center">
+                  <span className="material-icons-round text-accent-purple text-lg">
+                    storefront
+                  </span>
+                </div>
+                <span className="font-medium text-gray-300">Your Agent</span>
+                <span>Returns quote via MCP</span>
+              </div>
+              <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
+                arrow_forward
+              </span>
+              <div className="flex flex-col items-center gap-1 text-center">
+                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <span className="material-icons-round text-green-400 text-lg">
+                    lock
+                  </span>
+                </div>
+                <span className="font-medium text-gray-300">Escrow</span>
+                <span>USDC held until fulfilled</span>
+              </div>
+              <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
+                arrow_forward
+              </span>
+              <div className="flex flex-col items-center gap-1 text-center">
+                <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                  <span className="material-icons-round text-yellow-400 text-lg">
+                    payments
+                  </span>
+                </div>
+                <span className="font-medium text-gray-300">Payout</span>
+                <span>USDC released to you</span>
+              </div>
             </div>
           </div>
 
@@ -416,92 +542,145 @@ const MarketplacePage: React.FC = () => {
             </div>
             <pre className="text-xs text-gray-300 bg-background-dark/60 rounded-lg p-4 overflow-x-auto font-mono leading-relaxed">
               {`curl -X POST ${API_URL}/api/market/register \\
-  -H "Authorization: Bearer <PORTAL_TOKEN>" \\
+  -H "Authorization: Bearer $PORTAL_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "merchant_did": "did:nexus:20250407:my_agent",
-    "name": "My Agent",
-    "description": "What your agent does",
-    "category": "travel.hotels",
+    "merchant_did": "did:nexus:20250407:my_travel_agent",
+    "name": "My Travel Agent",
+    "description": "AI-powered flight and hotel booking with crypto payments",
+    "category": "travel.flights",
     "signer_address": "0xYourSignerAddress",
     "payment_address": "0xYourPaymentAddress",
     "skill_md_url": "https://my-agent.example.com/skill.md",
-    "health_url": "https://my-agent.example.com/health"
+    "health_url": "https://my-agent.example.com/health",
+    "webhook_url": "https://my-agent.example.com/webhook"
   }'`}
             </pre>
 
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="text-xs">
-                <h5 className="text-gray-400 font-medium mb-1.5">
+                <h5 className="text-gray-300 font-medium mb-2">
                   Required Fields
                 </h5>
-                <ul className="space-y-1 text-gray-500">
-                  <li className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">merchant_did</code>{" "}
-                    &mdash; Unique DID
+                <ul className="space-y-1.5 text-gray-500">
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                    <span>
+                      <code className="text-primary/70">merchant_did</code>{" "}
+                      &mdash; Unique identifier (
+                      <code className="text-gray-400">
+                        did:nexus:chainId:name
+                      </code>
+                      )
+                    </span>
                   </li>
-                  <li className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">name</code> &mdash; Agent
-                    display name
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                    <span>
+                      <code className="text-primary/70">name</code> &mdash;
+                      Display name shown in marketplace
+                    </span>
                   </li>
-                  <li className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">description</code> &mdash;
-                    What it does
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                    <span>
+                      <code className="text-primary/70">description</code>{" "}
+                      &mdash; What your agent does
+                    </span>
                   </li>
-                  <li className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">category</code> &mdash;
-                    e.g. travel.hotels
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                    <span>
+                      <code className="text-primary/70">category</code> &mdash;
+                      e.g. <code className="text-gray-400">travel.flights</code>
+                      , <code className="text-gray-400">food.delivery</code>
+                    </span>
                   </li>
-                  <li className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">signer_address</code>{" "}
-                    &mdash; Quote signing key
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                    <span>
+                      <code className="text-primary/70">signer_address</code>{" "}
+                      &mdash; EVM key for signing quotes (EIP-712)
+                    </span>
                   </li>
-                  <li className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">
-                      payment_address
-                    </code>{" "}
-                    &mdash; Receive USDC
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                    <span>
+                      <code className="text-primary/70">payment_address</code>{" "}
+                      &mdash; EVM address to receive USDC payouts
+                    </span>
                   </li>
-                  <li className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">skill_md_url</code>{" "}
-                    &mdash; NMSS skill.md URL
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                    <span>
+                      <code className="text-primary/70">skill_md_url</code>{" "}
+                      &mdash; Public URL to your skill.md
+                    </span>
                   </li>
-                  <li className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">health_url</code> &mdash;
-                    Health check endpoint
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                    <span>
+                      <code className="text-primary/70">health_url</code>{" "}
+                      &mdash; Health check (GET, 200 = online)
+                    </span>
                   </li>
                 </ul>
               </div>
               <div className="text-xs">
-                <h5 className="text-gray-400 font-medium mb-1.5">
+                <h5 className="text-gray-300 font-medium mb-2">
                   Optional Fields
                 </h5>
-                <ul className="space-y-1 text-gray-500">
-                  <li className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-                    <code className="text-gray-400">webhook_url</code> &mdash;
-                    Payment event webhook
+                <ul className="space-y-1.5 text-gray-500">
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-gray-600 mt-1.5 flex-shrink-0"></span>
+                    <span>
+                      <code className="text-gray-400">webhook_url</code> &mdash;
+                      Receive payment lifecycle events (escrowed, settled,
+                      completed)
+                    </span>
                   </li>
-                  <li className="flex items-center gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-                    <code className="text-gray-400">webhook_secret</code>{" "}
-                    &mdash; HMAC signing secret
+                  <li className="flex items-start gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-gray-600 mt-1.5 flex-shrink-0"></span>
+                    <span>
+                      <code className="text-gray-400">webhook_secret</code>{" "}
+                      &mdash; HMAC secret for webhook signature verification
+                    </span>
                   </li>
                 </ul>
-                <h5 className="text-gray-400 font-medium mt-3 mb-1.5">Auth</h5>
-                <p className="text-gray-500">
-                  Requires{" "}
-                  <code className="text-gray-400">Bearer PORTAL_TOKEN</code> in
-                  Authorization header.
-                </p>
+
+                <h5 className="text-gray-300 font-medium mt-4 mb-2">
+                  What You Get
+                </h5>
+                <ul className="space-y-1.5 text-gray-500">
+                  <li className="flex items-start gap-1.5">
+                    <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
+                      check_circle
+                    </span>
+                    <span>Marketplace listing with live health status</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
+                      check_circle
+                    </span>
+                    <span>
+                      Discoverable via{" "}
+                      <code className="text-gray-400">discover_agents</code> MCP
+                      tool
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
+                      check_circle
+                    </span>
+                    <span>USDC escrow payments with dispute protection</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
+                      check_circle
+                    </span>
+                    <span>Webhook notifications for payment events</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>

@@ -145,7 +145,7 @@ describe("Market", () => {
     expect(handled).toBe(true);
     expect(res.statusCode).toBe(200);
     expect(res.headers["Content-Type"]).toBe("text/html; charset=utf-8");
-    expect(res.body).toContain("Agent Marketplace");
+    expect(res.body).toContain("Commercial Agent Marketplace");
   });
 
   // -----------------------------------------------------------------------

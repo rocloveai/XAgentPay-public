@@ -317,7 +317,7 @@ function renderMarketPage(baseUrl: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agent Marketplace — Nexus</title>
+  <title>Commercial Agent Marketplace — Nexus</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -369,7 +369,7 @@ function renderMarketPage(baseUrl: string): string {
           <span class="text-lg font-bold text-white tracking-wide">NEXUS</span>
         </a>
         <span class="text-gray-600 mx-1">/</span>
-        <span class="text-sm font-medium text-white">Marketplace</span>
+        <span class="text-sm font-medium text-white">Commercial Marketplace</span>
         <span class="text-xs text-gray-500 ml-1" id="agent-count"></span>
       </div>
       <nav class="flex items-center gap-6">
