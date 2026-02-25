@@ -221,8 +221,8 @@ const MarketplacePage: React.FC = () => {
                 How to Use Marketplace Services
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mb-4">
-                Browse the agents below and use them in your AI workflow.
-                There are two ways to connect:
+                Browse the agents below and use them in your AI workflow. There
+                are two ways to connect:
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="rounded-lg bg-white/5 border border-white/8 p-4">
@@ -261,8 +261,7 @@ const MarketplacePage: React.FC = () => {
                     </h4>
                   </div>
                   <p className="text-[11px] text-gray-400 leading-relaxed mb-2">
-                    Connect to Nexus Core to discover all agents dynamically
-                    via{" "}
+                    Connect to Nexus Core to discover all agents dynamically via{" "}
                     <code className="text-accent-cyan/70 bg-accent-cyan/5 px-1 rounded">
                       discover_agents
                     </code>{" "}
@@ -286,170 +285,171 @@ const MarketplacePage: React.FC = () => {
 
             {/* Filters */}
             <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-8">
-          <div className="relative flex-1 max-w-md">
-            <span className="material-icons-round absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-lg">
-              search
-            </span>
-            <input
-              type="text"
-              placeholder="Search agents..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm text-white placeholder-gray-500 bg-white/5 border border-white/10 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
-                  selectedCategory === cat
-                    ? "bg-primary/20 text-primary border-primary/40"
-                    : "bg-white/5 text-gray-400 border-white/10 hover:border-white/20"
-                }`}
-              >
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
+              <div className="relative flex-1 max-w-md">
+                <span className="material-icons-round absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-lg">
+                  search
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search agents..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm text-white placeholder-gray-500 bg-white/5 border border-white/10 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                      selectedCategory === cat
+                        ? "bg-primary/20 text-primary border-primary/40"
+                        : "bg-white/5 text-gray-400 border-white/10 hover:border-white/20"
+                    }`}
+                  >
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="text-center py-20 text-gray-500">
-            <p className="text-lg">Loading agents...</p>
-          </div>
-        )}
+            {/* Loading */}
+            {loading && (
+              <div className="text-center py-20 text-gray-500">
+                <p className="text-lg">Loading agents...</p>
+              </div>
+            )}
 
-        {/* Empty state */}
-        {!loading && filtered.length === 0 && (
-          <div className="text-center py-20 text-gray-500">
-            <span className="material-icons-round text-5xl mb-3 block">
-              search_off
-            </span>
-            <p className="text-lg">No agents found</p>
-            <p className="text-sm mt-1">Try adjusting your search or filters</p>
-          </div>
-        )}
+            {/* Empty state */}
+            {!loading && filtered.length === 0 && (
+              <div className="text-center py-20 text-gray-500">
+                <span className="material-icons-round text-5xl mb-3 block">
+                  search_off
+                </span>
+                <p className="text-lg">No agents found</p>
+                <p className="text-sm mt-1">
+                  Try adjusting your search or filters
+                </p>
+              </div>
+            )}
 
-        {/* Agent Grid */}
-        {!loading && filtered.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
-            {filtered.map((agent) => {
-              const chainName = agent.chain_id
-                ? CHAIN_NAMES[agent.chain_id] || `Chain ${agent.chain_id}`
-                : "\u2014";
-              const latency =
-                agent.last_health_latency_ms != null
-                  ? `${agent.last_health_latency_ms}ms`
-                  : "\u2014";
-              const isStarred = starredAgents.has(agent.merchant_did);
-              const starCount =
-                localStarCounts.get(agent.merchant_did) ??
-                agent.star_count ??
-                0;
+            {/* Agent Grid */}
+            {!loading && filtered.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-16">
+                {filtered.map((agent) => {
+                  const chainName = agent.chain_id
+                    ? CHAIN_NAMES[agent.chain_id] || `Chain ${agent.chain_id}`
+                    : "\u2014";
+                  const latency =
+                    agent.last_health_latency_ms != null
+                      ? `${agent.last_health_latency_ms}ms`
+                      : "\u2014";
+                  const isStarred = starredAgents.has(agent.merchant_did);
+                  const starCount =
+                    localStarCounts.get(agent.merchant_did) ??
+                    agent.star_count ??
+                    0;
 
-              return (
-                <div
-                  key={agent.merchant_did}
-                  className="glass-panel rounded-xl p-5 hover:border-white/10 transition-colors"
-                >
-                  {/* Header row */}
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`w-2 h-2 rounded-full shadow-sm ${STATUS_COLORS[agent.health_status]}`}
-                      />
-                      <h3 className="font-semibold text-white text-sm">
-                        {agent.name}
-                      </h3>
-                      {agent.is_verified && (
-                        <span
-                          className="material-icons-round text-primary text-sm"
-                          title="Verified"
-                        >
-                          verified
-                        </span>
-                      )}
-                    </div>
-                    {agent.skill_version && (
-                      <span className="text-xs text-gray-500">
-                        v{agent.skill_version}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Category */}
-                  <div className="mb-3">
-                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary/80 border border-primary/15">
-                      {agent.category}
-                    </span>
-                  </div>
-
-                  {/* Description */}
-                  <p className="text-xs text-gray-400 mb-3 line-clamp-2">
-                    {agent.description}
-                  </p>
-
-                  {/* Badges */}
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {agent.currencies.map((c) => (
-                      <span
-                        key={c}
-                        className="inline-block px-2 py-0.5 rounded-md text-[11px] bg-accent-cyan/10 text-accent-cyan/80 border border-accent-cyan/15"
-                      >
-                        {c}
-                      </span>
-                    ))}
-                    {agent.skill_tools.map((t) => (
-                      <span
-                        key={t.name}
-                        className="inline-block px-2 py-0.5 rounded-md text-[11px] bg-primary/10 text-primary/80 border border-primary/15"
-                      >
-                        {t.name}
-                      </span>
-                    ))}
-                  </div>
-
-                  {/* Status row */}
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                    <span>Latency: {latency}</span>
-                    <span>{chainName}</span>
-                  </div>
-
-                  {/* Star + Actions */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => toggleStar(agent.merchant_did)}
-                      className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md border transition-colors cursor-pointer ${
-                        isStarred
-                          ? "bg-yellow-500/15 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/25"
-                          : "bg-white/5 text-gray-400 border-white/10 hover:border-white/20"
-                      }`}
+                  return (
+                    <div
+                      key={agent.merchant_did}
+                      className="glass-panel rounded-xl p-5 hover:border-white/10 transition-colors"
                     >
-                      <span className="material-icons-round text-sm">
-                        {isStarred ? "star" : "star_border"}
-                      </span>
-                      {starCount}
-                    </button>
-                    {agent.skill_md_url && (
-                      <a
-                        href={agent.skill_md_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
-                      >
-                        View Skill
-                      </a>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                      {/* Header row */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`w-2 h-2 rounded-full shadow-sm ${STATUS_COLORS[agent.health_status]}`}
+                          />
+                          <h3 className="font-semibold text-white text-sm">
+                            {agent.name}
+                          </h3>
+                          {agent.is_verified && (
+                            <span
+                              className="material-icons-round text-primary text-sm"
+                              title="Verified"
+                            >
+                              verified
+                            </span>
+                          )}
+                        </div>
+                        {agent.skill_version && (
+                          <span className="text-xs text-gray-500">
+                            v{agent.skill_version}
+                          </span>
+                        )}
+                      </div>
 
+                      {/* Category */}
+                      <div className="mb-3">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary/80 border border-primary/15">
+                          {agent.category}
+                        </span>
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-xs text-gray-400 mb-3 line-clamp-2">
+                        {agent.description}
+                      </p>
+
+                      {/* Badges */}
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {agent.currencies.map((c) => (
+                          <span
+                            key={c}
+                            className="inline-block px-2 py-0.5 rounded-md text-[11px] bg-accent-cyan/10 text-accent-cyan/80 border border-accent-cyan/15"
+                          >
+                            {c}
+                          </span>
+                        ))}
+                        {agent.skill_tools.map((t) => (
+                          <span
+                            key={t.name}
+                            className="inline-block px-2 py-0.5 rounded-md text-[11px] bg-primary/10 text-primary/80 border border-primary/15"
+                          >
+                            {t.name}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Status row */}
+                      <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
+                        <span>Latency: {latency}</span>
+                        <span>{chainName}</span>
+                      </div>
+
+                      {/* Star + Actions */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleStar(agent.merchant_did)}
+                          className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md border transition-colors cursor-pointer ${
+                            isStarred
+                              ? "bg-yellow-500/15 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/25"
+                              : "bg-white/5 text-gray-400 border-white/10 hover:border-white/20"
+                          }`}
+                        >
+                          <span className="material-icons-round text-sm">
+                            {isStarred ? "star" : "star_border"}
+                          </span>
+                          {starCount}
+                        </button>
+                        {agent.skill_md_url && (
+                          <a
+                            href={agent.skill_md_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+                          >
+                            View Skill
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
 
@@ -462,200 +462,203 @@ const MarketplacePage: React.FC = () => {
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
                 List Your <span className="text-primary">Agent</span>
               </h2>
-            <p className="text-gray-400 text-sm sm:text-base max-w-2xl mx-auto">
-              Turn your AI agent into a commercial service. Register once to get
-              payment capability (receive stablecoins via escrow), marketplace
-              visibility (discoverable by other agents), and a health-monitored
-              listing.
-            </p>
-          </div>
-
-          {/* Steps — 5-step flow */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-12">
-            {/* Step 1 */}
-            <div className="glass-panel rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-bold text-primary">1</span>
-                </div>
-                <h3 className="text-white font-semibold text-sm">
-                  Build Your MCP Agent
-                </h3>
-              </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Create an MCP server that exposes your commercial service as
-                tools (e.g.{" "}
-                <code className="text-primary/70 bg-primary/5 px-1 rounded">
-                  search_flights
-                </code>
-                ,{" "}
-                <code className="text-primary/70 bg-primary/5 px-1 rounded">
-                  book_hotel
-                </code>
-                ). Use any framework &mdash; TypeScript SDK, Python, etc.
+              <p className="text-gray-400 text-sm sm:text-base max-w-2xl mx-auto">
+                Turn your AI agent into a commercial service. Register once to
+                get payment capability (receive stablecoins via escrow),
+                marketplace visibility (discoverable by other agents), and a
+                health-monitored listing.
               </p>
             </div>
 
-            {/* Step 2 */}
-            <div className="glass-panel rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-full bg-accent-cyan/15 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-bold text-accent-cyan">2</span>
+            {/* Steps — 5-step flow */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 mb-12">
+              {/* Step 1 */}
+              <div className="glass-panel rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-primary">1</span>
+                  </div>
+                  <h3 className="text-white font-semibold text-sm">
+                    Build Your MCP Agent
+                  </h3>
                 </div>
-                <h3 className="text-white font-semibold text-sm">
-                  Add Payment Tooling
-                </h3>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Create an MCP server that exposes your commercial service as
+                  tools (e.g.{" "}
+                  <code className="text-primary/70 bg-primary/5 px-1 rounded">
+                    search_flights
+                  </code>
+                  ,{" "}
+                  <code className="text-primary/70 bg-primary/5 px-1 rounded">
+                    book_hotel
+                  </code>
+                  ). Use any framework &mdash; TypeScript SDK, Python, etc.
+                </p>
               </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Add a{" "}
-                <code className="text-accent-cyan/70 bg-accent-cyan/5 px-1 rounded">
-                  nexus_generate_quote
-                </code>{" "}
-                tool that returns an EIP-712 signed quote in{" "}
-                <strong className="text-gray-300">UCP Checkout</strong> format.
-                This lets Nexus Core aggregate and escrow payments for you.
-              </p>
+
+              {/* Step 2 */}
+              <div className="glass-panel rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-accent-cyan/15 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-accent-cyan">
+                      2
+                    </span>
+                  </div>
+                  <h3 className="text-white font-semibold text-sm">
+                    Add Payment Tooling
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Add a{" "}
+                  <code className="text-accent-cyan/70 bg-accent-cyan/5 px-1 rounded">
+                    nexus_generate_quote
+                  </code>{" "}
+                  tool that returns an EIP-712 signed quote in{" "}
+                  <strong className="text-gray-300">UCP Checkout</strong>{" "}
+                  format. This lets Nexus Core aggregate and escrow payments for
+                  you.
+                </p>
+              </div>
+
+              {/* Step 3 */}
+              <div className="glass-panel rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-accent-purple/15 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-accent-purple">
+                      3
+                    </span>
+                  </div>
+                  <h3 className="text-white font-semibold text-sm">
+                    Write skill.md
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Publish a{" "}
+                  <code className="text-accent-purple/70 bg-accent-purple/5 px-1 rounded">
+                    skill.md
+                  </code>{" "}
+                  file at a public URL. It describes your agent&apos;s name,
+                  category, tools, MCP endpoint, and currencies accepted. Other
+                  agents use this to discover you.
+                </p>
+              </div>
+
+              {/* Step 4 */}
+              <div className="glass-panel rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-green-500/15 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-green-400">4</span>
+                  </div>
+                  <h3 className="text-white font-semibold text-sm">
+                    Deploy &amp; Health Check
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Deploy your agent with a public{" "}
+                  <code className="text-green-400/70 bg-green-500/5 px-1 rounded">
+                    /health
+                  </code>{" "}
+                  endpoint (GET, returns 200). Nexus monitors it every 5 minutes
+                  and shows live status on your marketplace card.
+                </p>
+              </div>
+
+              {/* Step 5 */}
+              <div className="glass-panel rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-yellow-500/15 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-yellow-400">5</span>
+                  </div>
+                  <h3 className="text-white font-semibold text-sm">
+                    Register on Nexus
+                  </h3>
+                </div>
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  One API call registers your agent for both payments and
+                  marketplace. You&apos;re live immediately &mdash; discoverable
+                  by AI agents and earning stablecoins.
+                </p>
+              </div>
             </div>
 
-            {/* Step 3 */}
-            <div className="glass-panel rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-full bg-accent-purple/15 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-bold text-accent-purple">
-                    3
-                  </span>
-                </div>
-                <h3 className="text-white font-semibold text-sm">
-                  Write skill.md
-                </h3>
-              </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Publish a{" "}
-                <code className="text-accent-purple/70 bg-accent-purple/5 px-1 rounded">
-                  skill.md
-                </code>{" "}
-                file at a public URL. It describes your agent&apos;s name,
-                category, tools, MCP endpoint, and currencies accepted. Other
-                agents use this to discover you.
-              </p>
-            </div>
-
-            {/* Step 4 */}
-            <div className="glass-panel rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-full bg-green-500/15 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-bold text-green-400">4</span>
-                </div>
-                <h3 className="text-white font-semibold text-sm">
-                  Deploy &amp; Health Check
-                </h3>
-              </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                Deploy your agent with a public{" "}
-                <code className="text-green-400/70 bg-green-500/5 px-1 rounded">
-                  /health
-                </code>{" "}
-                endpoint (GET, returns 200). Nexus monitors it every 5 minutes
-                and shows live status on your marketplace card.
-              </p>
-            </div>
-
-            {/* Step 5 */}
-            <div className="glass-panel rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-full bg-yellow-500/15 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-bold text-yellow-400">5</span>
-                </div>
-                <h3 className="text-white font-semibold text-sm">
-                  Register on Nexus
-                </h3>
-              </div>
-              <p className="text-xs text-gray-400 leading-relaxed">
-                One API call registers your agent for both payments and
-                marketplace. You&apos;re live immediately &mdash; discoverable
-                by AI agents and earning stablecoins.
-              </p>
-            </div>
-          </div>
-
-          {/* How it works diagram */}
-          <div className="glass-panel rounded-xl p-6 max-w-4xl mx-auto mb-10">
-            <h4 className="text-sm font-semibold text-white mb-4">
-              How It Works
-            </h4>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
-              <div className="flex flex-col items-center gap-1 text-center">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <span className="material-icons-round text-primary text-lg">
-                    smart_toy
-                  </span>
-                </div>
-                <span className="font-medium text-gray-300">User Agent</span>
-                <span>Calls discover_agents</span>
-              </div>
-              <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
-                arrow_forward
-              </span>
-              <div className="flex flex-col items-center gap-1 text-center">
-                <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center">
-                  <span className="material-icons-round text-accent-cyan text-lg">
-                    hub
-                  </span>
-                </div>
-                <span className="font-medium text-gray-300">Nexus Core</span>
-                <span>Finds &amp; ranks agents</span>
-              </div>
-              <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
-                arrow_forward
-              </span>
-              <div className="flex flex-col items-center gap-1 text-center">
-                <div className="w-10 h-10 rounded-lg bg-accent-purple/10 flex items-center justify-center">
-                  <span className="material-icons-round text-accent-purple text-lg">
-                    storefront
-                  </span>
-                </div>
-                <span className="font-medium text-gray-300">Your Agent</span>
-                <span>Returns quote via MCP</span>
-              </div>
-              <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
-                arrow_forward
-              </span>
-              <div className="flex flex-col items-center gap-1 text-center">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <span className="material-icons-round text-green-400 text-lg">
-                    lock
-                  </span>
-                </div>
-                <span className="font-medium text-gray-300">Escrow</span>
-                <span>Stablecoins held until fulfilled</span>
-              </div>
-              <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
-                arrow_forward
-              </span>
-              <div className="flex flex-col items-center gap-1 text-center">
-                <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                  <span className="material-icons-round text-yellow-400 text-lg">
-                    payments
-                  </span>
-                </div>
-                <span className="font-medium text-gray-300">Payout</span>
-                <span>Stablecoins released to you</span>
-              </div>
-            </div>
-          </div>
-
-          {/* API example */}
-          <div className="glass-panel rounded-xl p-6 max-w-3xl mx-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-semibold text-white">
-                Registration API
+            {/* How it works diagram */}
+            <div className="glass-panel rounded-xl p-6 max-w-4xl mx-auto mb-10">
+              <h4 className="text-sm font-semibold text-white mb-4">
+                How It Works
               </h4>
-              <span className="text-[11px] font-mono text-gray-500 bg-white/5 px-2 py-0.5 rounded">
-                POST /api/market/register
-              </span>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <span className="material-icons-round text-primary text-lg">
+                      smart_toy
+                    </span>
+                  </div>
+                  <span className="font-medium text-gray-300">User Agent</span>
+                  <span>Calls discover_agents</span>
+                </div>
+                <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
+                  arrow_forward
+                </span>
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center">
+                    <span className="material-icons-round text-accent-cyan text-lg">
+                      hub
+                    </span>
+                  </div>
+                  <span className="font-medium text-gray-300">Nexus Core</span>
+                  <span>Finds &amp; ranks agents</span>
+                </div>
+                <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
+                  arrow_forward
+                </span>
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <div className="w-10 h-10 rounded-lg bg-accent-purple/10 flex items-center justify-center">
+                    <span className="material-icons-round text-accent-purple text-lg">
+                      storefront
+                    </span>
+                  </div>
+                  <span className="font-medium text-gray-300">Your Agent</span>
+                  <span>Returns quote via MCP</span>
+                </div>
+                <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
+                  arrow_forward
+                </span>
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <span className="material-icons-round text-green-400 text-lg">
+                      lock
+                    </span>
+                  </div>
+                  <span className="font-medium text-gray-300">Escrow</span>
+                  <span>Stablecoins held until fulfilled</span>
+                </div>
+                <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
+                  arrow_forward
+                </span>
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                    <span className="material-icons-round text-yellow-400 text-lg">
+                      payments
+                    </span>
+                  </div>
+                  <span className="font-medium text-gray-300">Payout</span>
+                  <span>Stablecoins released to you</span>
+                </div>
+              </div>
             </div>
-            <pre className="text-xs text-gray-300 bg-background-dark/60 rounded-lg p-4 overflow-x-auto font-mono leading-relaxed">
-              {`curl -X POST ${API_URL}/api/market/register \\
+
+            {/* API example */}
+            <div className="glass-panel rounded-xl p-6 max-w-3xl mx-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-semibold text-white">
+                  Registration API
+                </h4>
+                <span className="text-[11px] font-mono text-gray-500 bg-white/5 px-2 py-0.5 rounded">
+                  POST /api/market/register
+                </span>
+              </div>
+              <pre className="text-xs text-gray-300 bg-background-dark/60 rounded-lg p-4 overflow-x-auto font-mono leading-relaxed">
+                {`curl -X POST ${API_URL}/api/market/register \\
   -H "Authorization: Bearer $PORTAL_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -669,134 +672,136 @@ const MarketplacePage: React.FC = () => {
     "health_url": "https://my-agent.example.com/health",
     "webhook_url": "https://my-agent.example.com/webhook"
   }'`}
-            </pre>
+              </pre>
 
-            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="text-xs">
-                <h5 className="text-gray-300 font-medium mb-2">
-                  Required Fields
-                </h5>
-                <ul className="space-y-1.5 text-gray-500">
-                  <li className="flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
-                    <span>
-                      <code className="text-primary/70">merchant_did</code>{" "}
-                      &mdash; Unique identifier (
-                      <code className="text-gray-400">
-                        did:nexus:chainId:name
-                      </code>
-                      )
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
-                    <span>
-                      <code className="text-primary/70">name</code> &mdash;
-                      Display name shown in marketplace
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
-                    <span>
-                      <code className="text-primary/70">description</code>{" "}
-                      &mdash; What your agent does
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
-                    <span>
-                      <code className="text-primary/70">category</code> &mdash;
-                      e.g. <code className="text-gray-400">travel.flights</code>
-                      , <code className="text-gray-400">food.delivery</code>
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
-                    <span>
-                      <code className="text-primary/70">signer_address</code>{" "}
-                      &mdash; EVM key for signing quotes (EIP-712)
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
-                    <span>
-                      <code className="text-primary/70">payment_address</code>{" "}
-                      &mdash; EVM address to receive stablecoin payouts
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
-                    <span>
-                      <code className="text-primary/70">skill_md_url</code>{" "}
-                      &mdash; Public URL to your skill.md
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
-                    <span>
-                      <code className="text-primary/70">health_url</code>{" "}
-                      &mdash; Health check (GET, 200 = online)
-                    </span>
-                  </li>
-                </ul>
-              </div>
-              <div className="text-xs">
-                <h5 className="text-gray-300 font-medium mb-2">
-                  Optional Fields
-                </h5>
-                <ul className="space-y-1.5 text-gray-500">
-                  <li className="flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-gray-600 mt-1.5 flex-shrink-0"></span>
-                    <span>
-                      <code className="text-gray-400">webhook_url</code> &mdash;
-                      Receive payment lifecycle events (escrowed, settled,
-                      completed)
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="w-1 h-1 rounded-full bg-gray-600 mt-1.5 flex-shrink-0"></span>
-                    <span>
-                      <code className="text-gray-400">webhook_secret</code>{" "}
-                      &mdash; HMAC secret for webhook signature verification
-                    </span>
-                  </li>
-                </ul>
+              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="text-xs">
+                  <h5 className="text-gray-300 font-medium mb-2">
+                    Required Fields
+                  </h5>
+                  <ul className="space-y-1.5 text-gray-500">
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-primary/70">merchant_did</code>{" "}
+                        &mdash; Unique identifier (
+                        <code className="text-gray-400">
+                          did:nexus:chainId:name
+                        </code>
+                        )
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-primary/70">name</code> &mdash;
+                        Display name shown in marketplace
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-primary/70">description</code>{" "}
+                        &mdash; What your agent does
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-primary/70">category</code>{" "}
+                        &mdash; e.g.{" "}
+                        <code className="text-gray-400">travel.flights</code>,{" "}
+                        <code className="text-gray-400">food.delivery</code>
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-primary/70">signer_address</code>{" "}
+                        &mdash; EVM key for signing quotes (EIP-712)
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-primary/70">payment_address</code>{" "}
+                        &mdash; EVM address to receive stablecoin payouts
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-primary/70">skill_md_url</code>{" "}
+                        &mdash; Public URL to your skill.md
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-primary/70">health_url</code>{" "}
+                        &mdash; Health check (GET, 200 = online)
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+                <div className="text-xs">
+                  <h5 className="text-gray-300 font-medium mb-2">
+                    Optional Fields
+                  </h5>
+                  <ul className="space-y-1.5 text-gray-500">
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-gray-600 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-gray-400">webhook_url</code>{" "}
+                        &mdash; Receive payment lifecycle events (escrowed,
+                        settled, completed)
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-gray-600 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-gray-400">webhook_secret</code>{" "}
+                        &mdash; HMAC secret for webhook signature verification
+                      </span>
+                    </li>
+                  </ul>
 
-                <h5 className="text-gray-300 font-medium mt-4 mb-2">
-                  What You Get
-                </h5>
-                <ul className="space-y-1.5 text-gray-500">
-                  <li className="flex items-start gap-1.5">
-                    <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
-                      check_circle
-                    </span>
-                    <span>Marketplace listing with live health status</span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
-                      check_circle
-                    </span>
-                    <span>
-                      Discoverable via{" "}
-                      <code className="text-gray-400">discover_agents</code> MCP
-                      tool
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
-                      check_circle
-                    </span>
-                    <span>
-                      Stablecoin escrow payments with dispute protection
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-1.5">
-                    <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
-                      check_circle
-                    </span>
-                    <span>Webhook notifications for payment events</span>
-                  </li>
-                </ul>
+                  <h5 className="text-gray-300 font-medium mt-4 mb-2">
+                    What You Get
+                  </h5>
+                  <ul className="space-y-1.5 text-gray-500">
+                    <li className="flex items-start gap-1.5">
+                      <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
+                        check_circle
+                      </span>
+                      <span>Marketplace listing with live health status</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
+                        check_circle
+                      </span>
+                      <span>
+                        Discoverable via{" "}
+                        <code className="text-gray-400">discover_agents</code>{" "}
+                        MCP tool
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
+                        check_circle
+                      </span>
+                      <span>
+                        Stablecoin escrow payments with dispute protection
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
+                        check_circle
+                      </span>
+                      <span>Webhook notifications for payment events</span>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
