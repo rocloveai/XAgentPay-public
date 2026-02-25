@@ -135,10 +135,10 @@ server.tool(
   "Orchestrate aggregated payment for one or more merchant quotes. Returns a single EIP-3009 signing instruction covering the total amount.",
   {
     quotes: z
-      .array(z.any())
+      .array(z.record(z.unknown()))
       .min(1)
       .describe(
-        "Array of NexusQuotePayload objects from merchant UCP responses (config field)",
+        "Array of NexusQuotePayload objects from merchant UCP responses (config field). Each quote must have: merchant_did, merchant_order_ref, amount, currency, chain_id, expiry, context, signature.",
       ),
     payer_wallet: z
       .string()
