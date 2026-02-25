@@ -256,6 +256,22 @@ describe("Checkout", () => {
       expect(res.body).toContain("tailwind");
     });
 
+    it("includes wallet address validation in rendered HTML", async () => {
+      const { req, url } = makeReq("GET", `/checkout/${GROUP_ID}`);
+      const res = makeRes();
+      await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(res.body).toContain("wrong-wallet");
+      expect(res.body).toContain("expected-wallet");
+      expect(res.body).toContain("Wrong wallet connected");
+      expect(res.body).toContain("toLowerCase()");
+    });
+
     it("returns 404 for nonexistent group", async () => {
       const { req, url } = makeReq("GET", "/checkout/GRP-nonexistent");
       const res = makeRes();

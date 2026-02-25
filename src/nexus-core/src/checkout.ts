@@ -414,6 +414,18 @@ tailwind.config = {
         </button>
       </div>
 
+      <!-- Wrong Wallet -->
+      <div id="wrong-wallet" class="hidden">
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-4">
+          <p class="text-amber-400 text-sm font-medium mb-1">Wrong wallet connected</p>
+          <p class="text-slate-400 text-xs">This payment requires wallet:</p>
+          <p id="expected-wallet" class="font-mono text-xs text-amber-300 mt-1 break-all"></p>
+          <p class="text-slate-400 text-xs mt-2">Currently connected:</p>
+          <p id="current-wallet" class="font-mono text-xs text-slate-300 mt-1 break-all"></p>
+        </div>
+        <p class="text-slate-500 text-xs">Please switch to the correct account in MetaMask.</p>
+      </div>
+
       <!-- Ready to Sign -->
       <div id="ready-sign" class="hidden">
         <p class="text-slate-400 text-xs mb-1">Connected</p>
@@ -524,7 +536,7 @@ function truncAddr(addr) {
 function showOnly(ids) {
   var allStates = ["state-loading","order-summary","payment-details","action-area",
     "state-success","state-already-paid","state-error",
-    "no-metamask","connect-wallet","wrong-chain","ready-sign","signing","submitting","confirming"];
+    "no-metamask","connect-wallet","wrong-chain","wrong-wallet","ready-sign","signing","submitting","confirming"];
   for (var s of allStates) {
     var el = document.getElementById(s);
     if (el) el.classList.add("hidden");
@@ -634,6 +646,22 @@ async function checkChain() {
   }
   document.getElementById("chain-badge").classList.remove("hidden");
   document.getElementById("chain-badge").classList.add("flex");
+
+  // Validate connected wallet matches the expected payer_wallet
+  var expectedFrom = null;
+  if (checkoutData && checkoutData.instruction && checkoutData.instruction.eip3009_sign_data) {
+    expectedFrom = checkoutData.instruction.eip3009_sign_data.message.from;
+  } else if (checkoutData && checkoutData.group) {
+    expectedFrom = checkoutData.group.payer_wallet;
+  }
+
+  if (expectedFrom && account && expectedFrom.toLowerCase() !== account.toLowerCase()) {
+    document.getElementById("expected-wallet").textContent = expectedFrom;
+    document.getElementById("current-wallet").textContent = account;
+    showOnly(["order-summary","payment-details","action-area","wrong-wallet"]);
+    return;
+  }
+
   document.getElementById("connected-address").textContent = truncAddr(account);
   var total = checkoutData.group.total_amount_display || checkoutData.group.total_amount;
   document.getElementById("btn-sign-amount").textContent = total + " USDC";
@@ -680,6 +708,17 @@ async function signAndPay() {
       showError("This payment authorization has expired. Please go back and create a new payment.");
       return;
     }
+  }
+
+  // Verify connected wallet matches the expected payer address
+  var expectedFrom = signData.message.from;
+  if (expectedFrom && account && expectedFrom.toLowerCase() !== account.toLowerCase()) {
+    showError(
+      "Wrong wallet connected. This payment requires " + truncAddr(expectedFrom) +
+      " but you are connected with " + truncAddr(account) +
+      ". Please switch to the correct account in MetaMask."
+    );
+    return;
   }
 
   showOnly(["order-summary","payment-details","action-area","signing"]);
