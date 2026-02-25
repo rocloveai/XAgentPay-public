@@ -100,6 +100,20 @@ export class NeonGroupRepository implements GroupRepository {
     return rows.map(rowToGroup);
   }
 
+  async findAll(params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<readonly PaymentGroupRecord[]> {
+    const sql = getPool();
+    const limit = params?.limit ?? 50;
+    const offset = params?.offset ?? 0;
+    const rows = await sql(
+      `SELECT * FROM payment_groups ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+    return rows.map(rowToGroup);
+  }
+
   async updateInstruction(
     groupId: string,
     instruction: Record<string, unknown>,

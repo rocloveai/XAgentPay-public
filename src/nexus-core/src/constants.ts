@@ -16,7 +16,10 @@ export const VALID_TRANSITIONS: ReadonlyMap<
   ReadonlySet<PaymentStatus>
 > = new Map<PaymentStatus, ReadonlySet<PaymentStatus>>([
   ["CREATED", new Set(["AWAITING_TX", "EXPIRED", "RISK_REJECTED"])],
-  ["AWAITING_TX", new Set(["BROADCASTED", "EXPIRED", "RISK_REJECTED"])],
+  [
+    "AWAITING_TX",
+    new Set(["BROADCASTED", "TX_FAILED", "EXPIRED", "RISK_REJECTED"]),
+  ],
   [
     "BROADCASTED",
     new Set(["SETTLED", "ESCROWED", "TX_FAILED", "RISK_REJECTED"]),

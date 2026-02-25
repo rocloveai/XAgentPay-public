@@ -7,6 +7,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { PaymentRepository } from "./db/interfaces/payment-repo.js";
 import type { EventRepository } from "./db/interfaces/event-repo.js";
+import type { GroupRepository } from "./db/interfaces/group-repo.js";
 import type { NexusRelayer } from "./services/relayer.js";
 import type { PaymentStatus } from "./types.js";
 
@@ -17,6 +18,7 @@ import type { PaymentStatus } from "./types.js";
 export interface PortalDeps {
   readonly paymentRepo: PaymentRepository;
   readonly eventRepo: EventRepository;
+  readonly groupRepo: GroupRepository;
   readonly relayer: NexusRelayer | null;
   readonly escrowContract: string;
   readonly chainId: number;
@@ -86,6 +88,7 @@ async function handleApiPayments(
     200,
     payments.map((p) => ({
       nexus_payment_id: p.nexus_payment_id,
+      group_id: p.group_id,
       status: p.status,
       amount: p.amount,
       amount_display: p.amount_display,
@@ -181,6 +184,57 @@ async function handleApiRelayer(
       error: message,
     });
   }
+}
+
+async function handleApiGroups(
+  deps: PortalDeps,
+  res: ServerResponse,
+): Promise<void> {
+  const groups = await deps.groupRepo.findAll({ limit: 50 });
+
+  sendJson(
+    res,
+    200,
+    groups.map((g) => ({
+      group_id: g.group_id,
+      status: g.status,
+      total_amount: g.total_amount,
+      total_amount_display: g.total_amount_display,
+      currency: g.currency,
+      payer_wallet: g.payer_wallet,
+      payment_count: g.payment_count,
+      tx_hash: g.tx_hash,
+      created_at: g.created_at,
+    })),
+  );
+}
+
+async function handleApiGroupDetail(
+  deps: PortalDeps,
+  groupId: string,
+  res: ServerResponse,
+): Promise<void> {
+  const group = await deps.groupRepo.findById(groupId);
+  if (!group) {
+    sendJson(res, 404, { error: "Group not found" });
+    return;
+  }
+
+  const payments = await deps.paymentRepo.findByGroupId(groupId);
+
+  sendJson(res, 200, {
+    group,
+    payments: payments.map((p) => ({
+      nexus_payment_id: p.nexus_payment_id,
+      status: p.status,
+      amount: p.amount,
+      amount_display: p.amount_display,
+      merchant_did: p.merchant_did,
+      merchant_order_ref: p.merchant_order_ref,
+      tx_hash: p.tx_hash,
+      created_at: p.created_at,
+    })),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -288,47 +342,64 @@ tailwind.config = {
     </div>
   </div>
 
-  <!-- Filter + Table -->
-  <div class="flex items-center justify-between">
-    <h2 class="text-xl font-semibold">Payments</h2>
-    <div class="flex items-center gap-2">
-      <label for="status-filter" class="text-xs text-slate-400 uppercase font-semibold">Status:</label>
-      <select id="status-filter" class="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5" onchange="refresh()">
-        <option value="">All</option>
-        <option value="CREATED">CREATED</option>
-        <option value="AWAITING_TX">AWAITING_TX</option>
-        <option value="BROADCASTED">BROADCASTED</option>
-        <option value="ESCROWED">ESCROWED</option>
-        <option value="SETTLED">SETTLED</option>
-        <option value="COMPLETED">COMPLETED</option>
-        <option value="EXPIRED">EXPIRED</option>
-        <option value="TX_FAILED">TX_FAILED</option>
-        <option value="REFUNDED">REFUNDED</option>
-        <option value="DISPUTE_OPEN">DISPUTE_OPEN</option>
-        <option value="DISPUTE_RESOLVED">DISPUTE_RESOLVED</option>
-      </select>
-    </div>
+  <!-- Tab Switcher -->
+  <div class="flex items-center gap-1 border-b border-slate-700">
+    <button id="tab-groups" onclick="switchTab('groups')" class="px-4 py-2.5 text-sm font-medium border-b-2 border-indigo-500 text-indigo-400 cursor-pointer">Groups</button>
+    <button id="tab-payments" onclick="switchTab('payments')" class="px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 cursor-pointer">Payments</button>
   </div>
 
-  <div id="payments-wrapper">
-    <div id="empty-state" class="bg-slate-800 rounded-xl border border-slate-700 p-16 text-center">
-      <h2 class="text-base font-medium text-slate-300 mb-1">No payments yet</h2>
-      <p class="text-sm text-slate-500">Payments will appear here once orchestrated.</p>
+  <!-- Groups View -->
+  <div id="view-groups">
+    <div id="groups-empty" class="bg-slate-800 rounded-xl border border-slate-700 p-16 text-center">
+      <h2 class="text-base font-medium text-slate-300 mb-1">No groups yet</h2>
+      <p class="text-sm text-slate-500">Payment groups will appear here once orchestrated.</p>
     </div>
-    <div id="payments-table" class="hidden bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-      <table class="w-full">
-        <thead>
-          <tr class="border-b border-slate-700">
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Payment ID</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Amount</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Merchant</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Payer</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Created</th>
-          </tr>
-        </thead>
-        <tbody id="payments-tbody"></tbody>
-      </table>
+    <div id="groups-list" class="hidden space-y-3"></div>
+  </div>
+
+  <!-- Payments View -->
+  <div id="view-payments" class="hidden">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold">All Payments</h2>
+      <div class="flex items-center gap-2">
+        <label for="status-filter" class="text-xs text-slate-400 uppercase font-semibold">Status:</label>
+        <select id="status-filter" class="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 p-1.5 cursor-pointer" onchange="refresh()">
+          <option value="">All</option>
+          <option value="CREATED">CREATED</option>
+          <option value="AWAITING_TX">AWAITING_TX</option>
+          <option value="BROADCASTED">BROADCASTED</option>
+          <option value="ESCROWED">ESCROWED</option>
+          <option value="SETTLED">SETTLED</option>
+          <option value="COMPLETED">COMPLETED</option>
+          <option value="EXPIRED">EXPIRED</option>
+          <option value="TX_FAILED">TX_FAILED</option>
+          <option value="REFUNDED">REFUNDED</option>
+          <option value="DISPUTE_OPEN">DISPUTE_OPEN</option>
+          <option value="DISPUTE_RESOLVED">DISPUTE_RESOLVED</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="payments-wrapper">
+      <div id="empty-state" class="bg-slate-800 rounded-xl border border-slate-700 p-16 text-center">
+        <h2 class="text-base font-medium text-slate-300 mb-1">No payments yet</h2>
+        <p class="text-sm text-slate-500">Payments will appear here once orchestrated.</p>
+      </div>
+      <div id="payments-table" class="hidden bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-slate-700">
+              <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Payment ID</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Group</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Amount</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Merchant</th>
+              <th class="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Created</th>
+            </tr>
+          </thead>
+          <tbody id="payments-tbody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -359,7 +430,16 @@ var STATUS_CLASSES = {
   REFUNDED: "bg-orange-400/15 text-orange-400",
   DISPUTE_OPEN: "bg-orange-500/15 text-orange-400",
   DISPUTE_RESOLVED: "bg-purple-400/15 text-purple-400",
+  GROUP_CREATED: "bg-slate-500/15 text-slate-400",
+  GROUP_AWAITING_TX: "bg-yellow-500/15 text-yellow-400",
+  GROUP_ESCROWED: "bg-amber-400/15 text-amber-400",
+  GROUP_SETTLED: "bg-blue-400/15 text-blue-400",
+  GROUP_COMPLETED: "bg-emerald-400/15 text-emerald-400",
+  GROUP_EXPIRED: "bg-red-400/15 text-red-400",
+  GROUP_PARTIAL: "bg-orange-400/15 text-orange-400",
 };
+
+var currentTab = "groups";
 
 function esc(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -414,6 +494,105 @@ function updateRelayer(data) {
   }
 }
 
+function switchTab(tab) {
+  currentTab = tab;
+  var tabGroups = document.getElementById("tab-groups");
+  var tabPayments = document.getElementById("tab-payments");
+  var viewGroups = document.getElementById("view-groups");
+  var viewPayments = document.getElementById("view-payments");
+  if (tab === "groups") {
+    tabGroups.className = "px-4 py-2.5 text-sm font-medium border-b-2 border-indigo-500 text-indigo-400 cursor-pointer";
+    tabPayments.className = "px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 cursor-pointer";
+    viewGroups.classList.remove("hidden");
+    viewPayments.classList.add("hidden");
+  } else {
+    tabPayments.className = "px-4 py-2.5 text-sm font-medium border-b-2 border-indigo-500 text-indigo-400 cursor-pointer";
+    tabGroups.className = "px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 cursor-pointer";
+    viewPayments.classList.remove("hidden");
+    viewGroups.classList.add("hidden");
+  }
+}
+
+function updateGroups(groups) {
+  var empty = document.getElementById("groups-empty");
+  var list = document.getElementById("groups-list");
+
+  if (groups.length === 0) {
+    empty.classList.remove("hidden");
+    list.classList.add("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+  list.classList.remove("hidden");
+
+  var html = "";
+  for (var g of groups) {
+    html += '<div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">' +
+      '<div class="px-5 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-700/30 transition-colors" onclick="toggleGroup(\\'' + esc(g.group_id) + '\\')">' +
+        '<div class="flex items-center gap-3">' +
+          '<svg class="w-4 h-4 text-slate-500 transition-transform" id="chevron-' + esc(g.group_id) + '" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>' +
+          '<span class="font-mono text-sm text-slate-300">' + esc(g.group_id) + '</span>' +
+          statusBadge(g.status) +
+        '</div>' +
+        '<div class="flex items-center gap-4 text-sm">' +
+          '<span class="text-slate-300 font-medium">' + esc(g.total_amount_display) + ' ' + esc(g.currency) + '</span>' +
+          '<span class="text-slate-500">' + esc(g.payment_count) + ' payments</span>' +
+          '<span class="font-mono text-xs text-slate-500">' + esc(truncAddr(g.payer_wallet)) + '</span>' +
+          '<span class="text-xs text-slate-500">' + esc(new Date(g.created_at).toLocaleString()) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div id="group-detail-' + esc(g.group_id) + '" class="hidden border-t border-slate-700 px-5 py-3">' +
+        '<div class="text-xs text-slate-500">Loading payments...</div>' +
+      '</div>' +
+    '</div>';
+  }
+  list.innerHTML = html;
+}
+
+async function toggleGroup(groupId) {
+  var detail = document.getElementById("group-detail-" + groupId);
+  var chevron = document.getElementById("chevron-" + groupId);
+  if (!detail) return;
+
+  if (detail.classList.contains("hidden")) {
+    detail.classList.remove("hidden");
+    chevron.style.transform = "rotate(90deg)";
+    // Fetch payments for this group
+    try {
+      var data = await fetchJson("/api/groups/" + encodeURIComponent(groupId));
+      var payments = data.payments || [];
+      if (payments.length === 0) {
+        detail.innerHTML = '<div class="text-sm text-slate-500 py-2">No payments in this group</div>';
+        return;
+      }
+      var html = '<table class="w-full"><thead><tr class="border-b border-slate-700/50">' +
+        '<th class="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Payment ID</th>' +
+        '<th class="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Status</th>' +
+        '<th class="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Amount</th>' +
+        '<th class="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Merchant</th>' +
+        '<th class="text-left px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Order Ref</th>' +
+        '</tr></thead><tbody>';
+      for (var p of payments) {
+        html += '<tr class="border-b border-slate-700/30 cursor-pointer hover:bg-slate-700/20 transition-colors" onclick="event.stopPropagation();showDetail(\\'' + esc(p.nexus_payment_id) + '\\')">' +
+          '<td class="px-3 py-2 font-mono text-xs text-slate-300">' + esc(p.nexus_payment_id) + '</td>' +
+          '<td class="px-3 py-2">' + statusBadge(p.status) + '</td>' +
+          '<td class="px-3 py-2 text-sm text-slate-300">' + esc(p.amount_display) + ' USDC</td>' +
+          '<td class="px-3 py-2 text-xs text-slate-400">' + esc((p.merchant_did || "").split(":").pop()) + '</td>' +
+          '<td class="px-3 py-2 text-xs text-slate-400">' + esc(p.merchant_order_ref) + '</td>' +
+          '</tr>';
+      }
+      html += '</tbody></table>';
+      detail.innerHTML = html;
+    } catch (e) {
+      detail.innerHTML = '<div class="text-sm text-red-400 py-2">Failed to load payments</div>';
+    }
+  } else {
+    detail.classList.add("hidden");
+    chevron.style.transform = "";
+  }
+}
+
 function updatePayments(payments) {
   var empty = document.getElementById("empty-state");
   var table = document.getElementById("payments-table");
@@ -432,10 +611,10 @@ function updatePayments(payments) {
   for (var p of payments) {
     html += '<tr class="border-b border-slate-700/50 cursor-pointer hover:bg-slate-700/30 transition-colors" onclick="showDetail(\\'' + esc(p.nexus_payment_id) + '\\')">' +
       '<td class="px-4 py-3 font-mono text-xs text-slate-300">' + esc(p.nexus_payment_id) + '</td>' +
+      '<td class="px-4 py-3 font-mono text-xs text-slate-400">' + esc(p.group_id || "-") + '</td>' +
       '<td class="px-4 py-3">' + statusBadge(p.status) + '</td>' +
       '<td class="px-4 py-3 text-sm text-slate-300">' + esc(p.amount_display) + ' ' + esc(p.currency) + '</td>' +
       '<td class="px-4 py-3 text-xs text-slate-400">' + esc(p.merchant_did.split(":").pop()) + '</td>' +
-      '<td class="px-4 py-3 font-mono text-xs text-slate-400">' + esc(truncAddr(p.payer_wallet)) + '</td>' +
       '<td class="px-4 py-3 text-xs text-slate-400">' + esc(new Date(p.created_at).toLocaleString()) + '</td>' +
       '</tr>';
   }
@@ -490,14 +669,16 @@ async function refresh() {
   try {
     var statusFilter = document.getElementById("status-filter").value;
     var paymentsUrl = "/api/payments?limit=50" + (statusFilter ? "&status=" + encodeURIComponent(statusFilter) : "");
-    var [stats, payments, relayer] = await Promise.all([
+    var [stats, payments, relayer, groups] = await Promise.all([
       fetchJson("/api/stats"),
       fetchJson(paymentsUrl),
       fetchJson("/api/relayer"),
+      fetchJson("/api/groups"),
     ]);
     updateStats(stats);
     updatePayments(payments);
     updateRelayer(relayer);
+    updateGroups(groups);
   } catch (e) {
     console.error("Refresh failed:", e);
   }
@@ -559,6 +740,17 @@ export async function handlePortalRequest(
       decodeURIComponent(paymentMatch[1]),
       res,
     );
+    return true;
+  }
+
+  if (path === "/api/groups" && req.method === "GET") {
+    await handleApiGroups(deps, res);
+    return true;
+  }
+
+  const groupMatch = path.match(/^\/api\/groups\/(GRP-[a-zA-Z0-9-]+)$/);
+  if (groupMatch && req.method === "GET") {
+    await handleApiGroupDetail(deps, decodeURIComponent(groupMatch[1]), res);
     return true;
   }
 

@@ -586,6 +586,22 @@ server.tool(
       };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
+
+      // Transition to TX_FAILED so it doesn't get stuck in AWAITING_TX
+      try {
+        const currentPayment = await stateMachine.getPayment(payment_id);
+        if (currentPayment && currentPayment.status === "AWAITING_TX") {
+          await stateMachine.transition({
+            nexusPaymentId: payment_id,
+            toStatus: "TX_FAILED",
+            eventType: "RELAYER_TX_FAILED",
+            metadata: { error: message },
+          });
+        }
+      } catch {
+        // Best-effort cleanup
+      }
+
       return {
         content: [{ type: "text" as const, text: `Error: ${message}` }],
         isError: true,
@@ -1136,6 +1152,7 @@ async function main(): Promise<void> {
         const portalDeps: PortalDeps = {
           paymentRepo,
           eventRepo,
+          groupRepo,
           relayer,
           escrowContract: config.escrowContract,
           chainId: config.chainId,

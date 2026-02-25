@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { handlePortalRequest, type PortalDeps } from "../portal.js";
 import { MockPaymentRepository, MockEventRepository } from "./mocks/index.js";
+import { MockGroupRepository } from "./mocks/mock-group-repo.js";
 import { makeTestPayment } from "./fixtures.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -104,6 +105,7 @@ describe("Portal", () => {
     deps = {
       paymentRepo,
       eventRepo,
+      groupRepo: new MockGroupRepository(),
       relayer: null,
       escrowContract: "0x1111111111111111111111111111111111111111",
       chainId: 20250407,

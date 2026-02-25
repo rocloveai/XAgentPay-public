@@ -67,6 +67,19 @@ export class MockGroupRepository implements GroupRepository {
     return results;
   }
 
+  async findAll(params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<readonly PaymentGroupRecord[]> {
+    const all = [...this.store.values()].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+    const offset = params?.offset ?? 0;
+    const limit = params?.limit ?? 50;
+    return all.slice(offset, offset + limit);
+  }
+
   async updateInstruction(
     groupId: string,
     instruction: Record<string, unknown>,

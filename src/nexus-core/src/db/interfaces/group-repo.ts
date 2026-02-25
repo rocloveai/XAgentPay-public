@@ -21,6 +21,12 @@ export interface GroupRepository {
   /** Find groups by payer wallet. */
   findByPayer(payerWallet: string): Promise<readonly PaymentGroupRecord[]>;
 
+  /** List all groups ordered by created_at DESC. */
+  findAll(params?: {
+    limit?: number;
+    offset?: number;
+  }): Promise<readonly PaymentGroupRecord[]>;
+
   /** Persist a GroupEscrowInstruction JSON to the instruction column. */
   updateInstruction(
     groupId: string,

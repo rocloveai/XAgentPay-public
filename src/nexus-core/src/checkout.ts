@@ -266,6 +266,23 @@ async function handleCheckoutSubmit(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+
+    // Transition all AWAITING_TX payments to TX_FAILED so they don't get stuck
+    try {
+      const currentPayments = await deps.paymentRepo.findByGroupId(groupId);
+      for (const payment of currentPayments) {
+        if (payment.status !== "AWAITING_TX") continue;
+        await deps.stateMachine.transition({
+          nexusPaymentId: payment.nexus_payment_id,
+          toStatus: "TX_FAILED",
+          eventType: "RELAYER_TX_FAILED",
+          metadata: { error: message },
+        });
+      }
+    } catch {
+      // Best-effort cleanup
+    }
+
     sendJson(res, 500, { error: message });
   }
 }

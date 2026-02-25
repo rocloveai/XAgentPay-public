@@ -52,6 +52,7 @@ export type PaymentEventType =
   // Escrow-specific
   | "EIP3009_SIGNATURE_RECEIVED"
   | "RELAYER_TX_SUBMITTED"
+  | "RELAYER_TX_FAILED"
   | "ESCROW_DEPOSITED"
   | "ESCROW_RELEASED"
   | "ESCROW_REFUNDED"
