@@ -43,6 +43,17 @@ The `config` object is a `NexusQuotePayload` with these required fields:
 
 ### Calling the orchestrator
 
+**Option A — `quotes_json` string (recommended for CLI):**
+
+```
+nexus_orchestrate_payment({
+  quotes_json: "[{\"merchant_did\":\"did:nexus:20250407:demo_flight\",\"merchant_order_ref\":\"FLT-001\",\"amount\":\"100000\",\"currency\":\"USDC\",\"chain_id\":20250407,\"expiry\":9999999999,\"context\":{\"summary\":\"Flight\",\"line_items\":[]},\"signature\":\"0x...\"}]",
+  payer_wallet: "0xUserWalletAddress"
+})
+```
+
+**Option B — `quotes` array (if your MCP client supports complex objects):**
+
 ```
 nexus_orchestrate_payment({
   quotes: [flight_quote_config, hotel_quote_config],
@@ -50,10 +61,7 @@ nexus_orchestrate_payment({
 })
 ```
 
-The `quotes` array accepts:
-- **Best**: The `config` object extracted from each merchant's UCP `nexus_v1` handler
-- **Also works**: Full UCP envelope objects — the orchestrator auto-extracts `config` from wrapped formats
-- **Also works**: Handler objects like `{ config: ..., nexus_core: ... }` — auto-unwrapped
+Both options accept raw `config` objects, full UCP envelopes, or handler objects — the orchestrator auto-extracts the quote from wrapped formats.
 
 ## MCP Connection
 
@@ -77,8 +85,11 @@ Orchestrate aggregated payment for one or more merchant quotes. Validates signat
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `quotes` | array | Yes | Array of `NexusQuotePayload` objects. Best: extract the `config` field from each merchant's UCP `nexus_v1` handler. Also accepts full UCP envelopes or handler objects (auto-unwrapped). |
+| `quotes_json` | string | Preferred | JSON string of the quotes array. Use this for reliable CLI/MCP compatibility. |
+| `quotes` | array | Alternative | Array of `NexusQuotePayload` objects. Use if your MCP client handles complex objects well. |
 | `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
+
+One of `quotes_json` or `quotes` must be provided. Both accept raw quotes, full UCP envelopes, or handler objects (auto-unwrapped).
 
 **Returns:** Payment group with `group_id`, per-payment breakdown, and EIP-3009 sign instruction for the total amount.
 

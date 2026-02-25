@@ -132,22 +132,59 @@ const server = new McpServer({
 // Tool: nexus_orchestrate_payment
 server.tool(
   "nexus_orchestrate_payment",
-  "Orchestrate aggregated payment for one or more merchant quotes. Returns a single EIP-3009 signing instruction covering the total amount.",
+  "Orchestrate aggregated payment for one or more merchant quotes. Returns a single EIP-3009 signing instruction covering the total amount. Pass quotes as EITHER the quotes array OR a quotes_json string (preferred for CLI compatibility).",
   {
     quotes: z
       .array(z.record(z.unknown()))
-      .min(1)
+      .optional()
       .describe(
-        "Array of NexusQuotePayload objects from merchant UCP responses (config field). Each quote must have: merchant_did, merchant_order_ref, amount, currency, chain_id, expiry, context, signature.",
+        "Array of NexusQuotePayload objects. Optional if quotes_json is provided.",
+      ),
+    quotes_json: z
+      .string()
+      .optional()
+      .describe(
+        'JSON string of the quotes array — use this instead of quotes for better CLI compatibility. Example: \'[{"merchant_did":"...","amount":"...","signature":"..."}]\'',
       ),
     payer_wallet: z
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/)
       .describe("Payer EVM wallet address"),
   },
-  async ({ quotes, payer_wallet }) => {
+  async ({ quotes, quotes_json, payer_wallet }) => {
     try {
-      const normalized = normalizeQuotes(quotes);
+      // Resolve quotes from either parameter
+      let rawQuotes: Record<string, unknown>[];
+      if (quotes && quotes.length > 0) {
+        rawQuotes = quotes;
+      } else if (quotes_json) {
+        try {
+          const parsed = JSON.parse(quotes_json);
+          rawQuotes = Array.isArray(parsed) ? parsed : [parsed];
+        } catch {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Error: quotes_json is not valid JSON",
+              },
+            ],
+            isError: true,
+          };
+        }
+      } else {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Either quotes or quotes_json must be provided",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const normalized = normalizeQuotes(rawQuotes);
       const result = await orchestrator.orchestratePayment({
         quotes: normalized as NexusQuotePayload[],
         payerWallet: payer_wallet,
