@@ -187,7 +187,7 @@ async function handleApiRelayer(
 // Dashboard HTML
 // ---------------------------------------------------------------------------
 
-function renderDashboard(version: string): string {
+function renderDashboard(version: string, portalToken: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -345,6 +345,7 @@ tailwind.config = {
 </main>
 
 <script>
+var PORTAL_TOKEN = "${portalToken.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/`/g, "\\`").replace(/\$/g, "\\$")}";
 var STATUS_CLASSES = {
   CREATED: "bg-slate-500/15 text-slate-400",
   AWAITING_TX: "bg-yellow-500/15 text-yellow-400",
@@ -375,7 +376,9 @@ function statusBadge(status) {
 }
 
 async function fetchJson(path) {
-  var res = await fetch(path);
+  var headers = {};
+  if (PORTAL_TOKEN) headers["Authorization"] = "Bearer " + PORTAL_TOKEN;
+  var res = await fetch(path, { headers: headers });
   if (!res.ok) throw new Error("HTTP " + res.status);
   return res.json();
 }
@@ -524,7 +527,7 @@ export async function handlePortalRequest(
   const path = url.pathname;
 
   if (path === "/" && req.method === "GET") {
-    sendHtml(res, renderDashboard(deps.version));
+    sendHtml(res, renderDashboard(deps.version, deps.portalToken));
     return true;
   }
 
