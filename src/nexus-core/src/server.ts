@@ -169,14 +169,37 @@ server.tool(
     // Declare outside try so catch block can access for diagnostics
     let rawQuotes: Record<string, unknown>[] = [];
     try {
-      // Resolve quotes from either parameter
-      if (quotes && quotes.length > 0) {
-        rawQuotes = quotes;
-      } else if (quotes_json) {
+      // Helper: try parsing a JSON string into an array of quote objects
+      function tryParseQuotesJson(
+        json: string,
+      ): Record<string, unknown>[] | null {
         try {
-          const parsed = JSON.parse(quotes_json);
-          rawQuotes = Array.isArray(parsed) ? parsed : [parsed];
+          const parsed = JSON.parse(json);
+          if (Array.isArray(parsed)) return parsed;
+          if (parsed && typeof parsed === "object") return [parsed];
         } catch {
+          /* not valid JSON */
+        }
+        return null;
+      }
+
+      // Helper: check if a value looks like a real quote object
+      function isQuoteObject(v: unknown): boolean {
+        return (
+          v != null &&
+          typeof v === "object" &&
+          !Array.isArray(v) &&
+          typeof (v as Record<string, unknown>).merchant_did === "string"
+        );
+      }
+
+      // Resolve quotes from either parameter, with smart fallbacks
+      if (quotes_json) {
+        // Prefer quotes_json when provided — it's the most reliable
+        const parsed = tryParseQuotesJson(quotes_json);
+        if (parsed) {
+          rawQuotes = parsed;
+        } else {
           return {
             content: [
               {
@@ -186,6 +209,25 @@ server.tool(
             ],
             isError: true,
           };
+        }
+      } else if (quotes && Array.isArray(quotes) && quotes.length > 0) {
+        // Check if first element is a real quote object
+        if (isQuoteObject(quotes[0])) {
+          rawQuotes = quotes;
+        } else if (
+          typeof quotes[0] === "string" &&
+          (quotes[0] as string).startsWith("{")
+        ) {
+          // MCP client may have split a JSON string into array elements
+          const joined = quotes.join("");
+          const parsed = tryParseQuotesJson(joined);
+          if (parsed) {
+            rawQuotes = parsed;
+          } else {
+            rawQuotes = quotes; // let downstream validation catch it
+          }
+        } else {
+          rawQuotes = quotes; // let downstream validation catch it
         }
       } else {
         return {
