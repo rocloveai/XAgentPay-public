@@ -522,6 +522,24 @@ server.tool(
         });
       }
 
+      // Read the instruction to get the exact validBefore from the EIP-3009 sign data
+      // (quote_payload.expiry is the quote's business expiry, NOT the EIP-3009 validBefore)
+      let signedValidBefore = BigInt(payment.quote_payload.expiry);
+      if (group_id) {
+        try {
+          const instrRaw = await groupRepo.findInstruction(group_id);
+          const signMsg = (instrRaw as Record<string, unknown> | null)
+            ?.eip3009_sign_data as
+            | { message: { validBefore: string } }
+            | undefined;
+          if (signMsg?.message?.validBefore) {
+            signedValidBefore = BigInt(signMsg.message.validBefore);
+          }
+        } catch {
+          // Fall through to quote expiry as fallback
+        }
+      }
+
       const result = await relayer.submitDeposit({
         paymentId: payment.payment_id_bytes32 as Hex,
         from: payment.payer_wallet as Hex,
@@ -531,7 +549,7 @@ server.tool(
         merchantDid: merchant_did_hash as Hex,
         contextHash: context_hash as Hex,
         validAfter: 0n,
-        validBefore: BigInt(payment.quote_payload.expiry),
+        validBefore: signedValidBefore,
         nonce: payment.eip3009_nonce as Hex,
         v,
         r: r as Hex,

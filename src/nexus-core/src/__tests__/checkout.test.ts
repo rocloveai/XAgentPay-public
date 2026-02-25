@@ -80,7 +80,9 @@ function makeMockRelayer(): NexusRelayer {
     submitRelease: vi.fn(),
     submitResolve: vi.fn(),
     submitRefund: vi.fn(),
-    getAddress: vi.fn().mockReturnValue("0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920"),
+    getAddress: vi
+      .fn()
+      .mockReturnValue("0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920"),
     getRelayerBalance: vi.fn().mockResolvedValue(1000000000000000000n),
   } as unknown as NexusRelayer;
 }
@@ -220,7 +222,7 @@ describe("Checkout", () => {
           to: "0xC1aF5ea6e661cB815DB166549178314E6BCfc3CF",
           value: "200000",
           validAfter: "0",
-          validBefore: "86400",
+          validBefore: String(Math.floor(Date.now() / 1000) + 86400),
           nonce: "0x" + "cc".repeat(32),
         },
       },

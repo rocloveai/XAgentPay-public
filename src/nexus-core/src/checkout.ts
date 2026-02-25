@@ -178,6 +178,20 @@ async function handleCheckoutSubmit(
     return;
   }
 
+  // Check if the EIP-3009 authorization has expired
+  const instrSignData = (instruction as Record<string, unknown>)
+    .eip3009_sign_data as { message: { validBefore?: string } } | undefined;
+  if (instrSignData?.message?.validBefore) {
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (nowSec >= Number(instrSignData.message.validBefore)) {
+      sendJson(res, 410, {
+        error:
+          "EIP-3009 authorization has expired. Please create a new payment.",
+      });
+      return;
+    }
+  }
+
   try {
     // Transition all payments to AWAITING_TX (skip if already there)
     for (const payment of payments) {
@@ -198,6 +212,18 @@ async function handleCheckoutSubmit(
       toHex(JSON.stringify(firstPayment.quote_payload.context)),
     );
 
+    // Use the exact validBefore from the signed EIP-3009 instruction
+    const signData = (instruction as Record<string, unknown>)
+      .eip3009_sign_data as
+      | { message: { validBefore: string; nonce: string } }
+      | undefined;
+    const signedValidBefore = signData?.message?.validBefore
+      ? BigInt(signData.message.validBefore)
+      : BigInt(firstPayment.quote_payload.expiry);
+    const signedNonce = (signData?.message?.nonce ??
+      firstPayment.eip3009_nonce ??
+      "0x0") as Hex;
+
     const depositResult = await deps.relayer.submitDeposit({
       paymentId: (firstPayment.payment_id_bytes32 ??
         keccak256(toHex(firstPayment.nexus_payment_id))) as Hex,
@@ -208,8 +234,8 @@ async function handleCheckoutSubmit(
       merchantDid: merchantDidHash as Hex,
       contextHash: contextHash as Hex,
       validAfter: 0n,
-      validBefore: BigInt(firstPayment.quote_payload.expiry),
-      nonce: (firstPayment.eip3009_nonce ?? "0x0") as Hex,
+      validBefore: signedValidBefore,
+      nonce: signedNonce,
       v: body.v,
       r: body.r as Hex,
       s: body.s as Hex,
@@ -623,10 +649,20 @@ async function switchChain() {
 
 async function signAndPay() {
   if (!checkoutData || !checkoutData.instruction) return;
+
+  // Check if the EIP-3009 authorization has expired
+  var signData = checkoutData.instruction.eip3009_sign_data;
+  if (signData && signData.message && signData.message.validBefore) {
+    var nowSec = Math.floor(Date.now() / 1000);
+    if (nowSec >= Number(signData.message.validBefore)) {
+      showError("This payment authorization has expired. Please go back and create a new payment.");
+      return;
+    }
+  }
+
   showOnly(["order-summary","payment-details","action-area","signing"]);
 
   try {
-    var signData = checkoutData.instruction.eip3009_sign_data;
     var params = {
       domain: signData.domain,
       types: signData.types,
