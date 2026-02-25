@@ -283,6 +283,9 @@ tailwind.config = {
         ONLINE
       </span>
     </div>
+    <nav class="flex items-center gap-5">
+      <a href="/market" class="text-sm text-slate-400 hover:text-white transition-colors">Marketplace</a>
+    </nav>
   </div>
 </header>
 

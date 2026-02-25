@@ -286,15 +286,16 @@ async function handleRegister(
 // HTML: GET /market
 // ---------------------------------------------------------------------------
 
-function renderMarketPage(): string {
+function renderMarketPage(baseUrl: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nexus Agent Marketplace</title>
+  <title>Agent Marketplace — Nexus</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
       theme: {
@@ -324,21 +325,36 @@ function renderMarketPage(): string {
     .filter-btn { cursor: pointer; transition: all 0.15s; }
     .filter-btn.active { background: rgba(99, 102, 241, 0.2); color: #818cf8; border-color: rgba(99, 102, 241, 0.4); }
     .copy-btn:active { transform: scale(0.95); }
+    .nav-link { color: #94a3b8; font-size: 14px; transition: color 0.15s; }
+    .nav-link:hover { color: #fff; }
+    .nav-link.active { color: #818cf8; }
+    pre.code-block { background: rgba(15, 17, 23, 0.9); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12px; line-height: 1.6; color: #a5b4fc; }
+    .tab-btn { cursor: pointer; padding: 6px 16px; border-radius: 6px; font-size: 13px; transition: all 0.15s; }
+    .tab-btn.active { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
   </style>
 </head>
 <body class="text-gray-200 min-h-screen">
 
   <!-- Header -->
-  <header class="border-b border-white/5 px-6 py-4">
+  <header class="border-b border-white/5 px-6 py-4 sticky top-0 bg-[#090b10]/80 backdrop-blur-lg z-50">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded bg-gradient-to-br from-brand to-cyan-400 flex items-center justify-center">
-          <span class="material-icons-round text-white text-sm">hub</span>
-        </div>
-        <h1 class="text-xl font-bold text-white tracking-wide">Agent Marketplace</h1>
-        <span class="text-xs text-gray-500 ml-2" id="agent-count"></span>
+        <a href="/" class="flex items-center gap-3 hover:opacity-90 transition-opacity">
+          <div class="w-8 h-8 rounded bg-gradient-to-br from-brand to-cyan-400 flex items-center justify-center">
+            <span class="material-icons-round text-white text-sm">hub</span>
+          </div>
+          <span class="text-lg font-bold text-white tracking-wide">NEXUS</span>
+        </a>
+        <span class="text-gray-600 mx-1">/</span>
+        <span class="text-sm font-medium text-white">Marketplace</span>
+        <span class="text-xs text-gray-500 ml-1" id="agent-count"></span>
       </div>
-      <a href="/" class="text-sm text-gray-400 hover:text-white transition-colors">Portal</a>
+      <nav class="flex items-center gap-6">
+        <a href="/" class="nav-link">Portal</a>
+        <a href="/market" class="nav-link active">Market</a>
+        <a href="#register" class="nav-link">Register</a>
+      </nav>
     </div>
   </header>
 
@@ -372,6 +388,94 @@ function renderMarketPage(): string {
     </div>
     <div id="loading" class="text-center py-20 text-gray-500">
       <p class="text-lg">Loading agents...</p>
+    </div>
+  </div>
+
+  <!-- How to Register -->
+  <div id="register" class="border-t border-white/5">
+    <div class="max-w-7xl mx-auto px-6 py-16">
+      <h2 class="text-2xl font-bold text-white mb-2">List Your Agent</h2>
+      <p class="text-gray-400 text-sm mb-8 max-w-xl">Register your MCP agent on the Nexus Marketplace so users and other agents can discover and connect to your service.</p>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Steps -->
+        <div class="space-y-6">
+          <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">Requirements</h3>
+
+          <div class="flex gap-3">
+            <div class="w-7 h-7 rounded-full bg-brand/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span class="text-xs font-bold text-brand">1</span>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-white">skill.md</p>
+              <p class="text-xs text-gray-400 mt-0.5">A public URL serving your agent's skill definition in Markdown with YAML frontmatter (name, version, protocol, tools).</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-7 h-7 rounded-full bg-brand/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span class="text-xs font-bold text-brand">2</span>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-white">Health endpoint</p>
+              <p class="text-xs text-gray-400 mt-0.5">A GET endpoint that returns HTTP 200 when your agent is operational. Nexus checks every 5 minutes.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-7 h-7 rounded-full bg-brand/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span class="text-xs font-bold text-brand">3</span>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-white">MCP/SSE endpoint</p>
+              <p class="text-xs text-gray-400 mt-0.5">Your agent's MCP server endpoint (SSE or Streamable HTTP). Included in skill.md so users can add it to their AI tools.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <div class="w-7 h-7 rounded-full bg-brand/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <span class="text-xs font-bold text-brand">4</span>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-white">Call the register API</p>
+              <p class="text-xs text-gray-400 mt-0.5">POST to <code class="text-brand/80 bg-brand/10 px-1 rounded">/api/market/register</code> with your agent details. Requires a Bearer token for authorization.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- API Example -->
+        <div>
+          <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-4">API Example</h3>
+          <pre class="code-block"><span class="text-gray-500">// POST ${baseUrl}/api/market/register</span>
+<span class="text-gray-500">// Authorization: Bearer $PORTAL_TOKEN</span>
+
+curl -X POST ${baseUrl}/api/market/register \\
+  -H "Authorization: Bearer $PORTAL_TOKEN" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "name": "My Hotel Agent",
+    "description": "AI hotel booking with Nexus Payment",
+    "category": "travel.hotels",
+    "skill_md_url": "https://my-agent.example.com/skill.md",
+    "health_url": "https://my-agent.example.com/health",
+    "merchant_did": "did:nexus:20250407:my_hotel"
+  }'</pre>
+
+          <div class="mt-4 glass-card rounded-lg p-4">
+            <h4 class="text-xs font-semibold text-gray-300 mb-2">Required fields</h4>
+            <table class="w-full text-xs">
+              <tbody class="text-gray-400">
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">name</td><td class="py-1.5 pl-3">Agent display name</td></tr>
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">description</td><td class="py-1.5 pl-3">What your agent does</td></tr>
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">category</td><td class="py-1.5 pl-3">e.g. travel.hotels, food.delivery</td></tr>
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">skill_md_url</td><td class="py-1.5 pl-3">Public URL to your skill.md</td></tr>
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">health_url</td><td class="py-1.5 pl-3">Health check endpoint (GET, 200=OK)</td></tr>
+                <tr><td class="py-1.5 font-mono text-gray-500">merchant_did</td><td class="py-1.5 pl-3 text-gray-500">Optional: linked merchant DID</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -502,7 +606,9 @@ export async function handleMarketRequest(
 
   // GET /market — HTML page
   if (path === "/market" && req.method === "GET") {
-    sendHtml(res, renderMarketPage());
+    const baseUrl =
+      deps.config.baseUrl || `http://${req.headers.host ?? "localhost:4000"}`;
+    sendHtml(res, renderMarketPage(baseUrl));
     return true;
   }
 
