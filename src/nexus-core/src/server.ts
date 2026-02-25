@@ -46,6 +46,20 @@ import { createLogger } from "./logger.js";
 
 const serverLog = createLogger("NexusCore");
 
+// ---------------------------------------------------------------------------
+// Debug ring buffer — keeps last N orchestration errors for diagnostics
+// ---------------------------------------------------------------------------
+
+interface DebugEntry {
+  readonly ts: string;
+  readonly error: string;
+  readonly details: Record<string, unknown>;
+  readonly input_snapshot: Record<string, unknown>;
+}
+
+const DEBUG_RING_SIZE = 20;
+const debugErrors: DebugEntry[] = [];
+
 const config = loadNexusCoreConfig();
 const transportMode = (process.env.TRANSPORT ?? "stdio") as TransportMode;
 
@@ -152,9 +166,10 @@ server.tool(
       .describe("Payer EVM wallet address"),
   },
   async ({ quotes, quotes_json, payer_wallet }) => {
+    // Declare outside try so catch block can access for diagnostics
+    let rawQuotes: Record<string, unknown>[] = [];
     try {
       // Resolve quotes from either parameter
-      let rawQuotes: Record<string, unknown>[];
       if (quotes && quotes.length > 0) {
         rawQuotes = quotes;
       } else if (quotes_json) {
@@ -228,6 +243,69 @@ server.tool(
       };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
+
+      // Capture debug info
+      const details: Record<string, unknown> =
+        err instanceof Error && "details" in err
+          ? (err as { details: Record<string, unknown> }).details
+          : {};
+      const inputSnapshot: Record<string, unknown> = {};
+      try {
+        const firstQuote = rawQuotes[0];
+        inputSnapshot.quote_count = rawQuotes.length;
+        inputSnapshot.first_quote_keys = firstQuote
+          ? Object.keys(firstQuote)
+          : [];
+        if (firstQuote) {
+          inputSnapshot.merchant_did = (
+            firstQuote as Record<string, unknown>
+          ).merchant_did;
+          inputSnapshot.amount = (firstQuote as Record<string, unknown>).amount;
+          inputSnapshot.amount_type = typeof (
+            firstQuote as Record<string, unknown>
+          ).amount;
+          inputSnapshot.chain_id = (
+            firstQuote as Record<string, unknown>
+          ).chain_id;
+          inputSnapshot.chain_id_type = typeof (
+            firstQuote as Record<string, unknown>
+          ).chain_id;
+          inputSnapshot.expiry = (firstQuote as Record<string, unknown>).expiry;
+          inputSnapshot.signature_length = String(
+            (firstQuote as Record<string, unknown>).signature ?? "",
+          ).length;
+          const ctx = (firstQuote as Record<string, unknown>).context as
+            | Record<string, unknown>
+            | undefined;
+          if (ctx) {
+            inputSnapshot.context_keys = Object.keys(ctx);
+            if (Array.isArray(ctx.line_items) && ctx.line_items.length > 0) {
+              const li = ctx.line_items[0] as Record<string, unknown>;
+              inputSnapshot.line_item_0_amount = li.amount;
+              inputSnapshot.line_item_0_amount_type = typeof li.amount;
+            }
+            inputSnapshot.original_amount = ctx.original_amount;
+            inputSnapshot.original_amount_type = typeof ctx.original_amount;
+          }
+        }
+      } catch {
+        /* ignore snapshot errors */
+      }
+
+      const entry: DebugEntry = {
+        ts: new Date().toISOString(),
+        error: message,
+        details,
+        input_snapshot: inputSnapshot,
+      };
+      debugErrors.push(entry);
+      if (debugErrors.length > DEBUG_RING_SIZE) debugErrors.shift();
+
+      serverLog.error("orchestrate failed", {
+        error: message,
+        ...inputSnapshot,
+      });
+
       return {
         content: [{ type: "text" as const, text: `Error: ${message}` }],
         isError: true,
@@ -918,6 +996,13 @@ async function main(): Promise<void> {
             res.writeHead(404);
             res.end("Session not found");
           }
+          return;
+        }
+
+        // Debug: last orchestration errors
+        if (url.pathname === "/api/debug/last-errors" && req.method === "GET") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ errors: debugErrors }, null, 2));
           return;
         }
 
