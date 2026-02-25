@@ -155,9 +155,12 @@ async function handleCheckoutSubmit(
     return;
   }
 
-  if (group.status !== "GROUP_CREATED") {
+  if (
+    group.status !== "GROUP_CREATED" &&
+    group.status !== "GROUP_AWAITING_TX"
+  ) {
     sendJson(res, 409, {
-      error: `Payment group status is ${group.status}, expected GROUP_CREATED`,
+      error: `Payment group status is ${group.status}, expected GROUP_CREATED or GROUP_AWAITING_TX`,
     });
     return;
   }
@@ -176,8 +179,9 @@ async function handleCheckoutSubmit(
   }
 
   try {
-    // Transition all payments to AWAITING_TX
+    // Transition all payments to AWAITING_TX (skip if already there)
     for (const payment of payments) {
+      if (payment.status === "AWAITING_TX") continue;
       await deps.stateMachine.transition({
         nexusPaymentId: payment.nexus_payment_id,
         toStatus: "AWAITING_TX",
@@ -211,8 +215,10 @@ async function handleCheckoutSubmit(
       s: body.s as Hex,
     });
 
-    // Transition all payments to BROADCASTED
-    for (const payment of payments) {
+    // Transition all payments to BROADCASTED (re-fetch to get current status)
+    const updatedPayments = await deps.paymentRepo.findByGroupId(groupId);
+    for (const payment of updatedPayments) {
+      if (payment.status === "BROADCASTED") continue;
       await deps.stateMachine.transition({
         nexusPaymentId: payment.nexus_payment_id,
         toStatus: "BROADCASTED",

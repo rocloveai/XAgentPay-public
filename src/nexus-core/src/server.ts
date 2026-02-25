@@ -512,13 +512,15 @@ server.tool(
         };
       }
 
-      // Transition to AWAITING_TX
-      await stateMachine.transition({
-        nexusPaymentId: payment_id,
-        toStatus: "AWAITING_TX",
-        eventType: "EIP3009_SIGNATURE_RECEIVED",
-        metadata: { group_id, v, r, s },
-      });
+      // Transition to AWAITING_TX (skip if already there)
+      if (payment.status !== "AWAITING_TX") {
+        await stateMachine.transition({
+          nexusPaymentId: payment_id,
+          toStatus: "AWAITING_TX",
+          eventType: "EIP3009_SIGNATURE_RECEIVED",
+          metadata: { group_id, v, r, s },
+        });
+      }
 
       const result = await relayer.submitDeposit({
         paymentId: payment.payment_id_bytes32 as Hex,
