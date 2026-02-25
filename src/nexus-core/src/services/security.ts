@@ -25,8 +25,7 @@ const NEXUS_DOMAIN = {
   name: "NexusPay",
   version: "1",
   chainId: 20250407,
-  verifyingContract:
-    "0x0000000000000000000000000000000000000000" as Address,
+  verifyingContract: "0x0000000000000000000000000000000000000000" as Address,
 } as const;
 
 const NEXUS_QUOTE_TYPES = {
@@ -59,6 +58,31 @@ export function computeQuoteHash(quote: NexusQuotePayload): string {
 }
 
 // ---------------------------------------------------------------------------
+// Context normalization — undo type coercion from JSON transit
+// ---------------------------------------------------------------------------
+
+/**
+ * MCP clients / LLMs may coerce numeric-looking strings to numbers when
+ * reconstructing JSON (e.g. `"530000"` → `530000`). The merchant signs with
+ * string amounts, so we must normalize back to strings before hashing.
+ */
+function normalizeContext(
+  ctx: NexusQuotePayload["context"],
+): NexusQuotePayload["context"] {
+  return {
+    summary: ctx.summary,
+    line_items: ctx.line_items.map((item) => ({
+      name: item.name,
+      qty: typeof item.qty === "string" ? Number(item.qty) : item.qty,
+      amount: String(item.amount),
+    })),
+    original_amount:
+      ctx.original_amount != null ? String(ctx.original_amount) : undefined,
+    payer_wallet: ctx.payer_wallet,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // EIP-712 Signature Verification
 // ---------------------------------------------------------------------------
 
@@ -66,7 +90,8 @@ export async function verifyQuoteSignature(
   quote: NexusQuotePayload,
   merchant: MerchantRecord,
 ): Promise<void> {
-  const contextHash = keccak256(toHex(JSON.stringify(quote.context)));
+  const normalizedCtx = normalizeContext(quote.context);
+  const contextHash = keccak256(toHex(JSON.stringify(normalizedCtx)));
 
   const message = {
     merchant_did: quote.merchant_did,
