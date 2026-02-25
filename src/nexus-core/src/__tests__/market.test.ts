@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { handleMarketRequest, type MarketDeps } from "../market.js";
 import { MockMerchantRepository } from "./mocks/mock-merchant-repo.js";
+import { MockStarRepository } from "./mocks/mock-star-repo.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { NexusCoreConfig } from "../config.js";
 import type { MerchantRecord } from "../types.js";
@@ -118,11 +119,13 @@ function makeMerchant(overrides?: Partial<MerchantRecord>): MerchantRecord {
 
 describe("Market", () => {
   let merchantRepo: MockMerchantRepository;
+  let starRepo: MockStarRepository;
   let deps: MarketDeps;
 
   beforeEach(() => {
     merchantRepo = new MockMerchantRepository();
-    deps = { merchantRepo, config: makeConfig() };
+    starRepo = new MockStarRepository();
+    deps = { merchantRepo, starRepo, config: makeConfig() };
   });
 
   // -----------------------------------------------------------------------
@@ -132,7 +135,12 @@ describe("Market", () => {
   it("GET /market returns HTML page", async () => {
     const { req, url } = makeReq("GET", "/market");
     const res = makeRes();
-    const handled = await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
 
     expect(handled).toBe(true);
     expect(res.statusCode).toBe(200);
@@ -148,7 +156,12 @@ describe("Market", () => {
     merchantRepo.seed(makeMerchant());
     const { req, url } = makeReq("GET", "/api/market/agents");
     const res = makeRes();
-    const handled = await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
 
     expect(handled).toBe(true);
     expect(res.statusCode).toBe(200);
@@ -160,9 +173,18 @@ describe("Market", () => {
 
   it("GET /api/market/agents with category filter", async () => {
     merchantRepo.seed([
-      makeMerchant({ merchant_did: "did:nexus:hotel", category: "travel.hotels" }),
-      makeMerchant({ merchant_did: "did:nexus:flight", category: "travel.flights" }),
-      makeMerchant({ merchant_did: "did:nexus:food", category: "food.delivery" }),
+      makeMerchant({
+        merchant_did: "did:nexus:hotel",
+        category: "travel.hotels",
+      }),
+      makeMerchant({
+        merchant_did: "did:nexus:flight",
+        category: "travel.flights",
+      }),
+      makeMerchant({
+        merchant_did: "did:nexus:food",
+        category: "food.delivery",
+      }),
     ]);
     const { req, url } = makeReq("GET", "/api/market/agents?category=travel");
     const res = makeRes();
@@ -170,7 +192,11 @@ describe("Market", () => {
 
     const data = JSON.parse(res.body);
     expect(data.agents).toHaveLength(2);
-    expect(data.agents.every((a: { category: string }) => a.category.startsWith("travel"))).toBe(true);
+    expect(
+      data.agents.every((a: { category: string }) =>
+        a.category.startsWith("travel"),
+      ),
+    ).toBe(true);
   });
 
   it("GET /api/market/agents returns empty array when no agents", async () => {
@@ -185,7 +211,10 @@ describe("Market", () => {
 
   it("GET /api/market/agents excludes merchants without skill_md_url", async () => {
     merchantRepo.seed([
-      makeMerchant({ merchant_did: "did:nexus:with_skill", skill_md_url: "https://example.com/skill.md" }),
+      makeMerchant({
+        merchant_did: "did:nexus:with_skill",
+        skill_md_url: "https://example.com/skill.md",
+      }),
       makeMerchant({ merchant_did: "did:nexus:no_skill", skill_md_url: null }),
     ]);
     const { req, url } = makeReq("GET", "/api/market/agents");
@@ -203,9 +232,17 @@ describe("Market", () => {
 
   it("GET /api/market/agents/:merchantDid returns agent detail", async () => {
     merchantRepo.seed(makeMerchant({ merchant_did: "did:nexus:20250407:abc" }));
-    const { req, url } = makeReq("GET", "/api/market/agents/did:nexus:20250407:abc");
+    const { req, url } = makeReq(
+      "GET",
+      "/api/market/agents/did:nexus:20250407:abc",
+    );
     const res = makeRes();
-    const handled = await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
 
     expect(handled).toBe(true);
     expect(res.statusCode).toBe(200);
@@ -216,7 +253,12 @@ describe("Market", () => {
   it("GET /api/market/agents/:merchantDid returns 404 for nonexistent", async () => {
     const { req, url } = makeReq("GET", "/api/market/agents/did:nexus:noexist");
     const res = makeRes();
-    const handled = await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
 
     expect(handled).toBe(true);
     expect(res.statusCode).toBe(404);
@@ -239,11 +281,21 @@ describe("Market", () => {
       skill_md_url: "https://example.com/skill.md",
       health_url: "https://example.com/health",
     });
-    const { req, url } = makeReq("POST", "/api/market/register", {
-      authorization: "Bearer test-token",
-    }, body);
+    const { req, url } = makeReq(
+      "POST",
+      "/api/market/register",
+      {
+        authorization: "Bearer test-token",
+      },
+      body,
+    );
     const res = makeRes();
-    const handled = await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
 
     expect(handled).toBe(true);
     expect(res.statusCode).toBe(201);
@@ -254,9 +306,14 @@ describe("Market", () => {
 
   it("POST /api/market/register returns 400 on missing fields", async () => {
     const body = JSON.stringify({ name: "Incomplete" });
-    const { req, url } = makeReq("POST", "/api/market/register", {
-      authorization: "Bearer test-token",
-    }, body);
+    const { req, url } = makeReq(
+      "POST",
+      "/api/market/register",
+      {
+        authorization: "Bearer test-token",
+      },
+      body,
+    );
     const res = makeRes();
     await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
 
@@ -292,7 +349,12 @@ describe("Market", () => {
   it("OPTIONS /api/market/agents returns CORS headers", async () => {
     const { req, url } = makeReq("OPTIONS", "/api/market/agents");
     const res = makeRes();
-    const handled = await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
 
     expect(handled).toBe(true);
     expect(res.statusCode).toBe(204);
@@ -307,20 +369,215 @@ describe("Market", () => {
   it("returns false for unmatched routes", async () => {
     const { req, url } = makeReq("GET", "/api/other");
     const res = makeRes();
-    const handled = await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
 
     expect(handled).toBe(false);
   });
 
   it("POST /api/market/register returns 400 on invalid JSON", async () => {
-    const { req, url } = makeReq("POST", "/api/market/register", {
-      authorization: "Bearer test-token",
-    }, "not json");
+    const { req, url } = makeReq(
+      "POST",
+      "/api/market/register",
+      {
+        authorization: "Bearer test-token",
+      },
+      "not json",
+    );
     const res = makeRes();
     await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
 
     expect(res.statusCode).toBe(400);
     const data = JSON.parse(res.body);
     expect(data.error).toBe("Invalid JSON");
+  });
+
+  // -----------------------------------------------------------------------
+  // Star endpoints
+  // -----------------------------------------------------------------------
+
+  const VALID_WALLET = "0x1234567890abcdef1234567890abcdef12345678";
+  const MERCHANT_DID = "did:nexus:20250407:test";
+
+  it("POST /star adds star and returns 201", async () => {
+    const body = JSON.stringify({ wallet_address: VALID_WALLET });
+    const { req, url } = makeReq(
+      "POST",
+      `/api/market/agents/${MERCHANT_DID}/star`,
+      {},
+      body,
+    );
+    const res = makeRes();
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(201);
+    const data = JSON.parse(res.body);
+    expect(data.starred).toBe(true);
+    expect(data.star_count).toBe(1);
+  });
+
+  it("POST /star returns 200 on duplicate (idempotent)", async () => {
+    await starRepo.addStar(MERCHANT_DID, VALID_WALLET);
+    const body = JSON.stringify({ wallet_address: VALID_WALLET });
+    const { req, url } = makeReq(
+      "POST",
+      `/api/market/agents/${MERCHANT_DID}/star`,
+      {},
+      body,
+    );
+    const res = makeRes();
+    await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.starred).toBe(true);
+    expect(data.star_count).toBe(1);
+  });
+
+  it("POST /star returns 400 on missing wallet_address", async () => {
+    const body = JSON.stringify({});
+    const { req, url } = makeReq(
+      "POST",
+      `/api/market/agents/${MERCHANT_DID}/star`,
+      {},
+      body,
+    );
+    const res = makeRes();
+    await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+
+    expect(res.statusCode).toBe(400);
+    const data = JSON.parse(res.body);
+    expect(data.error).toContain("Invalid wallet_address");
+  });
+
+  it("POST /star returns 400 on invalid wallet_address format", async () => {
+    const body = JSON.stringify({ wallet_address: "not-a-wallet" });
+    const { req, url } = makeReq(
+      "POST",
+      `/api/market/agents/${MERCHANT_DID}/star`,
+      {},
+      body,
+    );
+    const res = makeRes();
+    await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+
+    expect(res.statusCode).toBe(400);
+    const data = JSON.parse(res.body);
+    expect(data.error).toContain("Invalid wallet_address");
+  });
+
+  it("DELETE /star removes star", async () => {
+    await starRepo.addStar(MERCHANT_DID, VALID_WALLET);
+    const body = JSON.stringify({ wallet_address: VALID_WALLET });
+    const { req, url } = makeReq(
+      "DELETE",
+      `/api/market/agents/${MERCHANT_DID}/star`,
+      {},
+      body,
+    );
+    const res = makeRes();
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.starred).toBe(false);
+    expect(data.star_count).toBe(0);
+  });
+
+  it("DELETE /star returns 200 even when star didn't exist", async () => {
+    const body = JSON.stringify({ wallet_address: VALID_WALLET });
+    const { req, url } = makeReq(
+      "DELETE",
+      `/api/market/agents/${MERCHANT_DID}/star`,
+      {},
+      body,
+    );
+    const res = makeRes();
+    await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.starred).toBe(false);
+  });
+
+  it("GET /stars returns star count and has_starred", async () => {
+    await starRepo.addStar(MERCHANT_DID, VALID_WALLET);
+    await starRepo.addStar(
+      MERCHANT_DID,
+      "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    );
+    const { req, url } = makeReq(
+      "GET",
+      `/api/market/agents/${MERCHANT_DID}/stars?wallet_address=${VALID_WALLET}`,
+    );
+    const res = makeRes();
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(200);
+    const data = JSON.parse(res.body);
+    expect(data.star_count).toBe(2);
+    expect(data.has_starred).toBe(true);
+  });
+
+  it("GET /stars without wallet_address returns has_starred=false", async () => {
+    await starRepo.addStar(MERCHANT_DID, VALID_WALLET);
+    const { req, url } = makeReq(
+      "GET",
+      `/api/market/agents/${MERCHANT_DID}/stars`,
+    );
+    const res = makeRes();
+    await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+
+    const data = JSON.parse(res.body);
+    expect(data.star_count).toBe(1);
+    expect(data.has_starred).toBe(false);
+  });
+
+  it("Agent listing includes star_count field", async () => {
+    merchantRepo.seed(makeMerchant());
+    await starRepo.addStar("did:nexus:20250407:test", VALID_WALLET);
+    const { req, url } = makeReq("GET", "/api/market/agents");
+    const res = makeRes();
+    await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+
+    const data = JSON.parse(res.body);
+    expect(data.agents[0].star_count).toBe(1);
+  });
+
+  it("OPTIONS preflight includes DELETE method", async () => {
+    const { req, url } = makeReq("OPTIONS", "/api/market/agents/foo/star");
+    const res = makeRes();
+    const handled = await handleMarketRequest(
+      deps,
+      req,
+      res as unknown as ServerResponse,
+      url,
+    );
+
+    expect(handled).toBe(true);
+    expect(res.statusCode).toBe(204);
+    expect(res.headers["Access-Control-Allow-Methods"]).toContain("DELETE");
   });
 });

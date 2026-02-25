@@ -15,6 +15,12 @@ tools:
     role: submit
   - name: nexus_confirm_fulfillment
     role: fulfillment
+  - name: discover_agents
+    role: discovery
+    description: Search and discover merchant agents by keyword/category, ranked by stars
+  - name: get_agent_skill
+    role: discovery
+    description: Fetch full skill.md content for a specific merchant agent
 ---
 
 # Nexus Core
@@ -120,6 +126,32 @@ Submit a user's EIP-3009 signature to deposit funds into escrow via the relayer.
 ### `nexus_confirm_fulfillment`
 
 Confirm fulfillment of a payment. If ESCROWED, submits release. If SETTLED, transitions to COMPLETED.
+
+### `discover_agents`
+
+Search and discover merchant agents in the Nexus marketplace. Returns agents ranked by stars.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | string | No | Keyword to search agent names and descriptions |
+| `category` | string | No | Category prefix filter (e.g. `travel`, `food`) |
+| `limit` | number | No | Max results (default 20, max 50) |
+
+---
+
+### `get_agent_skill`
+
+Fetch the full skill.md content for a specific merchant agent.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `merchant_did` | string | Yes | Merchant DID (e.g. `did:nexus:20250407:demo_flight`) |
+
+---
 
 ## End-to-End Payment Flow
 

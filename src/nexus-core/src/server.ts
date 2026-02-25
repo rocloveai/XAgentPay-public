@@ -43,6 +43,11 @@ import type { NexusQuotePayload, Hex } from "./types.js";
 import { handlePortalRequest, type PortalDeps } from "./portal.js";
 import { handleCheckoutRequest, type CheckoutDeps } from "./checkout.js";
 import { handleMarketRequest, type MarketDeps } from "./market.js";
+import {
+  handleDiscoverAgents,
+  handleGetAgentSkill,
+} from "./services/market-tools.js";
+import { NeonStarRepository } from "./db/star-repo.js";
 import { normalizeQuotes } from "./normalize-quotes.js";
 import { createLogger } from "./logger.js";
 
@@ -85,6 +90,7 @@ const merchantRepo = new NeonMerchantRepository();
 const eventRepo = new NeonEventRepository();
 const groupRepo = new NeonGroupRepository();
 const webhookRepo = new NeonWebhookRepository();
+const starRepo = new NeonStarRepository();
 
 // Core services
 const stateMachine = new PaymentStateMachine(paymentRepo, eventRepo);
@@ -1034,6 +1040,48 @@ server.tool(
   },
 );
 
+// Tool: discover_agents
+server.tool(
+  "discover_agents",
+  "Search and discover merchant agents in the Nexus marketplace. Returns agents ranked by stars, filterable by keyword and category.",
+  {
+    query: z
+      .string()
+      .optional()
+      .describe("Keyword to search agent names and descriptions"),
+    category: z
+      .string()
+      .optional()
+      .describe("Category prefix filter (e.g. 'travel', 'food')"),
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe("Max results to return (default 20, max 50)"),
+  },
+  async (input) => {
+    const result = await handleDiscoverAgents(merchantRepo, starRepo, input);
+    return { content: [...result.content], isError: result.isError };
+  },
+);
+
+// Tool: get_agent_skill
+server.tool(
+  "get_agent_skill",
+  "Fetch the full skill.md content for a specific merchant agent. Use this to understand an agent's capabilities, tools, and MCP connection details.",
+  {
+    merchant_did: z
+      .string()
+      .describe("Merchant DID (e.g. 'did:nexus:20250407:demo_flight')"),
+  },
+  async (input) => {
+    const result = await handleGetAgentSkill(merchantRepo, input);
+    return { content: [...result.content], isError: result.isError };
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Transport setup
 // ---------------------------------------------------------------------------
@@ -1152,7 +1200,7 @@ async function main(): Promise<void> {
         if (checkoutHandled) return;
 
         // Market routes
-        const marketDeps: MarketDeps = { merchantRepo, config };
+        const marketDeps: MarketDeps = { merchantRepo, starRepo, config };
         const marketHandled = await handleMarketRequest(
           marketDeps,
           req,

@@ -9,6 +9,7 @@
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { MerchantRepository } from "./db/interfaces/merchant-repo.js";
+import type { StarRepository } from "./db/interfaces/star-repo.js";
 import type { NexusCoreConfig } from "./config.js";
 import type { AgentHealthStatus, MerchantRecord } from "./types.js";
 import { createLogger } from "./logger.js";
@@ -21,6 +22,7 @@ const marketLog = createLogger("Market");
 
 export interface MarketDeps {
   readonly merchantRepo: MerchantRepository;
+  readonly starRepo: StarRepository;
   readonly config: NexusCoreConfig;
 }
 
@@ -34,7 +36,7 @@ function sendJson(res: ServerResponse, status: number, data: unknown): void {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   });
   res.end(body);
 }
@@ -158,7 +160,7 @@ async function fetchSkillMetadata(skillMdUrl: string): Promise<SkillMetadata> {
 // Merchant → marketplace API shape
 // ---------------------------------------------------------------------------
 
-function toMarketAgent(m: MerchantRecord) {
+function toMarketAgent(m: MerchantRecord, starCount = 0) {
   return {
     merchant_did: m.merchant_did,
     name: m.name,
@@ -173,6 +175,7 @@ function toMarketAgent(m: MerchantRecord) {
     currencies: m.currencies,
     chain_id: m.chain_id,
     is_verified: m.is_verified,
+    star_count: starCount,
   };
 }
 
@@ -191,9 +194,13 @@ async function handleListAgents(
     | undefined;
 
   const merchants = await deps.merchantRepo.listForMarket({ category, status });
+  const dids = merchants.map((m) => m.merchant_did);
+  const starCounts = await deps.starRepo.getStarCounts(dids);
 
   sendJson(res, 200, {
-    agents: merchants.map(toMarketAgent),
+    agents: merchants.map((m) =>
+      toMarketAgent(m, starCounts.get(m.merchant_did) ?? 0),
+    ),
     total: merchants.length,
   });
 }
@@ -212,7 +219,8 @@ async function handleGetAgent(
     sendJson(res, 404, { error: "Agent not found" });
     return;
   }
-  sendJson(res, 200, { agent: toMarketAgent(merchant) });
+  const starCount = await deps.starRepo.getStarCount(merchantDid);
+  sendJson(res, 200, { agent: toMarketAgent(merchant, starCount) });
 }
 
 // ---------------------------------------------------------------------------
@@ -294,7 +302,9 @@ async function handleRegister(
   const updated = await deps.merchantRepo.findByDid(merchant_did);
 
   marketLog.info("Merchant registered", { merchant_did, name });
-  sendJson(res, 201, { agent: updated ? toMarketAgent(updated) : toMarketAgent(merchant) });
+  sendJson(res, 201, {
+    agent: updated ? toMarketAgent(updated) : toMarketAgent(merchant),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -589,6 +599,93 @@ curl -X POST ${baseUrl}/api/market/register \\
 }
 
 // ---------------------------------------------------------------------------
+// Wallet address validation
+// ---------------------------------------------------------------------------
+
+const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
+
+// ---------------------------------------------------------------------------
+// API: POST /api/market/agents/:did/star
+// ---------------------------------------------------------------------------
+
+async function handleAddStar(
+  deps: MarketDeps,
+  merchantDid: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const raw = await readBody(req);
+  let body: Record<string, unknown>;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    sendJson(res, 400, { error: "Invalid JSON" });
+    return;
+  }
+
+  const walletAddress = body.wallet_address;
+  if (typeof walletAddress !== "string" || !WALLET_RE.test(walletAddress)) {
+    sendJson(res, 400, {
+      error: "Invalid wallet_address: must be 0x followed by 40 hex characters",
+    });
+    return;
+  }
+
+  const isNew = await deps.starRepo.addStar(merchantDid, walletAddress);
+  const starCount = await deps.starRepo.getStarCount(merchantDid);
+
+  sendJson(res, isNew ? 201 : 200, { starred: true, star_count: starCount });
+}
+
+// ---------------------------------------------------------------------------
+// API: DELETE /api/market/agents/:did/star
+// ---------------------------------------------------------------------------
+
+async function handleRemoveStar(
+  deps: MarketDeps,
+  merchantDid: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const raw = await readBody(req);
+  let body: Record<string, unknown>;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    sendJson(res, 400, { error: "Invalid JSON" });
+    return;
+  }
+
+  const walletAddress = body.wallet_address;
+  if (typeof walletAddress !== "string" || !WALLET_RE.test(walletAddress)) {
+    sendJson(res, 400, {
+      error: "Invalid wallet_address: must be 0x followed by 40 hex characters",
+    });
+    return;
+  }
+
+  await deps.starRepo.removeStar(merchantDid, walletAddress);
+  const starCount = await deps.starRepo.getStarCount(merchantDid);
+
+  sendJson(res, 200, { starred: false, star_count: starCount });
+}
+
+// ---------------------------------------------------------------------------
+// API: GET /api/market/agents/:did/stars
+// ---------------------------------------------------------------------------
+
+async function handleGetStars(
+  deps: MarketDeps,
+  merchantDid: string,
+  url: URL,
+  res: ServerResponse,
+): Promise<void> {
+  const walletAddress = url.searchParams.get("wallet_address") ?? undefined;
+  const info = await deps.starRepo.getStarInfo(merchantDid, walletAddress);
+  sendJson(res, 200, info);
+}
+
+// ---------------------------------------------------------------------------
 // Main router
 // ---------------------------------------------------------------------------
 
@@ -605,7 +702,7 @@ export async function handleMarketRequest(
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
     });
     res.end();
     return true;
@@ -625,16 +722,37 @@ export async function handleMarketRequest(
     return true;
   }
 
-  // GET /api/market/agents/:merchantDid — detail
-  const didMatch = path.match(/^\/api\/market\/agents\/(.+)$/);
-  if (didMatch && req.method === "GET") {
-    await handleGetAgent(deps, decodeURIComponent(didMatch[1]), res);
-    return true;
-  }
-
   // POST /api/market/register — register new merchant
   if (path === "/api/market/register" && req.method === "POST") {
     await handleRegister(deps, req, res);
+    return true;
+  }
+
+  // Star routes — MUST come before the catch-all :did route
+  const starMatch = path.match(/^\/api\/market\/agents\/(.+)\/star$/);
+  if (starMatch) {
+    const did = decodeURIComponent(starMatch[1]);
+    if (req.method === "POST") {
+      await handleAddStar(deps, did, req, res);
+      return true;
+    }
+    if (req.method === "DELETE") {
+      await handleRemoveStar(deps, did, req, res);
+      return true;
+    }
+  }
+
+  const starsMatch = path.match(/^\/api\/market\/agents\/(.+)\/stars$/);
+  if (starsMatch && req.method === "GET") {
+    const did = decodeURIComponent(starsMatch[1]);
+    await handleGetStars(deps, did, url, res);
+    return true;
+  }
+
+  // GET /api/market/agents/:merchantDid — detail (catch-all, no slashes in DID segment)
+  const didMatch = path.match(/^\/api\/market\/agents\/([^/]+)$/);
+  if (didMatch && req.method === "GET") {
+    await handleGetAgent(deps, decodeURIComponent(didMatch[1]), res);
     return true;
   }
 

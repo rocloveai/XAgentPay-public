@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useState, useMemo } from "react";
 
 const API_URL =
   import.meta.env.VITE_NEXUS_CORE_URL || "https://nexus-core-361y.onrender.com";
@@ -38,6 +38,25 @@ interface MarketAgent {
   readonly currencies: readonly string[];
   readonly chain_id: number | null;
   readonly is_verified: boolean;
+  readonly star_count: number;
+}
+
+const STARRED_STORAGE_KEY = "nexus_starred_agents";
+
+// Placeholder wallet — will be replaced when wallet connect is integrated
+const PLACEHOLDER_WALLET = "0x0000000000000000000000000000000000000001";
+
+function loadStarredSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(STARRED_STORAGE_KEY);
+    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function saveStarredSet(set: Set<string>): void {
+  localStorage.setItem(STARRED_STORAGE_KEY, JSON.stringify([...set]));
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -52,16 +71,78 @@ const MarketplacePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [starredAgents, setStarredAgents] =
+    useState<Set<string>>(loadStarredSet);
+  const [localStarCounts, setLocalStarCounts] = useState<Map<string, number>>(
+    new Map(),
+  );
 
   useEffect(() => {
     fetch(`${API_URL}/api/market/agents`)
       .then((res) => res.json())
       .then((data) => {
-        setAgents(data.agents ?? []);
+        const agentList: MarketAgent[] = data.agents ?? [];
+        setAgents(agentList);
+        const counts = new Map<string, number>();
+        for (const a of agentList) {
+          counts.set(a.merchant_did, a.star_count ?? 0);
+        }
+        setLocalStarCounts(counts);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, []);
+
+  const toggleStar = useCallback(
+    (merchantDid: string) => {
+      const isStarred = starredAgents.has(merchantDid);
+      const method = isStarred ? "DELETE" : "POST";
+
+      // Optimistic update
+      const nextStarred = new Set(starredAgents);
+      const nextCounts = new Map(localStarCounts);
+      const current = nextCounts.get(merchantDid) ?? 0;
+
+      if (isStarred) {
+        nextStarred.delete(merchantDid);
+        nextCounts.set(merchantDid, Math.max(0, current - 1));
+      } else {
+        nextStarred.add(merchantDid);
+        nextCounts.set(merchantDid, current + 1);
+      }
+
+      setStarredAgents(nextStarred);
+      setLocalStarCounts(nextCounts);
+      saveStarredSet(nextStarred);
+
+      // Fire async API call
+      fetch(
+        `${API_URL}/api/market/agents/${encodeURIComponent(merchantDid)}/star`,
+        {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ wallet_address: PLACEHOLDER_WALLET }),
+        },
+      )
+        .then((res) => res.json())
+        .then((data: { star_count?: number }) => {
+          if (typeof data.star_count === "number") {
+            setLocalStarCounts((prev) => {
+              const updated = new Map(prev);
+              updated.set(merchantDid, data.star_count as number);
+              return updated;
+            });
+          }
+        })
+        .catch(() => {
+          // Revert on failure
+          setStarredAgents(starredAgents);
+          setLocalStarCounts(localStarCounts);
+          saveStarredSet(starredAgents);
+        });
+    },
+    [starredAgents, localStarCounts],
+  );
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase();
@@ -155,6 +236,11 @@ const MarketplacePage: React.FC = () => {
                 agent.last_health_latency_ms != null
                   ? `${agent.last_health_latency_ms}ms`
                   : "\u2014";
+              const isStarred = starredAgents.has(agent.merchant_did);
+              const starCount =
+                localStarCounts.get(agent.merchant_did) ??
+                agent.star_count ??
+                0;
 
               return (
                 <div
@@ -224,8 +310,21 @@ const MarketplacePage: React.FC = () => {
                     <span>{chainName}</span>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-2">
+                  {/* Star + Actions */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleStar(agent.merchant_did)}
+                      className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-md border transition-colors cursor-pointer ${
+                        isStarred
+                          ? "bg-yellow-500/15 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/25"
+                          : "bg-white/5 text-gray-400 border-white/10 hover:border-white/20"
+                      }`}
+                    >
+                      <span className="material-icons-round text-sm">
+                        {isStarred ? "star" : "star_border"}
+                      </span>
+                      {starCount}
+                    </button>
                     {agent.skill_md_url && (
                       <a
                         href={agent.skill_md_url}
