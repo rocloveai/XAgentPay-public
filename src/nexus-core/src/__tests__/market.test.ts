@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { handleMarketRequest, type MarketDeps } from "../market.js";
-import { MockMarketRepository } from "./mocks/mock-market-repo.js";
+import { MockMerchantRepository } from "./mocks/mock-merchant-repo.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { NexusCoreConfig } from "../config.js";
-import type { MarketAgentRecord } from "../types.js";
+import type { MerchantRecord } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers — minimal mock HTTP objects
@@ -80,17 +80,20 @@ function makeConfig(overrides?: Partial<NexusCoreConfig>): NexusCoreConfig {
   };
 }
 
-function makeAgent(overrides?: Partial<MarketAgentRecord>): MarketAgentRecord {
+function makeMerchant(overrides?: Partial<MerchantRecord>): MerchantRecord {
   const now = new Date().toISOString();
   return {
-    agent_id: "AGT-test1234",
+    merchant_did: "did:nexus:20250407:test",
     name: "Test Agent",
     description: "A test agent",
+    signer_address: "0x1234567890abcdef1234567890abcdef12345678",
+    payment_address: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+    webhook_url: null,
+    webhook_secret: null,
     category: "travel.hotels",
     skill_md_url: "https://example.com/skill.md",
     health_url: "https://example.com/health",
     mcp_endpoint: "https://example.com/sse",
-    merchant_did: "did:nexus:20250407:test",
     skill_name: "Test",
     skill_version: "0.1.0",
     skill_protocol: "MCP",
@@ -114,12 +117,12 @@ function makeAgent(overrides?: Partial<MarketAgentRecord>): MarketAgentRecord {
 // ---------------------------------------------------------------------------
 
 describe("Market", () => {
-  let marketRepo: MockMarketRepository;
+  let merchantRepo: MockMerchantRepository;
   let deps: MarketDeps;
 
   beforeEach(() => {
-    marketRepo = new MockMarketRepository();
-    deps = { marketRepo, config: makeConfig() };
+    merchantRepo = new MockMerchantRepository();
+    deps = { merchantRepo, config: makeConfig() };
   });
 
   // -----------------------------------------------------------------------
@@ -142,7 +145,7 @@ describe("Market", () => {
   // -----------------------------------------------------------------------
 
   it("GET /api/market/agents returns agents array", async () => {
-    marketRepo.seed(makeAgent());
+    merchantRepo.seed(makeMerchant());
     const { req, url } = makeReq("GET", "/api/market/agents");
     const res = makeRes();
     const handled = await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
@@ -152,14 +155,14 @@ describe("Market", () => {
     const data = JSON.parse(res.body);
     expect(data.agents).toHaveLength(1);
     expect(data.total).toBe(1);
-    expect(data.agents[0].agent_id).toBe("AGT-test1234");
+    expect(data.agents[0].merchant_did).toBe("did:nexus:20250407:test");
   });
 
   it("GET /api/market/agents with category filter", async () => {
-    marketRepo.seed([
-      makeAgent({ agent_id: "AGT-hotel001", category: "travel.hotels" }),
-      makeAgent({ agent_id: "AGT-flight01", category: "travel.flights" }),
-      makeAgent({ agent_id: "AGT-food0001", category: "food.delivery" }),
+    merchantRepo.seed([
+      makeMerchant({ merchant_did: "did:nexus:hotel", category: "travel.hotels" }),
+      makeMerchant({ merchant_did: "did:nexus:flight", category: "travel.flights" }),
+      makeMerchant({ merchant_did: "did:nexus:food", category: "food.delivery" }),
     ]);
     const { req, url } = makeReq("GET", "/api/market/agents?category=travel");
     const res = makeRes();
@@ -180,24 +183,38 @@ describe("Market", () => {
     expect(data.total).toBe(0);
   });
 
+  it("GET /api/market/agents excludes merchants without skill_md_url", async () => {
+    merchantRepo.seed([
+      makeMerchant({ merchant_did: "did:nexus:with_skill", skill_md_url: "https://example.com/skill.md" }),
+      makeMerchant({ merchant_did: "did:nexus:no_skill", skill_md_url: null }),
+    ]);
+    const { req, url } = makeReq("GET", "/api/market/agents");
+    const res = makeRes();
+    await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
+
+    const data = JSON.parse(res.body);
+    expect(data.agents).toHaveLength(1);
+    expect(data.agents[0].merchant_did).toBe("did:nexus:with_skill");
+  });
+
   // -----------------------------------------------------------------------
-  // GET /api/market/agents/:agentId — detail
+  // GET /api/market/agents/:merchantDid — detail
   // -----------------------------------------------------------------------
 
-  it("GET /api/market/agents/:agentId returns agent detail", async () => {
-    marketRepo.seed(makeAgent({ agent_id: "AGT-abc12345" }));
-    const { req, url } = makeReq("GET", "/api/market/agents/AGT-abc12345");
+  it("GET /api/market/agents/:merchantDid returns agent detail", async () => {
+    merchantRepo.seed(makeMerchant({ merchant_did: "did:nexus:20250407:abc" }));
+    const { req, url } = makeReq("GET", "/api/market/agents/did:nexus:20250407:abc");
     const res = makeRes();
     const handled = await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
 
     expect(handled).toBe(true);
     expect(res.statusCode).toBe(200);
     const data = JSON.parse(res.body);
-    expect(data.agent.agent_id).toBe("AGT-abc12345");
+    expect(data.agent.merchant_did).toBe("did:nexus:20250407:abc");
   });
 
-  it("GET /api/market/agents/:agentId returns 404 for nonexistent", async () => {
-    const { req, url } = makeReq("GET", "/api/market/agents/AGT-noexist0");
+  it("GET /api/market/agents/:merchantDid returns 404 for nonexistent", async () => {
+    const { req, url } = makeReq("GET", "/api/market/agents/did:nexus:noexist");
     const res = makeRes();
     const handled = await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);
 
@@ -208,14 +225,17 @@ describe("Market", () => {
   });
 
   // -----------------------------------------------------------------------
-  // POST /api/market/register
+  // POST /api/market/register — unified registration
   // -----------------------------------------------------------------------
 
-  it("POST /api/market/register creates agent with valid body", async () => {
+  it("POST /api/market/register creates merchant with valid body", async () => {
     const body = JSON.stringify({
+      merchant_did: "did:nexus:20250407:new",
       name: "My Agent",
       description: "Test description",
       category: "travel.hotels",
+      signer_address: "0x1111111111111111111111111111111111111111",
+      payment_address: "0x2222222222222222222222222222222222222222",
       skill_md_url: "https://example.com/skill.md",
       health_url: "https://example.com/health",
     });
@@ -229,7 +249,7 @@ describe("Market", () => {
     expect(res.statusCode).toBe(201);
     const data = JSON.parse(res.body);
     expect(data.agent.name).toBe("My Agent");
-    expect(data.agent.agent_id).toMatch(/^AGT-[a-z0-9]{8}$/);
+    expect(data.agent.merchant_did).toBe("did:nexus:20250407:new");
   });
 
   it("POST /api/market/register returns 400 on missing fields", async () => {
@@ -247,9 +267,12 @@ describe("Market", () => {
 
   it("POST /api/market/register returns 401 without auth", async () => {
     const body = JSON.stringify({
+      merchant_did: "did:nexus:20250407:new",
       name: "My Agent",
       description: "Test",
       category: "general",
+      signer_address: "0x1111111111111111111111111111111111111111",
+      payment_address: "0x2222222222222222222222222222222222222222",
       skill_md_url: "https://example.com/skill.md",
       health_url: "https://example.com/health",
     });

@@ -232,7 +232,10 @@ export interface PaymentEvent {
   readonly created_at: string;
 }
 
-/** Merchant identity from `merchant_registry` */
+/** Health status for marketplace agents */
+export type AgentHealthStatus = "ONLINE" | "OFFLINE" | "DEGRADED" | "UNKNOWN";
+
+/** Merchant identity from `merchant_registry` (unified with marketplace) */
 export interface MerchantRecord {
   readonly merchant_did: string;
   readonly name: string;
@@ -240,6 +243,23 @@ export interface MerchantRecord {
   readonly payment_address: string;
   readonly webhook_url: string | null;
   readonly webhook_secret: string | null;
+  // Marketplace fields
+  readonly description: string;
+  readonly category: string;
+  readonly skill_md_url: string | null;
+  readonly health_url: string | null;
+  readonly mcp_endpoint: string | null;
+  readonly skill_name: string | null;
+  readonly skill_version: string | null;
+  readonly skill_protocol: string | null;
+  readonly skill_tools: readonly { name: string; role: string }[];
+  readonly currencies: readonly string[];
+  readonly chain_id: number | null;
+  readonly health_status: AgentHealthStatus;
+  readonly last_health_check: string | null;
+  readonly last_health_latency_ms: number | null;
+  readonly consecutive_failures: number;
+  readonly is_verified: boolean;
   readonly is_active: boolean;
   readonly created_at: string;
   readonly updated_at: string;
@@ -412,45 +432,20 @@ export interface CreateWebhookLogParams {
 }
 
 // ---------------------------------------------------------------------------
-// Agent Marketplace
+// Marketplace
 // ---------------------------------------------------------------------------
 
-/** Health status for marketplace agents */
-export type AgentHealthStatus = "ONLINE" | "OFFLINE" | "DEGRADED" | "UNKNOWN";
-
-/** Marketplace agent record */
-export interface MarketAgentRecord {
-  readonly agent_id: string;
+/** Parameters for registering a new merchant (unified: payment + marketplace) */
+export interface RegisterMerchantParams {
+  readonly merchant_did: string;
   readonly name: string;
   readonly description: string;
   readonly category: string;
+  readonly signer_address: string;
+  readonly payment_address: string;
   readonly skill_md_url: string;
   readonly health_url: string;
-  readonly mcp_endpoint: string | null;
-  readonly merchant_did: string | null;
-  readonly skill_name: string | null;
-  readonly skill_version: string | null;
-  readonly skill_protocol: string | null;
-  readonly skill_tools: readonly { name: string; role: string }[];
-  readonly currencies: readonly string[];
-  readonly chain_id: number | null;
-  readonly health_status: AgentHealthStatus;
-  readonly last_health_check: string | null;
-  readonly last_health_latency_ms: number | null;
-  readonly consecutive_failures: number;
-  readonly is_verified: boolean;
-  readonly is_active: boolean;
-  readonly created_at: string;
-  readonly updated_at: string;
-}
-
-/** Parameters for registering a new marketplace agent */
-export interface RegisterAgentParams {
-  readonly name: string;
-  readonly description: string;
-  readonly category: string;
-  readonly skill_md_url: string;
-  readonly health_url: string;
+  readonly webhook_url?: string;
+  readonly webhook_secret?: string;
   readonly mcp_endpoint?: string;
-  readonly merchant_did?: string;
 }

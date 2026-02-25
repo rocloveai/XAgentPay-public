@@ -2,12 +2,15 @@
  * NexusPay Core — Agent Marketplace.
  *
  * Serves the marketplace HTML page and JSON API endpoints for
- * browsing, registering, and discovering agent skills.
+ * browsing, registering, and discovering merchant agent skills.
+ *
+ * Registration is unified: one call registers both payment identity
+ * and marketplace presence.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { MarketRepository } from "./db/interfaces/market-repo.js";
+import type { MerchantRepository } from "./db/interfaces/merchant-repo.js";
 import type { NexusCoreConfig } from "./config.js";
-import type { AgentHealthStatus, MarketAgentRecord } from "./types.js";
+import type { AgentHealthStatus, MerchantRecord } from "./types.js";
 import { createLogger } from "./logger.js";
 
 const marketLog = createLogger("Market");
@@ -17,7 +20,7 @@ const marketLog = createLogger("Market");
 // ---------------------------------------------------------------------------
 
 export interface MarketDeps {
-  readonly marketRepo: MarketRepository;
+  readonly merchantRepo: MerchantRepository;
   readonly config: NexusCoreConfig;
 }
 
@@ -48,15 +51,6 @@ function readBody(req: IncomingMessage): Promise<string> {
     req.on("end", () => resolve(Buffer.concat(chunks).toString()));
     req.on("error", reject);
   });
-}
-
-function generateAgentId(): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  let id = "";
-  for (let i = 0; i < 8; i++) {
-    id += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return `AGT-${id}`;
 }
 
 function isAuthorized(deps: MarketDeps, req: IncomingMessage): boolean {
@@ -161,6 +155,28 @@ async function fetchSkillMetadata(skillMdUrl: string): Promise<SkillMetadata> {
 }
 
 // ---------------------------------------------------------------------------
+// Merchant → marketplace API shape
+// ---------------------------------------------------------------------------
+
+function toMarketAgent(m: MerchantRecord) {
+  return {
+    merchant_did: m.merchant_did,
+    name: m.name,
+    description: m.description,
+    category: m.category,
+    skill_md_url: m.skill_md_url,
+    health_status: m.health_status,
+    last_health_latency_ms: m.last_health_latency_ms,
+    skill_name: m.skill_name,
+    skill_version: m.skill_version,
+    skill_tools: m.skill_tools,
+    currencies: m.currencies,
+    chain_id: m.chain_id,
+    is_verified: m.is_verified,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // API: GET /api/market/agents
 // ---------------------------------------------------------------------------
 
@@ -174,48 +190,33 @@ async function handleListAgents(
     | AgentHealthStatus
     | undefined;
 
-  const agents = await deps.marketRepo.listAll({ category, status });
+  const merchants = await deps.merchantRepo.listForMarket({ category, status });
 
   sendJson(res, 200, {
-    agents: agents.map((a) => ({
-      agent_id: a.agent_id,
-      name: a.name,
-      description: a.description,
-      category: a.category,
-      skill_md_url: a.skill_md_url,
-      health_status: a.health_status,
-      last_health_latency_ms: a.last_health_latency_ms,
-      skill_name: a.skill_name,
-      skill_version: a.skill_version,
-      skill_tools: a.skill_tools,
-      currencies: a.currencies,
-      chain_id: a.chain_id,
-      mcp_endpoint: a.mcp_endpoint,
-      is_verified: a.is_verified,
-    })),
-    total: agents.length,
+    agents: merchants.map(toMarketAgent),
+    total: merchants.length,
   });
 }
 
 // ---------------------------------------------------------------------------
-// API: GET /api/market/agents/:agentId
+// API: GET /api/market/agents/:merchantDid
 // ---------------------------------------------------------------------------
 
 async function handleGetAgent(
   deps: MarketDeps,
-  agentId: string,
+  merchantDid: string,
   res: ServerResponse,
 ): Promise<void> {
-  const agent = await deps.marketRepo.findById(agentId);
-  if (!agent) {
+  const merchant = await deps.merchantRepo.findByDid(merchantDid);
+  if (!merchant || !merchant.skill_md_url) {
     sendJson(res, 404, { error: "Agent not found" });
     return;
   }
-  sendJson(res, 200, { agent });
+  sendJson(res, 200, { agent: toMarketAgent(merchant) });
 }
 
 // ---------------------------------------------------------------------------
-// API: POST /api/market/register
+// API: POST /api/market/register — unified registration
 // ---------------------------------------------------------------------------
 
 async function handleRegister(
@@ -238,48 +239,62 @@ async function handleRegister(
   }
 
   const {
+    merchant_did,
     name,
     description,
     category,
+    signer_address,
+    payment_address,
     skill_md_url,
     health_url,
-    merchant_did,
+    webhook_url,
+    webhook_secret,
   } = body as Record<string, string>;
 
-  if (!name || !description || !category || !skill_md_url || !health_url) {
+  if (
+    !merchant_did ||
+    !name ||
+    !description ||
+    !category ||
+    !signer_address ||
+    !payment_address ||
+    !skill_md_url ||
+    !health_url
+  ) {
     sendJson(res, 400, {
       error:
-        "Missing required fields: name, description, category, skill_md_url, health_url",
+        "Missing required fields: merchant_did, name, description, category, signer_address, payment_address, skill_md_url, health_url",
     });
     return;
   }
 
-  const agentId = generateAgentId();
-
   // Attempt to parse skill.md (non-blocking — registration succeeds regardless)
   const metadata = await fetchSkillMetadata(skill_md_url);
 
-  const agent = await deps.marketRepo.insert({
-    agent_id: agentId,
+  const merchant = await deps.merchantRepo.register({
+    merchant_did,
     name,
     description,
     category,
+    signer_address,
+    payment_address,
     skill_md_url,
     health_url,
+    webhook_url,
+    webhook_secret,
     mcp_endpoint: metadata.mcp_endpoint ?? undefined,
-    merchant_did: merchant_did ?? undefined,
   });
 
   // Update skill metadata if we got any
   if (metadata.skill_name || metadata.skill_tools.length > 0) {
-    await deps.marketRepo.updateSkillMetadata(agentId, metadata);
+    await deps.merchantRepo.updateSkillMetadata(merchant_did, metadata);
   }
 
   // Re-fetch to get the full record with metadata
-  const updated = await deps.marketRepo.findById(agentId);
+  const updated = await deps.merchantRepo.findByDid(merchant_did);
 
-  marketLog.info("Agent registered", { agent_id: agentId, name });
-  sendJson(res, 201, { agent: updated ?? agent });
+  marketLog.info("Merchant registered", { merchant_did, name });
+  sendJson(res, 201, { agent: updated ? toMarketAgent(updated) : toMarketAgent(merchant) });
 }
 
 // ---------------------------------------------------------------------------
@@ -324,14 +339,11 @@ function renderMarketPage(baseUrl: string): string {
     .search-input:focus { border-color: #6366f1; outline: none; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15); }
     .filter-btn { cursor: pointer; transition: all 0.15s; }
     .filter-btn.active { background: rgba(99, 102, 241, 0.2); color: #818cf8; border-color: rgba(99, 102, 241, 0.4); }
-    .copy-btn:active { transform: scale(0.95); }
     .nav-link { color: #94a3b8; font-size: 14px; transition: color 0.15s; }
     .nav-link:hover { color: #fff; }
     .nav-link.active { color: #818cf8; }
     pre.code-block { background: rgba(15, 17, 23, 0.9); border: 1px solid rgba(255,255,255,0.06);
       border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12px; line-height: 1.6; color: #a5b4fc; }
-    .tab-btn { cursor: pointer; padding: 6px 16px; border-radius: 6px; font-size: 13px; transition: all 0.15s; }
-    .tab-btn.active { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
   </style>
 </head>
 <body class="text-gray-200 min-h-screen">
@@ -394,8 +406,8 @@ function renderMarketPage(baseUrl: string): string {
   <!-- How to Register -->
   <div id="register" class="border-t border-white/5">
     <div class="max-w-7xl mx-auto px-6 py-16">
-      <h2 class="text-2xl font-bold text-white mb-2">List Your Agent</h2>
-      <p class="text-gray-400 text-sm mb-8 max-w-xl">Register your MCP agent on the Nexus Marketplace so users and other agents can discover and connect to your service.</p>
+      <h2 class="text-2xl font-bold text-white mb-2">Register Your Agent</h2>
+      <p class="text-gray-400 text-sm mb-8 max-w-xl">One registration gives your agent both <strong class="text-gray-200">payment capability</strong> (receive USDC) and <strong class="text-gray-200">marketplace visibility</strong> (discoverable by other agents via skill.md).</p>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <!-- Steps -->
@@ -408,7 +420,7 @@ function renderMarketPage(baseUrl: string): string {
             </div>
             <div>
               <p class="text-sm font-medium text-white">skill.md</p>
-              <p class="text-xs text-gray-400 mt-0.5">A public URL serving your agent's skill definition in Markdown with YAML frontmatter (name, version, protocol, tools).</p>
+              <p class="text-xs text-gray-400 mt-0.5">A public URL serving your agent's skill definition (NMSS format). This is how other agents discover your capabilities.</p>
             </div>
           </div>
 
@@ -418,7 +430,7 @@ function renderMarketPage(baseUrl: string): string {
             </div>
             <div>
               <p class="text-sm font-medium text-white">Health endpoint</p>
-              <p class="text-xs text-gray-400 mt-0.5">A GET endpoint that returns HTTP 200 when your agent is operational. Nexus checks every 5 minutes.</p>
+              <p class="text-xs text-gray-400 mt-0.5">GET endpoint returning HTTP 200. Nexus checks every 5 minutes to display live status.</p>
             </div>
           </div>
 
@@ -427,8 +439,8 @@ function renderMarketPage(baseUrl: string): string {
               <span class="text-xs font-bold text-brand">3</span>
             </div>
             <div>
-              <p class="text-sm font-medium text-white">MCP/SSE endpoint</p>
-              <p class="text-xs text-gray-400 mt-0.5">Your agent's MCP server endpoint (SSE or Streamable HTTP). Included in skill.md so users can add it to their AI tools.</p>
+              <p class="text-sm font-medium text-white">Payment identity</p>
+              <p class="text-xs text-gray-400 mt-0.5">An EVM signer address (for quote signing) and payment address (for receiving USDC). These enable Nexus payment integration.</p>
             </div>
           </div>
 
@@ -438,7 +450,7 @@ function renderMarketPage(baseUrl: string): string {
             </div>
             <div>
               <p class="text-sm font-medium text-white">Call the register API</p>
-              <p class="text-xs text-gray-400 mt-0.5">POST to <code class="text-brand/80 bg-brand/10 px-1 rounded">/api/market/register</code> with your agent details. Requires a Bearer token for authorization.</p>
+              <p class="text-xs text-gray-400 mt-0.5">POST to <code class="text-brand/80 bg-brand/10 px-1 rounded">/api/market/register</code>. One call registers payment + marketplace.</p>
             </div>
           </div>
         </div>
@@ -453,24 +465,29 @@ curl -X POST ${baseUrl}/api/market/register \\
   -H "Authorization: Bearer $PORTAL_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{
+    "merchant_did": "did:nexus:20250407:my_agent",
     "name": "My Hotel Agent",
-    "description": "AI hotel booking with Nexus Payment",
+    "description": "AI hotel booking with payment",
     "category": "travel.hotels",
+    "signer_address": "0xYourSignerAddress",
+    "payment_address": "0xYourPaymentAddress",
     "skill_md_url": "https://my-agent.example.com/skill.md",
-    "health_url": "https://my-agent.example.com/health",
-    "merchant_did": "did:nexus:20250407:my_hotel"
+    "health_url": "https://my-agent.example.com/health"
   }'</pre>
 
           <div class="mt-4 glass-card rounded-lg p-4">
             <h4 class="text-xs font-semibold text-gray-300 mb-2">Required fields</h4>
             <table class="w-full text-xs">
               <tbody class="text-gray-400">
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">merchant_did</td><td class="py-1.5 pl-3">Unique DID identifier</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">name</td><td class="py-1.5 pl-3">Agent display name</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">description</td><td class="py-1.5 pl-3">What your agent does</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">category</td><td class="py-1.5 pl-3">e.g. travel.hotels, food.delivery</td></tr>
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">signer_address</td><td class="py-1.5 pl-3">EVM address for quote signing</td></tr>
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">payment_address</td><td class="py-1.5 pl-3">EVM address for receiving USDC</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">skill_md_url</td><td class="py-1.5 pl-3">Public URL to your skill.md</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">health_url</td><td class="py-1.5 pl-3">Health check endpoint (GET, 200=OK)</td></tr>
-                <tr><td class="py-1.5 font-mono text-gray-500">merchant_did</td><td class="py-1.5 pl-3 text-gray-500">Optional: linked merchant DID</td></tr>
+                <tr><td class="py-1.5 font-mono text-gray-500">webhook_url</td><td class="py-1.5 pl-3 text-gray-500">Optional: webhook for payment events</td></tr>
               </tbody>
             </table>
           </div>
@@ -524,10 +541,9 @@ curl -X POST ${baseUrl}/api/market/register \\
       const currencies = (a.currencies || []).map(c =>
         '<span class="chip category-chip">' + esc(c) + '</span>'
       ).join(' ');
-      const latency = a.last_health_latency_ms != null ? a.last_health_latency_ms + 'ms' : '—';
+      const latency = a.last_health_latency_ms != null ? a.last_health_latency_ms + 'ms' : '\u2014';
       const version = a.skill_version ? 'v' + a.skill_version : '';
       const verified = a.is_verified ? '<span class="material-icons-round text-brand text-sm ml-1" title="Verified">verified</span>' : '';
-      const mcpJson = a.mcp_endpoint ? JSON.stringify({ mcpServers: { [a.name.toLowerCase().replace(/\\s+/g, '-')]: { url: a.mcp_endpoint } } }, null, 2) : '';
 
       return '<div class="glass-card rounded-xl p-5 hover:border-white/12 transition-colors">' +
         '<div class="flex items-center justify-between mb-2">' +
@@ -545,22 +561,13 @@ curl -X POST ${baseUrl}/api/market/register \\
           '<span>' + esc(chainName) + '</span>' +
         '</div>' +
         '<div class="flex gap-2">' +
-          (mcpJson ? '<button class="copy-btn text-xs px-3 py-1.5 rounded-md bg-brand/10 text-brand-light border border-brand/20 hover:bg-brand/20 transition-colors" onclick="copyMcp(this, ' + "'" + esc(mcpJson).replace(/'/g, "\\\\'") + "'" + ')">Copy MCP Config</button>' : '') +
-          '<a href="' + esc(a.skill_md_url || '#') + '" target="_blank" class="text-xs px-3 py-1.5 rounded-md bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition-colors">View Skill</a>' +
+          '<a href="' + esc(a.skill_md_url || '#') + '" target="_blank" class="text-xs px-3 py-1.5 rounded-md bg-brand/10 text-brand-light border border-brand/20 hover:bg-brand/20 transition-colors">View Skill</a>' +
         '</div>' +
       '</div>';
     }).join('');
   }
 
   function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-
-  function copyMcp(btn, json) {
-    navigator.clipboard.writeText(json).then(() => {
-      const orig = btn.textContent;
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = orig, 1500);
-    });
-  }
 
   // Category filter clicks
   document.getElementById('category-filters').addEventListener('click', (e) => {
@@ -618,14 +625,14 @@ export async function handleMarketRequest(
     return true;
   }
 
-  // GET /api/market/agents/:agentId — detail
-  const agentMatch = path.match(/^\/api\/market\/agents\/(AGT-[a-z0-9]+)$/);
-  if (agentMatch && req.method === "GET") {
-    await handleGetAgent(deps, agentMatch[1], res);
+  // GET /api/market/agents/:merchantDid — detail
+  const didMatch = path.match(/^\/api\/market\/agents\/(.+)$/);
+  if (didMatch && req.method === "GET") {
+    await handleGetAgent(deps, decodeURIComponent(didMatch[1]), res);
     return true;
   }
 
-  // POST /api/market/register — register new agent
+  // POST /api/market/register — register new merchant
   if (path === "/api/market/register" && req.method === "POST") {
     await handleRegister(deps, req, res);
     return true;

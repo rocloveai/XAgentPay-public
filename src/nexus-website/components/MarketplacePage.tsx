@@ -25,11 +25,11 @@ interface SkillTool {
 }
 
 interface MarketAgent {
-  readonly agent_id: string;
+  readonly merchant_did: string;
   readonly name: string;
   readonly description: string;
   readonly category: string;
-  readonly skill_md_url: string;
+  readonly skill_md_url: string | null;
   readonly health_status: "ONLINE" | "OFFLINE" | "DEGRADED" | "UNKNOWN";
   readonly last_health_latency_ms: number | null;
   readonly skill_name: string | null;
@@ -37,7 +37,6 @@ interface MarketAgent {
   readonly skill_tools: readonly SkillTool[];
   readonly currencies: readonly string[];
   readonly chain_id: number | null;
-  readonly mcp_endpoint: string | null;
   readonly is_verified: boolean;
 }
 
@@ -53,7 +52,6 @@ const MarketplacePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${API_URL}/api/market/agents`)
@@ -77,24 +75,6 @@ const MarketplacePage: React.FC = () => {
       return matchSearch && matchCat;
     });
   }, [agents, searchQuery, selectedCategory]);
-
-  const handleCopyMcp = (agent: MarketAgent) => {
-    if (!agent.mcp_endpoint) return;
-    const config = JSON.stringify(
-      {
-        mcpServers: {
-          [agent.name.toLowerCase().replace(/\s+/g, "-")]: {
-            url: agent.mcp_endpoint,
-          },
-        },
-      },
-      null,
-      2,
-    );
-    navigator.clipboard.writeText(config);
-    setCopiedId(agent.agent_id);
-    setTimeout(() => setCopiedId(null), 1500);
-  };
 
   return (
     <div className="pt-24 pb-16 sm:pt-32 sm:pb-20">
@@ -178,7 +158,7 @@ const MarketplacePage: React.FC = () => {
 
               return (
                 <div
-                  key={agent.agent_id}
+                  key={agent.merchant_did}
                   className="glass-panel rounded-xl p-5 hover:border-white/10 transition-colors"
                 >
                   {/* Header row */}
@@ -246,22 +226,12 @@ const MarketplacePage: React.FC = () => {
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    {agent.mcp_endpoint && (
-                      <button
-                        onClick={() => handleCopyMcp(agent)}
-                        className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors cursor-pointer"
-                      >
-                        {copiedId === agent.agent_id
-                          ? "Copied!"
-                          : "Copy MCP Config"}
-                      </button>
-                    )}
                     {agent.skill_md_url && (
                       <a
                         href={agent.skill_md_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs px-3 py-1.5 rounded-md bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition-colors"
+                        className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
                       >
                         View Skill
                       </a>
@@ -280,8 +250,8 @@ const MarketplacePage: React.FC = () => {
               List Your <span className="text-primary">Agent</span>
             </h2>
             <p className="text-gray-400 text-sm sm:text-base max-w-xl mx-auto">
-              Register your MCP-compatible merchant agent on the Nexus
-              Marketplace and start accepting USDC payments from AI agents.
+              One registration gives your agent both payment capability and
+              marketplace visibility. Start accepting USDC from AI agents.
             </p>
           </div>
 
@@ -289,9 +259,13 @@ const MarketplacePage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             <div className="glass-panel rounded-xl p-6">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                <span className="material-icons-round text-primary text-xl">description</span>
+                <span className="material-icons-round text-primary text-xl">
+                  description
+                </span>
               </div>
-              <h3 className="text-white font-semibold mb-2">1. Create skill.md</h3>
+              <h3 className="text-white font-semibold mb-2">
+                1. Create skill.md
+              </h3>
               <p className="text-xs text-gray-400 leading-relaxed">
                 Define your agent's capabilities using the NMSS skill.md spec.
                 Include name, version, tools, and MCP endpoint info.
@@ -299,23 +273,34 @@ const MarketplacePage: React.FC = () => {
             </div>
             <div className="glass-panel rounded-xl p-6">
               <div className="w-10 h-10 rounded-lg bg-accent-cyan/10 flex items-center justify-center mb-4">
-                <span className="material-icons-round text-accent-cyan text-xl">monitor_heart</span>
+                <span className="material-icons-round text-accent-cyan text-xl">
+                  monitor_heart
+                </span>
               </div>
-              <h3 className="text-white font-semibold mb-2">2. Add health endpoint</h3>
+              <h3 className="text-white font-semibold mb-2">
+                2. Prepare payment identity
+              </h3>
               <p className="text-xs text-gray-400 leading-relaxed">
-                Expose a <code className="text-accent-cyan/80 bg-accent-cyan/5 px-1 rounded">/health</code> endpoint
-                returning HTTP 200. Nexus checks it every 5 minutes to show
-                live status.
+                Generate an EVM signer address (for quote signing) and payment
+                address (for receiving USDC). Add a{" "}
+                <code className="text-accent-cyan/80 bg-accent-cyan/5 px-1 rounded">
+                  /health
+                </code>{" "}
+                endpoint returning HTTP 200.
               </p>
             </div>
             <div className="glass-panel rounded-xl p-6">
               <div className="w-10 h-10 rounded-lg bg-accent-purple/10 flex items-center justify-center mb-4">
-                <span className="material-icons-round text-accent-purple text-xl">rocket_launch</span>
+                <span className="material-icons-round text-accent-purple text-xl">
+                  rocket_launch
+                </span>
               </div>
-              <h3 className="text-white font-semibold mb-2">3. Register via API</h3>
+              <h3 className="text-white font-semibold mb-2">
+                3. Register via API
+              </h3>
               <p className="text-xs text-gray-400 leading-relaxed">
-                Call the Nexus Core registration endpoint with your agent
-                details. Your agent appears in the marketplace immediately.
+                One API call registers both payment capability and marketplace
+                presence. Your agent is discoverable immediately.
               </p>
             </div>
           </div>
@@ -323,66 +308,99 @@ const MarketplacePage: React.FC = () => {
           {/* API example */}
           <div className="glass-panel rounded-xl p-6 max-w-3xl mx-auto">
             <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-semibold text-white">Registration API</h4>
+              <h4 className="text-sm font-semibold text-white">
+                Registration API
+              </h4>
               <span className="text-[11px] font-mono text-gray-500 bg-white/5 px-2 py-0.5 rounded">
                 POST /api/market/register
               </span>
             </div>
             <pre className="text-xs text-gray-300 bg-background-dark/60 rounded-lg p-4 overflow-x-auto font-mono leading-relaxed">
-{`curl -X POST ${API_URL}/api/market/register \\
+              {`curl -X POST ${API_URL}/api/market/register \\
   -H "Authorization: Bearer <PORTAL_TOKEN>" \\
   -H "Content-Type: application/json" \\
   -d '{
+    "merchant_did": "did:nexus:20250407:my_agent",
     "name": "My Agent",
     "description": "What your agent does",
     "category": "travel.hotels",
+    "signer_address": "0xYourSignerAddress",
+    "payment_address": "0xYourPaymentAddress",
     "skill_md_url": "https://my-agent.example.com/skill.md",
-    "health_url": "https://my-agent.example.com/health",
-    "merchant_did": "did:nexus:20250407:my_agent"
+    "health_url": "https://my-agent.example.com/health"
   }'`}
             </pre>
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="text-xs">
-                <h5 className="text-gray-400 font-medium mb-1.5">Required Fields</h5>
+                <h5 className="text-gray-400 font-medium mb-1.5">
+                  Required Fields
+                </h5>
                 <ul className="space-y-1 text-gray-500">
                   <li className="flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">name</code> &mdash; Agent display name
+                    <code className="text-primary/70">merchant_did</code>{" "}
+                    &mdash; Unique DID
                   </li>
                   <li className="flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">description</code> &mdash; What it does
+                    <code className="text-primary/70">name</code> &mdash; Agent
+                    display name
                   </li>
                   <li className="flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">category</code> &mdash; e.g. travel.hotels
+                    <code className="text-primary/70">description</code> &mdash;
+                    What it does
                   </li>
                   <li className="flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">skill_md_url</code> &mdash; NMSS skill.md URL
+                    <code className="text-primary/70">category</code> &mdash;
+                    e.g. travel.hotels
                   </li>
                   <li className="flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-primary/60"></span>
-                    <code className="text-primary/70">health_url</code> &mdash; Health check endpoint
+                    <code className="text-primary/70">signer_address</code>{" "}
+                    &mdash; Quote signing key
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
+                    <code className="text-primary/70">
+                      payment_address
+                    </code>{" "}
+                    &mdash; Receive USDC
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
+                    <code className="text-primary/70">skill_md_url</code>{" "}
+                    &mdash; NMSS skill.md URL
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <span className="w-1 h-1 rounded-full bg-primary/60"></span>
+                    <code className="text-primary/70">health_url</code> &mdash;
+                    Health check endpoint
                   </li>
                 </ul>
               </div>
               <div className="text-xs">
-                <h5 className="text-gray-400 font-medium mb-1.5">Optional Fields</h5>
+                <h5 className="text-gray-400 font-medium mb-1.5">
+                  Optional Fields
+                </h5>
                 <ul className="space-y-1 text-gray-500">
                   <li className="flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-                    <code className="text-gray-400">merchant_did</code> &mdash; Your DID identifier
+                    <code className="text-gray-400">webhook_url</code> &mdash;
+                    Payment event webhook
                   </li>
                   <li className="flex items-center gap-1.5">
                     <span className="w-1 h-1 rounded-full bg-gray-600"></span>
-                    <code className="text-gray-400">mcp_endpoint</code> &mdash; SSE endpoint URL
+                    <code className="text-gray-400">webhook_secret</code>{" "}
+                    &mdash; HMAC signing secret
                   </li>
                 </ul>
                 <h5 className="text-gray-400 font-medium mt-3 mb-1.5">Auth</h5>
                 <p className="text-gray-500">
-                  Requires <code className="text-gray-400">Bearer PORTAL_TOKEN</code> in
+                  Requires{" "}
+                  <code className="text-gray-400">Bearer PORTAL_TOKEN</code> in
                   Authorization header.
                 </p>
               </div>

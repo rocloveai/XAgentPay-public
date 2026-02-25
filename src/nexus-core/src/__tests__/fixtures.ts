@@ -13,7 +13,28 @@ import type {
 // Test merchants
 // ---------------------------------------------------------------------------
 
+/** Default marketplace fields for test merchants */
+const MARKET_DEFAULTS = {
+  description: "",
+  category: "general",
+  skill_md_url: null,
+  health_url: null,
+  mcp_endpoint: null,
+  skill_name: null,
+  skill_version: null,
+  skill_protocol: null,
+  skill_tools: [] as readonly { name: string; role: string }[],
+  currencies: ["USDC"] as readonly string[],
+  chain_id: null,
+  health_status: "UNKNOWN" as const,
+  last_health_check: null,
+  last_health_latency_ms: null,
+  consecutive_failures: 0,
+  is_verified: false,
+};
+
 export const TEST_FLIGHT_MERCHANT: MerchantRecord = {
+  ...MARKET_DEFAULTS,
   merchant_did: "did:nexus:20250407:demo_flight",
   name: "Demo Flight Agent",
   signer_address: "0xdd31F8EcD2F5DE824238AB1A761212006A1E11b6",
@@ -26,6 +47,7 @@ export const TEST_FLIGHT_MERCHANT: MerchantRecord = {
 };
 
 export const TEST_HOTEL_MERCHANT: MerchantRecord = {
+  ...MARKET_DEFAULTS,
   merchant_did: "did:nexus:20250407:demo_hotel",
   name: "Demo Hotel Agent",
   signer_address: "0x5916667cfBD5f329c0A6474bf81d7F58c3BFB2C4",

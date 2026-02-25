@@ -29,7 +29,6 @@ import { NeonEventRepository } from "./db/event-repo.js";
 import { NeonGroupRepository } from "./db/group-repo.js";
 import { NeonWebhookRepository } from "./db/webhook-repo.js";
 import { NeonKVRepository } from "./db/kv-repo.js";
-import { NeonMarketRepository } from "./db/market-repo.js";
 import { HealthChecker } from "./services/health-checker.js";
 import { NexusOrchestrator } from "./services/orchestrator.js";
 import { PaymentStateMachine } from "./services/state-machine.js";
@@ -86,7 +85,6 @@ const merchantRepo = new NeonMerchantRepository();
 const eventRepo = new NeonEventRepository();
 const groupRepo = new NeonGroupRepository();
 const webhookRepo = new NeonWebhookRepository();
-const marketRepo = new NeonMarketRepository();
 
 // Core services
 const stateMachine = new PaymentStateMachine(paymentRepo, eventRepo);
@@ -1154,7 +1152,7 @@ async function main(): Promise<void> {
         if (checkoutHandled) return;
 
         // Market routes
-        const marketDeps: MarketDeps = { marketRepo, config };
+        const marketDeps: MarketDeps = { merchantRepo, config };
         const marketHandled = await handleMarketRequest(
           marketDeps,
           req,
@@ -1182,7 +1180,7 @@ async function main(): Promise<void> {
       },
     );
 
-    const healthChecker = new HealthChecker(marketRepo, 300_000);
+    const healthChecker = new HealthChecker(merchantRepo, 300_000);
 
     httpServer.listen(config.port, () => {
       serverLog.info("SSE server listening", { port: config.port });

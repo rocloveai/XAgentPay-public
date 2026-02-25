@@ -2,7 +2,27 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { MockMerchantRepository } from "../mocks/mock-merchant-repo.js";
 import type { MerchantRecord } from "../../types.js";
 
+const MARKET_DEFAULTS = {
+  description: "",
+  category: "general",
+  skill_md_url: null,
+  health_url: null,
+  mcp_endpoint: null,
+  skill_name: null,
+  skill_version: null,
+  skill_protocol: null,
+  skill_tools: [] as readonly { name: string; role: string }[],
+  currencies: ["USDC"] as readonly string[],
+  chain_id: null,
+  health_status: "UNKNOWN" as const,
+  last_health_check: null,
+  last_health_latency_ms: null,
+  consecutive_failures: 0,
+  is_verified: false,
+};
+
 const FLIGHT_MERCHANT: MerchantRecord = {
+  ...MARKET_DEFAULTS,
   merchant_did: "did:nexus:210425:demo_flight",
   name: "Demo Flight Agent",
   signer_address: "0x0000000000000000000000000000000000000001",
@@ -15,6 +35,7 @@ const FLIGHT_MERCHANT: MerchantRecord = {
 };
 
 const HOTEL_MERCHANT: MerchantRecord = {
+  ...MARKET_DEFAULTS,
   merchant_did: "did:nexus:210425:demo_hotel",
   name: "Demo Hotel Agent",
   signer_address: "0x0000000000000000000000000000000000000003",
@@ -46,7 +67,9 @@ describe("MockMerchantRepository", () => {
     const found = await repo.findByDid("did:nexus:210425:demo_flight");
     expect(found).not.toBeNull();
     expect(found!.name).toBe("Demo Flight Agent");
-    expect(found!.signer_address).toBe("0x0000000000000000000000000000000000000001");
+    expect(found!.signer_address).toBe(
+      "0x0000000000000000000000000000000000000001",
+    );
   });
 
   it("findByDid returns null for unknown DID", async () => {

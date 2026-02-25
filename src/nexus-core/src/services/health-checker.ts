@@ -1,11 +1,11 @@
 /**
  * NexusPay Core — Agent Health Checker.
  *
- * Periodically pings marketplace agent health endpoints
+ * Periodically pings marketplace merchant health endpoints
  * and updates their status in the database.
  */
-import type { MarketRepository } from "../db/interfaces/market-repo.js";
-import type { MarketAgentRecord, AgentHealthStatus } from "../types.js";
+import type { MerchantRepository } from "../db/interfaces/merchant-repo.js";
+import type { MerchantRecord, AgentHealthStatus } from "../types.js";
 import { createLogger } from "../logger.js";
 
 const hcLog = createLogger("HealthChecker");
@@ -14,7 +14,7 @@ export class HealthChecker {
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
-    private readonly marketRepo: MarketRepository,
+    private readonly merchantRepo: MerchantRepository,
     private readonly intervalMs: number = 300_000,
   ) {}
 
@@ -38,30 +38,31 @@ export class HealthChecker {
   }
 
   async checkAll(): Promise<void> {
-    const agents = await this.marketRepo.listAll();
-    await Promise.allSettled(agents.map((a) => this.checkOne(a)));
+    const merchants = await this.merchantRepo.listForMarket();
+    await Promise.allSettled(merchants.map((m) => this.checkOne(m)));
   }
 
-  async checkOne(agent: MarketAgentRecord): Promise<void> {
+  async checkOne(merchant: MerchantRecord): Promise<void> {
+    if (!merchant.health_url) return;
     const start = Date.now();
     try {
-      const res = await fetch(agent.health_url, {
+      const res = await fetch(merchant.health_url, {
         method: "GET",
         signal: AbortSignal.timeout(10_000),
       });
       const latency = Date.now() - start;
       if (res.ok) {
-        await this.marketRepo.updateHealth(agent.agent_id, "ONLINE", latency, 0);
+        await this.merchantRepo.updateHealth(merchant.merchant_did, "ONLINE", latency, 0);
       } else {
-        const failures = agent.consecutive_failures + 1;
+        const failures = merchant.consecutive_failures + 1;
         const status: AgentHealthStatus = failures >= 3 ? "OFFLINE" : "DEGRADED";
-        await this.marketRepo.updateHealth(agent.agent_id, status, latency, failures);
+        await this.merchantRepo.updateHealth(merchant.merchant_did, status, latency, failures);
       }
     } catch {
       const latency = Date.now() - start;
-      const failures = agent.consecutive_failures + 1;
+      const failures = merchant.consecutive_failures + 1;
       const status: AgentHealthStatus = failures >= 3 ? "OFFLINE" : "DEGRADED";
-      await this.marketRepo.updateHealth(agent.agent_id, status, latency, failures);
+      await this.merchantRepo.updateHealth(merchant.merchant_did, status, latency, failures);
     }
   }
 }
