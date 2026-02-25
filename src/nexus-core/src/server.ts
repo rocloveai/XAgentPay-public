@@ -41,6 +41,7 @@ import { NEXUS_PAY_ESCROW_ABI } from "./abi/nexus-pay-escrow.js";
 import type { NexusQuotePayload, Hex } from "./types.js";
 import { handlePortalRequest, type PortalDeps } from "./portal.js";
 import { handleCheckoutRequest, type CheckoutDeps } from "./checkout.js";
+import { normalizeQuotes } from "./normalize-quotes.js";
 import { createLogger } from "./logger.js";
 
 const serverLog = createLogger("NexusCore");
@@ -146,8 +147,9 @@ server.tool(
   },
   async ({ quotes, payer_wallet }) => {
     try {
+      const normalized = normalizeQuotes(quotes);
       const result = await orchestrator.orchestratePayment({
-        quotes: quotes as NexusQuotePayload[],
+        quotes: normalized as NexusQuotePayload[],
         payerWallet: payer_wallet,
       });
 

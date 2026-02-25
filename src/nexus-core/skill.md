@@ -26,6 +26,23 @@ Payment orchestration MCP server. **When a user wants to pay for orders from mer
 > You received one or more NUPS quotes from merchant agents (e.g. `nexus_generate_quote`).
 > Now call **`nexus_orchestrate_payment`** with all quotes + the user's wallet to create a payment group and get signing instructions.
 
+### How to extract quotes from merchant responses
+
+Merchant agents return a UCP Checkout Response. The quote you need is at:
+`response.ucp.payment_handlers["urn:ucp:payment:nexus_v1"][0].config`
+
+The `config` object is a `NexusQuotePayload` with these required fields:
+- `merchant_did` (string)
+- `merchant_order_ref` (string)
+- `amount` (string)
+- `currency` (string)
+- `chain_id` (number)
+- `expiry` (number)
+- `context` (object with `summary` and `line_items`)
+- `signature` (string)
+
+### Calling the orchestrator
+
 ```
 nexus_orchestrate_payment({
   quotes: [flight_quote_config, hotel_quote_config],
@@ -33,7 +50,10 @@ nexus_orchestrate_payment({
 })
 ```
 
-The `quotes` array accepts the `config` object from each merchant's UCP `urn:ucp:payment:nexus_v1` handler response.
+The `quotes` array accepts:
+- **Best**: The `config` object extracted from each merchant's UCP `nexus_v1` handler
+- **Also works**: Full UCP envelope objects — the orchestrator auto-extracts `config` from wrapped formats
+- **Also works**: Handler objects like `{ config: ..., nexus_core: ... }` — auto-unwrapped
 
 ## MCP Connection
 
@@ -57,7 +77,7 @@ Orchestrate aggregated payment for one or more merchant quotes. Validates signat
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `quotes` | array | Yes | Array of `NexusQuotePayload` objects — the `config` field from each merchant's UCP `nexus_v1` handler |
+| `quotes` | array | Yes | Array of `NexusQuotePayload` objects. Best: extract the `config` field from each merchant's UCP `nexus_v1` handler. Also accepts full UCP envelopes or handler objects (auto-unwrapped). |
 | `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
 
 **Returns:** Payment group with `group_id`, per-payment breakdown, and EIP-3009 sign instruction for the total amount.
