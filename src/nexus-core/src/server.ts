@@ -1003,11 +1003,6 @@ server.tool(
 
 async function main(): Promise<void> {
   if (transportMode === "sse") {
-    // Start background services in SSE (server) mode
-    if (watcher) await watcher.start();
-    if (timeoutHandler) timeoutHandler.start();
-    webhookNotifier.startRetryLoop(config.webhookRetryIntervalMs);
-
     const sseTransports = new Map<string, SSEServerTransport>();
 
     const httpServer = createServer(
@@ -1050,8 +1045,21 @@ async function main(): Promise<void> {
           return;
         }
 
-        // Health check (enhanced)
+        // Health check — fast, no I/O (used by Render health check)
         if (url.pathname === "/health") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              status: "ok",
+              version: NEXUS_CORE_VERSION,
+              transport: "sse",
+            }),
+          );
+          return;
+        }
+
+        // Detailed health — includes relayer balance (async RPC call)
+        if (url.pathname === "/api/health") {
           let relayerInfo: Record<string, unknown> | null = null;
           if (relayer) {
             try {
@@ -1126,6 +1134,17 @@ async function main(): Promise<void> {
 
     httpServer.listen(config.port, () => {
       serverLog.info("SSE server listening", { port: config.port });
+
+      // Start background services AFTER HTTP is listening (so health check passes)
+      if (watcher) {
+        watcher.start().catch((err) =>
+          serverLog.error("ChainWatcher start failed", {
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        );
+      }
+      if (timeoutHandler) timeoutHandler.start();
+      webhookNotifier.startRetryLoop(config.webhookRetryIntervalMs);
     });
   } else {
     const transport = new StdioServerTransport();

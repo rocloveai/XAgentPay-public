@@ -5,6 +5,7 @@ services:
     dockerfilePath: src/nexus-core/Dockerfile
     dockerContext: src/nexus-core
     plan: free
+    healthCheckPath: /health
     envVars:
       - key: TRANSPORT
         value: sse
