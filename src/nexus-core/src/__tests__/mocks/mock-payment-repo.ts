@@ -208,4 +208,12 @@ export class MockPaymentRepository implements PaymentRepository {
     }
     return counts;
   }
+
+  async sumTotalAmount(): Promise<string> {
+    let total = 0n;
+    for (const r of this.store.values()) {
+      total += BigInt(r.amount);
+    }
+    return total.toString();
+  }
 }

@@ -2,6 +2,8 @@
  * NexusPay Core — environment configuration.
  */
 
+export type TransportMode = "stdio" | "sse";
+
 export interface NexusCoreConfig {
   readonly databaseUrl: string;
   readonly escrowContract: string;
@@ -19,6 +21,48 @@ export interface NexusCoreConfig {
   readonly timeoutSweepIntervalMs: number;
   readonly webhookRetryIntervalMs: number;
   readonly arbitrationTimeoutS: number;
+  readonly portalToken: string;
+}
+
+export interface ConfigValidationError {
+  readonly field: string;
+  readonly message: string;
+}
+
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+export function validateConfig(
+  config: NexusCoreConfig,
+  mode: TransportMode,
+): readonly ConfigValidationError[] {
+  const errors: ConfigValidationError[] = [];
+
+  if (mode === "sse") {
+    if (!config.databaseUrl) {
+      errors.push({ field: "DATABASE_URL", message: "Required in SSE mode" });
+    }
+    if (!config.relayerPrivateKey) {
+      errors.push({
+        field: "RELAYER_PRIVATE_KEY",
+        message: "Required in SSE mode",
+      });
+    }
+    if (config.escrowContract === ZERO_ADDRESS) {
+      errors.push({
+        field: "ESCROW_CONTRACT",
+        message: "Must not be zero address in SSE mode",
+      });
+    }
+  }
+
+  if (config.protocolFeeBps < 0 || config.protocolFeeBps > 10000) {
+    errors.push({
+      field: "PROTOCOL_FEE_BPS",
+      message: "Must be between 0 and 10000",
+    });
+  }
+
+  return errors;
 }
 
 export function loadNexusCoreConfig(): NexusCoreConfig {
@@ -46,5 +90,6 @@ export function loadNexusCoreConfig(): NexusCoreConfig {
       process.env.WEBHOOK_RETRY_INTERVAL_MS ?? "30000",
     ),
     arbitrationTimeoutS: Number(process.env.ARBITRATION_TIMEOUT_S ?? "604800"),
+    portalToken: process.env.PORTAL_TOKEN ?? "",
   };
 }

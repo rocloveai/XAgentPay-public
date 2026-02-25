@@ -14,13 +14,21 @@ import {
   type IncomingMessage,
   type ServerResponse,
 } from "node:http";
-import { loadNexusCoreConfig } from "./config.js";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  loadNexusCoreConfig,
+  validateConfig,
+  type TransportMode,
+} from "./config.js";
 import { initPool } from "./db/pool.js";
 import { NeonPaymentRepository } from "./db/payment-repo.js";
 import { NeonMerchantRepository } from "./db/merchant-repo.js";
 import { NeonEventRepository } from "./db/event-repo.js";
 import { NeonGroupRepository } from "./db/group-repo.js";
 import { NeonWebhookRepository } from "./db/webhook-repo.js";
+import { NeonKVRepository } from "./db/kv-repo.js";
 import { NexusOrchestrator } from "./services/orchestrator.js";
 import { PaymentStateMachine } from "./services/state-machine.js";
 import { GroupManager } from "./services/group-manager.js";
@@ -32,9 +40,21 @@ import { keccak256, toHex, encodeFunctionData, formatUnits } from "viem";
 import { NEXUS_PAY_ESCROW_ABI } from "./abi/nexus-pay-escrow.js";
 import type { NexusQuotePayload, Hex } from "./types.js";
 import { handlePortalRequest, type PortalDeps } from "./portal.js";
+import { createLogger } from "./logger.js";
+
+const serverLog = createLogger("NexusCore");
 
 const config = loadNexusCoreConfig();
-const transportMode = process.env.TRANSPORT ?? "stdio";
+const transportMode = (process.env.TRANSPORT ?? "stdio") as TransportMode;
+
+// Fail-fast: validate config
+const configErrors = validateConfig(config, transportMode);
+if (configErrors.length > 0) {
+  for (const err of configErrors) {
+    console.error(`[NexusCore] Config error: ${err.field} — ${err.message}`);
+  }
+  process.exit(1);
+}
 
 // Initialize DB pool if DATABASE_URL is set
 if (config.databaseUrl) {
@@ -69,12 +89,14 @@ let timeoutHandler: TimeoutHandler | null = null;
 
 if (config.relayerPrivateKey) {
   relayer = new NexusRelayer(config);
+  const kvRepo = config.databaseUrl ? new NeonKVRepository() : null;
   watcher = new ChainWatcher(
     config,
     paymentRepo,
     stateMachine,
     groupManager,
     webhookNotifier,
+    kvRepo,
   );
   timeoutHandler = new TimeoutHandler(
     relayer,
@@ -89,6 +111,16 @@ if (config.relayerPrivateKey) {
 // ---------------------------------------------------------------------------
 
 const NEXUS_CORE_VERSION = "0.4.0";
+
+// Read skill.md from disk (fallback to hardcoded string)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+let skillMdContent: string;
+try {
+  skillMdContent = readFileSync(join(__dirname, "..", "skill.md"), "utf-8");
+} catch {
+  skillMdContent =
+    "# Nexus Core\n\nPayment orchestration MCP server. Use nexus_orchestrate_payment tool.";
+}
 
 const server = new McpServer({
   name: "nexus-core",
@@ -805,7 +837,7 @@ server.tool(
 async function main(): Promise<void> {
   if (transportMode === "sse") {
     // Start background services in SSE (server) mode
-    if (watcher) watcher.start();
+    if (watcher) await watcher.start();
     if (timeoutHandler) timeoutHandler.start();
     webhookNotifier.startRetryLoop(config.webhookRetryIntervalMs);
 
@@ -818,9 +850,7 @@ async function main(): Promise<void> {
         // Serve skill.md
         if (url.pathname === "/skill.md" && req.method === "GET") {
           res.writeHead(200, { "Content-Type": "text/markdown" });
-          res.end(
-            "# Nexus Core\n\nPayment orchestration MCP server. Use nexus_orchestrate_payment tool.",
-          );
+          res.end(skillMdContent);
           return;
         }
 
@@ -893,6 +923,7 @@ async function main(): Promise<void> {
           escrowContract: config.escrowContract,
           chainId: config.chainId,
           version: NEXUS_CORE_VERSION,
+          portalToken: config.portalToken,
         };
         const handled = await handlePortalRequest(portalDeps, req, res, url);
         if (handled) return;
@@ -903,16 +934,18 @@ async function main(): Promise<void> {
     );
 
     httpServer.listen(config.port, () => {
-      console.error(`[NexusCore] SSE server listening on port ${config.port}`);
+      serverLog.info("SSE server listening", { port: config.port });
     });
   } else {
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error("[NexusCore] Connected via stdio transport");
+    serverLog.info("Connected via stdio transport");
   }
 }
 
 main().catch((err) => {
-  console.error("[NexusCore] Fatal error:", err);
+  serverLog.error("Fatal error", {
+    error: err instanceof Error ? err.message : String(err),
+  });
   process.exit(1);
 });

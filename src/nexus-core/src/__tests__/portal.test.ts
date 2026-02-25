@@ -1,12 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-  handlePortalRequest,
-  type PortalDeps,
-} from "../portal.js";
-import {
-  MockPaymentRepository,
-  MockEventRepository,
-} from "./mocks/index.js";
+import { handlePortalRequest, type PortalDeps } from "../portal.js";
+import { MockPaymentRepository, MockEventRepository } from "./mocks/index.js";
 import { makeTestPayment } from "./fixtures.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -17,11 +11,12 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 function makeReq(
   method: string,
   path: string,
+  extraHeaders: Record<string, string> = {},
 ): { req: IncomingMessage; url: URL } {
   const req = {
     method,
     url: path,
-    headers: { host: "localhost:4000" },
+    headers: { host: "localhost:4000", ...extraHeaders },
   } as unknown as IncomingMessage;
   const url = new URL(path, "http://localhost:4000");
   return { req, url };
@@ -113,6 +108,7 @@ describe("Portal", () => {
       escrowContract: "0x1111111111111111111111111111111111111111",
       chainId: 20250407,
       version: "0.4.0",
+      portalToken: "",
     };
   });
 
@@ -155,10 +151,7 @@ describe("Portal", () => {
     });
 
     it("filters by status", async () => {
-      const { req, url } = makeReq(
-        "GET",
-        "/api/payments?status=ESCROWED",
-      );
+      const { req, url } = makeReq("GET", "/api/payments?status=ESCROWED");
       const res = makeRes();
       await handlePortalRequest(
         deps,
@@ -178,10 +171,7 @@ describe("Portal", () => {
       const payments = await paymentRepo.findAll();
       const paymentId = payments[0].nexus_payment_id;
 
-      const { req, url } = makeReq(
-        "GET",
-        `/api/payments/${paymentId}`,
-      );
+      const { req, url } = makeReq("GET", `/api/payments/${paymentId}`);
       const res = makeRes();
       const handled = await handlePortalRequest(
         deps,
@@ -200,10 +190,7 @@ describe("Portal", () => {
     });
 
     it("returns 404 for unknown payment", async () => {
-      const { req, url } = makeReq(
-        "GET",
-        "/api/payments/PAY-does-not-exist",
-      );
+      const { req, url } = makeReq("GET", "/api/payments/PAY-does-not-exist");
       const res = makeRes();
       const handled = await handlePortalRequest(
         deps,
@@ -270,6 +257,56 @@ describe("Portal", () => {
       );
 
       expect(handled).toBe(false);
+    });
+  });
+
+  describe("Bearer token auth", () => {
+    it("returns 401 when portalToken is set and no header provided", async () => {
+      const authedDeps = { ...deps, portalToken: "secret123" };
+      const { req, url } = makeReq("GET", "/api/stats");
+      const res = makeRes();
+      const handled = await handlePortalRequest(
+        authedDeps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(handled).toBe(true);
+      expect(res.statusCode).toBe(401);
+      const data = JSON.parse(res.body);
+      expect(data.error).toBe("Unauthorized");
+    });
+
+    it("returns 200 when portalToken is set and correct Bearer provided", async () => {
+      const authedDeps = { ...deps, portalToken: "secret123" };
+      const { req, url } = makeReq("GET", "/api/stats", {
+        authorization: "Bearer secret123",
+      });
+      const res = makeRes();
+      const handled = await handlePortalRequest(
+        authedDeps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(handled).toBe(true);
+      expect(res.statusCode).toBe(200);
+    });
+
+    it("allows access when portalToken is empty (no auth required)", async () => {
+      const { req, url } = makeReq("GET", "/api/stats");
+      const res = makeRes();
+      const handled = await handlePortalRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(handled).toBe(true);
+      expect(res.statusCode).toBe(200);
     });
   });
 });

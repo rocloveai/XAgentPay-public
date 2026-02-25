@@ -15,6 +15,8 @@ import {
 } from "viem";
 import type { NexusCoreConfig } from "../config.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
+import type { KVRepository } from "../db/interfaces/kv-repo.js";
+import { createLogger } from "../logger.js";
 import type {
   PaymentRecord,
   PaymentStatus,
@@ -59,6 +61,9 @@ const STATUS_TO_WEBHOOK: Readonly<Record<string, string>> = {
 
 const MAX_BLOCK_RANGE = 1_000n;
 
+const KV_KEY_LAST_BLOCK = "chain_watcher.last_processed_block";
+const cwLog = createLogger("ChainWatcher");
+
 export class ChainWatcher {
   private readonly client: PublicClient<HttpTransport, Chain>;
   private readonly escrowAddress: Hex;
@@ -73,6 +78,7 @@ export class ChainWatcher {
     private readonly stateMachine: PaymentStateMachine,
     private readonly groupManager: GroupManager,
     private readonly webhookNotifier: WebhookNotifier | null = null,
+    private readonly kvRepo: KVRepository | null = null,
   ) {
     const chain = buildPlatonChain(config);
 
@@ -82,14 +88,34 @@ export class ChainWatcher {
     this.lastProcessedBlock = 0n;
   }
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.timer) return;
-    console.error(
-      `[ChainWatcher] Starting (interval=${this.intervalMs}ms, contract=${this.escrowAddress})`,
-    );
+
+    // Restore persisted block progress
+    if (this.kvRepo) {
+      try {
+        const saved = await this.kvRepo.get(KV_KEY_LAST_BLOCK);
+        if (saved) {
+          this.lastProcessedBlock = BigInt(saved);
+          cwLog.info("Restored block progress", { block: saved });
+        }
+      } catch (err) {
+        cwLog.warn("Failed to load persisted block, starting from 0", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    cwLog.info("Starting", {
+      interval: this.intervalMs,
+      contract: this.escrowAddress,
+      resumeBlock: this.lastProcessedBlock.toString(),
+    });
     this.timer = setInterval(() => {
       this.pollOnce().catch((err) =>
-        console.error("[ChainWatcher] poll error:", err),
+        cwLog.error("poll error", {
+          error: err instanceof Error ? err.message : String(err),
+        }),
       );
     }, this.intervalMs);
   }
@@ -132,11 +158,23 @@ export class ChainWatcher {
         toBlock,
       });
 
-      for (const log of logs) {
-        await this.processLog(log);
+      for (const entry of logs) {
+        await this.processLog(entry);
       }
 
       this.lastProcessedBlock = toBlock;
+
+      // Persist block progress (fire-and-forget, failure is non-fatal)
+      if (this.kvRepo) {
+        try {
+          await this.kvRepo.set(KV_KEY_LAST_BLOCK, toBlock.toString());
+        } catch (err) {
+          cwLog.warn("Failed to persist block progress", {
+            block: toBlock.toString(),
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
     } finally {
       this.polling = false;
     }
@@ -156,9 +194,9 @@ export class ChainWatcher {
     const payment =
       await this.paymentRepo.findByPaymentIdBytes32(paymentIdBytes32);
     if (!payment) {
-      console.error(
-        `[ChainWatcher] Unknown paymentId ${paymentIdBytes32}, skipping`,
-      );
+      cwLog.warn("Unknown paymentId, skipping", {
+        paymentIdBytes32,
+      });
       return;
     }
 
@@ -192,15 +230,17 @@ export class ChainWatcher {
               webhookEventType as import("../types.js").WebhookEventType,
             )
             .catch((err) =>
-              console.error("[ChainWatcher] webhook notify error:", err),
+              cwLog.error("webhook notify error", {
+                error: err instanceof Error ? err.message : String(err),
+              }),
             );
         }
       }
     } catch (err) {
-      console.error(
-        `[ChainWatcher] Failed to process ${eventName} for ${payment.nexus_payment_id}:`,
-        err,
-      );
+      cwLog.error(`Failed to process ${eventName}`, {
+        paymentId: payment.nexus_payment_id,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 

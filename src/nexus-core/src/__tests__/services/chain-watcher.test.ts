@@ -49,6 +49,7 @@ const TEST_CONFIG: NexusCoreConfig = {
   timeoutSweepIntervalMs: 60000,
   webhookRetryIntervalMs: 30000,
   arbitrationTimeoutS: 604800,
+  portalToken: "",
 };
 
 const PAYMENT_ID_BYTES32 = ("0x" + "aa".repeat(32)) as Hex;
@@ -282,9 +283,9 @@ describe("ChainWatcher", () => {
     await watcher.pollOnce();
   });
 
-  it("start/stop manages interval timer", () => {
-    watcher.start();
-    watcher.start(); // idempotent
+  it("start/stop manages interval timer", async () => {
+    await watcher.start();
+    await watcher.start(); // idempotent
     watcher.stop();
     watcher.stop(); // idempotent
   });

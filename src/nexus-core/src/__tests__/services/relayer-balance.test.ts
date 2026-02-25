@@ -48,6 +48,7 @@ const TEST_CONFIG: NexusCoreConfig = {
   timeoutSweepIntervalMs: 60000,
   webhookRetryIntervalMs: 30000,
   arbitrationTimeoutS: 604800,
+  portalToken: "",
 };
 
 describe("NexusRelayer — balance methods", () => {

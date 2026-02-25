@@ -21,6 +21,13 @@ export interface PortalDeps {
   readonly escrowContract: string;
   readonly chainId: number;
   readonly version: string;
+  readonly portalToken: string;
+}
+
+function isAuthorized(deps: PortalDeps, req: IncomingMessage): boolean {
+  if (!deps.portalToken) return true;
+  const authHeader = req.headers.authorization ?? "";
+  return authHeader === `Bearer ${deps.portalToken}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -65,10 +72,7 @@ async function handleApiPayments(
   res: ServerResponse,
 ): Promise<void> {
   const statusFilter = url.searchParams.get("status") as PaymentStatus | null;
-  const limit = Math.min(
-    Number(url.searchParams.get("limit") ?? "50"),
-    200,
-  );
+  const limit = Math.min(Number(url.searchParams.get("limit") ?? "50"), 200);
   const offset = Math.max(Number(url.searchParams.get("offset") ?? "0"), 0);
 
   const payments = await deps.paymentRepo.findAll({
@@ -128,24 +132,23 @@ async function handleApiStats(
   deps: PortalDeps,
   res: ServerResponse,
 ): Promise<void> {
-  const counts = await deps.paymentRepo.countByStatus();
-  const payments = await deps.paymentRepo.findAll({ limit: 10000 });
-
-  let totalVolume = 0n;
-  for (const p of payments) {
-    totalVolume += BigInt(p.amount);
-  }
+  const [counts, totalVolume] = await Promise.all([
+    deps.paymentRepo.countByStatus(),
+    deps.paymentRepo.sumTotalAmount(),
+  ]);
 
   const statusCounts: Record<string, number> = {};
+  let total = 0;
   for (const [status, count] of counts) {
     statusCounts[status] = count;
+    total += count;
   }
 
   sendJson(res, 200, {
     counts: statusCounts,
-    total: payments.length,
-    total_volume: totalVolume.toString(),
-    total_volume_display: formatAmount(totalVolume.toString()),
+    total,
+    total_volume: totalVolume,
+    total_volume_display: formatAmount(totalVolume),
   });
 }
 
@@ -525,6 +528,12 @@ export async function handlePortalRequest(
     return true;
   }
 
+  // Bearer token auth for all /api/* routes
+  if (path.startsWith("/api/") && !isAuthorized(deps, req)) {
+    sendJson(res, 401, { error: "Unauthorized" });
+    return true;
+  }
+
   if (path === "/api/payments" && req.method === "GET") {
     await handleApiPayments(deps, url, res);
     return true;
@@ -540,9 +549,7 @@ export async function handlePortalRequest(
     return true;
   }
 
-  const paymentMatch = path.match(
-    /^\/api\/payments\/(PAY-[a-zA-Z0-9-]+)$/,
-  );
+  const paymentMatch = path.match(/^\/api\/payments\/(PAY-[a-zA-Z0-9-]+)$/);
   if (paymentMatch && req.method === "GET") {
     await handleApiPaymentDetail(
       deps,

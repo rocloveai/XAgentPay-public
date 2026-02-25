@@ -70,4 +70,7 @@ export interface PaymentRepository {
 
   /** Count payments grouped by status. */
   countByStatus(): Promise<ReadonlyMap<PaymentStatus, number>>;
+
+  /** Sum total amount across all payments (returns string of raw amount). */
+  sumTotalAmount(): Promise<string>;
 }

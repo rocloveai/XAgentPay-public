@@ -1,5 +1,27 @@
 services:
   - type: web
+    name: nexus-core
+    runtime: docker
+    dockerfilePath: src/nexus-core/Dockerfile
+    dockerContext: src/nexus-core
+    plan: free
+    envVars:
+      - key: TRANSPORT
+        value: sse
+      - key: PORT
+        value: "10000"
+      - key: DATABASE_URL
+        sync: false
+      - key: RELAYER_PRIVATE_KEY
+        sync: false
+      - key: ESCROW_CONTRACT
+        sync: false
+      - key: RPC_URL
+        sync: false
+      - key: PORTAL_TOKEN
+        sync: false
+
+  - type: web
     name: nexus-hotel-agent
     runtime: docker
     dockerfilePath: src/hotel-agent/Dockerfile
@@ -19,7 +41,7 @@ services:
       - key: AMADEUS_API_SECRET
         sync: false
       - key: MERCHANT_SIGNER_PRIVATE_KEY
-        value: "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997"
+        sync: false
       - key: MERCHANT_PAYMENT_ADDRESS
         value: "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd"
       - key: MERCHANT_DID
@@ -43,7 +65,7 @@ services:
       - key: DUFFEL_API_TOKEN
         sync: false
       - key: MERCHANT_SIGNER_PRIVATE_KEY
-        value: "0x3be84b4fa995ef7d87918aea8b0b1ad0cb88d66161b569c3fb55c8125cc31ba7"
+        sync: false
       - key: MERCHANT_PAYMENT_ADDRESS
         value: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1"
       - key: MERCHANT_DID

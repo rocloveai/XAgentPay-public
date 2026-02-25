@@ -299,4 +299,12 @@ export class NeonPaymentRepository implements PaymentRepository {
     }
     return result;
   }
+
+  async sumTotalAmount(): Promise<string> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT COALESCE(SUM(amount::numeric), 0)::text AS total FROM payments`,
+    );
+    return rows[0].total as string;
+  }
 }
