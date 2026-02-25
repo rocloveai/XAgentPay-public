@@ -113,9 +113,33 @@ export async function verifyQuoteSignature(
   });
 
   if (!valid) {
+    // Fallback: try with the raw (un-normalized) context in case normalization
+    // changed the structure. If either works, the signature is valid.
+    const rawContextHash = keccak256(
+      toHex(JSON.stringify(quote.context)),
+    ) as Hex;
+    if (rawContextHash !== contextHash) {
+      const rawMessage = { ...message, context_hash: rawContextHash };
+      const validRaw = await verifyTypedData({
+        address: merchant.signer_address as Address,
+        domain: NEXUS_DOMAIN,
+        types: NEXUS_QUOTE_TYPES,
+        primaryType: "NexusQuote",
+        message: rawMessage,
+        signature: quote.signature as Hex,
+      });
+      if (validRaw) return; // raw context matched
+    }
+
     throw new SecurityError("Invalid quote signature", {
       merchant_did: quote.merchant_did,
       merchant_order_ref: quote.merchant_order_ref,
+      signer_address: merchant.signer_address,
+      context_hash_normalized: contextHash,
+      context_hash_raw: rawContextHash,
+      context_keys: Object.keys(quote.context),
+      amount: quote.amount,
+      amount_type: typeof quote.amount,
     });
   }
 }
