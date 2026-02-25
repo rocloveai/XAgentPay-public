@@ -28,9 +28,10 @@ import { NexusRelayer } from "./services/relayer.js";
 import { ChainWatcher } from "./services/chain-watcher.js";
 import { TimeoutHandler } from "./services/timeout-handler.js";
 import { WebhookNotifier } from "./services/webhook-notifier.js";
-import { keccak256, toHex, encodeFunctionData } from "viem";
+import { keccak256, toHex, encodeFunctionData, formatUnits } from "viem";
 import { NEXUS_PAY_ESCROW_ABI } from "./abi/nexus-pay-escrow.js";
 import type { NexusQuotePayload, Hex } from "./types.js";
+import { handlePortalRequest, type PortalDeps } from "./portal.js";
 
 const config = loadNexusCoreConfig();
 const transportMode = process.env.TRANSPORT ?? "stdio";
@@ -87,9 +88,11 @@ if (config.relayerPrivateKey) {
 // MCP Server
 // ---------------------------------------------------------------------------
 
+const NEXUS_CORE_VERSION = "0.4.0";
+
 const server = new McpServer({
   name: "nexus-core",
-  version: "0.3.0",
+  version: NEXUS_CORE_VERSION,
 });
 
 // Tool: nexus_orchestrate_payment
@@ -670,6 +673,131 @@ server.tool(
   },
 );
 
+// Tool: nexus_confirm_fulfillment
+server.tool(
+  "nexus_confirm_fulfillment",
+  "Confirm fulfillment of a payment. If ESCROWED, submits release to escrow contract (async — call again after SETTLED). If SETTLED, transitions to COMPLETED. Two-step process: ESCROWED→release→SETTLED, then call again for SETTLED→COMPLETED.",
+  {
+    payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+    fulfillment_proof: z
+      .string()
+      .optional()
+      .describe("Proof of fulfillment (URL, hash, etc.)"),
+  },
+  async ({ payment_id, fulfillment_proof }) => {
+    try {
+      const payment = await stateMachine.getPayment(payment_id);
+      if (!payment) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Payment ${payment_id} not found`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (payment.status === "ESCROWED") {
+        if (!relayer) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Error: Relayer not configured (RELAYER_PRIVATE_KEY missing)",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (!payment.payment_id_bytes32) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Error: Payment has no payment_id_bytes32",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const result = await relayer.submitRelease(
+          payment.payment_id_bytes32 as Hex,
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                `Release submitted — ChainWatcher will transition to SETTLED\n` +
+                `TX Hash: ${result.txHash}\n` +
+                `Block: ${result.blockNumber}\n` +
+                `Payment: ${payment_id}\n\n` +
+                `Call nexus_confirm_fulfillment again after status becomes SETTLED to complete.`,
+            },
+          ],
+        };
+      }
+
+      if (payment.status === "SETTLED") {
+        const now = new Date().toISOString();
+
+        await stateMachine.transition({
+          nexusPaymentId: payment_id,
+          toStatus: "COMPLETED",
+          eventType: "FULFILLMENT_CONFIRMED",
+          metadata: {
+            fulfillment_proof: fulfillment_proof ?? null,
+          },
+          fields: { completed_at: now },
+        });
+
+        // Send payment.completed webhook
+        webhookNotifier
+          .notify(payment, "payment.completed")
+          .catch((err) =>
+            console.error("[server] webhook notify failed:", err),
+          );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                `Payment COMPLETED\n` +
+                `Payment: ${payment_id}\n` +
+                `Completed at: ${now}` +
+                (fulfillment_proof
+                  ? `\nFulfillment proof: ${fulfillment_proof}`
+                  : ""),
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error: Cannot confirm fulfillment — payment status is ${payment.status} (must be ESCROWED or SETTLED)`,
+          },
+        ],
+        isError: true,
+      };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return {
+        content: [{ type: "text" as const, text: `Error: ${message}` }],
+        isError: true,
+      };
+    }
+  },
+);
+
 // ---------------------------------------------------------------------------
 // Transport setup
 // ---------------------------------------------------------------------------
@@ -718,12 +846,56 @@ async function main(): Promise<void> {
           return;
         }
 
-        // Health check
+        // Health check (enhanced)
         if (url.pathname === "/health") {
+          let relayerInfo: Record<string, unknown> | null = null;
+          if (relayer) {
+            try {
+              const address = relayer.getAddress();
+              const balance = await relayer.getRelayerBalance();
+              relayerInfo = {
+                address,
+                lat_balance_wei: balance.toString(),
+                lat_balance: formatUnits(balance, 18),
+                escrow_contract: config.escrowContract,
+                chain_id: config.chainId,
+                low_balance: balance < 1_000_000_000_000_000n,
+              };
+            } catch (err) {
+              relayerInfo = {
+                error: err instanceof Error ? err.message : "RPC call failed",
+              };
+            }
+          }
+
           res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ status: "ok", version: "0.3.0" }));
+          res.end(
+            JSON.stringify({
+              status: "ok",
+              version: NEXUS_CORE_VERSION,
+              transport: "sse",
+              services: {
+                chain_watcher: watcher ? "running" : "disabled",
+                timeout_handler: timeoutHandler ? "running" : "disabled",
+                webhook_notifier: "running",
+              },
+              relayer: relayerInfo,
+            }),
+          );
           return;
         }
+
+        // Portal routes
+        const portalDeps: PortalDeps = {
+          paymentRepo,
+          eventRepo,
+          relayer,
+          escrowContract: config.escrowContract,
+          chainId: config.chainId,
+          version: NEXUS_CORE_VERSION,
+        };
+        const handled = await handlePortalRequest(portalDeps, req, res, url);
+        if (handled) return;
 
         res.writeHead(404);
         res.end("Not found");

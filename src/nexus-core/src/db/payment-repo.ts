@@ -255,4 +255,48 @@ export class NeonPaymentRepository implements PaymentRepository {
     );
     return rows.map(rowToPayment);
   }
+
+  async findAll(params?: {
+    status?: PaymentStatus;
+    limit?: number;
+    offset?: number;
+  }): Promise<readonly PaymentRecord[]> {
+    const sql = getPool();
+    const conditions: string[] = [];
+    const values: unknown[] = [];
+    let paramIdx = 1;
+
+    if (params?.status) {
+      conditions.push(`status = $${paramIdx}`);
+      values.push(params.status);
+      paramIdx++;
+    }
+
+    const where =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const limit = params?.limit ?? 100;
+    const offset = params?.offset ?? 0;
+
+    values.push(limit, offset);
+
+    const rows = await sql(
+      `SELECT * FROM payments ${where}
+       ORDER BY created_at DESC
+       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      values,
+    );
+    return rows.map(rowToPayment);
+  }
+
+  async countByStatus(): Promise<ReadonlyMap<PaymentStatus, number>> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT status, COUNT(*)::int AS count FROM payments GROUP BY status`,
+    );
+    const result = new Map<PaymentStatus, number>();
+    for (const row of rows) {
+      result.set(row.status as PaymentStatus, row.count as number);
+    }
+    return result;
+  }
 }

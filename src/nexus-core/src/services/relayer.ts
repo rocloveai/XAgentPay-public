@@ -169,6 +169,16 @@ export class NexusRelayer {
     }, "submitResolve");
   }
 
+  getAddress(): Hex {
+    return this.walletClient.account.address;
+  }
+
+  async getRelayerBalance(): Promise<bigint> {
+    return this.publicClient.getBalance({
+      address: this.walletClient.account.address,
+    });
+  }
+
   async submitRefund(paymentIdBytes32: Hex): Promise<RelayerTxResult> {
     return withRetry(async () => {
       const txHash = await this.walletClient.writeContract({

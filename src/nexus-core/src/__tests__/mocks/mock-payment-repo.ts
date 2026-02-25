@@ -178,4 +178,34 @@ export class MockPaymentRepository implements PaymentRepository {
     }
     return results;
   }
+
+  async findAll(params?: {
+    status?: PaymentStatus;
+    limit?: number;
+    offset?: number;
+  }): Promise<readonly PaymentRecord[]> {
+    let results = [...this.store.values()];
+
+    if (params?.status) {
+      results = results.filter((r) => r.status === params.status);
+    }
+
+    // Sort by created_at DESC
+    results.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+
+    const offset = params?.offset ?? 0;
+    const limit = params?.limit ?? 100;
+    return results.slice(offset, offset + limit);
+  }
+
+  async countByStatus(): Promise<ReadonlyMap<PaymentStatus, number>> {
+    const counts = new Map<PaymentStatus, number>();
+    for (const r of this.store.values()) {
+      counts.set(r.status, (counts.get(r.status) ?? 0) + 1);
+    }
+    return counts;
+  }
 }

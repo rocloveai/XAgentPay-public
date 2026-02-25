@@ -60,4 +60,14 @@ export interface PaymentRepository {
 
   /** Find DISPUTE_OPEN payments past their arbitration deadline. */
   findDisputeOpenPastDeadline(now: string): Promise<readonly PaymentRecord[]>;
+
+  /** List payments with optional status filter, ordered by created_at DESC. */
+  findAll(params?: {
+    status?: PaymentStatus;
+    limit?: number;
+    offset?: number;
+  }): Promise<readonly PaymentRecord[]>;
+
+  /** Count payments grouped by status. */
+  countByStatus(): Promise<ReadonlyMap<PaymentStatus, number>>;
 }

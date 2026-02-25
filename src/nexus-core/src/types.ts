@@ -68,7 +68,8 @@ export type WebhookEventType =
   | "payment.escrowed"
   | "payment.refunded"
   | "dispute.opened"
-  | "dispute.resolved";
+  | "dispute.resolved"
+  | "payment.completed";
 
 // ---------------------------------------------------------------------------
 // Core records (immutable DB rows)
