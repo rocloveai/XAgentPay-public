@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nexus AI Payment Protocol</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#256af4",
+              "accent-cyan": "#00f0ff",
+              "accent-purple": "#bd00ff",
+              "platon-blue": "#0091ff",
+              "background-light": "#f5f6f8",
+              "background-dark": "#101622",
+            },
+            fontFamily: {
+              "display": ["Space Grotesk", "sans-serif"],
+              "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"]
+            },
+            backgroundImage: {
+              'grid-pattern': "linear-gradient(to right, #256af41a 1px, transparent 1px), linear-gradient(to bottom, #256af41a 1px, transparent 1px)",
+            },
+            animation: {
+              'flow': 'flow 1s linear infinite',
+              'spin-slow': 'spin 10s linear infinite',
+              'spin-slower': 'spin 15s linear infinite reverse',
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+              flow: {
+                '0%': { strokeDashoffset: '24' },
+                '100%': { strokeDashoffset: '0' },
+              }
+            }
+          },
+        },
+      }
+    </script>
+    <style>
+      body {
+        font-family: 'Space Grotesk', sans-serif;
+        background-color: #101622;
+        color: #f3f4f6;
+      }
+      .glass-panel {
+        background: rgba(16, 22, 34, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s ease;
+      }
+      .glass-card:hover {
+        border-color: rgba(37, 106, 244, 0.5);
+      }
+      .text-glow {
+        text-shadow: 0 0 20px rgba(37, 106, 244, 0.5);
+      }
+      .neon-box-shadow {
+        box-shadow: 0 0 15px rgba(0, 240, 255, 0.2), inset 0 0 15px rgba(0, 240, 255, 0.05);
+      }
+      .flow-line {
+        stroke-dasharray: 6 3;
+        animation: flow 1s linear infinite;
+      }
+      /* Custom Scrollbar for code block */
+      .code-scroll::-webkit-scrollbar {
+        height: 8px;
+      }
+      .code-scroll::-webkit-scrollbar-track {
+        background: #1e1e1e;
+      }
+      .code-scroll::-webkit-scrollbar-thumb {
+        background: #4b5563;
+        border-radius: 4px;
+      }
+      .orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.4;
+        z-index: -1;
+      }
+      .code-line {
+        counter-increment: line;
+        display: block;
+        line-height: 1.6;
+      }
+      .code-line::before {
+        content: counter(line);
+        display: inline-block;
+        width: 2rem;
+        margin-right: 1rem;
+        text-align: right;
+        color: #4b5563;
+        font-family: monospace;
+        user-select: none;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -410,3 +410,47 @@ export interface CreateWebhookLogParams {
   readonly event_type: WebhookEventType;
   readonly request_body: Record<string, unknown>;
 }
+
+// ---------------------------------------------------------------------------
+// Agent Marketplace
+// ---------------------------------------------------------------------------
+
+/** Health status for marketplace agents */
+export type AgentHealthStatus = "ONLINE" | "OFFLINE" | "DEGRADED" | "UNKNOWN";
+
+/** Marketplace agent record */
+export interface MarketAgentRecord {
+  readonly agent_id: string;
+  readonly name: string;
+  readonly description: string;
+  readonly category: string;
+  readonly skill_md_url: string;
+  readonly health_url: string;
+  readonly mcp_endpoint: string | null;
+  readonly merchant_did: string | null;
+  readonly skill_name: string | null;
+  readonly skill_version: string | null;
+  readonly skill_protocol: string | null;
+  readonly skill_tools: readonly { name: string; role: string }[];
+  readonly currencies: readonly string[];
+  readonly chain_id: number | null;
+  readonly health_status: AgentHealthStatus;
+  readonly last_health_check: string | null;
+  readonly last_health_latency_ms: number | null;
+  readonly consecutive_failures: number;
+  readonly is_verified: boolean;
+  readonly is_active: boolean;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+/** Parameters for registering a new marketplace agent */
+export interface RegisterAgentParams {
+  readonly name: string;
+  readonly description: string;
+  readonly category: string;
+  readonly skill_md_url: string;
+  readonly health_url: string;
+  readonly mcp_endpoint?: string;
+  readonly merchant_did?: string;
+}

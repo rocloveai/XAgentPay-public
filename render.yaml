@@ -1,3 +1,20 @@
+staticSites:
+  - name: nexus-website
+    buildCommand: cd src/nexus-website && npm install && npx vite build
+    staticPublishPath: src/nexus-website/dist
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: public, max-age=3600
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_NEXUS_CORE_URL
+        value: "https://nexus-core-361y.onrender.com"
+
 services:
   - type: web
     name: nexus-core

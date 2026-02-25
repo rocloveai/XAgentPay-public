@@ -29,6 +29,8 @@ import { NeonEventRepository } from "./db/event-repo.js";
 import { NeonGroupRepository } from "./db/group-repo.js";
 import { NeonWebhookRepository } from "./db/webhook-repo.js";
 import { NeonKVRepository } from "./db/kv-repo.js";
+import { NeonMarketRepository } from "./db/market-repo.js";
+import { HealthChecker } from "./services/health-checker.js";
 import { NexusOrchestrator } from "./services/orchestrator.js";
 import { PaymentStateMachine } from "./services/state-machine.js";
 import { GroupManager } from "./services/group-manager.js";
@@ -41,6 +43,7 @@ import { NEXUS_PAY_ESCROW_ABI } from "./abi/nexus-pay-escrow.js";
 import type { NexusQuotePayload, Hex } from "./types.js";
 import { handlePortalRequest, type PortalDeps } from "./portal.js";
 import { handleCheckoutRequest, type CheckoutDeps } from "./checkout.js";
+import { handleMarketRequest, type MarketDeps } from "./market.js";
 import { normalizeQuotes } from "./normalize-quotes.js";
 import { createLogger } from "./logger.js";
 
@@ -83,6 +86,7 @@ const merchantRepo = new NeonMerchantRepository();
 const eventRepo = new NeonEventRepository();
 const groupRepo = new NeonGroupRepository();
 const webhookRepo = new NeonWebhookRepository();
+const marketRepo = new NeonMarketRepository();
 
 // Core services
 const stateMachine = new PaymentStateMachine(paymentRepo, eventRepo);
@@ -1149,6 +1153,16 @@ async function main(): Promise<void> {
         );
         if (checkoutHandled) return;
 
+        // Market routes
+        const marketDeps: MarketDeps = { marketRepo, config };
+        const marketHandled = await handleMarketRequest(
+          marketDeps,
+          req,
+          res,
+          url,
+        );
+        if (marketHandled) return;
+
         // Portal routes
         const portalDeps: PortalDeps = {
           paymentRepo,
@@ -1168,10 +1182,13 @@ async function main(): Promise<void> {
       },
     );
 
+    const healthChecker = new HealthChecker(marketRepo, 300_000);
+
     httpServer.listen(config.port, () => {
       serverLog.info("SSE server listening", { port: config.port });
 
       // Start background services AFTER HTTP is listening (so health check passes)
+      healthChecker.start();
       if (watcher) {
         watcher.start().catch((err) =>
           serverLog.error("ChainWatcher start failed", {
