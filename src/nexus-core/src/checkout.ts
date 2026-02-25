@@ -179,11 +179,14 @@ async function handleCheckoutSubmit(
   }
 
   // Check if the EIP-3009 authorization has expired
+  // Note: PlatON EVM uses ms timestamps, so validBefore is in milliseconds
   const instrSignData = (instruction as Record<string, unknown>)
     .eip3009_sign_data as { message: { validBefore?: string } } | undefined;
   if (instrSignData?.message?.validBefore) {
-    const nowSec = Math.floor(Date.now() / 1000);
-    if (nowSec >= Number(instrSignData.message.validBefore)) {
+    const vb = Number(instrSignData.message.validBefore);
+    // Detect unit: if validBefore < 1e12 it's in seconds (legacy), else milliseconds
+    const validBeforeMs = vb < 1e12 ? vb * 1000 : vb;
+    if (Date.now() >= validBeforeMs) {
       sendJson(res, 410, {
         error:
           "EIP-3009 authorization has expired. Please create a new payment.",
@@ -668,10 +671,12 @@ async function signAndPay() {
   if (!checkoutData || !checkoutData.instruction) return;
 
   // Check if the EIP-3009 authorization has expired
+  // PlatON EVM uses ms timestamps, so validBefore is in milliseconds
   var signData = checkoutData.instruction.eip3009_sign_data;
   if (signData && signData.message && signData.message.validBefore) {
-    var nowSec = Math.floor(Date.now() / 1000);
-    if (nowSec >= Number(signData.message.validBefore)) {
+    var vb = Number(signData.message.validBefore);
+    var validBeforeMs = vb < 1e12 ? vb * 1000 : vb;
+    if (Date.now() >= validBeforeMs) {
       showError("This payment authorization has expired. Please go back and create a new payment.");
       return;
     }

@@ -522,9 +522,10 @@ server.tool(
         });
       }
 
-      // Read the instruction to get the exact validBefore from the EIP-3009 sign data
-      // (quote_payload.expiry is the quote's business expiry, NOT the EIP-3009 validBefore)
-      let signedValidBefore = BigInt(payment.quote_payload.expiry);
+      // Read the instruction to get the exact validBefore from the EIP-3009 sign data.
+      // PlatON EVM uses block.timestamp in milliseconds, so validBefore must be in ms.
+      // (quote_payload.expiry is the quote's business expiry in seconds, NOT the EIP-3009 validBefore)
+      let signedValidBefore = BigInt(payment.quote_payload.expiry) * 1000n;
       if (group_id) {
         try {
           const instrRaw = await groupRepo.findInstruction(group_id);

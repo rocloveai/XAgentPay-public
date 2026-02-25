@@ -222,7 +222,7 @@ describe("Checkout", () => {
           to: "0xC1aF5ea6e661cB815DB166549178314E6BCfc3CF",
           value: "200000",
           validAfter: "0",
-          validBefore: String(Math.floor(Date.now() / 1000) + 86400),
+          validBefore: String(Date.now() + 86400 * 1000),
           nonce: "0x" + "cc".repeat(32),
         },
       },

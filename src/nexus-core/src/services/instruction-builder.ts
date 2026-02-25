@@ -44,10 +44,7 @@ export function buildDirectTransferInstruction(
   const data = encodeFunctionData({
     abi: ERC20_TRANSFER_ABI,
     functionName: "transfer",
-    args: [
-      merchant.payment_address as Address,
-      BigInt(payment.amount),
-    ],
+    args: [merchant.payment_address as Address, BigInt(payment.amount)],
   });
 
   return {
@@ -84,6 +81,9 @@ export function buildEscrowInstruction(
 ): EscrowInstruction {
   const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
   const now = Math.floor(Date.now() / 1000);
+  // PlatON EVM uses block.timestamp in milliseconds, so EIP-3009
+  // validAfter / validBefore must be in milliseconds for on-chain checks.
+  const nowMs = Date.now();
 
   const eip3009SignData: EIP3009SignData = {
     domain: {
@@ -108,7 +108,7 @@ export function buildEscrowInstruction(
       to: config.escrowContract as Address,
       value: payment.amount,
       validAfter: "0",
-      validBefore: String(now + DEFAULT_RELEASE_TIMEOUT_S),
+      validBefore: String(nowMs + DEFAULT_RELEASE_TIMEOUT_S * 1000),
       nonce,
     },
   };
@@ -125,16 +125,10 @@ export function buildEscrowInstruction(
     amount_display: payment.amount_display,
     eip3009_sign_data: eip3009SignData,
     nexus_payment_id: payment.nexus_payment_id,
-    payment_id_bytes32: keccak256(
-      toHex(payment.nexus_payment_id),
-    ) as Hex,
+    payment_id_bytes32: keccak256(toHex(payment.nexus_payment_id)) as Hex,
     merchant_address: merchant.payment_address as Address,
-    order_ref_hash: keccak256(
-      toHex(payment.merchant_order_ref),
-    ) as Hex,
-    merchant_did_hash: keccak256(
-      toHex(payment.merchant_did),
-    ) as Hex,
+    order_ref_hash: keccak256(toHex(payment.merchant_order_ref)) as Hex,
+    merchant_did_hash: keccak256(toHex(payment.merchant_did)) as Hex,
     context_hash: keccak256(
       toHex(JSON.stringify(payment.quote_payload.context)),
     ) as Hex,
@@ -161,6 +155,8 @@ export function buildGroupEscrowInstruction(
 ): GroupEscrowInstruction {
   const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
   const now = Math.floor(Date.now() / 1000);
+  // PlatON EVM uses block.timestamp in milliseconds
+  const nowMs = Date.now();
 
   // Build per-payment details
   const paymentDetails: GroupPaymentDetail[] = payments.map((p, i) => ({
@@ -196,7 +192,7 @@ export function buildGroupEscrowInstruction(
       to: config.escrowContract as Address,
       value: group.total_amount,
       validAfter: "0",
-      validBefore: String(now + DEFAULT_RELEASE_TIMEOUT_S),
+      validBefore: String(nowMs + DEFAULT_RELEASE_TIMEOUT_S * 1000),
       nonce,
     },
   };

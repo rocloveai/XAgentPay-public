@@ -69,7 +69,7 @@ const DEPOSIT_PARAMS: DepositParams = {
   merchantDid: ("0x" + "cc".repeat(32)) as Hex,
   contextHash: ("0x" + "dd".repeat(32)) as Hex,
   validAfter: 0n,
-  validBefore: BigInt(Math.floor(Date.now() / 1000) + 1800),
+  validBefore: BigInt(Date.now() + 1800 * 1000),
   nonce: ("0x" + "ee".repeat(32)) as Hex,
   v: 27,
   r: ("0x" + "11".repeat(32)) as Hex,

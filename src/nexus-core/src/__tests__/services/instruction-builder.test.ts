@@ -73,6 +73,9 @@ describe("instruction-builder", () => {
         TEST_CONFIG.escrowContract,
       );
       expect(instr.eip3009_sign_data.message.value).toBe("100000");
+      // PlatON EVM uses ms timestamps — validBefore should be in milliseconds
+      const vb = Number(instr.eip3009_sign_data.message.validBefore);
+      expect(vb).toBeGreaterThan(1e12); // > 1 trillion = definitely milliseconds
     });
   });
 
@@ -109,6 +112,9 @@ describe("instruction-builder", () => {
       expect(instr.payments[1].amount_uint256).toBe("100100000");
       expect(instr.eip3009_sign_data.message.value).toBe("630100000");
       expect(instr.eip3009_sign_data.message.from).toBe(group.payer_wallet);
+      // PlatON EVM uses ms timestamps — validBefore should be in milliseconds
+      const vb = Number(instr.eip3009_sign_data.message.validBefore);
+      expect(vb).toBeGreaterThan(1e12);
     });
   });
 });
