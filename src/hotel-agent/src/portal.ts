@@ -146,7 +146,7 @@ async function handleApiInfo(
         (config.signerPrivateKey || "0x") as Hex,
       ).address;
     }
-  } catch (e) { }
+  } catch (e) {}
 
   try {
     if (config.paymentAddress) {
@@ -183,7 +183,10 @@ async function handleApiOrders(res: ServerResponse, url: URL): Promise<void> {
   let orders = [...dbOrders];
 
   // Apply sorting: newest first (descending created_at)
-  orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  orders.sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
 
   // Apply filtering: by status
   const filterStatus = url.searchParams.get("status");
@@ -559,7 +562,7 @@ function updateOrders(newOrders) {
       patchRow(existing, order);
     } else {
       const frag = createOrderRow(order);
-      tbody.prepend(frag);
+      tbody.appendChild(frag);
     }
   }
 
