@@ -1,6 +1,6 @@
 ---
 name: nexus-core
-version: "0.2.0"
+version: "0.4.0"
 description: NexusPay Core — payment orchestration for multi-merchant aggregated checkout
 protocol: NUPS/1.5
 category: finance.payment
@@ -8,14 +8,32 @@ currencies: [USDC]
 chain_id: 20250407
 tools:
   - name: nexus_orchestrate_payment
-    role: quote
+    role: orchestrate
   - name: nexus_get_payment_status
     role: status
+  - name: nexus_submit_eip3009_signature
+    role: submit
+  - name: nexus_confirm_fulfillment
+    role: fulfillment
 ---
 
 # Nexus Core
 
-Payment orchestration MCP server that enables aggregated multi-merchant checkout. User Agents collect quotes from multiple Merchant Agents and submit them together for a single-signature payment.
+Payment orchestration MCP server. **When a user wants to pay for orders from merchant agents (flights, hotels, etc.), submit all quotes here for a single aggregated payment.**
+
+## Quick Start for User Agents
+
+> You received one or more NUPS quotes from merchant agents (e.g. `nexus_generate_quote`).
+> Now call **`nexus_orchestrate_payment`** with all quotes + the user's wallet to create a payment group and get signing instructions.
+
+```
+nexus_orchestrate_payment({
+  quotes: [flight_quote_config, hotel_quote_config],
+  payer_wallet: "0xUserWalletAddress"
+})
+```
+
+The `quotes` array accepts the `config` object from each merchant's UCP `urn:ucp:payment:nexus_v1` handler response.
 
 ## MCP Connection
 
@@ -23,7 +41,7 @@ Payment orchestration MCP server that enables aggregated multi-merchant checkout
 {
   "mcpServers": {
     "nexus-core": {
-      "url": "https://nexus-core.onrender.com/sse"
+      "url": "https://nexus-core-361y.onrender.com/sse"
     }
   }
 }
@@ -31,30 +49,22 @@ Payment orchestration MCP server that enables aggregated multi-merchant checkout
 
 ## Available Tools
 
-### `nexus_orchestrate_payment` (role: quote)
+### `nexus_orchestrate_payment`
 
-Orchestrate aggregated payment for one or more merchant quotes. Validates signatures, creates a payment group, and returns a single EIP-3009 signing instruction for the total amount.
+Orchestrate aggregated payment for one or more merchant quotes. Validates signatures, creates a payment group, and returns a single EIP-3009 signing instruction covering the total amount.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `quotes` | array | Yes | Array of `NexusQuotePayload` objects from merchant UCP responses (the `config` field inside `urn:ucp:payment:nexus_v1` handler) |
+| `quotes` | array | Yes | Array of `NexusQuotePayload` objects — the `config` field from each merchant's UCP `nexus_v1` handler |
 | `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
 
-**Returns:** Payment group details with group_id, per-payment breakdown, and aggregated EIP-3009 sign instruction.
-
-**Example:**
-```
-nexus_orchestrate_payment({
-  quotes: [flight_quote, hotel_quote],
-  payer_wallet: "0x1234567890abcdef1234567890abcdef12345678"
-})
-```
+**Returns:** Payment group with `group_id`, per-payment breakdown, and EIP-3009 sign instruction for the total amount.
 
 ---
 
-### `nexus_get_payment_status` (role: status)
+### `nexus_get_payment_status`
 
 Check payment status by any identifier.
 
@@ -68,12 +78,23 @@ Check payment status by any identifier.
 
 At least one parameter must be provided.
 
-**Returns:** Payment status, group status, and all payments in the group.
+---
 
-## Aggregated Payment Flow
+### `nexus_submit_eip3009_signature`
 
-1. **Collect Quotes** — User Agent receives UCP responses from multiple Merchant Agents (e.g., flight + hotel). Each contains a `nexus_v1` payment handler with a quote in the `config` field.
-2. **Discover Nexus Core** — The UCP response includes a `nexus_core` object with `mcp_endpoint`. Connect to this MCP server.
-3. **Orchestrate** — Call `nexus_orchestrate_payment` with all quotes and the payer's wallet address. Nexus Core validates each quote, creates a payment group, and returns a single EIP-3009 authorization covering the total amount.
-4. **Sign** — User signs the EIP-3009 authorization once (total = flight + hotel).
-5. **Settle** — Each merchant independently confirms delivery and triggers release of their portion from escrow.
+Submit a user's EIP-3009 signature to deposit funds into escrow via the relayer.
+
+---
+
+### `nexus_confirm_fulfillment`
+
+Confirm fulfillment of a payment. If ESCROWED, submits release. If SETTLED, transitions to COMPLETED.
+
+## End-to-End Payment Flow
+
+1. **Collect Quotes** — Call merchant agents' `nexus_generate_quote` tools. Each returns a UCP checkout response containing a `config` (NexusQuotePayload) inside `urn:ucp:payment:nexus_v1`.
+2. **Orchestrate** — Call `nexus_orchestrate_payment` with all `config` objects as the `quotes` array, plus the user's `payer_wallet`. Nexus Core validates each quote, creates a payment group, and returns a single EIP-3009 authorization for the total.
+3. **Sign** — Present the EIP-3009 authorization to the user for signing (one signature covers all merchants).
+4. **Submit** — Call `nexus_submit_eip3009_signature` with the signature components (v, r, s) and payment hashes.
+5. **Track** — Call `nexus_get_payment_status` with `group_id` to monitor progress (CREATED → ESCROWED → SETTLED → COMPLETED).
+6. **Fulfill** — Each merchant confirms delivery via `nexus_confirm_fulfillment`.

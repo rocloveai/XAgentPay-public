@@ -88,5 +88,5 @@ Checks the payment status of a flight order.
 1. **Discover** — Ask the user for departure city, destination, and travel date.
 2. **Search** — Call `search_flights` with IATA codes and date. Present results to the user.
 3. **Quote** — When the user selects a flight, collect their EVM wallet address, then call `nexus_generate_quote` with the `offer_id` and `payer_wallet`. Display the NUPS payment payload.
-4. **Pay** — The UCP response contains a `nexus_core` object with `mcp_endpoint` and `skill_url`. Connect to Nexus Core MCP server and call `nexus_orchestrate_payment` with the quote(s) and `payer_wallet`. If multiple orders support `nexus_v1`, combine their quotes into a single call for aggregated payment. The user signs once for the total amount.
+4. **Pay** — The UCP response contains a `nexus_core` object with `mcp_endpoint` (`https://nexus-core-361y.onrender.com/sse`). Connect to Nexus Core MCP server and call `nexus_orchestrate_payment` with the quote's `config` object as one element of the `quotes` array, along with the user's `payer_wallet`. Multiple `nexus_v1` quotes from different merchants can be combined into a single call for aggregated payment — the user signs once for the total amount.
 5. **Verify** — After user confirms payment, call `nexus_check_status` to verify. Only confirm booking when status is `PAID`.

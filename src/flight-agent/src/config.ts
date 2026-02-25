@@ -33,7 +33,7 @@ export function loadConfig(): Config {
     process.env.MERCHANT_SIGNER_PRIVATE_KEY ||
     "0x3be84b4fa995ef7d87918aea8b0b1ad0cb88d66161b569c3fb55c8125cc31ba7";
   const nexusCoreUrl =
-    process.env.NEXUS_CORE_URL || "https://nexus-core.onrender.com";
+    process.env.NEXUS_CORE_URL || "https://nexus-core-361y.onrender.com";
 
   return {
     duffelApiToken,
