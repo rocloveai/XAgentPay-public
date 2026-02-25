@@ -15,5 +15,7 @@ export const NEXUS_PAY_ESCROW_ABI = parseAbi([
   "function depositWithAuthorization(bytes32 paymentId, address from, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)",
   "function release(bytes32 paymentId)",
   "function refund(bytes32 paymentId)",
+  "function dispute(bytes32 paymentId, bytes32 reason)",
+  "function resolve(bytes32 paymentId, uint16 merchantBps)",
   "function getEscrow(bytes32 paymentId) view returns ((address,address,uint256,bytes32,bytes32,bytes32,uint256,uint256,uint8))",
 ]);

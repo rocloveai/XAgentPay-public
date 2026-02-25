@@ -48,6 +48,7 @@ const TEST_CONFIG: NexusCoreConfig = {
   watcherIntervalMs: 15000,
   timeoutSweepIntervalMs: 60000,
   webhookRetryIntervalMs: 30000,
+  arbitrationTimeoutS: 604800,
 };
 
 const PAYMENT_ID_BYTES32 = ("0x" + "aa".repeat(32)) as Hex;
@@ -123,11 +124,9 @@ describe("ChainWatcher", () => {
       expires_at: payment.expires_at,
     });
     // Force status to BROADCASTED
-    await paymentRepo.updateStatus(
-      payment.nexus_payment_id,
-      "BROADCASTED",
-      { payment_id_bytes32: PAYMENT_ID_BYTES32 },
-    );
+    await paymentRepo.updateStatus(payment.nexus_payment_id, "BROADCASTED", {
+      payment_id_bytes32: PAYMENT_ID_BYTES32,
+    });
 
     // First poll to init
     mockGetBlockNumber.mockResolvedValueOnce(100n);

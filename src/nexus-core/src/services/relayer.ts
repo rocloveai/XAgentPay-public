@@ -153,6 +153,22 @@ export class NexusRelayer {
     }, "submitRelease");
   }
 
+  async submitResolve(
+    paymentIdBytes32: Hex,
+    merchantBps: number,
+  ): Promise<RelayerTxResult> {
+    return withRetry(async () => {
+      const txHash = await this.walletClient.writeContract({
+        address: this.escrowAddress,
+        abi: NEXUS_PAY_ESCROW_ABI,
+        functionName: "resolve",
+        args: [paymentIdBytes32, merchantBps],
+      });
+
+      return this.waitForReceipt(txHash);
+    }, "submitResolve");
+  }
+
   async submitRefund(paymentIdBytes32: Hex): Promise<RelayerTxResult> {
     return withRetry(async () => {
       const txHash = await this.walletClient.writeContract({

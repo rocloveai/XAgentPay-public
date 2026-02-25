@@ -28,6 +28,8 @@ import { NexusRelayer } from "./services/relayer.js";
 import { ChainWatcher } from "./services/chain-watcher.js";
 import { TimeoutHandler } from "./services/timeout-handler.js";
 import { WebhookNotifier } from "./services/webhook-notifier.js";
+import { keccak256, toHex, encodeFunctionData } from "viem";
+import { NEXUS_PAY_ESCROW_ABI } from "./abi/nexus-pay-escrow.js";
 import type { NexusQuotePayload, Hex } from "./types.js";
 
 const config = loadNexusCoreConfig();
@@ -447,26 +449,224 @@ server.tool(
   },
 );
 
-// Tool: nexus_dispute_payment (placeholder for Phase 5)
+// Tool: nexus_dispute_payment
 server.tool(
   "nexus_dispute_payment",
-  "Open a dispute for an escrowed payment. (Phase 5 — currently a placeholder.)",
+  "Open a dispute for an escrowed payment. Returns calldata for the payer to submit on-chain (only payer can call dispute on the contract).",
   {
     payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
-    reason: z.string().describe("Dispute reason"),
+    reason: z
+      .string()
+      .max(256)
+      .describe("Dispute reason (UTF-8, max 256 chars)"),
   },
   async ({ payment_id, reason }) => {
-    return {
-      content: [
-        {
-          type: "text" as const,
-          text:
-            `Dispute functionality is not yet implemented (Phase 5).\n` +
-            `Payment: ${payment_id}\n` +
-            `Reason: ${reason}`,
-        },
-      ],
-    };
+    try {
+      const payment = await stateMachine.getPayment(payment_id);
+      if (!payment) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Payment ${payment_id} not found`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (payment.status !== "ESCROWED") {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Payment must be ESCROWED to dispute (current: ${payment.status})`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (
+        payment.dispute_deadline &&
+        new Date(payment.dispute_deadline).getTime() < Date.now()
+      ) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Dispute window has expired (deadline: ${payment.dispute_deadline})`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (!payment.payment_id_bytes32) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Payment has no payment_id_bytes32",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const reasonBytes32 = keccak256(toHex(reason));
+
+      // Optimistic DB transition
+      await stateMachine.transition({
+        nexusPaymentId: payment_id,
+        toStatus: "DISPUTE_OPEN",
+        eventType: "DISPUTE_OPENED",
+        metadata: { reason, reason_bytes32: reasonBytes32 },
+        fields: { dispute_reason: reasonBytes32 },
+      });
+
+      // Build calldata for payer to submit
+      const calldata = encodeFunctionData({
+        abi: NEXUS_PAY_ESCROW_ABI,
+        functionName: "dispute",
+        args: [payment.payment_id_bytes32 as Hex, reasonBytes32],
+      });
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text:
+              `Dispute Recorded\n` +
+              `Payment: ${payment_id}\n` +
+              `Status: DISPUTE_OPEN\n` +
+              `Reason: "${reason}"\n\n` +
+              `On-chain submission required:\n` +
+              `The payer must submit the following transaction to finalize the dispute on-chain:\n` +
+              `Contract: ${config.escrowContract}\n` +
+              `Calldata: ${calldata}\n\n` +
+              `The ChainWatcher will confirm the dispute once the transaction is mined.`,
+          },
+        ],
+      };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return {
+        content: [{ type: "text" as const, text: `Error: ${message}` }],
+        isError: true,
+      };
+    }
+  },
+);
+
+// Tool: nexus_resolve_dispute
+server.tool(
+  "nexus_resolve_dispute",
+  "Resolve a disputed payment by splitting funds between merchant and payer. Only callable when payment is DISPUTE_OPEN.",
+  {
+    payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+    merchant_bps: z
+      .number()
+      .int()
+      .min(0)
+      .max(10000)
+      .describe(
+        "Basis points (0-10000) of funds to merchant. 0 = full refund, 10000 = full to merchant.",
+      ),
+    resolution_reason: z
+      .string()
+      .optional()
+      .describe("Reason for resolution decision"),
+  },
+  async ({ payment_id, merchant_bps, resolution_reason }) => {
+    try {
+      if (!relayer) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Relayer not configured (RELAYER_PRIVATE_KEY missing)",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const payment = await stateMachine.getPayment(payment_id);
+      if (!payment) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Payment ${payment_id} not found`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (payment.status !== "DISPUTE_OPEN") {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Payment must be DISPUTE_OPEN to resolve (current: ${payment.status})`,
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      if (!payment.payment_id_bytes32) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: "Error: Payment has no payment_id_bytes32",
+            },
+          ],
+          isError: true,
+        };
+      }
+
+      const result = await relayer.submitResolve(
+        payment.payment_id_bytes32 as Hex,
+        merchant_bps,
+      );
+
+      // ChainWatcher will handle the Resolved event → DISPUTE_RESOLVED
+      const totalAmount = BigInt(payment.amount);
+      const merchantAmount = (totalAmount * BigInt(merchant_bps)) / 10000n;
+      const payerAmount = totalAmount - merchantAmount;
+      const decimals = config.usdcDecimals;
+      const formatAmount = (raw: bigint): string =>
+        (Number(raw) / 10 ** decimals).toFixed(decimals);
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text:
+              `Dispute Resolution Submitted\n` +
+              `TX Hash: ${result.txHash}\n` +
+              `Block: ${result.blockNumber}\n` +
+              `Payment: ${payment_id}\n` +
+              `Merchant BPS: ${merchant_bps} (${(merchant_bps / 100).toFixed(2)}%)\n` +
+              `Merchant receives: ${formatAmount(merchantAmount)} USDC\n` +
+              `Payer receives: ${formatAmount(payerAmount)} USDC` +
+              (resolution_reason
+                ? `\nResolution reason: ${resolution_reason}`
+                : ""),
+          },
+        ],
+      };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      return {
+        content: [{ type: "text" as const, text: `Error: ${message}` }],
+        isError: true,
+      };
+    }
   },
 );
 

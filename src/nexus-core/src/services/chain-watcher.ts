@@ -246,6 +246,9 @@ export class ChainWatcher {
         const reason = args.reason as Hex | undefined;
         return {
           dispute_reason: reason ?? null,
+          dispute_deadline: new Date(
+            Date.now() + this.config.arbitrationTimeoutS * 1000,
+          ).toISOString(),
         };
       }
 

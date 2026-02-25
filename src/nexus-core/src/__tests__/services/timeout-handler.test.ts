@@ -11,11 +11,13 @@ import { makeTestPayment } from "../fixtures.js";
 // ---------------------------------------------------------------------------
 
 const mockSubmitRefund = vi.fn();
+const mockSubmitResolve = vi.fn();
 
 const mockRelayer = {
   submitDeposit: vi.fn(),
   submitRelease: vi.fn(),
   submitRefund: mockSubmitRefund,
+  submitResolve: mockSubmitResolve,
 };
 
 const PAYMENT_ID_BYTES32 = ("0x" + "aa".repeat(32)) as Hex;
@@ -117,7 +119,9 @@ describe("TimeoutHandler", () => {
         release_deadline: new Date(Date.now() - 60000).toISOString(),
       });
 
-      mockSubmitRefund.mockRejectedValueOnce(new Error("gas estimation failed"));
+      mockSubmitRefund.mockRejectedValueOnce(
+        new Error("gas estimation failed"),
+      );
 
       // Should not throw
       await handler.sweepOnce();
@@ -150,6 +154,80 @@ describe("TimeoutHandler", () => {
 
       const updated = await paymentRepo.findById(payment.nexus_payment_id);
       expect(updated?.status).toBe("EXPIRED");
+    });
+
+    it("submits resolve for expired DISPUTE_OPEN payments", async () => {
+      const payment = makeTestPayment({
+        status: "ESCROWED",
+        payment_id_bytes32: PAYMENT_ID_BYTES32,
+        dispute_deadline: new Date(Date.now() - 60000).toISOString(),
+      });
+      await paymentRepo.insert({
+        nexus_payment_id: payment.nexus_payment_id,
+        group_id: null,
+        quote_hash: payment.quote_hash,
+        merchant_did: payment.merchant_did,
+        merchant_order_ref: payment.merchant_order_ref,
+        payer_wallet: payment.payer_wallet,
+        payment_address: payment.payment_address,
+        amount: payment.amount,
+        amount_display: payment.amount_display,
+        currency: payment.currency,
+        chain_id: payment.chain_id,
+        payment_method: payment.payment_method,
+        quote_payload: payment.quote_payload,
+        iso_metadata: null,
+        expires_at: payment.expires_at,
+      });
+      await paymentRepo.updateStatus(payment.nexus_payment_id, "DISPUTE_OPEN", {
+        payment_id_bytes32: PAYMENT_ID_BYTES32,
+        dispute_deadline: new Date(Date.now() - 60000).toISOString(),
+        dispute_reason: "0x" + "ab".repeat(32),
+      });
+
+      mockSubmitResolve.mockResolvedValueOnce({
+        txHash: "0x" + "ff".repeat(32),
+        blockNumber: 200n,
+        status: "success",
+      });
+
+      await handler.sweepOnce();
+
+      expect(mockSubmitResolve).toHaveBeenCalledWith(PAYMENT_ID_BYTES32, 0);
+    });
+
+    it("does not resolve DISPUTE_OPEN that has not expired", async () => {
+      const payment = makeTestPayment({
+        status: "ESCROWED",
+        payment_id_bytes32: PAYMENT_ID_BYTES32,
+        dispute_deadline: new Date(Date.now() + 600000).toISOString(),
+      });
+      await paymentRepo.insert({
+        nexus_payment_id: payment.nexus_payment_id,
+        group_id: null,
+        quote_hash: payment.quote_hash,
+        merchant_did: payment.merchant_did,
+        merchant_order_ref: payment.merchant_order_ref,
+        payer_wallet: payment.payer_wallet,
+        payment_address: payment.payment_address,
+        amount: payment.amount,
+        amount_display: payment.amount_display,
+        currency: payment.currency,
+        chain_id: payment.chain_id,
+        payment_method: payment.payment_method,
+        quote_payload: payment.quote_payload,
+        iso_metadata: null,
+        expires_at: payment.expires_at,
+      });
+      await paymentRepo.updateStatus(payment.nexus_payment_id, "DISPUTE_OPEN", {
+        payment_id_bytes32: PAYMENT_ID_BYTES32,
+        dispute_deadline: new Date(Date.now() + 600000).toISOString(),
+        dispute_reason: "0x" + "ab".repeat(32),
+      });
+
+      await handler.sweepOnce();
+
+      expect(mockSubmitResolve).not.toHaveBeenCalled();
     });
 
     it("skips ESCROWED payment without payment_id_bytes32", async () => {

@@ -25,9 +25,7 @@ export class TimeoutHandler {
 
   start(): void {
     if (this.timer) return;
-    console.error(
-      `[TimeoutHandler] Starting (interval=${this.intervalMs}ms)`,
-    );
+    console.error(`[TimeoutHandler] Starting (interval=${this.intervalMs}ms)`);
     this.timer = setInterval(() => {
       this.sweepOnce().catch((err) =>
         console.error("[TimeoutHandler] sweep error:", err),
@@ -67,6 +65,23 @@ export class TimeoutHandler {
           err instanceof Error ? err.message : err,
         );
         // Will retry on next sweep
+      }
+    }
+
+    // 3. Handle expired DISPUTE_OPEN — auto-resolve to 100% payer refund
+    const expiredDisputes =
+      await this.paymentRepo.findDisputeOpenPastDeadline(now);
+
+    for (const payment of expiredDisputes) {
+      if (!payment.payment_id_bytes32) continue;
+      try {
+        await this.relayer.submitResolve(payment.payment_id_bytes32 as Hex, 0);
+        // ChainWatcher will handle Resolved event → DISPUTE_RESOLVED
+      } catch (err) {
+        console.error(
+          `[TimeoutHandler] Auto-resolve failed for ${payment.nexus_payment_id}:`,
+          err instanceof Error ? err.message : err,
+        );
       }
     }
   }

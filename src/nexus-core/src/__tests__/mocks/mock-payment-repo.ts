@@ -161,4 +161,21 @@ export class MockPaymentRepository implements PaymentRepository {
     }
     return null;
   }
+
+  async findDisputeOpenPastDeadline(
+    now: string,
+  ): Promise<readonly PaymentRecord[]> {
+    const cutoff = new Date(now).getTime();
+    const results: PaymentRecord[] = [];
+    for (const r of this.store.values()) {
+      if (
+        r.status === "DISPUTE_OPEN" &&
+        r.dispute_deadline != null &&
+        new Date(r.dispute_deadline).getTime() <= cutoff
+      ) {
+        results.push(r);
+      }
+    }
+    return results;
+  }
 }

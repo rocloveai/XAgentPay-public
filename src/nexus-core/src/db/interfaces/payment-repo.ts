@@ -57,4 +57,7 @@ export interface PaymentRepository {
 
   /** Find by on-chain payment_id_bytes32. */
   findByPaymentIdBytes32(bytes32: string): Promise<PaymentRecord | null>;
+
+  /** Find DISPUTE_OPEN payments past their arbitration deadline. */
+  findDisputeOpenPastDeadline(now: string): Promise<readonly PaymentRecord[]>;
 }

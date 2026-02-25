@@ -241,4 +241,18 @@ export class NeonPaymentRepository implements PaymentRepository {
     );
     return rows.length > 0 ? rowToPayment(rows[0]) : null;
   }
+
+  async findDisputeOpenPastDeadline(
+    now: string,
+  ): Promise<readonly PaymentRecord[]> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT * FROM payments
+       WHERE status = 'DISPUTE_OPEN'
+         AND dispute_deadline IS NOT NULL
+         AND dispute_deadline <= $1::timestamptz`,
+      [now],
+    );
+    return rows.map(rowToPayment);
+  }
 }

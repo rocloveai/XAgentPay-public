@@ -56,6 +56,7 @@ const TEST_CONFIG: NexusCoreConfig = {
   watcherIntervalMs: 15000,
   timeoutSweepIntervalMs: 60000,
   webhookRetryIntervalMs: 30000,
+  arbitrationTimeoutS: 604800,
 };
 
 const DEPOSIT_PARAMS: DepositParams = {
@@ -193,6 +194,38 @@ describe("NexusRelayer", () => {
       expect(result.txHash).toBe(TX_HASH);
       expect(result.status).toBe("success");
       expect(result.blockNumber).toBe(60n);
+    });
+  });
+
+  describe("submitResolve", () => {
+    it("submits resolve and returns success result", async () => {
+      const paymentId = ("0x" + "aa".repeat(32)) as Hex;
+      mockWriteContract.mockResolvedValueOnce(TX_HASH);
+      mockWaitForTransactionReceipt.mockResolvedValueOnce({
+        status: "success",
+        blockNumber: 70n,
+      });
+
+      const result = await relayer.submitResolve(paymentId, 5000);
+
+      expect(result.txHash).toBe(TX_HASH);
+      expect(result.status).toBe("success");
+      expect(result.blockNumber).toBe(70n);
+      expect(mockWriteContract).toHaveBeenCalledOnce();
+    });
+
+    it("throws immediately on reverted transaction (no retry)", async () => {
+      const paymentId = ("0x" + "aa".repeat(32)) as Hex;
+      mockWriteContract.mockResolvedValueOnce(TX_HASH);
+      mockWaitForTransactionReceipt.mockResolvedValueOnce({
+        status: "reverted",
+        blockNumber: 71n,
+      });
+
+      await expect(relayer.submitResolve(paymentId, 0)).rejects.toThrow(
+        RelayerError,
+      );
+      expect(mockWriteContract).toHaveBeenCalledOnce();
     });
   });
 });

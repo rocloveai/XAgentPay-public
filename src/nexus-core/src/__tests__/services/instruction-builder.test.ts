@@ -23,6 +23,12 @@ const TEST_CONFIG: NexusCoreConfig = {
   releaseTimeoutS: 86400,
   disputeWindowS: 259200,
   port: 4000,
+  rpcUrl: "https://devnet3openapi.platon.network/rpc",
+  relayerPrivateKey: "",
+  watcherIntervalMs: 15000,
+  timeoutSweepIntervalMs: 60000,
+  webhookRetryIntervalMs: 30000,
+  arbitrationTimeoutS: 604800,
 };
 
 describe("instruction-builder", () => {
@@ -101,9 +107,7 @@ describe("instruction-builder", () => {
       expect(instr.payments[0].amount_uint256).toBe("530000000");
       expect(instr.payments[1].amount_uint256).toBe("100100000");
       expect(instr.eip3009_sign_data.message.value).toBe("630100000");
-      expect(instr.eip3009_sign_data.message.from).toBe(
-        group.payer_wallet,
-      );
+      expect(instr.eip3009_sign_data.message.from).toBe(group.payer_wallet);
     });
   });
 });

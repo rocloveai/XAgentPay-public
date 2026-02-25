@@ -18,6 +18,7 @@ export interface NexusCoreConfig {
   readonly watcherIntervalMs: number;
   readonly timeoutSweepIntervalMs: number;
   readonly webhookRetryIntervalMs: number;
+  readonly arbitrationTimeoutS: number;
 }
 
 export function loadNexusCoreConfig(): NexusCoreConfig {
@@ -44,5 +45,6 @@ export function loadNexusCoreConfig(): NexusCoreConfig {
     webhookRetryIntervalMs: Number(
       process.env.WEBHOOK_RETRY_INTERVAL_MS ?? "30000",
     ),
+    arbitrationTimeoutS: Number(process.env.ARBITRATION_TIMEOUT_S ?? "604800"),
   };
 }

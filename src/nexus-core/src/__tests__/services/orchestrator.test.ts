@@ -24,6 +24,12 @@ const TEST_CONFIG: NexusCoreConfig = {
   releaseTimeoutS: 86400,
   disputeWindowS: 259200,
   port: 4000,
+  rpcUrl: "https://devnet3openapi.platon.network/rpc",
+  relayerPrivateKey: "",
+  watcherIntervalMs: 15000,
+  timeoutSweepIntervalMs: 60000,
+  webhookRetryIntervalMs: 30000,
+  arbitrationTimeoutS: 604800,
 };
 
 describe("NexusOrchestrator", () => {
