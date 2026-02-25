@@ -66,7 +66,10 @@ const STATUS_COLORS: Record<string, string> = {
   UNKNOWN: "bg-gray-500",
 };
 
+type MarketTab = "discover" | "list";
+
 const MarketplacePage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<MarketTab>("discover");
   const [agents, setAgents] = useState<MarketAgent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -177,8 +180,112 @@ const MarketplacePage: React.FC = () => {
           )}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-8">
+        {/* Tabs */}
+        <div className="flex justify-center mb-10">
+          <div className="inline-flex rounded-lg border border-white/10 bg-white/5 p-1">
+            <button
+              onClick={() => setActiveTab("discover")}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium transition-all cursor-pointer ${
+                activeTab === "discover"
+                  ? "bg-primary/20 text-primary shadow-sm"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <span className="material-icons-round text-base">explore</span>
+              Discover Services
+            </button>
+            <button
+              onClick={() => setActiveTab("list")}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium transition-all cursor-pointer ${
+                activeTab === "list"
+                  ? "bg-primary/20 text-primary shadow-sm"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              <span className="material-icons-round text-base">
+                add_business
+              </span>
+              List Your Agent
+            </button>
+          </div>
+        </div>
+
+        {/* ============================================================= */}
+        {/* TAB: Discover Services                                         */}
+        {/* ============================================================= */}
+        {activeTab === "discover" && (
+          <>
+            {/* How to use intro */}
+            <div className="glass-panel rounded-xl p-6 max-w-3xl mx-auto mb-10">
+              <h3 className="text-sm font-semibold text-white mb-3">
+                How to Use Marketplace Services
+              </h3>
+              <p className="text-xs text-gray-400 leading-relaxed mb-4">
+                Browse the agents below and use them in your AI workflow.
+                There are two ways to connect:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="rounded-lg bg-white/5 border border-white/8 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-icons-round text-primary text-base">
+                      terminal
+                    </span>
+                    <h4 className="text-xs font-semibold text-white">
+                      Install Merchant Skill
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-gray-400 leading-relaxed mb-2">
+                    Add a single agent&apos;s MCP endpoint to your Claude
+                    config. You get direct tool access (e.g.{" "}
+                    <code className="text-primary/70 bg-primary/5 px-1 rounded">
+                      search_flights
+                    </code>
+                    ).
+                  </p>
+                  <pre className="text-[11px] text-gray-300 bg-background-dark/60 rounded p-2 overflow-x-auto font-mono">
+                    {`// claude_desktop_config.json
+"mcpServers": {
+  "flight-agent": {
+    "url": "<agent_mcp_endpoint>"
+  }
+}`}
+                  </pre>
+                </div>
+                <div className="rounded-lg bg-white/5 border border-white/8 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-icons-round text-accent-cyan text-base">
+                      hub
+                    </span>
+                    <h4 className="text-xs font-semibold text-white">
+                      Install Market Skill
+                    </h4>
+                  </div>
+                  <p className="text-[11px] text-gray-400 leading-relaxed mb-2">
+                    Connect to Nexus Core to discover all agents dynamically
+                    via{" "}
+                    <code className="text-accent-cyan/70 bg-accent-cyan/5 px-1 rounded">
+                      discover_agents
+                    </code>{" "}
+                    +{" "}
+                    <code className="text-accent-cyan/70 bg-accent-cyan/5 px-1 rounded">
+                      get_agent_skill
+                    </code>
+                    .
+                  </p>
+                  <pre className="text-[11px] text-gray-300 bg-background-dark/60 rounded p-2 overflow-x-auto font-mono">
+                    {`// claude_desktop_config.json
+"mcpServers": {
+  "nexus-market": {
+    "url": "${API_URL}/sse"
+  }
+}`}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center mb-8">
           <div className="relative flex-1 max-w-md">
             <span className="material-icons-round absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-lg">
               search
@@ -343,12 +450,18 @@ const MarketplacePage: React.FC = () => {
           </div>
         )}
 
-        {/* Registration Guide */}
-        <div className="border-t border-white/5 pt-16">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
-              List Your <span className="text-primary">Agent</span>
-            </h2>
+          </>
+        )}
+
+        {/* ============================================================= */}
+        {/* TAB: List Your Agent                                           */}
+        {/* ============================================================= */}
+        {activeTab === "list" && (
+          <div className="pt-4">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
+                List Your <span className="text-primary">Agent</span>
+              </h2>
             <p className="text-gray-400 text-sm sm:text-base max-w-2xl mx-auto">
               Turn your AI agent into a commercial service. Register once to get
               payment capability (receive stablecoins via escrow), marketplace
@@ -687,7 +800,7 @@ const MarketplacePage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
