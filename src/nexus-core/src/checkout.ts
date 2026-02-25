@@ -13,7 +13,7 @@ import type { NexusRelayer } from "./services/relayer.js";
 import type { WebhookNotifier } from "./services/webhook-notifier.js";
 import type { NexusCoreConfig } from "./config.js";
 import type { Hex } from "./types.js";
-import { keccak256, toHex } from "viem";
+import { keccak256, toHex, hashTypedData, recoverAddress } from "viem";
 
 // ---------------------------------------------------------------------------
 // Dependencies
@@ -227,7 +227,7 @@ async function handleCheckoutSubmit(
       firstPayment.eip3009_nonce ??
       "0x0") as Hex;
 
-    const depositResult = await deps.relayer.submitDeposit({
+    const depositParams = {
       paymentId: (firstPayment.payment_id_bytes32 ??
         keccak256(toHex(firstPayment.nexus_payment_id))) as Hex,
       from: firstPayment.payer_wallet as Hex,
@@ -242,7 +242,123 @@ async function handleCheckoutSubmit(
       v: body.v,
       r: body.r as Hex,
       s: body.s as Hex,
-    });
+    };
+
+    // Server-side signature verification — recover signer from EIP-712 typed data
+    // to catch mismatches before sending to the relayer
+    const fullSignData = (instruction as Record<string, unknown>)
+      .eip3009_sign_data as
+      | {
+          domain: {
+            name: string;
+            version: string;
+            chainId: number;
+            verifyingContract: string;
+          };
+          types: Record<string, Array<{ name: string; type: string }>>;
+          primaryType: string;
+          message: Record<string, string>;
+        }
+      | undefined;
+
+    if (fullSignData) {
+      try {
+        const digest = hashTypedData({
+          domain: {
+            name: fullSignData.domain.name,
+            version: fullSignData.domain.version,
+            chainId: fullSignData.domain.chainId,
+            verifyingContract: fullSignData.domain.verifyingContract as Hex,
+          },
+          types: fullSignData.types as {
+            TransferWithAuthorization: Array<{
+              name: string;
+              type: string;
+            }>;
+          },
+          primaryType: fullSignData.primaryType as "TransferWithAuthorization",
+          message: {
+            from: fullSignData.message.from as Hex,
+            to: fullSignData.message.to as Hex,
+            value: BigInt(fullSignData.message.value),
+            validAfter: BigInt(fullSignData.message.validAfter),
+            validBefore: BigInt(fullSignData.message.validBefore),
+            nonce: fullSignData.message.nonce as Hex,
+          },
+        });
+
+        const recovered = await recoverAddress({
+          hash: digest,
+          signature: {
+            v: BigInt(body.v),
+            r: body.r as Hex,
+            s: body.s as Hex,
+          },
+        });
+
+        const expectedFrom = (firstPayment.payer_wallet ?? "").toLowerCase();
+        console.log("[checkout] EIP-712 digest:", digest);
+        console.log(
+          "[checkout] Recovered signer:",
+          recovered,
+          "expected:",
+          expectedFrom,
+        );
+
+        if (recovered.toLowerCase() !== expectedFrom) {
+          // Log detailed mismatch info for debugging — don't block submission
+          // because MetaMask's signing might differ subtly from viem's hashTypedData.
+          // The relayer will get the definitive answer from the on-chain contract.
+          console.error(
+            "[checkout] SIGNATURE MISMATCH — recovered signer:",
+            recovered,
+            "expected:",
+            firstPayment.payer_wallet,
+            "digest:",
+            digest,
+            "v:",
+            body.v,
+            "r:",
+            body.r,
+            "s:",
+            body.s,
+            "signData:",
+            JSON.stringify(fullSignData),
+          );
+        }
+      } catch (verifyErr) {
+        // Log but don't block — let the relayer attempt anyway
+        console.warn(
+          "[checkout] Server-side signature verification failed:",
+          verifyErr,
+        );
+      }
+    }
+
+    // Debug: log what we're sending to the relayer vs what was signed
+    console.log(
+      "[checkout] depositParams:",
+      JSON.stringify({
+        paymentId: depositParams.paymentId,
+        from: depositParams.from,
+        merchant: depositParams.merchant,
+        amount: depositParams.amount.toString(),
+        validAfter: depositParams.validAfter.toString(),
+        validBefore: depositParams.validBefore.toString(),
+        nonce: depositParams.nonce,
+        v: depositParams.v,
+        r: depositParams.r,
+        s: depositParams.s,
+      }),
+    );
+    console.log(
+      "[checkout] instruction signData:",
+      JSON.stringify(
+        (instruction as Record<string, unknown>).eip3009_sign_data,
+      ),
+    );
+
+    const depositResult = await deps.relayer.submitDeposit(depositParams);
 
     // Transition all payments to BROADCASTED (re-fetch to get current status)
     const updatedPayments = await deps.paymentRepo.findByGroupId(groupId);
@@ -724,6 +840,10 @@ async function signAndPay() {
   showOnly(["order-summary","payment-details","action-area","signing"]);
 
   try {
+    // Use connected account as the signer address for MetaMask
+    // MetaMask signs with whichever address is passed as first param
+    var signerAddress = account;
+
     var params = {
       domain: signData.domain,
       types: signData.types,
@@ -738,14 +858,23 @@ async function signAndPay() {
       },
     };
 
+    // Debug: log the exact data being sent to MetaMask
+    console.log("[NexusPay] Signer address:", signerAddress);
+    console.log("[NexusPay] EIP-712 params:", JSON.stringify(params, null, 2));
+    console.log("[NexusPay] domain.chainId type:", typeof params.domain.chainId, "value:", params.domain.chainId);
+    console.log("[NexusPay] message.value type:", typeof params.message.value, "value:", params.message.value);
+    console.log("[NexusPay] message.validBefore type:", typeof params.message.validBefore, "value:", params.message.validBefore);
+
     var signature = await ethereum.request({
       method: "eth_signTypedData_v4",
-      params: [account, JSON.stringify(params)],
+      params: [signerAddress, JSON.stringify(params)],
     });
 
     var r = signature.slice(0, 66);
     var s = "0x" + signature.slice(66, 130);
     var v = parseInt(signature.slice(130, 132), 16);
+
+    console.log("[NexusPay] Signature:", { v: v, r: r, s: s, raw: signature });
 
     // Submit
     showOnly(["order-summary","payment-details","action-area","submitting"]);
