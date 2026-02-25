@@ -1,14 +1,30 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import ProtocolFlow from "./components/ProtocolFlow";
 import Standards from "./components/Standards";
 import Infrastructure from "./components/Infrastructure";
-import Marketplace from "./components/Marketplace";
+import MarketplacePage from "./components/MarketplacePage";
 import Developers from "./components/Developers";
 import Footer from "./components/Footer";
 
+type Page = "home" | "market";
+
+function getPage(): Page {
+  const hash = window.location.hash;
+  if (hash === "#/market" || hash === "#/marketplace") return "market";
+  return "home";
+}
+
 function App() {
+  const [page, setPage] = useState<Page>(getPage);
+
+  useEffect(() => {
+    const onHash = () => setPage(getPage());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
   return (
     <div className="bg-background-dark min-h-screen overflow-x-hidden relative text-gray-100">
       {/* Background Ambience */}
@@ -19,15 +35,20 @@ function App() {
         <div className="absolute inset-0 bg-grid-pattern bg-[length:40px_40px] opacity-[0.03]"></div>
       </div>
 
-      <Navbar />
+      <Navbar currentPage={page} />
 
       <main className="relative z-10">
-        <Hero />
-        <Standards />
-        <ProtocolFlow />
-        <Infrastructure />
-        <Marketplace />
-        <Developers />
+        {page === "market" ? (
+          <MarketplacePage />
+        ) : (
+          <>
+            <Hero />
+            <Standards />
+            <ProtocolFlow />
+            <Infrastructure />
+            <Developers />
+          </>
+        )}
       </main>
 
       <Footer />
