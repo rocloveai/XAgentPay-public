@@ -195,7 +195,14 @@ async function handleListAgents(
 
   const merchants = await deps.merchantRepo.listForMarket({ category, status });
   const dids = merchants.map((m) => m.merchant_did);
-  const starCounts = await deps.starRepo.getStarCounts(dids);
+
+  // Gracefully degrade if merchant_stars table hasn't been migrated yet
+  let starCounts: ReadonlyMap<string, number> = new Map();
+  try {
+    starCounts = await deps.starRepo.getStarCounts(dids);
+  } catch {
+    marketLog.warn("Failed to fetch star counts — table may not exist yet");
+  }
 
   sendJson(res, 200, {
     agents: merchants.map((m) =>
@@ -219,7 +226,12 @@ async function handleGetAgent(
     sendJson(res, 404, { error: "Agent not found" });
     return;
   }
-  const starCount = await deps.starRepo.getStarCount(merchantDid);
+  let starCount = 0;
+  try {
+    starCount = await deps.starRepo.getStarCount(merchantDid);
+  } catch {
+    /* table may not exist yet */
+  }
   sendJson(res, 200, { agent: toMarketAgent(merchant, starCount) });
 }
 
@@ -631,10 +643,15 @@ async function handleAddStar(
     return;
   }
 
-  const isNew = await deps.starRepo.addStar(merchantDid, walletAddress);
-  const starCount = await deps.starRepo.getStarCount(merchantDid);
-
-  sendJson(res, isNew ? 201 : 200, { starred: true, star_count: starCount });
+  try {
+    const isNew = await deps.starRepo.addStar(merchantDid, walletAddress);
+    const starCount = await deps.starRepo.getStarCount(merchantDid);
+    sendJson(res, isNew ? 201 : 200, { starred: true, star_count: starCount });
+  } catch {
+    sendJson(res, 503, {
+      error: "Star feature unavailable — migration pending",
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -664,10 +681,15 @@ async function handleRemoveStar(
     return;
   }
 
-  await deps.starRepo.removeStar(merchantDid, walletAddress);
-  const starCount = await deps.starRepo.getStarCount(merchantDid);
-
-  sendJson(res, 200, { starred: false, star_count: starCount });
+  try {
+    await deps.starRepo.removeStar(merchantDid, walletAddress);
+    const starCount = await deps.starRepo.getStarCount(merchantDid);
+    sendJson(res, 200, { starred: false, star_count: starCount });
+  } catch {
+    sendJson(res, 503, {
+      error: "Star feature unavailable — migration pending",
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -681,8 +703,14 @@ async function handleGetStars(
   res: ServerResponse,
 ): Promise<void> {
   const walletAddress = url.searchParams.get("wallet_address") ?? undefined;
-  const info = await deps.starRepo.getStarInfo(merchantDid, walletAddress);
-  sendJson(res, 200, info);
+  try {
+    const info = await deps.starRepo.getStarInfo(merchantDid, walletAddress);
+    sendJson(res, 200, info);
+  } catch {
+    sendJson(res, 503, {
+      error: "Star feature unavailable — migration pending",
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
