@@ -161,7 +161,7 @@ describe("Checkout", () => {
       eip3009_nonce: "0x" + "cc".repeat(32),
     });
 
-    // Seed instruction
+    // Seed instruction (includes group signature fields)
     await groupRepo.updateInstruction(GROUP_ID, {
       group_id: GROUP_ID,
       chain_id: 20250407,
@@ -173,8 +173,14 @@ describe("Checkout", () => {
           nexus_payment_id: "PAY-checkout-1",
           merchant_did: "did:nexus:20250407:demo_flight",
           merchant_order_ref: "FLT-CHECKOUT-1",
+          merchant_address: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1",
+          amount_uint256: "200000",
           amount_display: "0.20",
           summary: "Test flight",
+          payment_id_bytes32: "0x" + "a1".repeat(32),
+          order_ref_bytes32: "0x" + "b2".repeat(32),
+          merchant_did_bytes32: "0x" + "c3".repeat(32),
+          context_hash: "0x" + "d4".repeat(32),
         },
       ],
       eip3009_sign_data: {
@@ -204,6 +210,8 @@ describe("Checkout", () => {
           nonce: "0x" + "cc".repeat(32),
         },
       },
+      nexus_group_sig: "0x" + "ee".repeat(65),
+      core_operator_address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     });
 
     deps = {
@@ -250,6 +258,22 @@ describe("Checkout", () => {
       expect(res.body).toContain("toLowerCase()");
     });
 
+    it("includes group signature validation in rendered HTML", async () => {
+      const { req, url } = makeReq("GET", `/checkout/${GROUP_ID}`);
+      const res = makeRes();
+      await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(res.body).toContain("nexus_group_sig");
+      expect(res.body).toContain("core_operator_address");
+      expect(res.body).toContain("Missing group signature");
+      expect(res.body).toContain("Group sig verified");
+    });
+
     it("returns 404 for nonexistent group", async () => {
       const { req, url } = makeReq("GET", "/checkout/GRP-nonexistent");
       const res = makeRes();
@@ -286,6 +310,41 @@ describe("Checkout", () => {
       expect(Array.isArray(data.payments)).toBe(true);
       expect(data.instruction).toBeDefined();
       expect(data.instruction.eip3009_sign_data).toBeDefined();
+    });
+
+    it("returns instruction with nexus_group_sig and core_operator_address", async () => {
+      const { req, url } = makeReq("GET", `/api/checkout/${GROUP_ID}`);
+      const res = makeRes();
+      await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      const data = JSON.parse(res.body);
+      expect(data.instruction.nexus_group_sig).toBeDefined();
+      expect(data.instruction.nexus_group_sig).toMatch(/^0x/);
+      expect(data.instruction.core_operator_address).toBeDefined();
+      expect(data.instruction.core_operator_address).toMatch(/^0x/);
+    });
+
+    it("returns precomputed hash fields in payment details", async () => {
+      const { req, url } = makeReq("GET", `/api/checkout/${GROUP_ID}`);
+      const res = makeRes();
+      await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      const data = JSON.parse(res.body);
+      const payment = data.instruction.payments[0];
+      expect(payment.payment_id_bytes32).toMatch(/^0x/);
+      expect(payment.order_ref_bytes32).toMatch(/^0x/);
+      expect(payment.merchant_did_bytes32).toMatch(/^0x/);
+      expect(payment.context_hash).toMatch(/^0x/);
     });
 
     it("returns 404 for nonexistent group", async () => {
@@ -462,6 +521,139 @@ describe("Checkout", () => {
       expect(res.headers["Access-Control-Allow-Origin"]).toBe("*");
       expect(res.headers["Access-Control-Allow-Headers"]).toBe("Content-Type");
       expect(res.headers["Access-Control-Allow-Methods"]).toContain("POST");
+    });
+  });
+
+  describe("token-protected checkout URLs", () => {
+    const TOKEN_ID = "tok_abcdef1234567890abcdef1234567890";
+
+    beforeEach(async () => {
+      // Store a valid token mapping
+      await kvRepo.set(
+        `checkout:token:${TOKEN_ID}`,
+        JSON.stringify({
+          groupId: GROUP_ID,
+          expiresAt: Date.now() + 15 * 60 * 1000,
+        }),
+      );
+    });
+
+    it("GET /checkout/:token resolves token to group and returns HTML", async () => {
+      const { req, url } = makeReq("GET", `/checkout/${TOKEN_ID}`);
+      const res = makeRes();
+      const handled = await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(handled).toBe(true);
+      expect(res.statusCode).toBe(200);
+      expect(res.headers["Content-Type"]).toContain("text/html");
+      expect(res.body).toContain("NexusPay Checkout");
+    });
+
+    it("GET /api/checkout/:token resolves token and returns JSON", async () => {
+      const { req, url } = makeReq("GET", `/api/checkout/${TOKEN_ID}`);
+      const res = makeRes();
+      const handled = await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(handled).toBe(true);
+      expect(res.statusCode).toBe(200);
+      const data = JSON.parse(res.body);
+      expect(data.group.group_id).toBe(GROUP_ID);
+      expect(data.instruction).toBeDefined();
+    });
+
+    it("POST /api/checkout/:token/confirm resolves token and confirms", async () => {
+      const body = JSON.stringify({ tx_hash: "0xdeadbeef" });
+      const { req, url } = makeReq(
+        "POST",
+        `/api/checkout/${TOKEN_ID}/confirm`,
+        body,
+      );
+      const res = makeRes();
+      const handled = await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(handled).toBe(true);
+      expect(res.statusCode).toBe(200);
+      const data = JSON.parse(res.body);
+      expect(data.group_id).toBe(GROUP_ID);
+      expect(data.status).toBe("escrowed");
+    });
+
+    it("returns 404 for expired token", async () => {
+      const expiredToken = "tok_expired000000000000000000000000";
+      await kvRepo.set(
+        `checkout:token:${expiredToken}`,
+        JSON.stringify({
+          groupId: GROUP_ID,
+          expiresAt: Date.now() - 1000, // already expired
+        }),
+      );
+
+      const { req, url } = makeReq("GET", `/api/checkout/${expiredToken}`);
+      const res = makeRes();
+      await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(res.statusCode).toBe(404);
+      const data = JSON.parse(res.body);
+      expect(data.error).toContain("invalid or expired");
+    });
+
+    it("returns 404 for unknown token", async () => {
+      const { req, url } = makeReq(
+        "GET",
+        "/api/checkout/tok_doesnotexist00000000000000000000",
+      );
+      const res = makeRes();
+      await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(res.statusCode).toBe(404);
+    });
+
+    it("returns 404 for HTML checkout with expired token", async () => {
+      const expiredToken = "tok_htmlexpired0000000000000000000";
+      await kvRepo.set(
+        `checkout:token:${expiredToken}`,
+        JSON.stringify({
+          groupId: GROUP_ID,
+          expiresAt: Date.now() - 5000,
+        }),
+      );
+
+      const { req, url } = makeReq("GET", `/checkout/${expiredToken}`);
+      const res = makeRes();
+      await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body).toContain("Invalid or Expired");
     });
   });
 

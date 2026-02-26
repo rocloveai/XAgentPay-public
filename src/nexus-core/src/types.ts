@@ -182,6 +182,14 @@ export interface GroupPaymentDetail {
   readonly amount_uint256: string;
   readonly amount_display: string;
   readonly summary: string;
+  /** keccak256(nexus_payment_id) — precomputed for on-chain BatchEntry */
+  readonly payment_id_bytes32: Hex;
+  /** keccak256(merchant_order_ref) — precomputed for on-chain BatchEntry */
+  readonly order_ref_bytes32: Hex;
+  /** keccak256(merchant_did) — precomputed for on-chain BatchEntry */
+  readonly merchant_did_bytes32: Hex;
+  /** keccak256(JSON.stringify(context)) — precomputed for on-chain BatchEntry */
+  readonly context_hash: Hex;
 }
 
 /** Full payment record persisted in the `payments` table */
@@ -362,6 +370,10 @@ export interface BatchDepositInstruction {
   };
   readonly user_action: "SIGN_AND_SEND";
   readonly gas_paid_by: "USER";
+  /** EIP-712 signature over (groupId, entriesHash, totalAmount) by Nexus Core operator */
+  readonly nexus_group_sig: Hex;
+  /** Address of the core operator that signed the group instruction */
+  readonly core_operator_address: Address;
 }
 
 /** HTTP 402 Payment Required response body */
@@ -373,6 +385,10 @@ export interface PaymentRequired402 {
   readonly checkout_url: string;
   /** Full instruction for direct on-chain submission by User Agent */
   readonly instruction: BatchDepositInstruction;
+  /** EIP-712 signature over (groupId, entriesHash, totalAmount) by Nexus Core operator */
+  readonly nexus_group_sig: Hex;
+  /** Address of the core operator that signed the group instruction */
+  readonly core_operator_address: Address;
 }
 
 /** @deprecated Use BatchDepositInstruction instead — Escrow mode instruction (EIP-3009 + Relayer) */

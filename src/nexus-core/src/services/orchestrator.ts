@@ -37,6 +37,7 @@ import {
   buildGroupEscrowInstruction,
   buildBatchDepositInstruction,
 } from "./instruction-builder.js";
+import { signGroup } from "./group-signer.js";
 import { NexusError } from "../errors.js";
 import { keccak256, toHex } from "viem";
 
@@ -122,13 +123,28 @@ export class NexusOrchestrator {
       paymentMethod: route.method,
     });
 
-    // Phase 4: Build batch deposit instruction (new: user submits tx directly)
-    const instruction = buildBatchDepositInstruction(
+    // Phase 4: Build batch deposit instruction (unsigned)
+    const unsignedInstruction = buildBatchDepositInstruction(
       group,
       payments,
       merchants,
       this.config,
     );
+
+    // Phase 4b: Sign (groupId, entriesHash, totalAmount) with coreOperator
+    const { signature, signerAddress } = await signGroup(
+      group.group_id,
+      unsignedInstruction.payments,
+      group.total_amount,
+      this.config,
+    );
+
+    // Merge signature into final instruction (immutable)
+    const instruction: BatchDepositInstruction = {
+      ...unsignedInstruction,
+      nexus_group_sig: signature,
+      core_operator_address: signerAddress,
+    };
 
     // Also build legacy instruction for backward compatibility
     const legacyInstruction = buildGroupEscrowInstruction(
@@ -150,7 +166,7 @@ export class NexusOrchestrator {
       const now = Math.floor(Date.now() / 1000);
       await this.paymentRepo.updateStatus(payment.nexus_payment_id, "CREATED", {
         payment_id_bytes32: paymentIdBytes32,
-        eip3009_nonce: instruction.eip3009_sign_data.message.nonce,
+        eip3009_nonce: unsignedInstruction.eip3009_sign_data.message.nonce,
         escrow_contract: this.config.escrowContract,
         release_deadline: new Date(
           (now + this.config.releaseTimeoutS) * 1000,
@@ -182,6 +198,8 @@ export class NexusOrchestrator {
       status: "PAYMENT_REQUIRED",
       checkout_url: `${baseUrl}/checkout/${checkoutToken}`,
       instruction,
+      nexus_group_sig: signature,
+      core_operator_address: signerAddress,
     };
 
     return { group, payments, instruction, paymentRequired, legacyInstruction };

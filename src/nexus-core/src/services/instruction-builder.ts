@@ -169,6 +169,12 @@ export function buildGroupEscrowInstruction(
     amount_uint256: p.amount,
     amount_display: p.amount_display,
     summary: p.quote_payload.context.summary,
+    payment_id_bytes32: keccak256(toHex(p.nexus_payment_id)) as Hex,
+    order_ref_bytes32: keccak256(toHex(p.merchant_order_ref)) as Hex,
+    merchant_did_bytes32: keccak256(toHex(p.merchant_did)) as Hex,
+    context_hash: keccak256(
+      toHex(JSON.stringify(p.quote_payload.context)),
+    ) as Hex,
   }));
 
   const eip3009SignData: EIP3009SignData = {
@@ -224,17 +230,22 @@ export function buildGroupEscrowInstruction(
 const BATCH_DEPOSIT_ABI_HUMAN =
   "function batchDepositWithAuthorization((bytes32 paymentId, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)[] entries, uint256 totalAmount, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)";
 
+/** Unsigned batch deposit instruction (without group signature fields). */
+export type UnsignedBatchDepositInstruction = Omit<
+  BatchDepositInstruction,
+  "nexus_group_sig" | "core_operator_address"
+>;
+
 export function buildBatchDepositInstruction(
   group: PaymentGroupRecord,
   payments: readonly PaymentRecord[],
   merchants: readonly MerchantRecord[],
   config: NexusCoreConfig,
-): BatchDepositInstruction {
+): UnsignedBatchDepositInstruction {
   const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
   // PlatON EVM uses block.timestamp in milliseconds
   const nowMs = Date.now();
 
-  // Build per-payment details
   const paymentDetails: GroupPaymentDetail[] = payments.map((p, i) => ({
     nexus_payment_id: p.nexus_payment_id,
     merchant_did: p.merchant_did,
@@ -243,6 +254,12 @@ export function buildBatchDepositInstruction(
     amount_uint256: p.amount,
     amount_display: p.amount_display,
     summary: p.quote_payload.context.summary,
+    payment_id_bytes32: keccak256(toHex(p.nexus_payment_id)) as Hex,
+    order_ref_bytes32: keccak256(toHex(p.merchant_order_ref)) as Hex,
+    merchant_did_bytes32: keccak256(toHex(p.merchant_did)) as Hex,
+    context_hash: keccak256(
+      toHex(JSON.stringify(p.quote_payload.context)),
+    ) as Hex,
   }));
 
   // EIP-3009 sign data — user signs this via eth_signTypedData_v4

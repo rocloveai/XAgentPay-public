@@ -74,7 +74,10 @@ async function resolveTokenOrGroupId(
   kvRepo: KVRepository | null,
   tokenOrId: string,
 ): Promise<string | null> {
-  if (tokenOrId.toLowerCase().startsWith("grp_") || tokenOrId.startsWith("GRP-")) {
+  if (
+    tokenOrId.toLowerCase().startsWith("grp_") ||
+    tokenOrId.startsWith("GRP-")
+  ) {
     return tokenOrId;
   }
   if (!tokenOrId.startsWith("tok_") || !kvRepo) {
@@ -228,7 +231,7 @@ async function handleCheckoutConfirm(
 
     // Fire-and-forget webhook notifications
     for (const payment of payments) {
-      deps.webhookNotifier.notify(payment, "payment.escrowed").catch(() => { });
+      deps.webhookNotifier.notify(payment, "payment.escrowed").catch(() => {});
     }
 
     sendJson(res, 200, {
@@ -674,6 +677,14 @@ async function signAndPay() {
     return;
   }
 
+  // Verify Nexus Core group signature exists (Phase 1: existence check)
+  var instr = checkoutData.instruction;
+  if (!instr.nexus_group_sig || !instr.core_operator_address) {
+    showError("Missing group signature from Nexus Core. Cannot proceed safely.");
+    return;
+  }
+  console.log("[NexusPay] Group sig verified. Operator:", instr.core_operator_address);
+
   showOnly(["order-summary","payment-details","action-area","signing"]);
 
   try {
@@ -714,15 +725,15 @@ async function signAndPay() {
     var instr = checkoutData.instruction;
     var depositTx = instr.deposit_tx;
 
-    // Build entries array for batchDepositWithAuthorization from instruction payments
+    // Build entries array using server-precomputed hashes (fixes contextHash bug)
     var entries = instr.payments.map(function(p) {
       return {
-        paymentId: keccak256Str(p.nexus_payment_id),
+        paymentId: p.payment_id_bytes32,
         merchant: p.merchant_address,
         amount: p.amount_uint256,
-        orderRef: keccak256Str(p.merchant_order_ref),
-        merchantDid: keccak256Str(p.merchant_did),
-        contextHash: keccak256Str(p.summary || ""),
+        orderRef: p.order_ref_bytes32,
+        merchantDid: p.merchant_did_bytes32,
+        contextHash: p.context_hash,
       };
     });
 
@@ -1019,24 +1030,30 @@ export async function handleCheckoutRequest(
   }
 
   // GET /checkout/:token — HTML page
-  const htmlMatch = path.match(/^\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i);
+  const htmlMatch = path.match(
+    /^\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i,
+  );
   if (htmlMatch && req.method === "GET") {
     const tokenOrGroupId = decodeURIComponent(htmlMatch[1]);
     const groupId = await resolveTokenOrGroupId(deps.kvRepo, tokenOrGroupId);
 
     if (!groupId) {
       res.writeHead(404, { "Content-Type": "text/html" });
-      res.end("<h1>404 - Checkout Link Invalid or Expired</h1><p>Please return to the merchant and request a new payment link.</p>");
+      res.end(
+        "<h1>404 - Checkout Link Invalid or Expired</h1><p>Please return to the merchant and request a new payment link.</p>",
+      );
       return true;
     }
 
     const group = await deps.groupRepo.findById(groupId);
     if (!group) {
       res.writeHead(404, { "Content-Type": "text/html" });
-      res.end("<h1>404 - Group Not Found</h1><p>Could not load the payment group.</p>");
+      res.end(
+        "<h1>404 - Group Not Found</h1><p>Could not load the payment group.</p>",
+      );
       return true;
     }
-    // Continue to pass the raw token/URL down into the frontend HTML context 
+    // Continue to pass the raw token/URL down into the frontend HTML context
     // so API callbacks from inside the HTML use the tokenized URL
     sendHtml(res, renderCheckoutPage(tokenOrGroupId, deps.config));
     return true;
@@ -1053,7 +1070,9 @@ export async function handleCheckoutRequest(
   }
 
   // GET /api/checkout/:token — JSON data for checkout page
-  const apiMatch = path.match(/^\/api\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i);
+  const apiMatch = path.match(
+    /^\/api\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i,
+  );
   if (apiMatch && req.method === "GET") {
     const tokenOrGroupId = decodeURIComponent(apiMatch[1]);
     await handleApiCheckout(deps, tokenOrGroupId, res);

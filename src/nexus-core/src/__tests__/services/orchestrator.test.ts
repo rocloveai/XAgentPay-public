@@ -11,6 +11,7 @@ import {
   TEST_FLIGHT_MERCHANT,
   TEST_HOTEL_MERCHANT,
   TEST_PAYER_WALLET,
+  TEST_RELAYER_PRIVATE_KEY,
 } from "../fixtures.js";
 import type { NexusCoreConfig } from "../../config.js";
 
@@ -26,7 +27,7 @@ const TEST_CONFIG: NexusCoreConfig = {
   disputeWindowS: 259200,
   port: 4000,
   rpcUrl: "https://devnet3openapi.platon.network/rpc",
-  relayerPrivateKey: "",
+  relayerPrivateKey: TEST_RELAYER_PRIVATE_KEY,
   watcherIntervalMs: 15000,
   timeoutSweepIntervalMs: 60000,
   webhookRetryIntervalMs: 30000,

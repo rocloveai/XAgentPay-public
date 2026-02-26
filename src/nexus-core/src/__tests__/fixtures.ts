@@ -7,6 +7,7 @@ import type {
   PaymentGroupRecord,
   PaymentRecord,
   Address,
+  Hex,
 } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -65,6 +66,10 @@ export const TEST_HOTEL_MERCHANT: MerchantRecord = {
 
 export const TEST_PAYER_WALLET: Address =
   "0x1234567890abcdef1234567890abcdef12345678";
+
+/** Deterministic test private key — NEVER use on mainnet */
+export const TEST_RELAYER_PRIVATE_KEY: Hex =
+  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
 // ---------------------------------------------------------------------------
 // Quote factory
