@@ -139,7 +139,7 @@ if (config.relayerPrivateKey) {
 
 const NEXUS_CORE_VERSION = "0.5.0";
 
-// Read skill.md from disk (fallback to hardcoded string)
+// Read skill.md files from disk (fallback to hardcoded string)
 const __dirname = dirname(fileURLToPath(import.meta.url));
 let skillMdContent: string;
 try {
@@ -147,6 +147,17 @@ try {
 } catch {
   skillMdContent =
     "# Nexus Core\n\nPayment orchestration MCP server. Use nexus_orchestrate_payment tool.";
+}
+
+// Simplified user-agent-facing skill.md (returned in merchant 402 responses)
+let skillUserMdContent: string;
+try {
+  skillUserMdContent = readFileSync(
+    join(__dirname, "..", "skill-user.md"),
+    "utf-8",
+  );
+} catch {
+  skillUserMdContent = skillMdContent; // fallback to full skill.md
 }
 
 // ---------------------------------------------------------------------------
@@ -974,10 +985,17 @@ async function main(): Promise<void> {
       async (req: IncomingMessage, res: ServerResponse) => {
         const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
 
-        // Serve skill.md
+        // Serve skill.md (full developer docs)
         if (url.pathname === "/skill.md" && req.method === "GET") {
           res.writeHead(200, { "Content-Type": "text/markdown" });
           res.end(skillMdContent);
+          return;
+        }
+
+        // Serve skill-user.md (simplified user agent guide)
+        if (url.pathname === "/skill-user.md" && req.method === "GET") {
+          res.writeHead(200, { "Content-Type": "text/markdown" });
+          res.end(skillUserMdContent);
           return;
         }
 

@@ -126,7 +126,7 @@ async function handleGenerateQuote(
             version: "v1",
             config: quote,
             nexus_core: {
-              skill_url: `${config.nexusCoreUrl}/skill.md`,
+              skill_url: `${config.nexusCoreUrl}/skill-user.md`,
               mcp_endpoint: `${config.nexusCoreUrl}/sse`,
               prompt:
                 "To pay for this order, use the nexus_orchestrate_payment tool from Nexus Core MCP server. " +
