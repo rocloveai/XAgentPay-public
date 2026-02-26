@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useState, useMemo } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+} from "react";
 
 const API_URL =
   import.meta.env.VITE_NEXUS_CORE_URL || "https://nexus-core-361y.onrender.com";
@@ -79,6 +85,16 @@ const MarketplacePage: React.FC = () => {
   const [localStarCounts, setLocalStarCounts] = useState<Map<string, number>>(
     new Map(),
   );
+  const [copiedDid, setCopiedDid] = useState<string | null>(null);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const copySkillUrl = useCallback((did: string, url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedDid(did);
+      clearTimeout(copiedTimer.current);
+      copiedTimer.current = setTimeout(() => setCopiedDid(null), 2000);
+    });
+  }, []);
 
   useEffect(() => {
     fetch(`${API_URL}/api/market/agents`)
@@ -466,14 +482,35 @@ const MarketplacePage: React.FC = () => {
                           {starCount}
                         </button>
                         {agent.skill_md_url && (
-                          <a
-                            href={agent.skill_md_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
-                          >
-                            View Skill
-                          </a>
+                          <>
+                            <button
+                              onClick={() =>
+                                copySkillUrl(
+                                  agent.merchant_did,
+                                  agent.skill_md_url as string,
+                                )
+                              }
+                              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md bg-white/5 text-gray-400 border border-white/10 hover:border-white/20 transition-colors cursor-pointer"
+                              title="Copy skill.md URL"
+                            >
+                              <span className="material-icons-round text-sm">
+                                {copiedDid === agent.merchant_did
+                                  ? "check"
+                                  : "content_copy"}
+                              </span>
+                              {copiedDid === agent.merchant_did
+                                ? "Copied"
+                                : "Copy URL"}
+                            </button>
+                            <a
+                              href={agent.skill_md_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+                            >
+                              View Skill
+                            </a>
+                          </>
                         )}
                       </div>
                     </div>
