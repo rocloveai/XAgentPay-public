@@ -987,14 +987,18 @@ async function main(): Promise<void> {
 
         // Serve skill.md (full developer docs)
         if (url.pathname === "/skill.md" && req.method === "GET") {
-          res.writeHead(200, { "Content-Type": "text/markdown" });
+          res.writeHead(200, {
+            "Content-Type": "text/markdown; charset=utf-8",
+          });
           res.end(skillMdContent);
           return;
         }
 
         // Serve skill-user.md (simplified user agent guide)
         if (url.pathname === "/skill-user.md" && req.method === "GET") {
-          res.writeHead(200, { "Content-Type": "text/markdown" });
+          res.writeHead(200, {
+            "Content-Type": "text/markdown; charset=utf-8",
+          });
           res.end(skillUserMdContent);
           return;
         }
