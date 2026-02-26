@@ -2,7 +2,7 @@
 
 ## ISSUE-001: EIP-3009 "invalid signature" on PlatON Devnet USDC
 
-**Status:** Mitigated (awaiting re-test)
+**Status:** FIXED
 **Priority:** High
 **Date:** 2026-02-25
 **Updated:** 2026-02-26
