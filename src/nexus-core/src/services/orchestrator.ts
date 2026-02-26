@@ -21,7 +21,9 @@ import type { MerchantRepository } from "../db/interfaces/merchant-repo.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
 import type { EventRepository } from "../db/interfaces/event-repo.js";
 import type { GroupRepository } from "../db/interfaces/group-repo.js";
+import type { KVRepository } from "../db/interfaces/kv-repo.js";
 import type { NexusCoreConfig } from "../config.js";
+import { randomBytes } from "node:crypto";
 import {
   verifyQuoteSignature,
   resolveMerchantDid,
@@ -66,6 +68,7 @@ export class NexusOrchestrator {
     private readonly paymentRepo: PaymentRepository,
     private readonly eventRepo: EventRepository,
     private readonly groupRepo: GroupRepository,
+    private readonly kvRepo: KVRepository | null,
     private readonly config: NexusCoreConfig,
   ) {
     this.groupManager = new GroupManager(groupRepo, paymentRepo, eventRepo);
@@ -158,14 +161,26 @@ export class NexusOrchestrator {
       });
     }
 
-    // Phase 7: Build HTTP 402 payload
+    // Phase 7: Generate short-lived secure token for checkout URL
+    let checkoutToken = group.group_id; // Default fallback
+    if (this.kvRepo) {
+      const tokenBytes = randomBytes(16).toString("hex");
+      checkoutToken = `tok_${tokenBytes}`;
+      const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+      await this.kvRepo.set(
+        `checkout:token:${checkoutToken}`,
+        JSON.stringify({ groupId: group.group_id, expiresAt }),
+      );
+    }
+
+    // Phase 8: Build HTTP 402 payload
     const baseUrl =
       this.config.baseUrl || `http://localhost:${this.config.port}`;
     const paymentRequired: PaymentRequired402 = {
       nexus_version: "0.5.0",
       group_id: group.group_id,
       status: "PAYMENT_REQUIRED",
-      checkout_url: `${baseUrl}/checkout/${group.group_id}`,
+      checkout_url: `${baseUrl}/checkout/${checkoutToken}`,
       instruction,
     };
 

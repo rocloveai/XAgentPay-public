@@ -97,12 +97,15 @@ const stateMachine = new PaymentStateMachine(paymentRepo, eventRepo);
 const groupManager = new GroupManager(groupRepo, paymentRepo, eventRepo);
 const webhookNotifier = new WebhookNotifier(webhookRepo, merchantRepo);
 
+const kvRepo = config.databaseUrl ? new NeonKVRepository() : null;
+
 // Orchestrator
 const orchestrator = new NexusOrchestrator(
   merchantRepo,
   paymentRepo,
   eventRepo,
   groupRepo,
+  kvRepo,
   config,
 );
 
@@ -113,7 +116,6 @@ let timeoutHandler: TimeoutHandler | null = null;
 
 if (config.relayerPrivateKey) {
   relayer = new NexusRelayer(config);
-  const kvRepo = config.databaseUrl ? new NeonKVRepository() : null;
   watcher = new ChainWatcher(
     config,
     paymentRepo,
@@ -390,19 +392,19 @@ function createNexusCoreServer(): McpServer {
         if (result.payment) {
           parts.push(
             `Payment: ${result.payment.nexus_payment_id}\n` +
-              `  Status: ${result.payment.status}\n` +
-              `  Amount: ${result.payment.amount_display} ${result.payment.currency}\n` +
-              `  Merchant: ${result.payment.merchant_did}\n` +
-              `  Order Ref: ${result.payment.merchant_order_ref}`,
+            `  Status: ${result.payment.status}\n` +
+            `  Amount: ${result.payment.amount_display} ${result.payment.currency}\n` +
+            `  Merchant: ${result.payment.merchant_did}\n` +
+            `  Order Ref: ${result.payment.merchant_order_ref}`,
           );
         }
 
         if (result.group) {
           parts.push(
             `\nGroup: ${result.group.group_id}\n` +
-              `  Status: ${result.group.status}\n` +
-              `  Total: ${result.group.total_amount_display} ${result.group.currency}\n` +
-              `  Payments: ${result.group.payment_count}`,
+            `  Status: ${result.group.status}\n` +
+            `  Total: ${result.group.total_amount_display} ${result.group.currency}\n` +
+            `  Payments: ${result.group.payment_count}`,
           );
 
           if (result.groupPayments.length > 0) {
@@ -992,7 +994,7 @@ async function main(): Promise<void> {
           res.on("close", () => {
             const session = sseTransports.get(transport.sessionId);
             if (session) {
-              session.server.close().catch(() => {});
+              session.server.close().catch(() => { });
               sseTransports.delete(transport.sessionId);
             }
           });
@@ -1134,6 +1136,7 @@ async function main(): Promise<void> {
           paymentRepo,
           stateMachine,
           webhookNotifier,
+          kvRepo,
           config,
         };
         const checkoutHandled = await handleCheckoutRequest(

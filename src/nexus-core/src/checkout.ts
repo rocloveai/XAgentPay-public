@@ -11,6 +11,7 @@ import type { GroupRepository } from "./db/interfaces/group-repo.js";
 import type { PaymentRepository } from "./db/interfaces/payment-repo.js";
 import type { PaymentStateMachine } from "./services/state-machine.js";
 import type { WebhookNotifier } from "./services/webhook-notifier.js";
+import type { KVRepository } from "./db/interfaces/kv-repo.js";
 import type { NexusCoreConfig } from "./config.js";
 import type { Hex } from "./types.js";
 
@@ -23,6 +24,7 @@ export interface CheckoutDeps {
   readonly paymentRepo: PaymentRepository;
   readonly stateMachine: PaymentStateMachine;
   readonly webhookNotifier: WebhookNotifier;
+  readonly kvRepo: KVRepository | null;
   readonly config: NexusCoreConfig;
 }
 
@@ -63,15 +65,51 @@ function readBody(req: IncomingMessage): Promise<string> {
   });
 }
 
+/**
+ * Resolves a token (e.g. `tok_123`) to its underlying `group_id`.
+ * If it's already a `GRP-` or `grp_` ID, returns it directly as a fallback.
+ * Returns null if the token is invalid or expired.
+ */
+async function resolveTokenOrGroupId(
+  kvRepo: KVRepository | null,
+  tokenOrId: string,
+): Promise<string | null> {
+  if (tokenOrId.toLowerCase().startsWith("grp_") || tokenOrId.startsWith("GRP-")) {
+    return tokenOrId;
+  }
+  if (!tokenOrId.startsWith("tok_") || !kvRepo) {
+    return null;
+  }
+
+  const rawJson = await kvRepo.get(`checkout:token:${tokenOrId}`);
+  if (!rawJson) return null;
+
+  try {
+    const data = JSON.parse(rawJson) as { groupId: string; expiresAt: number };
+    if (Date.now() > data.expiresAt) {
+      return null; // Expired
+    }
+    return data.groupId;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // GET /api/checkout/:groupId — JSON data
 // ---------------------------------------------------------------------------
 
 async function handleApiCheckout(
   deps: CheckoutDeps,
-  groupId: string,
+  tokenOrGroupId: string,
   res: ServerResponse,
 ): Promise<void> {
+  const groupId = await resolveTokenOrGroupId(deps.kvRepo, tokenOrGroupId);
+  if (!groupId) {
+    sendJson(res, 404, { error: "Checkout link invalid or expired" });
+    return;
+  }
+
   const group = await deps.groupRepo.findById(groupId);
   if (!group) {
     sendJson(res, 404, { error: "Group not found" });
@@ -120,10 +158,16 @@ async function handleApiCheckout(
 
 async function handleCheckoutConfirm(
   deps: CheckoutDeps,
-  groupId: string,
+  tokenOrGroupId: string,
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
+  const groupId = await resolveTokenOrGroupId(deps.kvRepo, tokenOrGroupId);
+  if (!groupId) {
+    sendJson(res, 404, { error: "Checkout link invalid or expired" });
+    return;
+  }
+
   let body: { tx_hash?: string };
   try {
     const raw = await readBody(req);
@@ -974,35 +1018,45 @@ export async function handleCheckoutRequest(
     return true;
   }
 
-  // GET /checkout/:groupId — HTML page
-  const htmlMatch = path.match(/^\/checkout\/((?:GRP-|grp_)[a-zA-Z0-9_-]+)$/i);
+  // GET /checkout/:token — HTML page
+  const htmlMatch = path.match(/^\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i);
   if (htmlMatch && req.method === "GET") {
-    const groupId = decodeURIComponent(htmlMatch[1]);
-    const group = await deps.groupRepo.findById(groupId);
-    if (!group) {
-      res.writeHead(404, { "Content-Type": "text/plain" });
-      res.end("Group not found");
+    const tokenOrGroupId = decodeURIComponent(htmlMatch[1]);
+    const groupId = await resolveTokenOrGroupId(deps.kvRepo, tokenOrGroupId);
+
+    if (!groupId) {
+      res.writeHead(404, { "Content-Type": "text/html" });
+      res.end("<h1>404 - Checkout Link Invalid or Expired</h1><p>Please return to the merchant and request a new payment link.</p>");
       return true;
     }
-    sendHtml(res, renderCheckoutPage(groupId, deps.config));
+
+    const group = await deps.groupRepo.findById(groupId);
+    if (!group) {
+      res.writeHead(404, { "Content-Type": "text/html" });
+      res.end("<h1>404 - Group Not Found</h1><p>Could not load the payment group.</p>");
+      return true;
+    }
+    // Continue to pass the raw token/URL down into the frontend HTML context 
+    // so API callbacks from inside the HTML use the tokenized URL
+    sendHtml(res, renderCheckoutPage(tokenOrGroupId, deps.config));
     return true;
   }
 
-  // POST /api/checkout/:groupId/confirm — confirm user-submitted tx hash
+  // POST /api/checkout/:token/confirm — confirm user-submitted tx hash
   const confirmMatch = path.match(
-    /^\/api\/checkout\/((?:GRP-|grp_)[a-zA-Z0-9_-]+)\/confirm$/i,
+    /^\/api\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)\/confirm$/i,
   );
   if (confirmMatch && req.method === "POST") {
-    const groupId = decodeURIComponent(confirmMatch[1]);
-    await handleCheckoutConfirm(deps, groupId, req, res);
+    const tokenOrGroupId = decodeURIComponent(confirmMatch[1]);
+    await handleCheckoutConfirm(deps, tokenOrGroupId, req, res);
     return true;
   }
 
-  // GET /api/checkout/:groupId — JSON data
-  const apiMatch = path.match(/^\/api\/checkout\/((?:GRP-|grp_)[a-zA-Z0-9_-]+)$/i);
+  // GET /api/checkout/:token — JSON data for checkout page
+  const apiMatch = path.match(/^\/api\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i);
   if (apiMatch && req.method === "GET") {
-    const groupId = decodeURIComponent(apiMatch[1]);
-    await handleApiCheckout(deps, groupId, res);
+    const tokenOrGroupId = decodeURIComponent(apiMatch[1]);
+    await handleApiCheckout(deps, tokenOrGroupId, res);
     return true;
   }
 

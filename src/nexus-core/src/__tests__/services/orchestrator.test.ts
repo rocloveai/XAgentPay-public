@@ -4,6 +4,7 @@ import { MockMerchantRepository } from "../mocks/mock-merchant-repo.js";
 import { MockPaymentRepository } from "../mocks/mock-payment-repo.js";
 import { MockEventRepository } from "../mocks/mock-event-repo.js";
 import { MockGroupRepository } from "../mocks/mock-group-repo.js";
+import { MockKVRepository } from "../mocks/mock-kv-repo.js";
 import { NexusError, SecurityError } from "../../errors.js";
 import {
   makeTestQuote,
@@ -31,6 +32,7 @@ const TEST_CONFIG: NexusCoreConfig = {
   webhookRetryIntervalMs: 30000,
   arbitrationTimeoutS: 604800,
   portalToken: "",
+  baseUrl: "http://localhost:4000",
 };
 
 describe("NexusOrchestrator", () => {
@@ -38,6 +40,7 @@ describe("NexusOrchestrator", () => {
   let paymentRepo: MockPaymentRepository;
   let eventRepo: MockEventRepository;
   let groupRepo: MockGroupRepository;
+  let kvRepo: MockKVRepository;
   let orchestrator: NexusOrchestrator;
 
   beforeEach(() => {
@@ -46,14 +49,16 @@ describe("NexusOrchestrator", () => {
     eventRepo = new MockEventRepository();
     groupRepo = new MockGroupRepository();
 
-    // Seed merchants
     merchantRepo.seed([TEST_FLIGHT_MERCHANT, TEST_HOTEL_MERCHANT]);
+
+    kvRepo = new MockKVRepository();
 
     orchestrator = new NexusOrchestrator(
       merchantRepo,
       paymentRepo,
       eventRepo,
       groupRepo,
+      kvRepo,
       TEST_CONFIG,
     );
   });

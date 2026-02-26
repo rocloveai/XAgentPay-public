@@ -4,6 +4,7 @@ import {
   MockPaymentRepository,
   MockEventRepository,
   MockGroupRepository,
+  MockKVRepository,
 } from "./mocks/index.js";
 import { makeTestPayment, makeTestGroup, makeTestQuote } from "./fixtures.js";
 import { PaymentStateMachine } from "../services/state-machine.js";
@@ -99,7 +100,7 @@ const testConfig: NexusCoreConfig = {
   webhookRetryIntervalMs: 30000,
   arbitrationTimeoutS: 604800,
   portalToken: "",
-  baseUrl: "",
+  baseUrl: "http://localhost:4000",
 };
 
 // ---------------------------------------------------------------------------
@@ -111,6 +112,7 @@ describe("Checkout", () => {
   let paymentRepo: MockPaymentRepository;
   let eventRepo: MockEventRepository;
   let stateMachine: PaymentStateMachine;
+  let kvRepo: MockKVRepository;
   let deps: CheckoutDeps;
 
   const GROUP_ID = "GRP-test-checkout-1";
@@ -119,6 +121,7 @@ describe("Checkout", () => {
     groupRepo = new MockGroupRepository();
     paymentRepo = new MockPaymentRepository();
     eventRepo = new MockEventRepository();
+    kvRepo = new MockKVRepository();
     stateMachine = new PaymentStateMachine(paymentRepo, eventRepo);
 
     // Seed a group
@@ -208,6 +211,7 @@ describe("Checkout", () => {
       paymentRepo,
       stateMachine,
       webhookNotifier: makeMockWebhookNotifier(),
+      kvRepo,
       config: testConfig,
     };
   });
