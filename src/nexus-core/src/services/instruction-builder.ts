@@ -228,7 +228,7 @@ export function buildGroupEscrowInstruction(
 // ---------------------------------------------------------------------------
 
 const BATCH_DEPOSIT_ABI_HUMAN =
-  "function batchDepositWithAuthorization((bytes32 paymentId, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)[] entries, uint256 totalAmount, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)";
+  "function batchDepositWithGroupApproval((bytes32 paymentId, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)[] entries, uint256 totalAmount, bytes32 groupIdBytes32, uint8 groupV, bytes32 groupR, bytes32 groupS, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)";
 
 /** Unsigned batch deposit instruction (without group signature fields). */
 export type UnsignedBatchDepositInstruction = Omit<
@@ -309,7 +309,7 @@ export function buildBatchDepositInstruction(
       to: config.escrowContract as Address,
       abi: BATCH_DEPOSIT_ABI_HUMAN,
       value: "0",
-      gas_limit: String(200_000 + payments.length * 150_000),
+      gas_limit: "500000",
     },
     user_action: "SIGN_AND_SEND",
     gas_paid_by: "USER",

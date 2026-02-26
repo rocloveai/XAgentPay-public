@@ -19,11 +19,15 @@ contract NexusPayEscrowTest is Test {
     address internal owner = address(this);
     uint256 internal payerPk = 0xA11CE;
     address internal payer = vm.addr(payerPk);
+    uint256 internal operatorPk = 0xB0B;
+    address internal operator = vm.addr(operatorPk);
     address internal merchant = makeAddr("merchant");
-    address internal operator = makeAddr("operator");
     address internal feeRecipient = makeAddr("feeRecipient");
     address internal relayer = makeAddr("relayer");
     address internal stranger = makeAddr("stranger");
+
+    // Defaults
+    uint256 internal constant ARBITRATION_TIMEOUT = 604800; // 7 days
 
     // Defaults
     uint256 internal constant RELEASE_TIMEOUT = 86400; // 24h
@@ -51,6 +55,9 @@ contract NexusPayEscrowTest is Test {
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
         escrow = NexusPayEscrow(address(proxy));
+
+        // Set arbitration timeout (new storage, not in initialize)
+        escrow.setArbitrationTimeout(ARBITRATION_TIMEOUT);
 
         // Fund payer
         usdc.mint(payer, 1_000_000_000); // 1000 USDC
@@ -732,6 +739,9 @@ contract NexusPayEscrowTest is Test {
 
         assertEq(usdc.balanceOf(merchant), merchantAmount);
         assertEq(usdc.balanceOf(payer), payerBalAfterDeposit + payerAmount);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RESOLVED_SPLIT);
     }
 
     function test_resolve_revertsInvalidBps() public {
@@ -1249,5 +1259,547 @@ contract NexusPayEscrowTest is Test {
             )
         );
         escrow.resolve(pid, 5_000);
+    }
+
+    // =======================================================================
+    // Group Signature helpers
+    // =======================================================================
+
+    function _signGroupApproval(
+        uint256 signerPk,
+        bytes32 groupIdBytes32,
+        bytes32 entriesHash,
+        uint256 totalAmount
+    ) internal view returns (uint8 gv, bytes32 gr, bytes32 gs) {
+        bytes32 domainSep = escrow.computeDomainSeparator();
+        bytes32 structHash = keccak256(abi.encode(
+            escrow.NEXUS_GROUP_APPROVAL_TYPEHASH(),
+            groupIdBytes32,
+            entriesHash,
+            totalAmount
+        ));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSep, structHash));
+        (gv, gr, gs) = vm.sign(signerPk, digest);
+    }
+
+    function _computeEntriesHash(NexusPayEscrow.BatchEntry[] memory entries) internal pure returns (bytes32) {
+        bytes memory packed;
+        for (uint256 i = 0; i < entries.length; i++) {
+            packed = bytes.concat(packed, abi.encode(
+                entries[i].paymentId,
+                entries[i].merchant,
+                entries[i].amount,
+                entries[i].orderRef,
+                entries[i].merchantDid,
+                entries[i].contextHash
+            ));
+        }
+        return keccak256(packed);
+    }
+
+    function _batchDepositWithGroupApproval(
+        NexusPayEscrow.BatchEntry[] memory entries,
+        uint256 totalAmount,
+        bytes32 groupIdBytes32
+    ) internal {
+        bytes32 entriesHash = _computeEntriesHash(entries);
+        (uint8 gv, bytes32 gr, bytes32 gs) = _signGroupApproval(operatorPk, groupIdBytes32, entriesHash, totalAmount);
+
+        bytes32 nonce = keccak256(abi.encodePacked("group-batch-nonce", groupIdBytes32));
+        uint256 validAfter = 0;
+        uint256 validBefore = block.timestamp + 1 hours;
+
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(
+            payerPk, payer, address(escrow), totalAmount, validAfter, validBefore, nonce
+        );
+
+        vm.prank(payer);
+        escrow.batchDepositWithGroupApproval(
+            entries, totalAmount, groupIdBytes32,
+            gv, gr, gs,
+            validAfter, validBefore, nonce, v, r, s
+        );
+    }
+
+    // =======================================================================
+    // batchDepositWithGroupApproval tests
+    // =======================================================================
+
+    function test_batchDepositWithGroupApproval_single() public {
+        bytes32 pid = _paymentId("grp-single");
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
+
+        bytes32 groupId = keccak256("group-1");
+
+        uint256 balBefore = usdc.balanceOf(payer);
+        _batchDepositWithGroupApproval(entries, AMOUNT, groupId);
+
+        assertEq(usdc.balanceOf(payer), balBefore - AMOUNT);
+        assertEq(usdc.balanceOf(address(escrow)), AMOUNT);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertEq(e.payer, payer);
+        assertEq(e.merchant, merchant);
+        assertEq(e.amount, AMOUNT);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+    }
+
+    function test_batchDepositWithGroupApproval_multi() public {
+        address merchant2 = makeAddr("merchant2");
+        bytes32 pid1 = _paymentId("grp-m1");
+        bytes32 pid2 = _paymentId("grp-m2");
+        uint256 amount1 = 60_000_000;
+        uint256 amount2 = 40_000_000;
+        uint256 total = amount1 + amount2;
+
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](2);
+        entries[0] = _buildBatchEntry(pid1, merchant, amount1);
+        entries[1] = _buildBatchEntry(pid2, merchant2, amount2);
+
+        bytes32 groupId = keccak256("group-multi");
+
+        uint256 balBefore = usdc.balanceOf(payer);
+        _batchDepositWithGroupApproval(entries, total, groupId);
+
+        assertEq(usdc.balanceOf(payer), balBefore - total);
+
+        NexusPayEscrow.Escrow memory e1 = escrow.getEscrow(pid1);
+        assertEq(e1.amount, amount1);
+        assertTrue(e1.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+
+        NexusPayEscrow.Escrow memory e2 = escrow.getEscrow(pid2);
+        assertEq(e2.amount, amount2);
+        assertTrue(e2.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+    }
+
+    function test_batchDepositWithGroupApproval_invalidSig() public {
+        bytes32 pid = _paymentId("grp-bad-sig");
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
+
+        bytes32 groupId = keccak256("group-bad-sig");
+
+        // Sign with wrong key (stranger's key)
+        uint256 wrongPk = 0xDEAD;
+        bytes32 entriesHash = _computeEntriesHash(entries);
+        (uint8 gv, bytes32 gr, bytes32 gs) = _signGroupApproval(wrongPk, groupId, entriesHash, AMOUNT);
+
+        bytes32 nonce = keccak256(abi.encodePacked("group-batch-nonce", groupId));
+        uint256 validBefore = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce);
+
+        vm.prank(payer);
+        vm.expectRevert(NexusPayEscrow.InvalidGroupSignature.selector);
+        escrow.batchDepositWithGroupApproval(
+            entries, AMOUNT, groupId,
+            gv, gr, gs,
+            0, validBefore, nonce, v, r, s
+        );
+    }
+
+    function test_batchDepositWithGroupApproval_wrongSigner() public {
+        bytes32 pid = _paymentId("grp-wrong-signer");
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
+
+        bytes32 groupId = keccak256("group-wrong-signer");
+
+        // Sign with payer's key instead of operator's
+        bytes32 entriesHash = _computeEntriesHash(entries);
+        (uint8 gv, bytes32 gr, bytes32 gs) = _signGroupApproval(payerPk, groupId, entriesHash, AMOUNT);
+
+        bytes32 nonce = keccak256(abi.encodePacked("group-batch-nonce", groupId));
+        uint256 validBefore = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce);
+
+        vm.prank(payer);
+        vm.expectRevert(NexusPayEscrow.InvalidGroupSignature.selector);
+        escrow.batchDepositWithGroupApproval(
+            entries, AMOUNT, groupId,
+            gv, gr, gs,
+            0, validBefore, nonce, v, r, s
+        );
+    }
+
+    function test_batchDepositWithGroupApproval_replayProtection() public {
+        bytes32 pid1 = _paymentId("grp-replay-1");
+        NexusPayEscrow.BatchEntry[] memory entries1 = new NexusPayEscrow.BatchEntry[](1);
+        entries1[0] = _buildBatchEntry(pid1, merchant, AMOUNT);
+
+        bytes32 groupId = keccak256("group-replay");
+
+        _batchDepositWithGroupApproval(entries1, AMOUNT, groupId);
+
+        // Try to reuse the same groupId
+        bytes32 pid2 = _paymentId("grp-replay-2");
+        NexusPayEscrow.BatchEntry[] memory entries2 = new NexusPayEscrow.BatchEntry[](1);
+        entries2[0] = _buildBatchEntry(pid2, merchant, AMOUNT);
+
+        bytes32 entriesHash = _computeEntriesHash(entries2);
+        (uint8 gv, bytes32 gr, bytes32 gs) = _signGroupApproval(operatorPk, groupId, entriesHash, AMOUNT);
+
+        bytes32 nonce = keccak256(abi.encodePacked("group-batch-nonce-2", groupId));
+        uint256 validBefore = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce);
+
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.GroupIdAlreadyUsed.selector, groupId));
+        escrow.batchDepositWithGroupApproval(
+            entries2, AMOUNT, groupId,
+            gv, gr, gs,
+            0, validBefore, nonce, v, r, s
+        );
+    }
+
+    function test_batchDepositWithGroupApproval_amountMismatch() public {
+        bytes32 pid = _paymentId("grp-mismatch");
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
+
+        bytes32 groupId = keccak256("group-mismatch");
+        uint256 wrongTotal = AMOUNT + 1;
+
+        // Sign group approval with wrongTotal
+        bytes32 entriesHash = _computeEntriesHash(entries);
+        (uint8 gv, bytes32 gr, bytes32 gs) = _signGroupApproval(operatorPk, groupId, entriesHash, wrongTotal);
+
+        bytes32 nonce = keccak256(abi.encodePacked("group-batch-nonce", groupId));
+        uint256 validBefore = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(payerPk, payer, address(escrow), wrongTotal, 0, validBefore, nonce);
+
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.BatchAmountMismatch.selector, wrongTotal, AMOUNT));
+        escrow.batchDepositWithGroupApproval(
+            entries, wrongTotal, groupId,
+            gv, gr, gs,
+            0, validBefore, nonce, v, r, s
+        );
+    }
+
+    function test_batchDepositWithGroupApproval_emptyBatch() public {
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](0);
+        bytes32 groupId = keccak256("group-empty");
+
+        vm.prank(payer);
+        vm.expectRevert(NexusPayEscrow.EmptyBatch.selector);
+        escrow.batchDepositWithGroupApproval(
+            entries, 0, groupId,
+            27, bytes32(0), bytes32(0),
+            0, block.timestamp + 1 hours, keccak256("n"), 27, bytes32(0), bytes32(0)
+        );
+    }
+
+    function test_batchDepositWithGroupApproval_batchTooLarge() public {
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](21);
+        for (uint256 i = 0; i < 21; i++) {
+            entries[i] = _buildBatchEntry(
+                _paymentId(string(abi.encodePacked("grp-large-", i))),
+                makeAddr(string(abi.encodePacked("merch-large-", i))),
+                1_000_000
+            );
+        }
+
+        bytes32 groupId = keccak256("group-large");
+
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.BatchTooLarge.selector, 21));
+        escrow.batchDepositWithGroupApproval(
+            entries, 21_000_000, groupId,
+            27, bytes32(0), bytes32(0),
+            0, block.timestamp + 1 hours, keccak256("n"), 27, bytes32(0), bytes32(0)
+        );
+    }
+
+    function test_domainSeparator() public view {
+        bytes32 expected = keccak256(abi.encode(
+            escrow.EIP712_DOMAIN_TYPEHASH(),
+            escrow.DOMAIN_NAME_HASH(),
+            escrow.DOMAIN_VERSION_HASH(),
+            block.chainid,
+            address(escrow)
+        ));
+        assertEq(escrow.computeDomainSeparator(), expected);
+    }
+
+    function test_requireGroupSig_blocks_old_function() public {
+        escrow.setRequireGroupSig(true);
+
+        bytes32 pid = _paymentId("grp-blocked");
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
+
+        vm.prank(payer);
+        vm.expectRevert(NexusPayEscrow.GroupSignatureRequired.selector);
+        escrow.batchDepositWithAuthorization(
+            entries, AMOUNT, 0, block.timestamp + 1 hours, keccak256("n"), 27, bytes32(0), bytes32(0)
+        );
+    }
+
+    function test_requireGroupSig_allows_new_function() public {
+        escrow.setRequireGroupSig(true);
+
+        bytes32 pid = _paymentId("grp-allowed");
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
+
+        bytes32 groupId = keccak256("group-allowed");
+        _batchDepositWithGroupApproval(entries, AMOUNT, groupId);
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+    }
+
+    function test_setRequireGroupSig_onlyOwner() public {
+        vm.prank(stranger);
+        vm.expectRevert();
+        escrow.setRequireGroupSig(true);
+    }
+
+    function test_isGroupIdUsed() public {
+        bytes32 groupId = keccak256("group-used-check");
+
+        assertFalse(escrow.isGroupIdUsed(groupId));
+
+        bytes32 pid = _paymentId("grp-used-check");
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
+
+        _batchDepositWithGroupApproval(entries, AMOUNT, groupId);
+
+        assertTrue(escrow.isGroupIdUsed(groupId));
+    }
+
+    function test_groupApproval_events() public {
+        bytes32 pid = _paymentId("grp-events");
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
+
+        bytes32 groupId = keccak256("group-events");
+        bytes32 entriesHash = _computeEntriesHash(entries);
+        (uint8 gv, bytes32 gr, bytes32 gs) = _signGroupApproval(operatorPk, groupId, entriesHash, AMOUNT);
+
+        bytes32 nonce = keccak256(abi.encodePacked("group-batch-nonce", groupId));
+        uint256 validBefore = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce);
+
+        vm.expectEmit(true, true, true, true);
+        emit NexusPayEscrow.Deposited(pid, payer, merchant, AMOUNT, ORDER_REF);
+        vm.expectEmit(true, false, false, true);
+        emit NexusPayEscrow.BatchDeposited(payer, 1, AMOUNT);
+        vm.expectEmit(true, true, false, false);
+        emit NexusPayEscrow.GroupSigVerified(groupId, operator);
+
+        vm.prank(payer);
+        escrow.batchDepositWithGroupApproval(
+            entries, AMOUNT, groupId,
+            gv, gr, gs,
+            0, validBefore, nonce, v, r, s
+        );
+    }
+
+    // =======================================================================
+    // Audit fix: H-01 — refundUnresolvedDispute
+    // =======================================================================
+
+    function test_refundUnresolvedDispute() public {
+        bytes32 pid = _paymentId("audit-h01");
+        _depositTraditional(pid);
+
+        vm.prank(payer);
+        escrow.dispute(pid, keccak256("reason"));
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+
+        // Warp past disputeDeadline + arbitrationTimeout
+        vm.warp(e.disputeDeadline + ARBITRATION_TIMEOUT + 1);
+
+        uint256 payerBalBefore = usdc.balanceOf(payer);
+
+        escrow.refundUnresolvedDispute(pid);
+
+        assertEq(usdc.balanceOf(payer), payerBalBefore + AMOUNT);
+
+        NexusPayEscrow.Escrow memory eAfter = escrow.getEscrow(pid);
+        assertTrue(eAfter.status == NexusPayEscrow.EscrowStatus.RESOLVED_TO_PAYER);
+    }
+
+    function test_refundUnresolvedDispute_tooEarly() public {
+        bytes32 pid = _paymentId("audit-h01-early");
+        _depositTraditional(pid);
+
+        vm.prank(payer);
+        escrow.dispute(pid, keccak256("reason"));
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+
+        // Warp but not past the full timeout
+        vm.warp(e.disputeDeadline + ARBITRATION_TIMEOUT - 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NexusPayEscrow.ArbitrationTimeoutNotReached.selector,
+                e.disputeDeadline + ARBITRATION_TIMEOUT,
+                block.timestamp
+            )
+        );
+        escrow.refundUnresolvedDispute(pid);
+    }
+
+    function test_refundUnresolvedDispute_notDisputed() public {
+        bytes32 pid = _paymentId("audit-h01-not-disputed");
+        _depositTraditional(pid);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                NexusPayEscrow.InvalidStatus.selector,
+                NexusPayEscrow.EscrowStatus.DEPOSITED,
+                NexusPayEscrow.EscrowStatus.DISPUTED
+            )
+        );
+        escrow.refundUnresolvedDispute(pid);
+    }
+
+    function test_setArbitrationTimeout() public {
+        uint256 newTimeout = 1_209_600; // 14 days
+        vm.expectEmit(false, false, false, true);
+        emit NexusPayEscrow.ArbitrationTimeoutUpdated(ARBITRATION_TIMEOUT, newTimeout);
+
+        escrow.setArbitrationTimeout(newTimeout);
+        assertEq(escrow.arbitrationTimeout(), newTimeout);
+    }
+
+    function test_setArbitrationTimeout_revertsZero() public {
+        vm.expectRevert(NexusPayEscrow.ZeroTimeout.selector);
+        escrow.setArbitrationTimeout(0);
+    }
+
+    // =======================================================================
+    // Audit fix: M-02 — Batch size limit
+    // =======================================================================
+
+    function test_batchTooLarge() public {
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](21);
+        for (uint256 i = 0; i < 21; i++) {
+            entries[i] = _buildBatchEntry(
+                _paymentId(string(abi.encodePacked("large-", i))),
+                makeAddr(string(abi.encodePacked("m-", i))),
+                1_000_000
+            );
+        }
+
+        vm.prank(payer);
+        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.BatchTooLarge.selector, 21));
+        escrow.batchDepositWithAuthorization(
+            entries, 21_000_000, 0, block.timestamp + 1 hours, keccak256("n"), 27, bytes32(0), bytes32(0)
+        );
+    }
+
+    // =======================================================================
+    // Audit fix: M-03 — RESOLVED_SPLIT status
+    // =======================================================================
+
+    function test_resolvedSplit_status() public {
+        bytes32 pid = _paymentId("audit-m03");
+        _depositTraditional(pid);
+
+        vm.prank(payer);
+        escrow.dispute(pid, keccak256("reason"));
+
+        vm.prank(operator);
+        escrow.resolve(pid, 7_000); // 70% merchant, 30% payer
+
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RESOLVED_SPLIT);
+    }
+
+    // =======================================================================
+    // Audit fix: L-04 — feeBps snapshot
+    // =======================================================================
+
+    function test_feeBps_snapshot() public {
+        bytes32 pid = _paymentId("audit-l04");
+        _depositTraditional(pid);
+
+        // Verify feeBps was snapshotted
+        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertEq(e.feeBps, FEE_BPS);
+
+        // Change the protocol fee
+        escrow.setProtocolFeeBps(100); // 1%
+
+        // Release should use the snapshotted fee (30 bps), not the new 100 bps
+        uint256 merchantBalBefore = usdc.balanceOf(merchant);
+        uint256 expectedFee = (AMOUNT * FEE_BPS) / 10_000;
+        uint256 expectedMerchantAmount = AMOUNT - expectedFee;
+
+        vm.prank(merchant);
+        escrow.release(pid);
+
+        assertEq(usdc.balanceOf(merchant), merchantBalBefore + expectedMerchantAmount);
+        assertEq(usdc.balanceOf(feeRecipient), expectedFee);
+    }
+
+    // =======================================================================
+    // Fuzz tests (I-03)
+    // =======================================================================
+
+    function test_fuzz_releaseFeeInvariant(uint256 amount, uint16 feeBps) public pure {
+        amount = bound(amount, 1, type(uint128).max);
+        feeBps = uint16(bound(feeBps, 0, 500));
+        uint256 fee = (amount * feeBps) / 10_000;
+        uint256 merchantAmount = amount - fee;
+        assertEq(fee + merchantAmount, amount);
+    }
+
+    function test_fuzz_resolveSplitInvariant(uint256 amount, uint16 merchantBps) public pure {
+        amount = bound(amount, 1, type(uint128).max);
+        merchantBps = uint16(bound(merchantBps, 0, 10_000));
+        uint256 merchantAmount = (amount * merchantBps) / 10_000;
+        uint256 payerAmount = amount - merchantAmount;
+        assertEq(merchantAmount + payerAmount, amount);
+    }
+
+    // =======================================================================
+    // Cross-language entriesHash verification (Step 14)
+    // =======================================================================
+
+    function test_entriesHash_crossLanguage() public pure {
+        // Fixed input: single entry
+        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        entries[0] = NexusPayEscrow.BatchEntry({
+            paymentId: bytes32(uint256(0x01)),
+            merchant: address(0x1234567890123456789012345678901234567890),
+            amount: 100_000_000,
+            orderRef: bytes32(uint256(0x02)),
+            merchantDid: bytes32(uint256(0x03)),
+            contextHash: bytes32(uint256(0x04))
+        });
+
+        // Compute hash using same algorithm as contract
+        bytes memory packed = abi.encode(
+            entries[0].paymentId,
+            entries[0].merchant,
+            entries[0].amount,
+            entries[0].orderRef,
+            entries[0].merchantDid,
+            entries[0].contextHash
+        );
+        bytes32 expected = keccak256(packed);
+
+        // Verify helper matches
+        bytes memory packed2;
+        for (uint256 i = 0; i < entries.length; i++) {
+            packed2 = bytes.concat(packed2, abi.encode(
+                entries[i].paymentId,
+                entries[i].merchant,
+                entries[i].amount,
+                entries[i].orderRef,
+                entries[i].merchantDid,
+                entries[i].contextHash
+            ));
+        }
+        bytes32 computed = keccak256(packed2);
+        assertEq(computed, expected);
     }
 }

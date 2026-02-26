@@ -236,5 +236,41 @@ describe("instruction-builder", () => {
       expect(instr).not.toHaveProperty("nexus_group_sig");
       expect(instr).not.toHaveProperty("core_operator_address");
     });
+
+    it("deposit_tx.abi references batchDepositWithGroupApproval", () => {
+      const p1 = makeTestPayment({
+        merchant_did: "did:nexus:20250407:demo_flight",
+      });
+      const group = makeTestGroup({ payment_count: 1 });
+
+      const instr = buildBatchDepositInstruction(
+        group,
+        [p1],
+        [TEST_FLIGHT_MERCHANT],
+        TEST_CONFIG,
+      );
+
+      expect(instr.deposit_tx.abi).toContain("batchDepositWithGroupApproval");
+      expect(instr.deposit_tx.abi).toContain("groupV");
+      expect(instr.deposit_tx.abi).toContain("groupR");
+      expect(instr.deposit_tx.abi).toContain("groupS");
+      expect(instr.deposit_tx.abi).toContain("groupIdBytes32");
+    });
+
+    it("uses fixed gas_limit of 500000", () => {
+      const p1 = makeTestPayment({
+        merchant_did: "did:nexus:20250407:demo_flight",
+      });
+      const group = makeTestGroup({ payment_count: 1 });
+
+      const instr = buildBatchDepositInstruction(
+        group,
+        [p1],
+        [TEST_FLIGHT_MERCHANT],
+        TEST_CONFIG,
+      );
+
+      expect(instr.deposit_tx.gas_limit).toBe("500000");
+    });
   });
 });

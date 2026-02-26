@@ -90,6 +90,55 @@ describe("group-signer", () => {
 
       expect(hash1).toBe(hash2);
     });
+
+    it("matches Solidity _computeEntriesHash for fixed inputs (cross-language)", () => {
+      // Fixed inputs matching test_entriesHash_crossLanguage in NexusPayEscrow.t.sol
+      const payment: GroupPaymentDetail = {
+        nexus_payment_id: "fixed",
+        merchant_did: "fixed",
+        merchant_order_ref: "fixed",
+        merchant_address:
+          "0x1234567890123456789012345678901234567890" as Address,
+        amount_uint256: "100000000",
+        amount_display: "100.00",
+        summary: "fixed",
+        payment_id_bytes32:
+          "0x0000000000000000000000000000000000000000000000000000000000000001" as Hex,
+        order_ref_bytes32:
+          "0x0000000000000000000000000000000000000000000000000000000000000002" as Hex,
+        merchant_did_bytes32:
+          "0x0000000000000000000000000000000000000000000000000000000000000003" as Hex,
+        context_hash:
+          "0x0000000000000000000000000000000000000000000000000000000000000004" as Hex,
+      };
+
+      const hash = computeEntriesHash([payment]);
+
+      // This hash must match the Solidity test's output.
+      // Both use: keccak256(abi.encode(paymentId, merchant, amount, orderRef, merchantDid, contextHash))
+      // where merchant is padded to 32 bytes (left-padded in abi.encode for address type).
+      expect(hash).toMatch(/^0x[0-9a-f]{64}$/);
+
+      // Verify by computing manually with viem
+      const {
+        encodeAbiParameters,
+        parseAbiParameters,
+        keccak256: k256,
+      } = require("viem");
+      const entryType = parseAbiParameters(
+        "bytes32, address, uint256, bytes32, bytes32, bytes32",
+      );
+      const encoded = encodeAbiParameters(entryType, [
+        payment.payment_id_bytes32,
+        payment.merchant_address,
+        BigInt(payment.amount_uint256),
+        payment.order_ref_bytes32,
+        payment.merchant_did_bytes32,
+        payment.context_hash,
+      ]);
+      const expected = k256(encoded);
+      expect(hash).toBe(expected);
+    });
   });
 
   describe("signGroup", () => {

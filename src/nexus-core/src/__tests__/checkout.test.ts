@@ -274,6 +274,21 @@ describe("Checkout", () => {
       expect(res.body).toContain("Group sig verified");
     });
 
+    it("uses batchDepositWithGroupApproval in checkout HTML", async () => {
+      const { req, url } = makeReq("GET", `/checkout/${GROUP_ID}`);
+      const res = makeRes();
+      await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(res.body).toContain("batchDepositWithGroupApproval");
+      expect(res.body).toContain("encodeBatchDepositWithGroupApproval");
+      expect(res.body).toContain("groupIdBytes32");
+    });
+
     it("returns 404 for nonexistent group", async () => {
       const { req, url } = makeReq("GET", "/checkout/GRP-nonexistent");
       const res = makeRes();

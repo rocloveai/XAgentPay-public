@@ -737,17 +737,26 @@ async function signAndPay() {
       };
     });
 
-    // ABI-encode batchDepositWithAuthorization call
-    var encodedData = encodeBatchDeposit(
+    // Decompose group signature into v/r/s
+    var groupSig = instr.nexus_group_sig;
+    var groupR = groupSig.slice(0, 66);
+    var groupS = "0x" + groupSig.slice(66, 130);
+    var groupV = parseInt(groupSig.slice(130, 132), 16);
+    var groupIdBytes32 = keccak256Str(instr.group_id);
+
+    // ABI-encode batchDepositWithGroupApproval call
+    var encodedData = encodeBatchDepositWithGroupApproval(
       entries,
       signData.message.value,
+      groupIdBytes32,
+      groupV, groupR, groupS,
       signData.message.validAfter,
       signData.message.validBefore,
       signData.message.nonce,
       v, r, s
     );
 
-    console.log("[NexusPay] Sending batchDepositWithAuthorization tx to:", depositTx.to);
+    console.log("[NexusPay] Sending batchDepositWithGroupApproval tx to:", depositTx.to);
 
     // Send the transaction via MetaMask (user pays gas)
     var txHash = await ethereum.request({
@@ -914,19 +923,22 @@ function toUtf8Bytes(str) {
   return encoder.encode(str);
 }
 
-// Encode batchDepositWithAuthorization calldata
-function encodeBatchDeposit(entries, totalAmount, validAfter, validBefore, nonce, v, r, s) {
-  // Function selector: keccak256("batchDepositWithAuthorization((bytes32,address,uint256,bytes32,bytes32,bytes32)[],uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)")
-  // We'll compute it from the ABI
-  var sig = "batchDepositWithAuthorization((bytes32,address,uint256,bytes32,bytes32,bytes32)[],uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)";
+// Encode batchDepositWithGroupApproval calldata
+function encodeBatchDepositWithGroupApproval(entries, totalAmount, groupIdBytes32, groupV, groupR, groupS, validAfter, validBefore, nonce, v, r, s) {
+  // Function signature for selector computation
+  var sig = "batchDepositWithGroupApproval((bytes32,address,uint256,bytes32,bytes32,bytes32)[],uint256,bytes32,uint8,bytes32,bytes32,uint256,uint256,bytes32,uint8,bytes32,bytes32)";
   var selectorHash = keccak256Bytes(toUtf8Bytes(sig));
   var selector = selectorHash.slice(0, 10); // "0x" + 4 bytes
 
   // ABI encode parameters
-  // Layout: selector + head (8 pointers for params, but first is dynamic array)
-  // Params: entries[], totalAmount, validAfter, validBefore, nonce, v, r, s
+  // Params (12 total): entries[] (dynamic), totalAmount, groupIdBytes32,
+  //   groupV, groupR, groupS, validAfter, validBefore, nonce, v, r, s
 
   var totalAmountHex = padUint256(totalAmount);
+  var groupIdHex = padBytes32(groupIdBytes32);
+  var groupVHex = padUint256(groupV);
+  var groupRHex = padBytes32(groupR);
+  var groupSHex = padBytes32(groupS);
   var validAfterHex = padUint256(validAfter);
   var validBeforeHex = padUint256(validBefore);
   var nonceHex = padBytes32(nonce);
@@ -934,8 +946,8 @@ function encodeBatchDeposit(entries, totalAmount, validAfter, validBefore, nonce
   var rHex = padBytes32(r);
   var sHex = padBytes32(s);
 
-  // Dynamic array offset = 8 * 32 = 256 = 0x100
-  var headOffset = padUint256(256);
+  // Dynamic array offset = 12 * 32 = 384 = 0x180
+  var headOffset = padUint256(384);
 
   // Array encoding: length + N * 6 words per entry
   var arrayLen = padUint256(entries.length);
@@ -953,6 +965,10 @@ function encodeBatchDeposit(entries, totalAmount, validAfter, validBefore, nonce
   return selector +
     headOffset +
     totalAmountHex +
+    groupIdHex +
+    groupVHex +
+    groupRHex +
+    groupSHex +
     validAfterHex +
     validBeforeHex +
     nonceHex +

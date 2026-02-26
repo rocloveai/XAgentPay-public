@@ -6,7 +6,14 @@ import {NexusPayEscrow} from "../src/NexusPayEscrow.sol";
 
 /**
  * @title Upgrade
- * @notice Upgrades NexusPayEscrow proxy to a new implementation.
+ * @notice Upgrades NexusPayEscrow proxy to v4.0.0 and configures new storage.
+ *
+ * v4.0.0 adds:
+ *   - arbitrationTimeout (H-01 fix)
+ *   - requireGroupSig + group signature verification
+ *   - feeBps snapshot (L-04 fix)
+ *   - MAX_BATCH_SIZE (M-02 fix)
+ *   - RESOLVED_SPLIT status (M-03 fix)
  *
  * Usage:
  *   DEPLOYER_PRIVATE_KEY=0x...
@@ -16,6 +23,12 @@ import {NexusPayEscrow} from "../src/NexusPayEscrow.sol";
  *     --broadcast
  */
 contract Upgrade is Script {
+    // PlatON uses ms timestamps — 7 days in ms
+    uint256 constant ARBITRATION_TIMEOUT = 604_800_000;
+    // PlatON ms-corrected timeout values (M-01 fix)
+    uint256 constant RELEASE_TIMEOUT_MS = 86_400_000;   // 24h in ms
+    uint256 constant DISPUTE_WINDOW_MS  = 259_200_000;  // 72h in ms
+
     function run() external {
         uint256 deployerPk = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address proxyAddr = vm.envAddress("PROXY_ADDRESS");
@@ -29,9 +42,21 @@ contract Upgrade is Script {
         NexusPayEscrow proxy = NexusPayEscrow(proxyAddr);
         proxy.upgradeToAndCall(address(newImpl), "");
 
+        // 3. Configure new v4 storage (not in initialize, set via admin calls)
+        proxy.setArbitrationTimeout(ARBITRATION_TIMEOUT);
+
+        // 4. Fix M-01: correct timeout values for PlatON ms timestamps
+        proxy.setDefaultReleaseTimeout(RELEASE_TIMEOUT_MS);
+        proxy.setDefaultDisputeWindow(DISPUTE_WINDOW_MS);
+
+        console.log("=== NexusPayEscrow v4.0.0 Upgrade Complete ===");
         console.log("Proxy:", proxyAddr);
         console.log("New implementation:", address(newImpl));
         console.log("Version:", proxy.VERSION());
+        console.log("arbitrationTimeout:", proxy.arbitrationTimeout());
+        console.log("defaultReleaseTimeout:", proxy.defaultReleaseTimeout());
+        console.log("defaultDisputeWindow:", proxy.defaultDisputeWindow());
+        console.log("requireGroupSig:", proxy.requireGroupSig());
 
         vm.stopBroadcast();
     }
