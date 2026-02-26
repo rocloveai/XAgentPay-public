@@ -191,6 +191,12 @@ describe("Checkout", () => {
           verifyingContract: "0xFF8dEe9983768D0399673014cf77826896F97e4d",
         },
         types: {
+          EIP712Domain: [
+            { name: "name", type: "string" },
+            { name: "version", type: "string" },
+            { name: "chainId", type: "uint256" },
+            { name: "verifyingContract", type: "address" },
+          ],
           TransferWithAuthorization: [
             { name: "from", type: "address" },
             { name: "to", type: "address" },
@@ -404,7 +410,7 @@ describe("Checkout", () => {
   });
 
   describe("POST /api/checkout/:groupId/confirm", () => {
-    it("confirms valid tx_hash and transitions payments to ESCROWED", async () => {
+    it("returns 202 when receipt not yet available (tx pending)", async () => {
       const body = JSON.stringify({ tx_hash: "0xabc123def456" });
       const { req, url } = makeReq(
         "POST",
@@ -420,20 +426,20 @@ describe("Checkout", () => {
       );
 
       expect(handled).toBe(true);
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(202);
 
       const data = JSON.parse(res.body);
       expect(data.tx_hash).toBe("0xabc123def456");
-      expect(data.status).toBe("escrowed");
+      expect(data.status).toBe("awaiting_confirmation");
       expect(data.group_id).toBe(GROUP_ID);
 
-      // Verify payment transitioned to ESCROWED
+      // Payment should NOT be transitioned to ESCROWED yet
       const payment = await paymentRepo.findById("PAY-checkout-1");
-      expect(payment?.status).toBe("ESCROWED");
+      expect(payment?.status).toBe("CREATED");
 
-      // Verify group transitioned to GROUP_ESCROWED
+      // Group should be AWAITING_TX
       const group = await groupRepo.findById(GROUP_ID);
-      expect(group?.status).toBe("GROUP_ESCROWED");
+      expect(group?.status).toBe("GROUP_AWAITING_TX");
     });
 
     it("returns 409 when group already paid", async () => {
@@ -586,7 +592,7 @@ describe("Checkout", () => {
       expect(data.instruction).toBeDefined();
     });
 
-    it("POST /api/checkout/:token/confirm resolves token and confirms", async () => {
+    it("POST /api/checkout/:token/confirm resolves token and returns 202 (pending)", async () => {
       const body = JSON.stringify({ tx_hash: "0xdeadbeef" });
       const { req, url } = makeReq(
         "POST",
@@ -602,10 +608,10 @@ describe("Checkout", () => {
       );
 
       expect(handled).toBe(true);
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(202);
       const data = JSON.parse(res.body);
       expect(data.group_id).toBe(GROUP_ID);
-      expect(data.status).toBe("escrowed");
+      expect(data.status).toBe("awaiting_confirmation");
     });
 
     it("returns 404 for expired token", async () => {

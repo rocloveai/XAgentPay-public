@@ -325,6 +325,12 @@ export interface EIP3009SignData {
     readonly verifyingContract: Address;
   };
   readonly types: {
+    readonly EIP712Domain: readonly [
+      { readonly name: "name"; readonly type: "string" },
+      { readonly name: "version"; readonly type: "string" },
+      { readonly name: "chainId"; readonly type: "uint256" },
+      { readonly name: "verifyingContract"; readonly type: "address" },
+    ];
     readonly TransferWithAuthorization: readonly [
       { readonly name: "from"; readonly type: "address" },
       { readonly name: "to"; readonly type: "address" },

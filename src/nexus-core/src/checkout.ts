@@ -14,6 +14,10 @@ import type { WebhookNotifier } from "./services/webhook-notifier.js";
 import type { KVRepository } from "./db/interfaces/kv-repo.js";
 import type { NexusCoreConfig } from "./config.js";
 import type { Hex } from "./types.js";
+import { createPublicClient, http } from "viem";
+import { createLogger } from "./logger.js";
+
+const checkoutLog = createLogger("Checkout");
 
 // ---------------------------------------------------------------------------
 // Dependencies
@@ -207,8 +211,51 @@ async function handleCheckoutConfirm(
     return;
   }
 
+  // Verify on-chain receipt before marking ESCROWED
+  const txHash = body.tx_hash as Hex;
+  const client = createPublicClient({
+    transport: http(deps.config.rpcUrl),
+  });
+
+  let receiptStatus: "success" | "reverted" | "pending";
   try {
-    // Transition all payments directly to ESCROWED (user submitted tx)
+    const receipt = await client.getTransactionReceipt({ hash: txHash });
+    receiptStatus = receipt.status;
+  } catch {
+    // Transaction not yet mined — mark group as awaiting tx
+    checkoutLog.info("Receipt not available yet, marking AWAITING_TX", {
+      group_id: groupId,
+      tx_hash: txHash,
+    });
+    await deps.groupRepo.updateStatus(groupId, "GROUP_AWAITING_TX", {
+      tx_hash: txHash,
+    });
+    sendJson(res, 202, {
+      tx_hash: txHash,
+      status: "awaiting_confirmation",
+      group_id: groupId,
+    });
+    return;
+  }
+
+  if (receiptStatus === "reverted") {
+    checkoutLog.warn("Deposit transaction reverted on-chain", {
+      group_id: groupId,
+      tx_hash: txHash,
+    });
+    await deps.groupRepo.updateStatus(groupId, "GROUP_CREATED", {
+      tx_hash: txHash,
+    });
+    sendJson(res, 422, {
+      error: "Transaction reverted on-chain",
+      tx_hash: txHash,
+      group_id: groupId,
+    });
+    return;
+  }
+
+  try {
+    // Receipt confirmed success — transition all payments to ESCROWED
     for (const payment of payments) {
       if (payment.status === "ESCROWED") continue;
       await deps.stateMachine.transition({
@@ -216,17 +263,17 @@ async function handleCheckoutConfirm(
         toStatus: "ESCROWED",
         eventType: "ESCROW_DEPOSITED",
         metadata: {
-          tx_hash: body.tx_hash,
+          tx_hash: txHash,
           group_id: groupId,
           source: "checkout",
         },
-        fields: { deposit_tx_hash: body.tx_hash, tx_hash: body.tx_hash },
+        fields: { deposit_tx_hash: txHash, tx_hash: txHash },
       });
     }
 
     // Update group status and tx_hash
     await deps.groupRepo.updateStatus(groupId, "GROUP_ESCROWED", {
-      tx_hash: body.tx_hash,
+      tx_hash: txHash,
     });
 
     // Fire-and-forget webhook notifications
@@ -235,7 +282,7 @@ async function handleCheckoutConfirm(
     }
 
     sendJson(res, 200, {
-      tx_hash: body.tx_hash,
+      tx_hash: txHash,
       status: "escrowed",
       group_id: groupId,
     });
@@ -736,6 +783,10 @@ async function signAndPay() {
     console.log("[NexusPay] Signer address:", signerAddress);
     console.log("[NexusPay] EIP-712 params:", JSON.stringify(params, null, 2));
 
+    // Compute expected digest client-side for debugging
+    var expectedDigest = computeEIP712Digest(params.domain, params.message);
+    console.log("[NexusPay] Expected EIP-712 digest:", expectedDigest);
+
     var signature = await ethereum.request({
       method: "eth_signTypedData_v4",
       params: [signerAddress, JSON.stringify(params)],
@@ -809,37 +860,72 @@ async function signAndPay() {
       body: JSON.stringify({ tx_hash: txHash }),
     });
 
-    if (!confirmRes.ok) {
-      var err = await confirmRes.json().catch(function() { return { error: "Confirm failed" }; });
-      // Even if confirm fails, the tx was already sent — show tx hash
-      console.warn("[NexusPay] Confirm API failed but tx was sent:", err);
+    var confirmData = await confirmRes.json().catch(function() { return {}; });
+
+    if (confirmRes.status === 422) {
+      // Transaction reverted on-chain
+      showError("Transaction reverted on-chain. Your funds were not transferred. TX: " + txHash);
+      return;
     }
 
-    // Poll for on-chain confirmation
+    if (confirmRes.status === 200) {
+      // Already confirmed on-chain
+      document.getElementById("success-tx-hash").textContent = "TX: " + txHash;
+      showOnly(["group-info","order-summary","state-success"]);
+      return;
+    }
+
+    // 202 or other — poll for on-chain confirmation
+    console.log("[NexusPay] Awaiting on-chain confirmation, polling...");
+    var pollAttempts = 0;
+    var maxPollAttempts = 40; // 40 * 3s = 120s max
+
     pollTimer = setInterval(async function() {
+      pollAttempts++;
       try {
+        // Re-submit confirm to check receipt
+        var retryRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID) + "/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tx_hash: txHash }),
+        });
+
+        if (retryRes.status === 200) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+          document.getElementById("success-tx-hash").textContent = "TX: " + txHash;
+          showOnly(["group-info","order-summary","state-success"]);
+          return;
+        }
+
+        if (retryRes.status === 422) {
+          clearInterval(pollTimer);
+          pollTimer = null;
+          showError("Transaction reverted on-chain. Your funds were not transferred. TX: " + txHash);
+          return;
+        }
+
+        // Also check group status directly
         var pollRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID));
         if (pollRes.ok) {
           var data = await pollRes.json();
           var gs = data.group.status;
           if (gs === "GROUP_ESCROWED" || gs === "GROUP_SETTLED" || gs === "GROUP_COMPLETED") {
             clearInterval(pollTimer);
+            pollTimer = null;
             document.getElementById("success-tx-hash").textContent = "TX: " + txHash;
             showOnly(["group-info","order-summary","state-success"]);
+            return;
           }
         }
       } catch (e) { /* ignore poll errors */ }
-    }, 3000);
 
-    // Show success after timeout (tx was sent regardless of server confirmation)
-    setTimeout(function() {
-      if (pollTimer) {
+      if (pollAttempts >= maxPollAttempts) {
         clearInterval(pollTimer);
         pollTimer = null;
+        showError("Transaction sent but confirmation timed out. TX: " + txHash + ". Check your wallet for status.");
       }
-      document.getElementById("success-tx-hash").textContent = "TX: " + txHash;
-      showOnly(["group-info","order-summary","state-success"]);
-    }, 15000);
+    }, 3000);
 
   } catch (e) {
     if (e.code === 4001) {
@@ -949,6 +1035,52 @@ function rotl64(x, n) {
 function toUtf8Bytes(str) {
   var encoder = new TextEncoder();
   return encoder.encode(str);
+}
+
+function hexToBytes(hex) {
+  hex = hex.replace(/^0x/, "");
+  var bytes = new Uint8Array(hex.length / 2);
+  for (var i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+  }
+  return bytes;
+}
+
+// Compute EIP-712 digest client-side for debugging signature mismatches
+function computeEIP712Digest(domain, message) {
+  // Domain separator
+  var domainTypeHash = keccak256Bytes(toUtf8Bytes(
+    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+  ));
+  var nameHash = keccak256Bytes(toUtf8Bytes(domain.name));
+  var versionHash = keccak256Bytes(toUtf8Bytes(domain.version));
+  var domainData = domainTypeHash.slice(2) + nameHash.slice(2) + versionHash.slice(2)
+    + padUint256(domain.chainId) + padAddress(domain.verifyingContract);
+  var domainSeparator = keccak256Bytes(hexToBytes(domainData));
+
+  // Struct hash
+  var typeHash = keccak256Bytes(toUtf8Bytes(
+    "TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)"
+  ));
+  var structData = typeHash.slice(2)
+    + padAddress(message.from)
+    + padAddress(message.to)
+    + padUint256(message.value)
+    + padUint256(message.validAfter)
+    + padUint256(message.validBefore)
+    + padBytes32(message.nonce);
+  var structHash = keccak256Bytes(hexToBytes(structData));
+
+  // Final digest: \\x19\\x01 || domainSeparator || structHash
+  var digestData = "1901" + domainSeparator.slice(2) + structHash.slice(2);
+  var digest = keccak256Bytes(hexToBytes(digestData));
+
+  console.log("[NexusPay] EIP-712 debug:", {
+    domainSeparator: domainSeparator,
+    structHash: structHash,
+    digest: digest,
+  });
+  return digest;
 }
 
 // Encode batchDepositWithGroupApproval calldata

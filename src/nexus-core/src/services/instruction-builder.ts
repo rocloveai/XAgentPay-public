@@ -95,6 +95,12 @@ export function buildEscrowInstruction(
       verifyingContract: config.usdcAddress as Address,
     },
     types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+        { name: "verifyingContract", type: "address" },
+      ],
       TransferWithAuthorization: [
         { name: "from", type: "address" },
         { name: "to", type: "address" },
@@ -185,6 +191,12 @@ export function buildGroupEscrowInstruction(
       verifyingContract: config.usdcAddress as Address,
     },
     types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+        { name: "verifyingContract", type: "address" },
+      ],
       TransferWithAuthorization: [
         { name: "from", type: "address" },
         { name: "to", type: "address" },
@@ -271,6 +283,12 @@ export function buildBatchDepositInstruction(
       verifyingContract: config.usdcAddress as Address,
     },
     types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+        { name: "verifyingContract", type: "address" },
+      ],
       TransferWithAuthorization: [
         { name: "from", type: "address" },
         { name: "to", type: "address" },
