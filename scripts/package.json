@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "viem": "^2.46.3"
+  }
+}
