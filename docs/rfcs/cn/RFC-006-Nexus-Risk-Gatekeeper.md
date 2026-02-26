@@ -1,18 +1,4 @@
-RFC-006: Nexus Risk Gatekeeper Specificatio
-来源指南
-Nexus Risk Gatekeeper 协议通过一种独特的混合防御架构，将复杂的 AI 行为分析置于链下，而将严格的凭证验证留在链上，从而在不泄露隐私的前提下保障支付网络安全。该系统运行的核心在于风控凭证 (Risk Permit)，这是一种具有时效性且防篡改的签名授权，确保每一笔交易都经过了针对支付人、商户及金额上限的合规检查。为了实现最高级别的资产保护，协议采用了故障关闭机制，即在风险检测引擎不可用的极端情况下，系统会优先选择拦截所有交易以规避潜在损失。这种设计实现了风控逻辑与支付核心的解耦，让底层支付架构无需理解复杂的审核规则，只需根据 Gatekeeper 签发的指令执行最终的拦截或放行。
-
-
-
-
-
-
-
-
-
-
-
-# RFC-006: Nexus Risk Gatekeeper Specification
+# RFC-006: Nexus Risk Gatekeeper Specificationn
 | Metadata | Value |
 | --- | --- |
 | **Title** | Nexus Risk Gatekeeper Protocol |

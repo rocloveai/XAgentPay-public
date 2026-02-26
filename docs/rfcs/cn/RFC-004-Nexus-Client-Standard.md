@@ -1,16 +1,11 @@
-RFC-004: Nexus Client Standard (v1.5)
-来源指南
-这份文档详述了 Nexus 客户端标准 (v1.5)，旨在通过高度集成的 SDK 降低商户接入 Web3 支付系统的技术门槛。其核心架构提供了从 AI 原生模式到传统后端集成的三种灵活方案，让开发者能根据自动化需求或控制力偏好，将支付功能轻松嵌入 AI 智能体或现有的 REST API 环境中。该标准最显著的价值在于其 极简化的开发体验，通过自动处理复杂的货币转换、高精度单位换算及内建的沙盒测试，将繁琐的区块链逻辑抽象为简单的函数调用。总而言之，Nexus 旨在打破技术壁垒，使商户能够以 “一行代码”或简单的 API 注入 快速获得签发报价和自动验资的支付能力。
+# RFC-004: Nexus Client Standard (NCS)
 
-
-
-
-
-
-
-
-
-
+| Metadata | Value |
+| --- | --- |
+| **Title** | Nexus Client Standard |
+| **Version** | 1.5.0 |
+| **Status** | Standards Track (Draft) |
+| **Dependencies** | RFC-002 (NUPS), RFC-003 (NAIS) |
 
 以下是商户引入代码的三种方式，从**最自动化（AI Agent）到最可控（传统后端）**。
 ---

@@ -1,21 +1,3 @@
-RFC-007 v1.7: Nexus Core Agentic Interface
-来源指南
-RFC-007 规范定义了 Nexus Core 代理接口，这是一种基于模型上下文协议（MCP）的先进跨链托管架构，旨在简化用户与商户间的去中心化支付流程。该系统采用核心的 “草稿-最终化” (Draft-then-Finalize) 交互逻辑，确保用户在支付前能自主选择最佳路径，随后通过 MPC 临时地址实现资金的合规锁定与托管。通过 Buyer 和 Seller 两套标准化插件，该协议不仅为用户代理提供了从询价到释放资金的完整闭环，也为商户代理提供了基于 PlatON 主网状态的合规收款保障。其最终目的是在复杂的多链环境中，建立一套整合了 KYT 安全防火墙与自动化编排功能的去信任化交易标准。
-
-
-
-
-
-
-
-
-
-
-
-这是为您汇总的 **RFC-007 v1.7: Nexus Core Agentic Interface**。
-此版本彻底整合了 **"Hub-and-Spoke 跨链托管"**、**"MPC 临时地址 (Ingress-Gated)"** 以及 **"用户交互式编排 (Draft-then-Finalize)"** 三大设计逻辑。
-这是开发团队构建 Nexus Core MCP Server 的最终参考标准。
----
 # RFC-007: Nexus Core Agentic Interface
 | Metadata | Value |
 | --- | --- |

@@ -3,34 +3,39 @@
 | Metadata | Value |
 | --- | --- |
 | **Title** | Nexus Webhook Standard |
-| **Version** | 1.0.0 |
+| **Version** | 1.1.0 |
 | **Status** | Standards Track (Draft) |
 | **Author** | Cipher & Nexus Architect Team |
 | **Created** | 2026-02-24 |
-| **Depends On** | RFC-005v2 (Payment Core MVP) |
+| **Updated** | 2026-02-26 |
+| **Depends On** | RFC-005v3 (Payment Core MVP) |
 
 ## 1. Abstract
 
-本 RFC 定义 NexusPay Core 向 Merchant Agent 发送支付结果通知的 Webhook 标准。包括事件类型、Payload 格式、HMAC 安全签名、重试策略和幂等性保障。
+This RFC defines the Webhook standard for NexusPay Core to send payment result notifications to Merchant Agents. It covers event types, payload format, HMAC security signatures, retry strategy, and idempotency guarantees.
 
 ## 2. Motivation
 
-在 Direct Settlement 模式下，商户需要及时获知以下事件：
-- 用户支付成功（以便发货/出票）
-- 支付超时未完成（以便释放库存）
-- 链上交易失败（以便通知用户重试）
+Under the Direct Settlement model, merchants need to be promptly informed of the following events:
+- User payment succeeded (to proceed with shipping/ticketing)
+- Payment timed out without completion (to release inventory)
+- On-chain transaction failed (to notify the user to retry)
 
-Webhook 是连接 NexusPay Core 与 Merchant Agent 的关键桥梁。
+Webhooks are the critical bridge connecting NexusPay Core and Merchant Agents.
 
 ## 3. Event Types
 
 | Event Type | Trigger | Merchant Expected Action |
 | --- | --- | --- |
 | payment.created | Payment order created in Core | Optional: update internal state |
-| payment.settled | On-chain Transfer confirmed | Deliver goods/service |
+| payment.escrowed | Funds deposited in escrow contract | **Begin fulfillment** (deliver goods/service) |
+| payment.settled | Escrow released to merchant (on-chain) | Archive: funds received |
+| payment.completed | Merchant confirmed delivery | Archive (informational) |
 | payment.expired | Payment timed out | Release inventory |
 | payment.failed | On-chain transaction reverted | Notify user to retry |
-| fulfillment.confirmed | Merchant confirmed delivery | Archive (informational) |
+| payment.refunded | Escrow refunded to payer (timeout or dispute) | Mark order cancelled, release inventory |
+| dispute.opened | Payer opened dispute on escrow | Prepare dispute evidence |
+| dispute.resolved | Arbiter resolved dispute | Update order based on resolution |
 
 ## 4. Webhook Payload Format
 
@@ -86,9 +91,44 @@ Webhook 是连接 NexusPay Core 与 Merchant Agent 的关键桥梁。
 
 Notes:
 - settlement object is only present for payment.settled events
-- iso_metadata is present for all payment events (for ERP integration)
+- iso_metadata is OPTIONAL for all payment events (enterprise feature for ERP integration)
 - amount is uint256 string (6 decimals for USDC)
 - amount_display is human-readable decimal string
+
+### 4.3 Escrow Event Data (Added in v1.1.0)
+
+For escrow-related events (`payment.escrowed`, `payment.refunded`, `dispute.opened`, `dispute.resolved`), the data payload includes additional escrow fields:
+
+```json
+{
+  "data": {
+    "nexus_payment_id": "PAY-01JAXYZ-0001",
+    "merchant_order_ref": "FLT-1708761234-abc123",
+    "merchant_did": "did:nexus:20250407:demo_flight",
+    "status": "ESCROWED",
+    "amount": "530000000",
+    "amount_display": "530.00",
+    "currency": "USDC",
+    "chain_id": 20250407,
+    "payer_wallet": "0x1234...abcd",
+
+    "escrow": {
+      "escrow_contract": "0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236",
+      "deposit_tx_hash": "0xabc123...def456",
+      "release_deadline": "2026-02-25T10:34:55.000Z",
+      "dispute_deadline": "2026-02-27T10:34:55.000Z"
+    }
+  }
+}
+```
+
+### 4.4 Implementation Status (v1.1.0 Notes)
+
+The following RFC-009 features have been implemented in `src/nexus-core/src/services/webhook-notifier.ts`:
+- HMAC-SHA256 signature: `X-Nexus-Signature` + `X-Nexus-Timestamp` headers
+- 6 retries (exponential backoff: 10s, 30s, 2min, 10min, 30min)
+- `webhook_delivery_logs` table records delivery history
+- Timing-safe signature comparison
 
 ## 5. HTTP Request Format
 
@@ -236,17 +276,27 @@ app.post('/webhook/nexus', (req, res) => {
   const { event_type, data } = req.body;
 
   switch (event_type) {
-    case 'payment.settled':
-      // Deliver goods/service
+    case 'payment.escrowed':
+      // Funds in escrow — begin fulfillment (deliver goods/service)
       await fulfillOrder(data.merchant_order_ref);
+      // Trigger escrow release via nexus-core
+      await confirmFulfillment(data.nexus_payment_id, data.merchant_did);
+      break;
+    case 'payment.settled':
+      // Escrow released — funds received by merchant
+      await archiveOrder(data.merchant_order_ref);
       break;
     case 'payment.expired':
       // Release inventory
       await releaseInventory(data.merchant_order_ref);
       break;
-    case 'payment.failed':
-      // Notify user
-      await notifyPaymentFailed(data.merchant_order_ref);
+    case 'payment.refunded':
+      // Escrow refunded to payer
+      await cancelOrder(data.merchant_order_ref);
+      break;
+    case 'dispute.opened':
+      // Prepare dispute evidence
+      await prepareDisputeEvidence(data.merchant_order_ref);
       break;
   }
 

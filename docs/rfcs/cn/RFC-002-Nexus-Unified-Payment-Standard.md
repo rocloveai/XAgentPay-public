@@ -1,17 +1,3 @@
-RFC-003: Nexus Agent Interface Standard (NAIS)
-来源指南
-这份文档详细介绍了 Nexus UCP 支付标准 (NUPS)，其核心是通过 "Quote-to-Transaction"（报价-交易） 模型实现商业意图与链上结算的解耦。该协议旨在建立一种极简的商户接入方式，通过商户生成报价、核心层调度、智能合约原子化分账三个阶段，确保资金流转的严谨性。系统的关键特征在于其高度的兼容性与标准化，它将区块链资产数据映射为 ISO 20022 金融标准元数据，使得去中心化交易能无缝对接到传统银行的 ERP 系统。此外，为了保障交易安全，协议强制要求使用 EIP-712 签名签名与 DID（去中心化身份）路由，确保支付流向经过验证的真实债权人。最终，这一标准通过链上事件与传统金融语义的统一，为企业级数字资产结算提供了一套完整的自动化对账方案。
-
-
-
-
-
-
-
-
-
-
-
 # RFC-002: Nexus UCP Payment Standard (NUPS)
 | Metadata | Value |
 | --- | --- |
@@ -39,11 +25,11 @@ RFC-003: Nexus Agent Interface Standard (NAIS)
 "display_name": "NexusPay (USDC)",
 "payload": {
 // --- A. 商业意图 (Business Intent) ---
-"merchant_did": "did:nexus:210425:trip_com",
+"merchant_did": "did:nexus:20250407:trip_com",
 "merchant_order_ref": "TRIP-2026-888", // [关键] 商户ERP中的唯一单号
 "amount": "530000000", // 整数 (6位精度)
 "currency": "USDC", // Nexus 内部资产标识
-"chain_id": 210425,
+"chain_id": 20250407,
 "expiry": 1768809600,
 // --- B. 业务上下文 (Context - User View) ---
 // 用于 User Agent 向用户展示明细
@@ -55,9 +41,10 @@ RFC-003: Nexus Agent Interface Standard (NAIS)
 { "name": "Tax", "qty": 1, "amount": "30000000" }
 ]
 },
-// --- C. ISO 金融元数据 (ISO Metadata - Bank View) ---
+// --- C. ISO 金融元数据 (ISO Metadata - Bank View) --- [OPTIONAL]
 // 用于银行系统/ERP 自动对账的语义映射
-"iso_metadata": {
+// MVP 阶段此字段为可选，未来企业版强制要求
+"iso_metadata": {  // OPTIONAL in MVP
 // 价值锚定层 (Value Layer): 映射到 ISO 4217 (如 USD)
 // 目的: 让 SAP/Oracle ERP 能识别这是"美元"业务
 "account_currency": "USD",
@@ -116,7 +103,7 @@ RFC-003: Nexus Agent Interface Standard (NAIS)
 // --- B. 链上交互数据 (Transaction Data) ---
 "tx_data": {
 "to": "0xNexusRouter...",
-"chain_id": 210425,
+"chain_id": 20250407,
 "data": "0x...", // Encoded batchPay
 "value": "0"
 }
@@ -168,7 +155,8 @@ NexusQuote: [
 { name: 'currency', type: 'string' },
 { name: 'expiry', type: 'uint256' },
 { name: 'context_hash', type: 'bytes32' }, // Hash(context)
-{ name: 'iso_hash', type: 'bytes32' } // Hash(iso_metadata)
+// iso_hash is OPTIONAL — omit when iso_metadata is not provided (MVP)
+// { name: 'iso_hash', type: 'bytes32' } // Hash(iso_metadata) [Enterprise only]
 ]
 };
 ```

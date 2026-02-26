@@ -9,97 +9,63 @@
 | RFC-003 | NAIS (Agent Interface) | Agent 技能定义 + MCP 适配规范 | Draft |
 | RFC-004 | NCS (Client Standard) | 商户 SDK 三种接入模式 | Draft |
 | RFC-005 | Payment Core Spec | 编排引擎 + 状态机 + MCP Server (Full Vision) | Draft |
-| RFC-005v2 | Payment Core MVP | Direct Settlement on PlatON + 4 模块设计 | **Draft (NEW)** |
-| RFC-006 | Risk Gatekeeper | 混合风控 (链下AI + 链上Permit) | Draft |
-| RFC-007 | Core Agentic Interface | Hub-Spoke 跨链托管 + Buyer/Seller Plugin | Final Spec |
+| RFC-005v3 | Payment Core MVP | **Escrow Settlement on PlatON + Group Payments** | **Draft (CURRENT)** |
+| RFC-006 | Risk Gatekeeper | 混合风控 (链下AI + 链上Permit) | Draft (Future) |
+| RFC-007 | Core Agentic Interface | Hub-Spoke 跨链托管 + Buyer/Seller Plugin | Final Spec (Future) |
 | RFC-008 | NMSS (Merchant Skill) | skill.md 标准 + 工具角色分类 | Draft |
-| RFC-009 | Webhook Standard | 支付结果回调 + HMAC + 重试策略 | **Draft (NEW)** |
-| RFC-010 | NexusPay Escrow Contract | 智能合约担保支付 + 纠纷仲裁 + 自动退款 | **Draft (NEW)** |
-| NBSS | Buyer Skills Standard | User Agent 标准接入 SDK | Draft |
+| RFC-009 | Webhook Standard | 支付结果回调 + HMAC + 重试策略 | **v1.1.0 (Implemented)** |
+| RFC-010 | NexusPay Escrow Contract | 智能合约担保支付 + 批量存款 + Group 签名 | **v2.0.0 (Deployed)** |
+| NBSS | Buyer Skills Standard | User Agent 标准接入 SDK | Draft (Future) |
 
-## Architecture: MVP (Direct Settlement)
+## Architecture: MVP (Escrow Settlement — Current)
 
 ```
 +-------------------------------------------------+
 |                 User Agent (UA)                  |
-|          @nexus/buyer-skills (NBSS)              |
-|  PreparePayment -> ExecutePayment -> TrackOrder  |
+|     MCP Tools / REST API / Browser Checkout      |
+|  Orchestrate -> Sign EIP-3009 -> Track Status    |
 +------------------------+------------------------+
-                         | MCP Protocol
+                         | MCP Protocol / HTTP 402
 +------------------------v------------------------+
-|              NexusPay Core (RFC-005v2)           |
+|          NexusPay Core (RFC-005v3 + RFC-010)     |
 |  +-------------+ +-----------+ +-------------+  |
 |  |  Security   | |  Order    | |  Chain      |  |
 |  |  Module     | |  State    | |  Watcher    |  |
 |  |             | |  Machine  | |             |  |
-|  | EIP-712     | | 6 States  | | PlatON RPC  |  |
-|  | DID Resolve | | Timeout   | | USDC Events |  |
-|  | Nonce Guard | | Events    | | Tx Tracker  |  |
+|  | EIP-712     | | 12 States | | PlatON RPC  |  |
+|  | DID Resolve | | 8 Group   | | Escrow Evts |  |
+|  | Group Sig   | | Statuses  | | (Deposited, |  |
+|  |             | | Timeout   | |  Released,  |  |
+|  |             | |           | |  Refunded)  |  |
 |  +-------------+ +-----------+ +-------------+  |
 |  +-------------------------------------------+  |
-|  |  Webhook Notifier (RFC-009)               |  |
-|  |  HMAC Signed + Retry + ISO 20022 Data     |  |
+|  |  Group Manager + Relayer                  |  |
+|  |  Batch deposits + EIP-3009 + Gas relay    |  |
+|  +-------------------------------------------+  |
+|  +-------------------------------------------+  |
+|  |  Webhook Notifier (RFC-009 v1.1)          |  |
+|  |  HMAC-SHA256 + 6x Retry + Delivery Logs  |  |
 |  +-------------------------------------------+  |
 |  +-------------------------------------------+  |
 |  |  PostgreSQL (Neon)                        |  |
-|  |  payments | events | merchants | webhooks |  |
+|  |  payments | groups | events | merchants   |  |
+|  |  webhook_delivery_logs                    |  |
 |  +-------------------------------------------+  |
 +------------------------+------------------------+
                          | Webhook HTTP POST
 +------------------------v------------------------+
 |              Merchant Agent (MA)                 |
 |        flight-agent / hotel-agent                |
-|   SignQuote -> ReceiveWebhook -> Fulfill         |
+|   SignQuote -> ReceiveWebhook -> ConfirmFulfill  |
 +------------------------+------------------------+
                          |
 +------------------------v------------------------+
 |             PlatON Blockchain                    |
-|             chain_id: 210425                     |
-|        USDC (ERC-20) Direct Transfer             |
+|             chain_id: 20250407                   |
+|  USDC (ERC-20)     NexusPayEscrow (UUPS Proxy)  |
+|  EIP-3009          batchDeposit / release /      |
+|                    refund / dispute / resolve     |
 +-------------------------------------------------+
-```
-
-## Architecture: MVP+ (Dual Mode - Direct + Escrow, RFC-010)
-
-```
-+-------------------------------------------------+
-|                 User Agent (UA)                  |
-|          @nexus/buyer-skills (NBSS)              |
-|  PreparePayment -> ExecutePayment -> TrackOrder  |
-+------------------------+------------------------+
-                         | MCP Protocol
-+------------------------v------------------------+
-|              NexusPay Core (RFC-005v2 + RFC-010) |
-|  +-------------+ +-----------+ +-------------+  |
-|  |  Security   | |  Order    | |  Chain      |  |
-|  |  Module     | |  State    | |  Watcher    |  |
-|  |             | |  Machine  | |             |  |
-|  | EIP-712     | | 12 States | | PlatON RPC  |  |
-|  | DID Resolve | | Timeout   | | USDC Events |  |
-|  | Nonce Guard | | Escrow    | | Escrow Evts |  |
-|  +-------------+ +-----------+ +-------------+  |
-|  +-------------------------------------------+  |
-|  |  Payment Router                           |  |
-|  |  DIRECT_TRANSFER | ESCROW_CONTRACT        |  |
-|  +-------------------------------------------+  |
-|  +-------------------------------------------+  |
-|  |  Webhook Notifier (RFC-009)               |  |
-|  |  HMAC + Retry + ISO 20022 + Escrow Events |  |
-|  +-------------------------------------------+  |
-|  +-------------------------------------------+  |
-|  |  PostgreSQL (Neon)                        |  |
-|  |  payments | events | merchants | webhooks |  |
-|  +-------------------------------------------+  |
-+----------+-----------------+-----------------+--+
-           |                 |
-  Direct Transfer      Escrow Contract
-           |                 |
-+----------v-----------------v-----------------+
-|             PlatON Blockchain                 |
-|             chain_id: 210425                  |
-|  USDC (ERC-20)     NexusPayEscrow Contract    |
-|  Direct Transfer    deposit/release/refund    |
-+-----------------------------------------------+
 ```
 
 ## Architecture: Full Vision (Future)
@@ -139,14 +105,16 @@
 
 ## Key Design Decisions
 
-### MVP Phase (Current - RFC-005v2)
-1. **Direct Settlement**: 用户直接 USDC transfer 到商户地址，Core 不触碰资金
-2. **PlatON Only**: 仅支持 PlatON 链 (chain_id: 210425)
-3. **MCP-First**: 所有组件间通过 MCP 协议通信
-4. **Webhook Notification**: 支付结果通过 HTTP POST + HMAC 回调商户 (RFC-009)
-5. **Local DID Registry**: 商户身份信息存储在本地数据库
-6. **EIP-712 Signing**: 商户 Quote 使用 EIP-712 TypedData 签名
-7. **ISO 20022 Compliance**: Webhook 携带 ISO 标准元数据供 ERP 对账
+### MVP Phase (Current - RFC-005v3 + RFC-010 v2.0)
+1. **Escrow Settlement**: 用户通过 EIP-3009 签名存入 Escrow 合约，商户履约后释放
+2. **PlatON Devnet**: 仅支持 PlatON 链 (chain_id: 20250407)
+3. **MCP + REST + Checkout**: MCP 协议为主，同时提供 REST API 和浏览器 Checkout 页面
+4. **Group/Batch Payments**: 多笔支付聚合为一组，一次链上交易
+5. **Group Signature (Anti-MITM)**: EIP-712 签名验证防止交易参数篡改
+6. **Webhook Notification**: HMAC-SHA256 签名 + 6 次指数退避重试 (RFC-009)
+7. **Local DID Registry**: 商户身份信息存储在本地数据库
+8. **EIP-712 Signing**: 商户 Quote 使用 EIP-712 TypedData 签名
+9. **UUPS Proxy**: Escrow 合约使用可升级代理模式
 
 ### Full Vision (Future - RFC-005v1 + RFC-007)
 1. **Quote-to-Transaction**: 商户只生成报价，Core 负责编排链上交易
@@ -154,6 +122,16 @@
 3. **Key Separation**: 签名密钥与收款地址分离 (RFC-001)
 4. **Hybrid Risk**: 链下 AI 风控 + 链上 Permit 验证 (RFC-006)
 5. **Draft-then-Finalize**: 用户先选链再生成 MPC 托管地址 (RFC-007)
+6. **Buyer SDK**: `@nexus/buyer-skills` 标准化 User Agent 接入
+
+## Deployed Addresses (PlatON Devnet, chain_id: 20250407)
+
+| Contract | Address | Type |
+|----------|---------|------|
+| NexusPayEscrow (Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` | UUPS Proxy |
+| NexusPayEscrow (Impl v4.0.0) | `0x2EF4dB5E0021d074286c36821Cc897d2605e542E` | Implementation |
+| USDC | `0xFF8dEe9983768D0399673014cf77826896F97e4d` | ERC-20 (FiatToken) |
+| Relayer / Core Operator | `0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920` | EOA |
 
 ## PRD Reference
 

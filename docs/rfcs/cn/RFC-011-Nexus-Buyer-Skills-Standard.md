@@ -1,22 +1,4 @@
-User Agent (UA)** 开发者的标准接入方案
-来源指南
-这份文档介绍了一套名为 Nexus Buyer Skills Standard (NBSS) 的技术方案，旨在通过标准化的 NPM 插件包（@nexus/buyer-skills），赋予各类人工智能助手（AI Agents）处理区块链支付的能力。该方案的核心在于将复杂的链上交互拆解为准备支付、执行交易和追踪订单三个原子化技能，使开发者无需编写繁琐的 Web3 代码即可实现 Google UCP 标准下的订单处理。通过这种设计，AI Agent 能够自主完成从解析商户报价到确认资金到账的全流程，实现了零门槛的区块链接入。该标准不仅强调了非托管的安全设计，更旨在为全球范围内的“智能体支付”建立一套通用的行业技术规范。
-
-
-
-
-
-
-
-
-
-
-
-这是一份针对 **User Agent (UA)** 开发者的标准接入方案。
-我们将 **Nexus Buyer Plugin** 标准化为一个 **NPM 包 (`@nexus/buyer-skills`)**。它是一组经过封装的、符合 **Google UCP** 数据流的原子化能力（Skills）。
-任何基于 LangChain、Google Genkit、AutoGPT 或自定义逻辑构建的 AI Agent，都可以引入这个包，瞬间获得“处理 UCP 订单并完成区块链支付”的能力。
----
-# Nexus Buyer Skills Standard (NBSS)
+# RFC-011: Nexus Buyer Skills Standard (NBSS)
 | 属性 | 描述 |
 | --- | --- |
 | **Package** | `@nexus/buyer-skills` |
