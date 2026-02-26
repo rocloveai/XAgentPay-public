@@ -8,7 +8,13 @@ import { searchHotels } from "./services/hotel-search.js";
 import { buildQuote } from "./services/quote-builder.js";
 import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
 import { initPool } from "./services/db/pool.js";
-import { startPortal, registerSseHandler } from "./portal.js";
+import {
+  startPortal,
+  registerSseHandler,
+  registerStatelessHandler,
+  readBody,
+  sendJson,
+} from "./portal.js";
 import type { HotelOffer } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -24,6 +30,147 @@ if (config.databaseUrl) {
 
 // In-memory cache: offer_id -> { offer, nights } (shared across connections)
 const offerCache = new Map<string, { offer: HotelOffer; nights: number }>();
+
+// ── Tool Implementations (Shared) ───────────────────────────────────────────
+
+async function handleSearchHotels({ city, check_in, check_out, guests }: { city: string, check_in: string, check_out: string, guests: number }) {
+  const { offers, nights, error } = await searchHotels({
+    city,
+    check_in,
+    check_out,
+    guests,
+  });
+
+  if (error && offers.length === 0) {
+    throw new Error(error);
+  }
+
+  for (const offer of offers) {
+    offerCache.set(offer.offer_id, { offer, nights });
+  }
+
+  const stars = (n: number) => "\u2605".repeat(n) + "\u2606".repeat(5 - n);
+
+  const lines = offers.map(
+    (o, i) =>
+      `${i + 1}. [${o.offer_id}] ${o.hotel_name} ${stars(o.star_rating)}\n` +
+      `   Room: ${o.room_type}\n` +
+      `   Location: ${o.location}\n` +
+      `   Price: ${o.price_per_night.amount} ${o.price_per_night.currency}/night` +
+      ` (${nights} nights = ${(parseFloat(o.price_per_night.amount) * nights).toFixed(2)} ${o.price_per_night.currency})\n` +
+      `   Amenities: ${o.amenities.join(", ")}`,
+  );
+
+  return {
+    text: `Hotels in ${city} (${check_in} to ${check_out}, ${nights} nights, ${guests} guest(s)):\n\n` +
+      lines.join("\n\n"),
+    data: { offers, nights }
+  };
+}
+
+async function handleGenerateQuote({ hotel_offer_id, payer_wallet }: { hotel_offer_id: string, payer_wallet: string }) {
+  const cached = offerCache.get(hotel_offer_id);
+  if (!cached) {
+    throw new Error(`Hotel offer "${hotel_offer_id}" not found. Please search for hotels first.`);
+  }
+
+  const { offer, nights } = cached;
+  const orderRef = newOrderRef();
+  const roomTotal = (
+    parseFloat(offer.price_per_night.amount) * nights
+  ).toFixed(2);
+  const taxAmount = (parseFloat(roomTotal) * 0.1).toFixed(2);
+  const serviceCharge = (parseFloat(roomTotal) * 0.05).toFixed(2);
+  const totalAmount = (
+    parseFloat(roomTotal) +
+    parseFloat(taxAmount) +
+    parseFloat(serviceCharge)
+  ).toFixed(2);
+
+  const quote = await buildQuote({
+    merchantDid: config.merchantDid,
+    orderRef,
+    amount: totalAmount,
+    currency: "USDC",
+    summary: `${offer.hotel_name} (${offer.city}) - ${nights} night(s)`,
+    lineItems: [
+      {
+        name: `${offer.room_type} x ${nights} night(s)`,
+        qty: nights,
+        amount: offer.price_per_night.amount,
+      },
+      { name: "Tax (10%)", qty: 1, amount: taxAmount },
+      { name: "Service Charge (5%)", qty: 1, amount: serviceCharge },
+    ],
+    payerWallet: payer_wallet,
+    signerPrivateKey: config.signerPrivateKey,
+  });
+
+  const order = await createOrder(quote);
+
+  const ucpCheckoutResponse = {
+    ucp: {
+      version: "2026-01-11",
+      payment_handlers: {
+        "urn:ucp:payment:nexus_v1": [
+          {
+            id: "nexus_handler_1",
+            version: "v1",
+            config: quote,
+            nexus_core: {
+              skill_url: `${config.nexusCoreUrl}/skill.md`,
+              mcp_endpoint: `${config.nexusCoreUrl}/sse`,
+              prompt:
+                "To pay for this order, use the nexus_orchestrate_payment tool from Nexus Core MCP server. " +
+                "Pass the quote from config field as one element of the quotes array, along with the user's payer_wallet address. " +
+                "Multiple nexus_v1 quotes can be combined into a single payment by passing them all in the quotes array.",
+            },
+          },
+        ],
+      },
+    },
+    id: order.order_ref,
+    status: "ready_for_complete",
+    currency: "USDC",
+    totals: [
+      {
+        type: "total",
+        amount: Math.round(parseFloat(totalAmount) * 1e6).toString(),
+      },
+    ],
+  };
+
+  return {
+    text: `Nexus Payment Quote Generated\n` +
+      `Order Ref: ${order.order_ref}\n` +
+      `Original Amount: ${totalAmount} USDC\n` +
+      `Demo Discount: 0.10 USDC (test mode)\n` +
+      `Pay Amount: 0.10 USDC\n` +
+      `Status: ${order.status}\n` +
+      `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
+      `NUPS Payload (UCP Checkout Format):\n${JSON.stringify(ucpCheckoutResponse, null, 2)}`,
+    data: ucpCheckoutResponse,
+    order_ref: order.order_ref
+  };
+}
+
+async function handleCheckStatus({ order_ref }: { order_ref: string }) {
+  const order = await getOrder(order_ref);
+  if (!order) {
+    throw new Error(`Order "${order_ref}" not found.`);
+  }
+
+  return {
+    text: `Order Status\n` +
+      `Ref: ${order.order_ref}\n` +
+      `Status: ${order.status}\n` +
+      `Amount: ${order.quote_payload.amount} ${order.quote_payload.currency}\n` +
+      `Summary: ${order.quote_payload.context.summary}\n` +
+      `Created: ${order.created_at}\n` +
+      `Updated: ${order.updated_at}`,
+    data: order
+  };
+}
 
 // ── McpServer factory (one instance per SSE connection) ─────────────────────
 
@@ -53,46 +200,17 @@ function createMcpServer(): McpServer {
         .describe("Number of guests (1-10)"),
     },
     async ({ city, check_in, check_out, guests }) => {
-      const { offers, nights, error } = await searchHotels({
-        city,
-        check_in,
-        check_out,
-        guests,
-      });
-
-      if (error && offers.length === 0) {
+      try {
+        const result = await handleSearchHotels({ city, check_in, check_out, guests });
         return {
-          content: [{ type: "text" as const, text: `Error: ${error}` }],
+          content: [{ type: "text" as const, text: result.text }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
           isError: true,
         };
       }
-
-      for (const offer of offers) {
-        offerCache.set(offer.offer_id, { offer, nights });
-      }
-
-      const stars = (n: number) => "\u2605".repeat(n) + "\u2606".repeat(5 - n);
-
-      const lines = offers.map(
-        (o, i) =>
-          `${i + 1}. [${o.offer_id}] ${o.hotel_name} ${stars(o.star_rating)}\n` +
-          `   Room: ${o.room_type}\n` +
-          `   Location: ${o.location}\n` +
-          `   Price: ${o.price_per_night.amount} ${o.price_per_night.currency}/night` +
-          ` (${nights} nights = ${(parseFloat(o.price_per_night.amount) * nights).toFixed(2)} ${o.price_per_night.currency})\n` +
-          `   Amenities: ${o.amenities.join(", ")}`,
-      );
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              `Hotels in ${city} (${check_in} to ${check_out}, ${nights} nights, ${guests} guest(s)):\n\n` +
-              lines.join("\n\n"),
-          },
-        ],
-      };
     },
   );
 
@@ -111,100 +229,17 @@ function createMcpServer(): McpServer {
         .describe("Payer's EVM wallet address (0x...)"),
     },
     async ({ hotel_offer_id, payer_wallet }) => {
-      const cached = offerCache.get(hotel_offer_id);
-      if (!cached) {
+      try {
+        const result = await handleGenerateQuote({ hotel_offer_id, payer_wallet });
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Hotel offer "${hotel_offer_id}" not found. Please search for hotels first.`,
-            },
-          ],
+          content: [{ type: "text" as const, text: result.text }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
           isError: true,
         };
       }
-
-      const { offer, nights } = cached;
-      const orderRef = newOrderRef();
-      const roomTotal = (
-        parseFloat(offer.price_per_night.amount) * nights
-      ).toFixed(2);
-      const taxAmount = (parseFloat(roomTotal) * 0.1).toFixed(2);
-      const serviceCharge = (parseFloat(roomTotal) * 0.05).toFixed(2);
-      const totalAmount = (
-        parseFloat(roomTotal) +
-        parseFloat(taxAmount) +
-        parseFloat(serviceCharge)
-      ).toFixed(2);
-
-      const quote = await buildQuote({
-        merchantDid: config.merchantDid,
-        orderRef,
-        amount: totalAmount,
-        currency: "USDC",
-        summary: `${offer.hotel_name} (${offer.city}) - ${nights} night(s)`,
-        lineItems: [
-          {
-            name: `${offer.room_type} x ${nights} night(s)`,
-            qty: nights,
-            amount: offer.price_per_night.amount,
-          },
-          { name: "Tax (10%)", qty: 1, amount: taxAmount },
-          { name: "Service Charge (5%)", qty: 1, amount: serviceCharge },
-        ],
-        payerWallet: payer_wallet,
-      });
-
-      const order = await createOrder(quote);
-
-      const ucpCheckoutResponse = {
-        ucp: {
-          version: "2026-01-11",
-          payment_handlers: {
-            "urn:ucp:payment:nexus_v1": [
-              {
-                id: "nexus_handler_1",
-                version: "v1",
-                config: quote,
-                nexus_core: {
-                  skill_url: `${config.nexusCoreUrl}/skill.md`,
-                  mcp_endpoint: `${config.nexusCoreUrl}/sse`,
-                  prompt:
-                    "To pay for this order, use the nexus_orchestrate_payment tool from Nexus Core MCP server. " +
-                    "Pass the quote from config field as one element of the quotes array, along with the user's payer_wallet address. " +
-                    "Multiple nexus_v1 quotes can be combined into a single payment by passing them all in the quotes array.",
-                },
-              },
-            ],
-          },
-        },
-        id: order.order_ref,
-        status: "ready_for_complete",
-        currency: "USDC",
-        totals: [
-          {
-            type: "total",
-            amount: Math.round(parseFloat(totalAmount) * 1e6).toString(),
-          },
-        ],
-      };
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              `Nexus Payment Quote Generated\n` +
-              `Order Ref: ${order.order_ref}\n` +
-              `Original Amount: ${totalAmount} USDC\n` +
-              `Demo Discount: 0.10 USDC (test mode)\n` +
-              `Pay Amount: 0.10 USDC\n` +
-              `Status: ${order.status}\n` +
-              `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
-              `NUPS Payload (UCP Checkout Format):\n${JSON.stringify(ucpCheckoutResponse, null, 2)}`,
-          },
-        ],
-      };
     },
   );
 
@@ -217,34 +252,17 @@ function createMcpServer(): McpServer {
       order_ref: z.string().describe("The order reference (e.g. HTL-...)"),
     },
     async ({ order_ref }) => {
-      const order = await getOrder(order_ref);
-      if (!order) {
+      try {
+        const result = await handleCheckStatus({ order_ref });
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Order "${order_ref}" not found.`,
-            },
-          ],
+          content: [{ type: "text" as const, text: result.text }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
           isError: true,
         };
       }
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              `Order Status\n` +
-              `Ref: ${order.order_ref}\n` +
-              `Status: ${order.status}\n` +
-              `Amount: ${order.quote_payload.amount} ${order.quote_payload.currency}\n` +
-              `Summary: ${order.quote_payload.context.summary}\n` +
-              `Created: ${order.created_at}\n` +
-              `Updated: ${order.updated_at}`,
-          },
-        ],
-      };
     },
   );
 
@@ -338,11 +356,41 @@ async function startStdioMode() {
   console.error("Hotel Agent MCP Server started (stdio mode)");
 }
 
+async function handleStatelessCall(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<boolean> {
+  try {
+    const rawBody = await readBody(req);
+    const { tool, arguments: args } = JSON.parse(rawBody);
+
+    let result;
+    if (tool === "search_hotels") {
+      result = await handleSearchHotels(args);
+    } else if (tool === "nexus_generate_quote") {
+      result = await handleGenerateQuote(args);
+    } else if (tool === "nexus_check_status") {
+      result = await handleCheckStatus(args);
+    } else {
+      sendJson(res, 400, { error: `Unknown tool: ${tool}` });
+      return true;
+    }
+
+    sendJson(res, 200, result);
+    return true;
+  } catch (err: any) {
+    sendJson(res, 500, { error: err.message });
+    return true;
+  }
+}
+
 async function startHttpMode() {
   const sessions = new Map<
     string,
     { transport: SSEServerTransport; server: McpServer }
   >();
+
+  registerStatelessHandler(handleStatelessCall);
 
   registerSseHandler(
     async (
@@ -360,7 +408,7 @@ async function startHttpMode() {
         res.on("close", () => {
           const session = sessions.get(transport.sessionId);
           if (session) {
-            session.server.close().catch(() => {});
+            session.server.close().catch(() => { });
             sessions.delete(transport.sessionId);
           }
         });

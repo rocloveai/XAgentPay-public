@@ -1,19 +1,18 @@
 /**
  * NexusPay Core — Checkout Page.
  *
- * Serves the checkout HTML page and API endpoints for MetaMask + EIP-3009
- * payment flow. Users sign a typed data message, the signature is submitted
- * to the relayer, which deposits into escrow on-chain.
+ * Serves the checkout HTML page and API endpoints for MetaMask payment flow.
+ * Users sign an EIP-3009 typed data message, then submit the
+ * batchDepositWithAuthorization transaction directly (user pays gas).
+ * No relayer involved in the deposit path.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { GroupRepository } from "./db/interfaces/group-repo.js";
 import type { PaymentRepository } from "./db/interfaces/payment-repo.js";
 import type { PaymentStateMachine } from "./services/state-machine.js";
-import type { NexusRelayer } from "./services/relayer.js";
 import type { WebhookNotifier } from "./services/webhook-notifier.js";
 import type { NexusCoreConfig } from "./config.js";
 import type { Hex } from "./types.js";
-import { keccak256, toHex, hashTypedData, recoverAddress } from "viem";
 
 // ---------------------------------------------------------------------------
 // Dependencies
@@ -23,7 +22,6 @@ export interface CheckoutDeps {
   readonly groupRepo: GroupRepository;
   readonly paymentRepo: PaymentRepository;
   readonly stateMachine: PaymentStateMachine;
-  readonly relayer: NexusRelayer | null;
   readonly webhookNotifier: WebhookNotifier;
   readonly config: NexusCoreConfig;
 }
@@ -117,21 +115,16 @@ async function handleApiCheckout(
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/checkout/:groupId/submit — Submit EIP-3009 signature
+// POST /api/checkout/:groupId/confirm — Confirm user-submitted tx hash
 // ---------------------------------------------------------------------------
 
-async function handleCheckoutSubmit(
+async function handleCheckoutConfirm(
   deps: CheckoutDeps,
   groupId: string,
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> {
-  if (!deps.relayer) {
-    sendJson(res, 503, { error: "Relayer not configured" });
-    return;
-  }
-
-  let body: { v?: number; r?: string; s?: string };
+  let body: { tx_hash?: string };
   try {
     const raw = await readBody(req);
     body = JSON.parse(raw);
@@ -140,12 +133,8 @@ async function handleCheckoutSubmit(
     return;
   }
 
-  if (
-    typeof body.v !== "number" ||
-    typeof body.r !== "string" ||
-    typeof body.s !== "string"
-  ) {
-    sendJson(res, 400, { error: "Missing required fields: v, r, s" });
+  if (typeof body.tx_hash !== "string" || !body.tx_hash.startsWith("0x")) {
+    sendJson(res, 400, { error: "Missing or invalid tx_hash" });
     return;
   }
 
@@ -171,207 +160,27 @@ async function handleCheckoutSubmit(
     return;
   }
 
-  // Read instruction for deposit params
-  const instruction = await deps.groupRepo.findInstruction(groupId);
-  if (!instruction) {
-    sendJson(res, 400, { error: "No instruction found for this group" });
-    return;
-  }
-
-  // Check if the EIP-3009 authorization has expired
-  // Note: PlatON EVM uses ms timestamps, so validBefore is in milliseconds
-  const instrSignData = (instruction as Record<string, unknown>)
-    .eip3009_sign_data as { message: { validBefore?: string } } | undefined;
-  if (instrSignData?.message?.validBefore) {
-    const vb = Number(instrSignData.message.validBefore);
-    // Detect unit: if validBefore < 1e12 it's in seconds (legacy), else milliseconds
-    const validBeforeMs = vb < 1e12 ? vb * 1000 : vb;
-    if (Date.now() >= validBeforeMs) {
-      sendJson(res, 410, {
-        error:
-          "EIP-3009 authorization has expired. Please create a new payment.",
-      });
-      return;
-    }
-  }
-
   try {
-    // Transition all payments to AWAITING_TX (skip if already there)
+    // Transition all payments directly to ESCROWED (user submitted tx)
     for (const payment of payments) {
-      if (payment.status === "AWAITING_TX") continue;
+      if (payment.status === "ESCROWED") continue;
       await deps.stateMachine.transition({
         nexusPaymentId: payment.nexus_payment_id,
-        toStatus: "AWAITING_TX",
-        eventType: "EIP3009_SIGNATURE_RECEIVED",
-        metadata: { group_id: groupId, source: "checkout" },
+        toStatus: "ESCROWED",
+        eventType: "ESCROW_DEPOSITED",
+        metadata: {
+          tx_hash: body.tx_hash,
+          group_id: groupId,
+          source: "checkout",
+        },
+        fields: { deposit_tx_hash: body.tx_hash, tx_hash: body.tx_hash },
       });
     }
 
-    // Use first payment for the on-chain deposit (aggregated payment)
-    const firstPayment = payments[0];
-    const orderRefHash = keccak256(toHex(firstPayment.merchant_order_ref));
-    const merchantDidHash = keccak256(toHex(firstPayment.merchant_did));
-    const contextHash = keccak256(
-      toHex(JSON.stringify(firstPayment.quote_payload.context)),
-    );
-
-    // Use the exact validBefore from the signed EIP-3009 instruction
-    const signData = (instruction as Record<string, unknown>)
-      .eip3009_sign_data as
-      | { message: { validBefore: string; nonce: string } }
-      | undefined;
-    const signedValidBefore = signData?.message?.validBefore
-      ? BigInt(signData.message.validBefore)
-      : BigInt(firstPayment.quote_payload.expiry);
-    const signedNonce = (signData?.message?.nonce ??
-      firstPayment.eip3009_nonce ??
-      "0x0") as Hex;
-
-    const depositParams = {
-      paymentId: (firstPayment.payment_id_bytes32 ??
-        keccak256(toHex(firstPayment.nexus_payment_id))) as Hex,
-      from: firstPayment.payer_wallet as Hex,
-      merchant: firstPayment.payment_address as Hex,
-      amount: BigInt(group.total_amount),
-      orderRef: orderRefHash as Hex,
-      merchantDid: merchantDidHash as Hex,
-      contextHash: contextHash as Hex,
-      validAfter: 0n,
-      validBefore: signedValidBefore,
-      nonce: signedNonce,
-      v: body.v,
-      r: body.r as Hex,
-      s: body.s as Hex,
-    };
-
-    // Server-side signature verification — recover signer from EIP-712 typed data
-    // to catch mismatches before sending to the relayer
-    const fullSignData = (instruction as Record<string, unknown>)
-      .eip3009_sign_data as
-      | {
-          domain: {
-            name: string;
-            version: string;
-            chainId: number;
-            verifyingContract: string;
-          };
-          types: Record<string, Array<{ name: string; type: string }>>;
-          primaryType: string;
-          message: Record<string, string>;
-        }
-      | undefined;
-
-    if (fullSignData) {
-      try {
-        const digest = hashTypedData({
-          domain: {
-            name: fullSignData.domain.name,
-            version: fullSignData.domain.version,
-            chainId: fullSignData.domain.chainId,
-            verifyingContract: fullSignData.domain.verifyingContract as Hex,
-          },
-          types: fullSignData.types as {
-            TransferWithAuthorization: Array<{
-              name: string;
-              type: string;
-            }>;
-          },
-          primaryType: fullSignData.primaryType as "TransferWithAuthorization",
-          message: {
-            from: fullSignData.message.from as Hex,
-            to: fullSignData.message.to as Hex,
-            value: BigInt(fullSignData.message.value),
-            validAfter: BigInt(fullSignData.message.validAfter),
-            validBefore: BigInt(fullSignData.message.validBefore),
-            nonce: fullSignData.message.nonce as Hex,
-          },
-        });
-
-        const recovered = await recoverAddress({
-          hash: digest,
-          signature: {
-            v: BigInt(body.v),
-            r: body.r as Hex,
-            s: body.s as Hex,
-          },
-        });
-
-        const expectedFrom = (firstPayment.payer_wallet ?? "").toLowerCase();
-        console.log("[checkout] EIP-712 digest:", digest);
-        console.log(
-          "[checkout] Recovered signer:",
-          recovered,
-          "expected:",
-          expectedFrom,
-        );
-
-        if (recovered.toLowerCase() !== expectedFrom) {
-          // Log detailed mismatch info for debugging — don't block submission
-          // because MetaMask's signing might differ subtly from viem's hashTypedData.
-          // The relayer will get the definitive answer from the on-chain contract.
-          console.error(
-            "[checkout] SIGNATURE MISMATCH — recovered signer:",
-            recovered,
-            "expected:",
-            firstPayment.payer_wallet,
-            "digest:",
-            digest,
-            "v:",
-            body.v,
-            "r:",
-            body.r,
-            "s:",
-            body.s,
-            "signData:",
-            JSON.stringify(fullSignData),
-          );
-        }
-      } catch (verifyErr) {
-        // Log but don't block — let the relayer attempt anyway
-        console.warn(
-          "[checkout] Server-side signature verification failed:",
-          verifyErr,
-        );
-      }
-    }
-
-    // Debug: log what we're sending to the relayer vs what was signed
-    console.log(
-      "[checkout] depositParams:",
-      JSON.stringify({
-        paymentId: depositParams.paymentId,
-        from: depositParams.from,
-        merchant: depositParams.merchant,
-        amount: depositParams.amount.toString(),
-        validAfter: depositParams.validAfter.toString(),
-        validBefore: depositParams.validBefore.toString(),
-        nonce: depositParams.nonce,
-        v: depositParams.v,
-        r: depositParams.r,
-        s: depositParams.s,
-      }),
-    );
-    console.log(
-      "[checkout] instruction signData:",
-      JSON.stringify(
-        (instruction as Record<string, unknown>).eip3009_sign_data,
-      ),
-    );
-
-    const depositResult = await deps.relayer.submitDeposit(depositParams);
-
-    // Transition all payments to BROADCASTED (re-fetch to get current status)
-    const updatedPayments = await deps.paymentRepo.findByGroupId(groupId);
-    for (const payment of updatedPayments) {
-      if (payment.status === "BROADCASTED") continue;
-      await deps.stateMachine.transition({
-        nexusPaymentId: payment.nexus_payment_id,
-        toStatus: "BROADCASTED",
-        eventType: "RELAYER_TX_SUBMITTED",
-        metadata: { tx_hash: depositResult.txHash },
-        fields: { tx_hash: depositResult.txHash },
-      });
-    }
+    // Update group status and tx_hash
+    await deps.groupRepo.updateStatus(groupId, "GROUP_ESCROWED", {
+      tx_hash: body.tx_hash,
+    });
 
     // Fire-and-forget webhook notifications
     for (const payment of payments) {
@@ -379,29 +188,12 @@ async function handleCheckoutSubmit(
     }
 
     sendJson(res, 200, {
-      tx_hash: depositResult.txHash,
-      block_number: depositResult.blockNumber.toString(),
-      status: "submitted",
+      tx_hash: body.tx_hash,
+      status: "escrowed",
+      group_id: groupId,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-
-    // Transition all AWAITING_TX payments to TX_FAILED so they don't get stuck
-    try {
-      const currentPayments = await deps.paymentRepo.findByGroupId(groupId);
-      for (const payment of currentPayments) {
-        if (payment.status !== "AWAITING_TX") continue;
-        await deps.stateMachine.transition({
-          nexusPaymentId: payment.nexus_payment_id,
-          toStatus: "TX_FAILED",
-          eventType: "RELAYER_TX_FAILED",
-          metadata: { error: message },
-        });
-      }
-    } catch {
-      // Best-effort cleanup
-    }
-
     sendJson(res, 500, { error: message });
   }
 }
@@ -492,7 +284,7 @@ tailwind.config = {
     <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
       <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Payment Details</h2>
       <div class="space-y-2 text-sm">
-        <div class="flex justify-between"><span class="text-slate-500">Method</span><span class="text-slate-300">EIP-3009 (Gasless)</span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Method</span><span class="text-slate-300">EIP-3009 + Batch Deposit</span></div>
         <div class="flex justify-between"><span class="text-slate-500">Chain</span><span class="text-slate-300">${esc(chainName)}</span></div>
         <div class="flex justify-between"><span class="text-slate-500">Escrow</span><span class="font-mono text-xs text-slate-300" id="escrow-addr"></span></div>
         <div class="flex justify-between"><span class="text-slate-500">Token</span><span class="text-slate-300">USDC</span></div>
@@ -564,11 +356,12 @@ tailwind.config = {
       <div id="submitting" class="hidden">
         <div class="flex items-center justify-center gap-3">
           <div class="spinner"></div>
-          <span class="text-slate-300 text-sm">Submitting to relayer...</span>
+          <span class="text-slate-300 text-sm">Sending transaction via MetaMask...</span>
         </div>
         <div class="mt-3 w-full bg-slate-700 rounded-full h-2">
           <div class="bg-indigo-500 h-2 rounded-full" style="width: 50%; transition: width 2s;"></div>
         </div>
+        <p class="text-slate-500 text-xs mt-2">You will pay gas for this transaction.</p>
       </div>
 
       <!-- Confirming -->
@@ -840,8 +633,7 @@ async function signAndPay() {
   showOnly(["order-summary","payment-details","action-area","signing"]);
 
   try {
-    // Use connected account as the signer address for MetaMask
-    // MetaMask signs with whichever address is passed as first param
+    // Step 1: Sign EIP-3009 typed data via MetaMask
     var signerAddress = account;
 
     var params = {
@@ -858,12 +650,8 @@ async function signAndPay() {
       },
     };
 
-    // Debug: log the exact data being sent to MetaMask
     console.log("[NexusPay] Signer address:", signerAddress);
     console.log("[NexusPay] EIP-712 params:", JSON.stringify(params, null, 2));
-    console.log("[NexusPay] domain.chainId type:", typeof params.domain.chainId, "value:", params.domain.chainId);
-    console.log("[NexusPay] message.value type:", typeof params.message.value, "value:", params.message.value);
-    console.log("[NexusPay] message.validBefore type:", typeof params.message.validBefore, "value:", params.message.validBefore);
 
     var signature = await ethereum.request({
       method: "eth_signTypedData_v4",
@@ -874,29 +662,68 @@ async function signAndPay() {
     var s = "0x" + signature.slice(66, 130);
     var v = parseInt(signature.slice(130, 132), 16);
 
-    console.log("[NexusPay] Signature:", { v: v, r: r, s: s, raw: signature });
+    console.log("[NexusPay] Signature:", { v: v, r: r, s: s });
 
-    // Submit
+    // Step 2: Build batchDepositWithAuthorization calldata and send tx
     showOnly(["order-summary","payment-details","action-area","submitting"]);
 
-    var submitRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID) + "/submit", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ v: v, r: r, s: s }),
+    var instr = checkoutData.instruction;
+    var depositTx = instr.deposit_tx;
+
+    // Build entries array for batchDepositWithAuthorization from instruction payments
+    var entries = instr.payments.map(function(p) {
+      return {
+        paymentId: keccak256Str(p.nexus_payment_id),
+        merchant: p.merchant_address,
+        amount: p.amount_uint256,
+        orderRef: keccak256Str(p.merchant_order_ref),
+        merchantDid: keccak256Str(p.merchant_did),
+        contextHash: keccak256Str(p.summary || ""),
+      };
     });
 
-    if (!submitRes.ok) {
-      var err = await submitRes.json().catch(function() { return { error: "Submit failed" }; });
-      showError(err.error || "Submit failed");
-      return;
-    }
+    // ABI-encode batchDepositWithAuthorization call
+    var encodedData = encodeBatchDeposit(
+      entries,
+      signData.message.value,
+      signData.message.validAfter,
+      signData.message.validBefore,
+      signData.message.nonce,
+      v, r, s
+    );
 
-    var result = await submitRes.json();
+    console.log("[NexusPay] Sending batchDepositWithAuthorization tx to:", depositTx.to);
 
-    // Confirming
+    // Send the transaction via MetaMask (user pays gas)
+    var txHash = await ethereum.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: account,
+        to: depositTx.to,
+        data: encodedData,
+        value: "0x0",
+        gas: "0x" + parseInt(depositTx.gas_limit).toString(16),
+      }],
+    });
+
+    console.log("[NexusPay] TX hash:", txHash);
+
+    // Step 3: Confirm with server
     showOnly(["order-summary","payment-details","action-area","confirming"]);
 
-    // Poll for confirmation
+    var confirmRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID) + "/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tx_hash: txHash }),
+    });
+
+    if (!confirmRes.ok) {
+      var err = await confirmRes.json().catch(function() { return { error: "Confirm failed" }; });
+      // Even if confirm fails, the tx was already sent — show tx hash
+      console.warn("[NexusPay] Confirm API failed but tx was sent:", err);
+    }
+
+    // Poll for on-chain confirmation
     pollTimer = setInterval(async function() {
       try {
         var pollRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID));
@@ -905,33 +732,196 @@ async function signAndPay() {
           var gs = data.group.status;
           if (gs === "GROUP_ESCROWED" || gs === "GROUP_SETTLED" || gs === "GROUP_COMPLETED") {
             clearInterval(pollTimer);
-            document.getElementById("success-tx-hash").textContent = "TX: " + (result.tx_hash || "-");
+            document.getElementById("success-tx-hash").textContent = "TX: " + txHash;
             showOnly(["order-summary","state-success"]);
           }
         }
       } catch (e) { /* ignore poll errors */ }
     }, 3000);
 
-    // Also show success after a short delay if we got tx_hash
-    if (result.tx_hash) {
-      setTimeout(function() {
-        if (pollTimer) {
-          clearInterval(pollTimer);
-          pollTimer = null;
-        }
-        document.getElementById("success-tx-hash").textContent = "TX: " + result.tx_hash;
-        showOnly(["order-summary","state-success"]);
-      }, 10000);
-    }
+    // Show success after timeout (tx was sent regardless of server confirmation)
+    setTimeout(function() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      document.getElementById("success-tx-hash").textContent = "TX: " + txHash;
+      showOnly(["order-summary","state-success"]);
+    }, 15000);
 
   } catch (e) {
     if (e.code === 4001) {
-      // User rejected
+      // User rejected signing or transaction
       showOnly(["order-summary","payment-details","action-area","ready-sign"]);
     } else {
-      showError(e.message || "Signing failed");
+      showError(e.message || "Transaction failed");
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// ABI encoding helpers (pure JS, no external deps)
+// ---------------------------------------------------------------------------
+
+// keccak256 using the SubtleCrypto API is async; for keccak256 we need a
+// synchronous pure-JS implementation. Since the server already computes
+// these hashes, we compute them client-side via a minimal keccak256.
+// We use ethers-style hex encoding: pad to 32 bytes.
+
+function keccak256Str(input) {
+  // Use keccak256 from the inline implementation below
+  var encoded = toUtf8Bytes(input);
+  return keccak256Bytes(encoded);
+}
+
+// Minimal keccak256 for the browser (Keccak-256, NOT SHA3-256)
+// This is the standard used by Ethereum for hashing
+var KECCAK_ROUND_CONSTANTS = [
+  1n, 0x8082n, 0x800000000000808an, 0x8000000080008000n,
+  0x808bn, 0x80000001n, 0x8000000080008081n, 0x8000000000008009n,
+  0x8an, 0x88n, 0x80008009n, 0x8000000an,
+  0x8000808bn, 0x800000000000008bn, 0x8000000000008089n, 0x8000000000008003n,
+  0x8000000000008002n, 0x8000000000000080n, 0x800an, 0x800000008000000an,
+  0x8000000080008081n, 0x8000000000008080n, 0x80000001n, 0x8000000080008008n,
+];
+
+function keccak256Bytes(data) {
+  // Rate for keccak256 = 1088 bits = 136 bytes, capacity = 512 bits
+  var rate = 136;
+  var state = new Array(25).fill(0n);
+
+  // Pad: append 0x01, zeros, then 0x80 at end of last block
+  var padded = new Uint8Array(Math.ceil((data.length + 1) / rate) * rate);
+  padded.set(data);
+  padded[data.length] = 0x01;
+  padded[padded.length - 1] |= 0x80;
+
+  // Absorb
+  for (var offset = 0; offset < padded.length; offset += rate) {
+    for (var i = 0; i < rate; i += 8) {
+      var lane = 0n;
+      for (var b = 0; b < 8; b++) {
+        lane |= BigInt(padded[offset + i + b]) << BigInt(b * 8);
+      }
+      state[i / 8] ^= lane;
+    }
+    keccakF1600(state);
+  }
+
+  // Squeeze 32 bytes
+  var result = "";
+  for (var i = 0; i < 4; i++) {
+    var lane = state[i];
+    for (var b = 0; b < 8; b++) {
+      var byte = Number((lane >> BigInt(b * 8)) & 0xFFn);
+      result += byte.toString(16).padStart(2, "0");
+    }
+  }
+  return "0x" + result;
+}
+
+function keccakF1600(state) {
+  for (var round = 0; round < 24; round++) {
+    // Theta
+    var C = new Array(5);
+    for (var x = 0; x < 5; x++) C[x] = state[x] ^ state[x+5] ^ state[x+10] ^ state[x+15] ^ state[x+20];
+    for (var x = 0; x < 5; x++) {
+      var d = C[(x+4)%5] ^ rotl64(C[(x+1)%5], 1n);
+      for (var y = 0; y < 25; y += 5) state[x+y] ^= d;
+    }
+    // Rho + Pi
+    var last = state[1];
+    var PILN = [10,7,11,17,18,3,5,16,8,21,24,4,15,23,19,13,12,2,20,14,22,9,6,1];
+    var ROTC = [1n,3n,6n,10n,15n,21n,28n,36n,45n,55n,2n,14n,27n,41n,56n,8n,25n,43n,62n,18n,39n,61n,20n,44n];
+    for (var i = 0; i < 24; i++) {
+      var j = PILN[i];
+      var temp = state[j];
+      state[j] = rotl64(last, ROTC[i]);
+      last = temp;
+    }
+    // Chi
+    for (var y = 0; y < 25; y += 5) {
+      var t = [state[y], state[y+1], state[y+2], state[y+3], state[y+4]];
+      for (var x = 0; x < 5; x++) state[y+x] = t[x] ^ ((~t[(x+1)%5]) & t[(x+2)%5]);
+    }
+    // Iota
+    state[0] ^= KECCAK_ROUND_CONSTANTS[round];
+  }
+}
+
+function rotl64(x, n) {
+  var mask = (1n << 64n) - 1n;
+  return ((x << n) | (x >> (64n - n))) & mask;
+}
+
+function toUtf8Bytes(str) {
+  var encoder = new TextEncoder();
+  return encoder.encode(str);
+}
+
+// Encode batchDepositWithAuthorization calldata
+function encodeBatchDeposit(entries, totalAmount, validAfter, validBefore, nonce, v, r, s) {
+  // Function selector: keccak256("batchDepositWithAuthorization((bytes32,address,uint256,bytes32,bytes32,bytes32)[],uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)")
+  // We'll compute it from the ABI
+  var sig = "batchDepositWithAuthorization((bytes32,address,uint256,bytes32,bytes32,bytes32)[],uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)";
+  var selectorHash = keccak256Bytes(toUtf8Bytes(sig));
+  var selector = selectorHash.slice(0, 10); // "0x" + 4 bytes
+
+  // ABI encode parameters
+  // Layout: selector + head (8 pointers for params, but first is dynamic array)
+  // Params: entries[], totalAmount, validAfter, validBefore, nonce, v, r, s
+
+  var totalAmountHex = padUint256(totalAmount);
+  var validAfterHex = padUint256(validAfter);
+  var validBeforeHex = padUint256(validBefore);
+  var nonceHex = padBytes32(nonce);
+  var vHex = padUint256(v);
+  var rHex = padBytes32(r);
+  var sHex = padBytes32(s);
+
+  // Dynamic array offset = 8 * 32 = 256 = 0x100
+  var headOffset = padUint256(256);
+
+  // Array encoding: length + N * 6 words per entry
+  var arrayLen = padUint256(entries.length);
+  var arrayData = "";
+  for (var i = 0; i < entries.length; i++) {
+    var e = entries[i];
+    arrayData += padBytes32(e.paymentId);
+    arrayData += padAddress(e.merchant);
+    arrayData += padUint256(e.amount);
+    arrayData += padBytes32(e.orderRef);
+    arrayData += padBytes32(e.merchantDid);
+    arrayData += padBytes32(e.contextHash);
+  }
+
+  return selector +
+    headOffset +
+    totalAmountHex +
+    validAfterHex +
+    validBeforeHex +
+    nonceHex +
+    vHex +
+    rHex +
+    sHex +
+    arrayLen +
+    arrayData;
+}
+
+function padUint256(val) {
+  var hex = BigInt(val).toString(16);
+  return hex.padStart(64, "0");
+}
+
+function padBytes32(hex) {
+  // Remove 0x prefix, pad to 64 chars
+  var clean = String(hex).replace(/^0x/, "");
+  return clean.padStart(64, "0");
+}
+
+function padAddress(addr) {
+  var clean = String(addr).replace(/^0x/, "").toLowerCase();
+  return clean.padStart(64, "0");
 }
 
 // Listen for chain/account changes
@@ -998,13 +988,13 @@ export async function handleCheckoutRequest(
     return true;
   }
 
-  // POST /api/checkout/:groupId/submit — submit signature
-  const submitMatch = path.match(
-    /^\/api\/checkout\/(GRP-[a-zA-Z0-9_-]+)\/submit$/,
+  // POST /api/checkout/:groupId/confirm — confirm user-submitted tx hash
+  const confirmMatch = path.match(
+    /^\/api\/checkout\/(GRP-[a-zA-Z0-9_-]+)\/confirm$/,
   );
-  if (submitMatch && req.method === "POST") {
-    const groupId = decodeURIComponent(submitMatch[1]);
-    await handleCheckoutSubmit(deps, groupId, req, res);
+  if (confirmMatch && req.method === "POST") {
+    const groupId = decodeURIComponent(confirmMatch[1]);
+    await handleCheckoutConfirm(deps, groupId, req, res);
     return true;
   }
 

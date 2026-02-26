@@ -137,6 +137,42 @@ export class GroupManager {
     return { group, payments };
   }
 
+  /**
+   * Confirm a batch deposit transaction submitted by the user.
+   * Transitions all child payments from CREATED → ESCROWED and updates the group.
+   */
+  async confirmGroupDeposit(
+    groupId: string,
+    txHash: string,
+  ): Promise<GroupDetail | null> {
+    const detail = await this.getGroupDetail(groupId);
+    if (!detail) return null;
+
+    const { group, payments } = detail;
+
+    for (const payment of payments) {
+      if (payment.status === "ESCROWED") continue;
+      await this.stateMachine.transition({
+        nexusPaymentId: payment.nexus_payment_id,
+        toStatus: "ESCROWED",
+        eventType: "ESCROW_DEPOSITED",
+        metadata: {
+          tx_hash: txHash,
+          group_id: groupId,
+          source: "batch_deposit",
+        },
+        fields: { deposit_tx_hash: txHash, tx_hash: txHash },
+      });
+    }
+
+    await this.groupRepo.updateStatus(groupId, "GROUP_ESCROWED", {
+      tx_hash: txHash,
+    });
+
+    // Return updated detail
+    return this.getGroupDetail(groupId);
+  }
+
   async syncGroupStatus(groupId: string): Promise<PaymentGroupRecord | null> {
     const detail = await this.getGroupDetail(groupId);
     if (!detail) return null;
@@ -165,11 +201,7 @@ function aggregateGroupStatus(
   if (statuses.every((s) => s === "ESCROWED")) return "GROUP_ESCROWED";
   if (statuses.every((s) => s === "EXPIRED")) return "GROUP_EXPIRED";
 
-  if (
-    statuses.every(
-      (s) => s === "CREATED" || s === "AWAITING_TX",
-    )
-  ) {
+  if (statuses.every((s) => s === "CREATED" || s === "AWAITING_TX")) {
     return "GROUP_AWAITING_TX";
   }
 

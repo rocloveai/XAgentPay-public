@@ -8,7 +8,13 @@ import { searchFlights } from "./services/flight-search.js";
 import { buildQuote } from "./services/quote-builder.js";
 import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
 import { initPool } from "./services/db/pool.js";
-import { startPortal, registerSseHandler } from "./portal.js";
+import {
+  startPortal,
+  registerSseHandler,
+  registerStatelessHandler,
+  readBody,
+  sendJson,
+} from "./portal.js";
 import type { FlightOffer } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -24,6 +30,135 @@ if (config.databaseUrl) {
 
 // In-memory cache: offer_id -> FlightOffer (shared across connections)
 const offerCache = new Map<string, FlightOffer>();
+
+// ── Tool Implementations (Shared) ───────────────────────────────────────────
+
+async function handleSearchFlights({ origin, destination, date, passengers }: { origin: string, destination: string, date: string, passengers: number }) {
+  const { offers, error } = await searchFlights({
+    origin: origin.toUpperCase(),
+    destination: destination.toUpperCase(),
+    date,
+    passengers,
+  });
+
+  for (const offer of offers) {
+    offerCache.set(offer.offer_id, offer);
+  }
+
+  const lines = offers.map(
+    (o, i) =>
+      `${i + 1}. [${o.offer_id}] ${o.airline} ${o.flight_number}\n` +
+      `   ${o.origin} → ${o.destination}\n` +
+      `   Depart: ${o.departure_time} | Arrive: ${o.arrival_time}\n` +
+      `   Duration: ${o.duration} | Class: ${o.cabin_class}\n` +
+      `   Price: ${o.price.amount} ${o.price.currency}`,
+  );
+
+  const header = error
+    ? `Note: ${error}\n\nAvailable Flights:\n`
+    : "Available Flights:\n";
+
+  return {
+    text: header + lines.join("\n\n"),
+    data: offers
+  };
+}
+
+async function handleGenerateQuote({ flight_offer_id, payer_wallet }: { flight_offer_id: string, payer_wallet: string }) {
+  const offer = offerCache.get(flight_offer_id);
+  if (!offer) {
+    throw new Error(`Flight offer "${flight_offer_id}" not found. Please search for flights first.`);
+  }
+
+  const orderRef = newOrderRef();
+  const taxAmount = (parseFloat(offer.price.amount) * 0.06).toFixed(2);
+  const totalAmount = (
+    parseFloat(offer.price.amount) + parseFloat(taxAmount)
+  ).toFixed(2);
+
+  const quote = await buildQuote({
+    merchantDid: config.merchantDid,
+    orderRef,
+    amount: totalAmount,
+    currency: "USDC",
+    summary: `${offer.airline} ${offer.flight_number} (${offer.origin}-${offer.destination})`,
+    lineItems: [
+      {
+        name: `Flight ${offer.flight_number} ${offer.origin}-${offer.destination}`,
+        qty: 1,
+        amount: offer.price.amount,
+      },
+      { name: "Tax & Fees", qty: 1, amount: taxAmount },
+    ],
+    payerWallet: payer_wallet,
+    signerPrivateKey: config.signerPrivateKey,
+  });
+
+  const order = await createOrder(quote);
+
+  const ucpCheckoutResponse = {
+    ucp: {
+      version: "2026-01-11",
+      payment_handlers: {
+        "urn:ucp:payment:nexus_v1": [
+          {
+            id: "nexus_handler_1",
+            version: "v1",
+            config: quote,
+            nexus_core: {
+              skill_url: `${config.nexusCoreUrl}/skill.md`,
+              mcp_endpoint: `${config.nexusCoreUrl}/sse`,
+              prompt:
+                "To pay for this order, use the nexus_orchestrate_payment tool from Nexus Core MCP server. " +
+                "Pass the quote from config field as one element of the quotes array, along with the user's payer_wallet address. " +
+                "Multiple nexus_v1 quotes can be combined into a single payment by passing them all in the quotes array.",
+            },
+          },
+        ],
+      },
+    },
+    id: order.order_ref,
+    status: "ready_for_complete",
+    currency: "USDC",
+    totals: [
+      {
+        type: "total",
+        amount: Math.round(parseFloat(totalAmount) * 1e6).toString(),
+      },
+    ],
+  };
+
+  return {
+    text: `Nexus Payment Quote Generated\n` +
+      `Order Ref: ${order.order_ref}\n` +
+      `Original Amount: ${totalAmount} USDC\n` +
+      `Demo Discount: 0.10 USDC (test mode)\n` +
+      `Pay Amount: 0.10 USDC\n` +
+      `Status: ${order.status}\n` +
+      `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
+      `NUPS Payload (UCP Checkout Format):\n${JSON.stringify(ucpCheckoutResponse, null, 2)}`,
+    data: ucpCheckoutResponse,
+    order_ref: order.order_ref
+  };
+}
+
+async function handleCheckStatus({ order_ref }: { order_ref: string }) {
+  const order = await getOrder(order_ref);
+  if (!order) {
+    throw new Error(`Order "${order_ref}" not found.`);
+  }
+
+  return {
+    text: `Order Status\n` +
+      `Ref: ${order.order_ref}\n` +
+      `Status: ${order.status}\n` +
+      `Amount: ${order.quote_payload.amount} ${order.quote_payload.currency}\n` +
+      `Summary: ${order.quote_payload.context.summary}\n` +
+      `Created: ${order.created_at}\n` +
+      `Updated: ${order.updated_at}`,
+    data: order
+  };
+}
 
 // ── McpServer factory (one instance per SSE connection) ─────────────────────
 
@@ -55,32 +190,9 @@ function createMcpServer(): McpServer {
         .describe("Number of passengers (1-9)"),
     },
     async ({ origin, destination, date, passengers }) => {
-      const { offers, error } = await searchFlights({
-        origin: origin.toUpperCase(),
-        destination: destination.toUpperCase(),
-        date,
-        passengers,
-      });
-
-      for (const offer of offers) {
-        offerCache.set(offer.offer_id, offer);
-      }
-
-      const lines = offers.map(
-        (o, i) =>
-          `${i + 1}. [${o.offer_id}] ${o.airline} ${o.flight_number}\n` +
-          `   ${o.origin} → ${o.destination}\n` +
-          `   Depart: ${o.departure_time} | Arrive: ${o.arrival_time}\n` +
-          `   Duration: ${o.duration} | Class: ${o.cabin_class}\n` +
-          `   Price: ${o.price.amount} ${o.price.currency}`,
-      );
-
-      const header = error
-        ? `Note: ${error}\n\nAvailable Flights:\n`
-        : "Available Flights:\n";
-
+      const result = await handleSearchFlights({ origin, destination, date, passengers });
       return {
-        content: [{ type: "text" as const, text: header + lines.join("\n\n") }],
+        content: [{ type: "text" as const, text: result.text }],
       };
     },
   );
@@ -100,92 +212,17 @@ function createMcpServer(): McpServer {
         .describe("Payer's EVM wallet address (0x...)"),
     },
     async ({ flight_offer_id, payer_wallet }) => {
-      const offer = offerCache.get(flight_offer_id);
-      if (!offer) {
+      try {
+        const result = await handleGenerateQuote({ flight_offer_id, payer_wallet });
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Flight offer "${flight_offer_id}" not found. Please search for flights first.`,
-            },
-          ],
+          content: [{ type: "text" as const, text: result.text }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
           isError: true,
         };
       }
-
-      const orderRef = newOrderRef();
-      const taxAmount = (parseFloat(offer.price.amount) * 0.06).toFixed(2);
-      const totalAmount = (
-        parseFloat(offer.price.amount) + parseFloat(taxAmount)
-      ).toFixed(2);
-
-      const quote = await buildQuote({
-        merchantDid: config.merchantDid,
-        orderRef,
-        amount: totalAmount,
-        currency: "USDC",
-        summary: `${offer.airline} ${offer.flight_number} (${offer.origin}-${offer.destination})`,
-        lineItems: [
-          {
-            name: `Flight ${offer.flight_number} ${offer.origin}-${offer.destination}`,
-            qty: 1,
-            amount: offer.price.amount,
-          },
-          { name: "Tax & Fees", qty: 1, amount: taxAmount },
-        ],
-        payerWallet: payer_wallet,
-      });
-
-      const order = await createOrder(quote);
-
-      const ucpCheckoutResponse = {
-        ucp: {
-          version: "2026-01-11",
-          payment_handlers: {
-            "urn:ucp:payment:nexus_v1": [
-              {
-                id: "nexus_handler_1",
-                version: "v1",
-                config: quote,
-                nexus_core: {
-                  skill_url: `${config.nexusCoreUrl}/skill.md`,
-                  mcp_endpoint: `${config.nexusCoreUrl}/sse`,
-                  prompt:
-                    "To pay for this order, use the nexus_orchestrate_payment tool from Nexus Core MCP server. " +
-                    "Pass the quote from config field as one element of the quotes array, along with the user's payer_wallet address. " +
-                    "Multiple nexus_v1 quotes can be combined into a single payment by passing them all in the quotes array.",
-                },
-              },
-            ],
-          },
-        },
-        id: order.order_ref,
-        status: "ready_for_complete",
-        currency: "USDC",
-        totals: [
-          {
-            type: "total",
-            amount: Math.round(parseFloat(totalAmount) * 1e6).toString(),
-          },
-        ],
-      };
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              `Nexus Payment Quote Generated\n` +
-              `Order Ref: ${order.order_ref}\n` +
-              `Original Amount: ${totalAmount} USDC\n` +
-              `Demo Discount: 0.10 USDC (test mode)\n` +
-              `Pay Amount: 0.10 USDC\n` +
-              `Status: ${order.status}\n` +
-              `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
-              `NUPS Payload (UCP Checkout Format):\n${JSON.stringify(ucpCheckoutResponse, null, 2)}`,
-          },
-        ],
-      };
     },
   );
 
@@ -198,34 +235,17 @@ function createMcpServer(): McpServer {
       order_ref: z.string().describe("The order reference (e.g. FLT-...)"),
     },
     async ({ order_ref }) => {
-      const order = await getOrder(order_ref);
-      if (!order) {
+      try {
+        const result = await handleCheckStatus({ order_ref });
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Order "${order_ref}" not found.`,
-            },
-          ],
+          content: [{ type: "text" as const, text: result.text }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
           isError: true,
         };
       }
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              `Order Status\n` +
-              `Ref: ${order.order_ref}\n` +
-              `Status: ${order.status}\n` +
-              `Amount: ${order.quote_payload.amount} ${order.quote_payload.currency}\n` +
-              `Summary: ${order.quote_payload.context.summary}\n` +
-              `Created: ${order.created_at}\n` +
-              `Updated: ${order.updated_at}`,
-          },
-        ],
-      };
     },
   );
 
@@ -319,11 +339,41 @@ async function startStdioMode() {
   console.error("Flight Agent MCP Server started (stdio mode)");
 }
 
+async function handleStatelessCall(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<boolean> {
+  try {
+    const rawBody = await readBody(req);
+    const { tool, arguments: args } = JSON.parse(rawBody);
+
+    let result;
+    if (tool === "search_flights") {
+      result = await handleSearchFlights(args);
+    } else if (tool === "nexus_generate_quote") {
+      result = await handleGenerateQuote(args);
+    } else if (tool === "nexus_check_status") {
+      result = await handleCheckStatus(args);
+    } else {
+      sendJson(res, 400, { error: `Unknown tool: ${tool}` });
+      return true;
+    }
+
+    sendJson(res, 200, result);
+    return true;
+  } catch (err: any) {
+    sendJson(res, 500, { error: err.message });
+    return true;
+  }
+}
+
 async function startHttpMode() {
   const sessions = new Map<
     string,
     { transport: SSEServerTransport; server: McpServer }
   >();
+
+  registerStatelessHandler(handleStatelessCall);
 
   registerSseHandler(
     async (
@@ -341,7 +391,7 @@ async function startHttpMode() {
         res.on("close", () => {
           const session = sessions.get(transport.sessionId);
           if (session) {
-            session.server.close().catch(() => {});
+            session.server.close().catch(() => { });
             sessions.delete(transport.sessionId);
           }
         });

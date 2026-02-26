@@ -32,6 +32,34 @@ Flight booking merchant agent powered by Nexus Protocol. Searches flights across
 }
 ```
 
+## Stateless REST API
+
+For environments where MCP/SSE is not supported, tools can be called directly via HTTP POST.
+
+**Endpoint:** `POST /api/v1/call-tool`
+
+**Request Body:**
+```json
+{
+  "tool": "tool_name",
+  "arguments": { ... }
+}
+```
+
+**Example (search):**
+```bash
+curl -X POST https://nexus-flight-agent.onrender.com/api/v1/call-tool \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tool": "search_flights",
+    "arguments": {
+      "origin": "SIN",
+      "destination": "PVG",
+      "date": "2026-04-01"
+    }
+  }'
+```
+
 ## Available Tools
 
 ### `search_flights` (role: search)

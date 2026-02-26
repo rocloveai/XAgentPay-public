@@ -36,10 +36,21 @@ type SseHandler = (
   url: URL,
 ) => Promise<boolean>;
 
+type StatelessHandler = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+) => Promise<boolean>;
+
 let sseHandler: SseHandler | null = null;
+let statelessHandler: StatelessHandler | null = null;
 
 export function registerSseHandler(handler: SseHandler): void {
   sseHandler = handler;
+}
+
+export function registerStatelessHandler(handler: StatelessHandler): void {
+  statelessHandler = handler;
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -87,7 +98,7 @@ function computeStats(orders: readonly Order[]): Stats {
   };
 }
 
-function sendJson(res: ServerResponse, status: number, data: unknown): void {
+export function sendJson(res: ServerResponse, status: number, data: unknown): void {
   const body = JSON.stringify(data, null, 2);
   res.writeHead(status, {
     "Content-Type": "application/json",
@@ -146,7 +157,7 @@ async function handleApiInfo(
         (config.signerPrivateKey || "0x") as Hex,
       ).address;
     }
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     if (config.paymentAddress) {
@@ -697,7 +708,7 @@ setInterval(refresh, 5000);
 
 // ── Webhook handler ─────────────────────────────────────────────────────────
 
-function readBody(req: IncomingMessage): Promise<string> {
+export function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -765,6 +776,16 @@ async function handleRequest(
       return;
     }
     const handled = await sseHandler(req, res, url);
+    if (handled) return;
+  }
+
+  // Stateless REST API route
+  if (path === "/api/v1/call-tool" && req.method === "POST") {
+    if (!statelessHandler) {
+      sendJson(res, 503, { error: "Stateless handler not registered." });
+      return;
+    }
+    const handled = await statelessHandler(req, res, url);
     if (handled) return;
   }
 

@@ -14,7 +14,6 @@ const mockSubmitRefund = vi.fn();
 const mockSubmitResolve = vi.fn();
 
 const mockRelayer = {
-  submitDeposit: vi.fn(),
   submitRelease: vi.fn(),
   submitRefund: mockSubmitRefund,
   submitResolve: mockSubmitResolve,

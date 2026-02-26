@@ -10,6 +10,7 @@ interface BuildQuoteParams {
   readonly summary: string;
   readonly lineItems: readonly LineItem[];
   readonly payerWallet: string;
+  readonly signerPrivateKey: string;
 }
 
 const USDC_DECIMALS = 6;
@@ -73,7 +74,7 @@ export async function buildQuote(params: BuildQuoteParams): Promise<NexusQuotePa
   const expiry = Math.floor((Date.now() + QUOTE_TTL_MS) / 1000);
 
   // Sign quote using merchant private key
-  const account = privateKeyToAccount((process.env.MERCHANT_SIGNER_PRIVATE_KEY || "0x") as Hex);
+  const account = privateKeyToAccount(params.signerPrivateKey as Hex);
   const walletClient = createWalletClient({
     account,
     transport: http("https://devnet3openapi.platon.network/rpc"),

@@ -32,6 +32,34 @@ Hotel booking merchant agent powered by Nexus Protocol. Searches hotels across p
 }
 ```
 
+## Stateless REST API
+
+For environments where MCP/SSE is not supported, tools can be called directly via HTTP POST.
+
+**Endpoint:** `POST /api/v1/call-tool`
+
+**Request Body:**
+```json
+{
+  "tool": "tool_name",
+  "arguments": { ... }
+}
+```
+
+**Example (search):**
+```bash
+curl -X POST https://nexus-hotel-agent.onrender.com/api/v1/call-tool \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tool": "search_hotels",
+    "arguments": {
+      "city": "Tokyo",
+      "check_in": "2026-04-01",
+      "check_out": "2026-04-03"
+    }
+  }'
+```
+
 ## Available Tools
 
 ### `search_hotels` (role: search)

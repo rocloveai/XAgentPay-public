@@ -122,6 +122,7 @@ export interface NexusQuotePayload {
 export type PaymentGroupStatus =
   | "GROUP_CREATED"
   | "GROUP_AWAITING_TX"
+  | "GROUP_DEPOSITED"
   | "GROUP_ESCROWED"
   | "GROUP_SETTLED"
   | "GROUP_COMPLETED"
@@ -336,7 +337,45 @@ export interface EIP3009SignData {
   };
 }
 
-/** Escrow mode instruction (EIP-3009 + Relayer) */
+/** Batch deposit instruction — EIP-3009 sign + user-submitted batchDepositWithAuthorization */
+export interface BatchDepositInstruction {
+  readonly group_id: string;
+  readonly chain_id: number;
+  readonly chain_name: string;
+  readonly rpc_url: string;
+  readonly payment_method: "ESCROW_CONTRACT";
+  readonly escrow_contract: Address;
+  readonly token_address: Address;
+  readonly token_symbol: "USDC";
+  readonly token_decimals: 6;
+  readonly total_amount_uint256: string;
+  readonly total_amount_display: string;
+  readonly payments: readonly GroupPaymentDetail[];
+  /** EIP-3009 typed data for user to sign via eth_signTypedData_v4 */
+  readonly eip3009_sign_data: EIP3009SignData;
+  /** Pre-encoded batchDepositWithAuthorization tx (v/r/s as zero placeholders — fill after signing) */
+  readonly deposit_tx: {
+    readonly to: Address;
+    readonly abi: string;
+    readonly value: "0";
+    readonly gas_limit: string;
+  };
+  readonly user_action: "SIGN_AND_SEND";
+  readonly gas_paid_by: "USER";
+}
+
+/** HTTP 402 Payment Required response body */
+export interface PaymentRequired402 {
+  readonly nexus_version: string;
+  readonly group_id: string;
+  readonly status: "PAYMENT_REQUIRED";
+  /** Browser checkout URL — user can open this in MetaMask browser */
+  readonly checkout_url: string;
+  /** Full instruction for direct on-chain submission by User Agent */
+  readonly instruction: BatchDepositInstruction;
+}
+
+/** @deprecated Use BatchDepositInstruction instead — Escrow mode instruction (EIP-3009 + Relayer) */
 export interface EscrowInstruction {
   readonly chain_id: number;
   readonly chain_name: string;

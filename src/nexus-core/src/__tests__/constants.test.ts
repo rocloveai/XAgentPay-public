@@ -36,12 +36,13 @@ describe("VALID_TRANSITIONS", () => {
     }
   });
 
-  it("CREATED can transition to AWAITING_TX, EXPIRED, RISK_REJECTED", () => {
+  it("CREATED can transition to AWAITING_TX, ESCROWED, EXPIRED, RISK_REJECTED", () => {
     const targets = VALID_TRANSITIONS.get("CREATED")!;
     expect(targets.has("AWAITING_TX")).toBe(true);
+    expect(targets.has("ESCROWED")).toBe(true);
     expect(targets.has("EXPIRED")).toBe(true);
     expect(targets.has("RISK_REJECTED")).toBe(true);
-    expect(targets.size).toBe(3);
+    expect(targets.size).toBe(4);
   });
 
   it("BROADCASTED can transition to SETTLED, ESCROWED, TX_FAILED, RISK_REJECTED", () => {

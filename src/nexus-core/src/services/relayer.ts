@@ -25,22 +25,6 @@ import { RelayerError } from "../errors.js";
 // Types
 // ---------------------------------------------------------------------------
 
-export interface DepositParams {
-  readonly paymentId: Hex;
-  readonly from: Hex;
-  readonly merchant: Hex;
-  readonly amount: bigint;
-  readonly orderRef: Hex;
-  readonly merchantDid: Hex;
-  readonly contextHash: Hex;
-  readonly validAfter: bigint;
-  readonly validBefore: bigint;
-  readonly nonce: Hex;
-  readonly v: number;
-  readonly r: Hex;
-  readonly s: Hex;
-}
-
 export interface RelayerTxResult {
   readonly txHash: Hex;
   readonly blockNumber: bigint;
@@ -111,33 +95,6 @@ export class NexusRelayer {
     this.publicClient = createPublicClient({ chain, transport });
     this.walletClient = createWalletClient({ chain, transport, account });
     this.escrowAddress = config.escrowContract as Hex;
-  }
-
-  async submitDeposit(params: DepositParams): Promise<RelayerTxResult> {
-    return withRetry(async () => {
-      const txHash = await this.walletClient.writeContract({
-        address: this.escrowAddress,
-        abi: NEXUS_PAY_ESCROW_ABI,
-        functionName: "depositWithAuthorization",
-        args: [
-          params.paymentId,
-          params.from,
-          params.merchant,
-          params.amount,
-          params.orderRef,
-          params.merchantDid,
-          params.contextHash,
-          params.validAfter,
-          params.validBefore,
-          params.nonce,
-          params.v,
-          params.r,
-          params.s,
-        ],
-      });
-
-      return this.waitForReceipt(txHash);
-    }, "submitDeposit");
   }
 
   async submitRelease(paymentIdBytes32: Hex): Promise<RelayerTxResult> {

@@ -18,6 +18,7 @@ import type {
   GroupEscrowInstruction,
   GroupPaymentDetail,
   PaymentGroupRecord,
+  BatchDepositInstruction,
 } from "../types.js";
 import type { NexusCoreConfig } from "../config.js";
 import {
@@ -26,6 +27,7 @@ import {
   DEFAULT_RELEASE_TIMEOUT_S,
   DEFAULT_DISPUTE_WINDOW_S,
 } from "../constants.js";
+import { NEXUS_PAY_ESCROW_ABI } from "../abi/nexus-pay-escrow.js";
 import { keccak256, toHex, encodeFunctionData, parseAbi } from "viem";
 
 const ERC20_TRANSFER_ABI = parseAbi([
@@ -212,5 +214,87 @@ export function buildGroupEscrowInstruction(
     eip3009_sign_data: eip3009SignData,
     user_action: "SIGN_EIP3009",
     gas_paid_by: "RELAYER",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Batch Deposit (EIP-3009 + user-submitted batchDepositWithAuthorization)
+// ---------------------------------------------------------------------------
+
+const BATCH_DEPOSIT_ABI_HUMAN =
+  "function batchDepositWithAuthorization((bytes32 paymentId, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)[] entries, uint256 totalAmount, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)";
+
+export function buildBatchDepositInstruction(
+  group: PaymentGroupRecord,
+  payments: readonly PaymentRecord[],
+  merchants: readonly MerchantRecord[],
+  config: NexusCoreConfig,
+): BatchDepositInstruction {
+  const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
+  // PlatON EVM uses block.timestamp in milliseconds
+  const nowMs = Date.now();
+
+  // Build per-payment details
+  const paymentDetails: GroupPaymentDetail[] = payments.map((p, i) => ({
+    nexus_payment_id: p.nexus_payment_id,
+    merchant_did: p.merchant_did,
+    merchant_order_ref: p.merchant_order_ref,
+    merchant_address: merchants[i].payment_address as Address,
+    amount_uint256: p.amount,
+    amount_display: p.amount_display,
+    summary: p.quote_payload.context.summary,
+  }));
+
+  // EIP-3009 sign data — user signs this via eth_signTypedData_v4
+  const eip3009SignData: EIP3009SignData = {
+    domain: {
+      name: "USD Coin",
+      version: "1",
+      chainId: config.chainId,
+      verifyingContract: config.usdcAddress as Address,
+    },
+    types: {
+      TransferWithAuthorization: [
+        { name: "from", type: "address" },
+        { name: "to", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "validAfter", type: "uint256" },
+        { name: "validBefore", type: "uint256" },
+        { name: "nonce", type: "bytes32" },
+      ],
+    },
+    primaryType: "TransferWithAuthorization",
+    message: {
+      from: group.payer_wallet as Address,
+      to: config.escrowContract as Address,
+      value: group.total_amount,
+      validAfter: "0",
+      validBefore: String(nowMs + DEFAULT_RELEASE_TIMEOUT_S * 1000),
+      nonce,
+    },
+  };
+
+  return {
+    group_id: group.group_id,
+    chain_id: config.chainId,
+    chain_name: config.chainName,
+    rpc_url: config.rpcUrl,
+    payment_method: "ESCROW_CONTRACT",
+    escrow_contract: config.escrowContract as Address,
+    token_address: config.usdcAddress as Address,
+    token_symbol: "USDC",
+    token_decimals: 6,
+    total_amount_uint256: group.total_amount,
+    total_amount_display: group.total_amount_display,
+    payments: paymentDetails,
+    eip3009_sign_data: eip3009SignData,
+    deposit_tx: {
+      to: config.escrowContract as Address,
+      abi: BATCH_DEPOSIT_ABI_HUMAN,
+      value: "0",
+      gas_limit: String(200_000 + payments.length * 150_000),
+    },
+    user_action: "SIGN_AND_SEND",
+    gas_paid_by: "USER",
   };
 }

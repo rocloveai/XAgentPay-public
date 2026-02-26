@@ -14,6 +14,8 @@ import type {
   PaymentRecord,
   PaymentGroupRecord,
   GroupEscrowInstruction,
+  BatchDepositInstruction,
+  PaymentRequired402,
 } from "../types.js";
 import type { MerchantRepository } from "../db/interfaces/merchant-repo.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
@@ -29,7 +31,10 @@ import {
 } from "./security.js";
 import { routePayment } from "./payment-router.js";
 import { GroupManager } from "./group-manager.js";
-import { buildGroupEscrowInstruction } from "./instruction-builder.js";
+import {
+  buildGroupEscrowInstruction,
+  buildBatchDepositInstruction,
+} from "./instruction-builder.js";
 import { NexusError } from "../errors.js";
 import { keccak256, toHex } from "viem";
 
@@ -41,7 +46,10 @@ export interface OrchestrateInput {
 export interface OrchestrateResult {
   readonly group: PaymentGroupRecord;
   readonly payments: readonly PaymentRecord[];
-  readonly instruction: GroupEscrowInstruction;
+  readonly instruction: BatchDepositInstruction;
+  readonly paymentRequired: PaymentRequired402;
+  /** @deprecated kept for backward compatibility */
+  readonly legacyInstruction: GroupEscrowInstruction;
 }
 
 export interface PaymentStatusResult {
@@ -111,8 +119,16 @@ export class NexusOrchestrator {
       paymentMethod: route.method,
     });
 
-    // Phase 4: Build aggregated escrow instruction
-    const instruction = buildGroupEscrowInstruction(
+    // Phase 4: Build batch deposit instruction (new: user submits tx directly)
+    const instruction = buildBatchDepositInstruction(
+      group,
+      payments,
+      merchants,
+      this.config,
+    );
+
+    // Also build legacy instruction for backward compatibility
+    const legacyInstruction = buildGroupEscrowInstruction(
       group,
       payments,
       merchants,
@@ -142,7 +158,18 @@ export class NexusOrchestrator {
       });
     }
 
-    return { group, payments, instruction };
+    // Phase 7: Build HTTP 402 payload
+    const baseUrl =
+      this.config.baseUrl || `http://localhost:${this.config.port}`;
+    const paymentRequired: PaymentRequired402 = {
+      nexus_version: "0.4.0",
+      group_id: group.group_id,
+      status: "PAYMENT_REQUIRED",
+      checkout_url: `${baseUrl}/checkout/${group.group_id}`,
+      instruction,
+    };
+
+    return { group, payments, instruction, paymentRequired, legacyInstruction };
   }
 
   async getPaymentStatus(params: {

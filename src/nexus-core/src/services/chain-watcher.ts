@@ -157,7 +157,12 @@ export class ChainWatcher {
       });
 
       for (const entry of logs) {
-        await this.processLog(entry);
+        const eventName = (entry as { eventName?: string }).eventName;
+        if (eventName === "BatchDeposited") {
+          await this.processBatchDeposited(entry);
+        } else {
+          await this.processLog(entry);
+        }
       }
 
       this.lastProcessedBlock = toBlock;
@@ -240,6 +245,27 @@ export class ChainWatcher {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+
+  /**
+   * Handle BatchDeposited event from batchDepositWithAuthorization().
+   * The individual Deposited events for each entry are also emitted,
+   * so this handler mainly syncs group status after all entries are processed.
+   */
+  private async processBatchDeposited(log: Log): Promise<void> {
+    const args = (log as { args?: Record<string, unknown> }).args ?? {};
+    const payer = args.payer as string | undefined;
+    const paymentCount = args.paymentCount as bigint | undefined;
+
+    cwLog.info("BatchDeposited event", {
+      payer,
+      paymentCount: paymentCount?.toString(),
+      txHash: log.transactionHash,
+    });
+
+    // The individual Deposited events will handle each payment's state transition.
+    // We don't need to do anything extra here since syncGroupStatus is called
+    // after each individual Deposited event in processLog.
   }
 
   private extractFields(

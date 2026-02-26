@@ -123,6 +123,77 @@ describe("GroupManager", () => {
     });
   });
 
+  describe("confirmGroupDeposit", () => {
+    it("returns null for unknown group", async () => {
+      const result = await gm.confirmGroupDeposit("GRP-nonexistent", "0xabc");
+      expect(result).toBeNull();
+    });
+
+    it("transitions all payments to ESCROWED", async () => {
+      const flightQuote = makeTestQuote({
+        merchant_did: "did:nexus:20250407:demo_flight",
+        amount: "100000",
+      });
+      const hotelQuote = makeTestQuote({
+        merchant_did: "did:nexus:20250407:demo_hotel",
+        amount: "200000",
+      });
+
+      const created = await gm.createGroup({
+        quotes: [flightQuote, hotelQuote],
+        merchants: [TEST_FLIGHT_MERCHANT, TEST_HOTEL_MERCHANT],
+        quoteHashes: ["0x" + "ee".repeat(32), "0x" + "ff".repeat(32)],
+        payerWallet: TEST_PAYER_WALLET,
+        paymentMethod: "ESCROW_CONTRACT",
+      });
+
+      // All payments start as CREATED
+      for (const p of created.payments) {
+        expect(p.status).toBe("CREATED");
+      }
+
+      const txHash = "0x" + "ab".repeat(32);
+      const result = await gm.confirmGroupDeposit(
+        created.group.group_id,
+        txHash,
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.group.status).toBe("GROUP_ESCROWED");
+
+      // All payments should now be ESCROWED
+      for (const p of result!.payments) {
+        expect(p.status).toBe("ESCROWED");
+      }
+    });
+
+    it("skips payments already in ESCROWED status", async () => {
+      const quote = makeTestQuote({ amount: "100000" });
+      const created = await gm.createGroup({
+        quotes: [quote],
+        merchants: [TEST_FLIGHT_MERCHANT],
+        quoteHashes: ["0x" + "11".repeat(32)],
+        payerWallet: TEST_PAYER_WALLET,
+        paymentMethod: "ESCROW_CONTRACT",
+      });
+
+      // Manually transition to ESCROWED first
+      await paymentRepo.updateStatus(
+        created.payments[0].nexus_payment_id,
+        "ESCROWED",
+      );
+
+      // Should succeed without error (skips already-escrowed)
+      const result = await gm.confirmGroupDeposit(
+        created.group.group_id,
+        "0x" + "cd".repeat(32),
+      );
+
+      expect(result).not.toBeNull();
+      expect(result!.group.status).toBe("GROUP_ESCROWED");
+    });
+  });
+
   describe("syncGroupStatus", () => {
     it("returns null for unknown group", async () => {
       const result = await gm.syncGroupStatus("GRP-nonexistent");

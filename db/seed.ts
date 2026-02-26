@@ -102,6 +102,9 @@ async function run(): Promise<void> {
   await execStatements(loadSql("migrations/010_merchant_stars.sql"));
   console.log("  010_merchant_stars.sql applied");
 
+  await execStatements(loadSql("migrations/011_group_deposited_status.sql"));
+  console.log("  011_group_deposited_status.sql applied");
+
   console.log("Seeding flights...");
   await execStatements(loadSql("seed/seed-flights.sql"));
   console.log("  seed-flights.sql applied");

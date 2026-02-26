@@ -5,6 +5,8 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {IERC3009} from "./interfaces/IERC3009.sol";
 
 /**
@@ -23,19 +25,28 @@ import {IERC3009} from "./interfaces/IERC3009.sol";
  *     - dispute() by payer within disputeDeadline
  *     - resolve() by arbiter to split funds
  */
-contract NexusPayEscrow is Ownable, ReentrancyGuard {
+contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     // -----------------------------------------------------------------------
     // Constants
     // -----------------------------------------------------------------------
 
-    string public constant VERSION = "2.0.0";
+    string public constant VERSION = "3.0.0";
     uint16 public constant MAX_FEE_BPS = 500; // 5% hard cap
 
     // -----------------------------------------------------------------------
     // Types
     // -----------------------------------------------------------------------
+
+    struct BatchEntry {
+        bytes32 paymentId;
+        address merchant;
+        uint256 amount;
+        bytes32 orderRef;
+        bytes32 merchantDid;
+        bytes32 contextHash;
+    }
 
     enum EscrowStatus {
         NONE,
@@ -60,10 +71,10 @@ contract NexusPayEscrow is Ownable, ReentrancyGuard {
     }
 
     // -----------------------------------------------------------------------
-    // Immutables
+    // Storage
     // -----------------------------------------------------------------------
 
-    IERC3009 public immutable usdc;
+    IERC3009 public usdc;
 
     // -----------------------------------------------------------------------
     // State
@@ -89,6 +100,12 @@ contract NexusPayEscrow is Ownable, ReentrancyGuard {
         address indexed merchant,
         uint256 amount,
         bytes32 orderRef
+    );
+
+    event BatchDeposited(
+        address indexed payer,
+        uint256 paymentCount,
+        uint256 totalAmount
     );
 
     event Released(
@@ -142,6 +159,8 @@ contract NexusPayEscrow is Ownable, ReentrancyGuard {
     error DisputeWindowExpired(uint256 deadline, uint256 current);
     error InvalidBps(uint16 bps);
     error ZeroTimeout();
+    error EmptyBatch();
+    error BatchAmountMismatch(uint256 expected, uint256 actual);
 
     // -----------------------------------------------------------------------
     // Modifiers
@@ -166,7 +185,16 @@ contract NexusPayEscrow is Ownable, ReentrancyGuard {
     }
 
     // -----------------------------------------------------------------------
-    // Constructor
+    // Constructor (disables initializers on implementation)
+    // -----------------------------------------------------------------------
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() Ownable(msg.sender) {
+        _disableInitializers();
+    }
+
+    // -----------------------------------------------------------------------
+    // Initializer (called once via proxy)
     // -----------------------------------------------------------------------
 
     /**
@@ -177,14 +205,16 @@ contract NexusPayEscrow is Ownable, ReentrancyGuard {
      * @param _protocolFeeRecipient  Address receiving protocol fees
      * @param _nexusOperator         Address acting as both arbiter and coreOperator initially
      */
-    constructor(
+    function initialize(
         address _usdc,
         uint256 _defaultReleaseTimeout,
         uint256 _defaultDisputeWindow,
         uint16 _protocolFeeBps,
         address _protocolFeeRecipient,
         address _nexusOperator
-    ) Ownable(msg.sender) {
+    ) external initializer {
+        _transferOwnership(msg.sender);
+
         if (_usdc == address(0)) revert ZeroAddress();
         if (_protocolFeeRecipient == address(0)) revert ZeroAddress();
         if (_nexusOperator == address(0)) revert ZeroAddress();
@@ -263,6 +293,75 @@ contract NexusPayEscrow is Ownable, ReentrancyGuard {
         IERC20(address(usdc)).safeTransferFrom(msg.sender, address(this), amount);
 
         _createEscrow(paymentId, msg.sender, merchant, amount, orderRef, merchantDid, contextHash);
+    }
+
+    // -----------------------------------------------------------------------
+    // Batch Deposit — EIP-3009 (user submits directly, no relayer)
+    // -----------------------------------------------------------------------
+
+    /**
+     * @notice Batch deposit using a single EIP-3009 transferWithAuthorization.
+     *         The caller signs one authorization for the total amount, then
+     *         calls this function directly (user pays gas, no relayer needed).
+     *         Creates N escrow entries from a single token transfer.
+     *
+     * @param entries       Array of BatchEntry structs (paymentId, merchant, amount, etc.)
+     * @param totalAmount   Total amount to transfer (must equal sum of entry amounts)
+     * @param validAfter    EIP-3009 validAfter timestamp
+     * @param validBefore   EIP-3009 validBefore timestamp
+     * @param nonce         EIP-3009 nonce
+     * @param v             Signature v
+     * @param r             Signature r
+     * @param s             Signature s
+     */
+    function batchDepositWithAuthorization(
+        BatchEntry[] calldata entries,
+        uint256 totalAmount,
+        uint256 validAfter,
+        uint256 validBefore,
+        bytes32 nonce,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external nonReentrant {
+        if (entries.length == 0) revert EmptyBatch();
+
+        // Verify total matches sum of entries
+        uint256 sum = 0;
+        for (uint256 i = 0; i < entries.length; i++) {
+            sum += entries[i].amount;
+        }
+        if (sum != totalAmount) revert BatchAmountMismatch(totalAmount, sum);
+
+        // EIP-3009: transfer total from msg.sender to this contract
+        usdc.transferWithAuthorization(
+            msg.sender,
+            address(this),
+            totalAmount,
+            validAfter,
+            validBefore,
+            nonce,
+            v,
+            r,
+            s
+        );
+
+        // Create N escrow entries
+        for (uint256 i = 0; i < entries.length; i++) {
+            BatchEntry calldata e = entries[i];
+            _validateDeposit(e.paymentId, msg.sender, e.merchant, e.amount);
+            _createEscrow(
+                e.paymentId,
+                msg.sender,
+                e.merchant,
+                e.amount,
+                e.orderRef,
+                e.merchantDid,
+                e.contextHash
+            );
+        }
+
+        emit BatchDeposited(msg.sender, entries.length, totalAmount);
     }
 
     // -----------------------------------------------------------------------
@@ -454,6 +553,12 @@ contract NexusPayEscrow is Ownable, ReentrancyGuard {
         emit FeeRecipientUpdated(protocolFeeRecipient, newRecipient);
         protocolFeeRecipient = newRecipient;
     }
+
+    // -----------------------------------------------------------------------
+    // UUPS upgrade authorization
+    // -----------------------------------------------------------------------
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     // -----------------------------------------------------------------------
     // Internal helpers

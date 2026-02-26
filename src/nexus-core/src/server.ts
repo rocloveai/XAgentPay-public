@@ -255,9 +255,6 @@ server.tool(
         payerWallet: payer_wallet,
       });
 
-      const baseUrl = config.baseUrl || `http://localhost:${config.port}`;
-      const checkoutUrl = `${baseUrl}/checkout/${result.group.group_id}`;
-
       return {
         content: [
           {
@@ -275,19 +272,14 @@ server.tool(
                     `  ${i + 1}. ${p.merchant_order_ref} — ${p.amount_display} ${p.currency} (${p.nexus_payment_id})`,
                 )
                 .join("\n") +
-              `\n\nCheckout URL: ${checkoutUrl}\n` +
-              `Direct the user to open this URL in their browser to complete payment with MetaMask.\n\n` +
-              `UCP Checkout Response:\n` +
-              JSON.stringify(
-                {
-                  group_id: result.group.group_id,
-                  status: result.group.status,
-                  checkout_url: checkoutUrl,
-                  instruction: result.instruction,
-                },
-                null,
-                2,
-              ),
+              `\n\n## Payment Options\n` +
+              `**Option A (Browser):** Direct the user to open this checkout URL in MetaMask browser:\n` +
+              `  ${result.paymentRequired.checkout_url}\n\n` +
+              `**Option B (Direct):** Use the instruction below to have the user sign EIP-3009 and submit the batchDeposit tx directly.\n` +
+              `  User action: ${result.instruction.user_action}\n` +
+              `  Gas paid by: ${result.instruction.gas_paid_by}\n\n` +
+              `HTTP 402 Payment Required Response:\n` +
+              JSON.stringify(result.paymentRequired, null, 2),
           },
         ],
       };
@@ -431,186 +423,57 @@ server.tool(
   },
 );
 
-// Tool: nexus_submit_eip3009_signature
+// Tool: nexus_confirm_deposit (replaces nexus_submit_eip3009_signature)
+// Deposit is now submitted directly by the user via MetaMask.
+// This tool allows User Agent to confirm a tx hash after user submits.
 server.tool(
-  "nexus_submit_eip3009_signature",
-  "Submit a user's EIP-3009 signature to deposit funds into escrow via the relayer.",
+  "nexus_confirm_deposit",
+  "Confirm a user-submitted batch deposit transaction. Call this after the user signs EIP-3009 and sends batchDepositWithAuthorization via MetaMask.",
   {
-    payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
     group_id: z.string().describe("Payment group ID (GRP-...)"),
-    v: z.number().refine((n) => n === 27 || n === 28, "v must be 27 or 28"),
-    r: z
+    tx_hash: z
       .string()
-      .regex(/^0x[0-9a-fA-F]{64}$/)
-      .describe("Signature r (32 bytes hex)"),
-    s: z
-      .string()
-      .regex(/^0x[0-9a-fA-F]{64}$/)
-      .describe("Signature s (32 bytes hex)"),
-    order_ref_hash: z
-      .string()
-      .regex(/^0x[0-9a-fA-F]{64}$/)
-      .describe("keccak256 of merchant order ref"),
-    merchant_did_hash: z
-      .string()
-      .regex(/^0x[0-9a-fA-F]{64}$/)
-      .describe("keccak256 of merchant DID"),
-    context_hash: z
-      .string()
-      .regex(/^0x[0-9a-fA-F]{64}$/)
-      .describe("keccak256 of payment context"),
+      .regex(/^0x[0-9a-fA-F]+$/)
+      .describe("Transaction hash from user's MetaMask submission"),
   },
-  async ({
-    payment_id,
-    group_id,
-    v,
-    r,
-    s,
-    order_ref_hash,
-    merchant_did_hash,
-    context_hash,
-  }) => {
+  async ({ group_id, tx_hash }) => {
     try {
-      if (!relayer) {
+      const detail = await groupManager.confirmGroupDeposit(group_id, tx_hash);
+      if (!detail) {
         return {
           content: [
             {
               type: "text" as const,
-              text: "Error: Relayer not configured (RELAYER_PRIVATE_KEY missing)",
+              text: `Error: Group ${group_id} not found`,
             },
           ],
           isError: true,
         };
       }
 
-      const payment = await stateMachine.getPayment(payment_id);
-      if (!payment) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Payment ${payment_id} not found`,
-            },
-          ],
-          isError: true,
-        };
+      // Notify webhooks (fire-and-forget)
+      for (const payment of detail.payments) {
+        webhookNotifier
+          .notify(payment, "payment.escrowed")
+          .catch((err) =>
+            console.error("[server] webhook notify failed:", err),
+          );
       }
-
-      if (!payment.payment_id_bytes32) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Error: Payment has no payment_id_bytes32",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      if (!payment.eip3009_nonce) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Error: Payment has no eip3009_nonce",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      // Transition to AWAITING_TX (skip if already there)
-      if (payment.status !== "AWAITING_TX") {
-        await stateMachine.transition({
-          nexusPaymentId: payment_id,
-          toStatus: "AWAITING_TX",
-          eventType: "EIP3009_SIGNATURE_RECEIVED",
-          metadata: { group_id, v, r, s },
-        });
-      }
-
-      // Read the instruction to get the exact validBefore from the EIP-3009 sign data.
-      // PlatON EVM uses block.timestamp in milliseconds, so validBefore must be in ms.
-      // (quote_payload.expiry is the quote's business expiry in seconds, NOT the EIP-3009 validBefore)
-      let signedValidBefore = BigInt(payment.quote_payload.expiry) * 1000n;
-      if (group_id) {
-        try {
-          const instrRaw = await groupRepo.findInstruction(group_id);
-          const signMsg = (instrRaw as Record<string, unknown> | null)
-            ?.eip3009_sign_data as
-            | { message: { validBefore: string } }
-            | undefined;
-          if (signMsg?.message?.validBefore) {
-            signedValidBefore = BigInt(signMsg.message.validBefore);
-          }
-        } catch {
-          // Fall through to quote expiry as fallback
-        }
-      }
-
-      const result = await relayer.submitDeposit({
-        paymentId: payment.payment_id_bytes32 as Hex,
-        from: payment.payer_wallet as Hex,
-        merchant: payment.payment_address as Hex,
-        amount: BigInt(payment.amount),
-        orderRef: order_ref_hash as Hex,
-        merchantDid: merchant_did_hash as Hex,
-        contextHash: context_hash as Hex,
-        validAfter: 0n,
-        validBefore: signedValidBefore,
-        nonce: payment.eip3009_nonce as Hex,
-        v,
-        r: r as Hex,
-        s: s as Hex,
-      });
-
-      // Transition to BROADCASTED
-      await stateMachine.transition({
-        nexusPaymentId: payment_id,
-        toStatus: "BROADCASTED",
-        eventType: "RELAYER_TX_SUBMITTED",
-        metadata: { tx_hash: result.txHash },
-        fields: { tx_hash: result.txHash },
-      });
-
-      // Notify webhook (fire-and-forget with logging)
-      webhookNotifier
-        .notify(payment, "payment.escrowed")
-        .catch((err) => console.error("[server] webhook notify failed:", err));
 
       return {
         content: [
           {
             type: "text" as const,
             text:
-              `EIP-3009 deposit submitted\n` +
-              `TX Hash: ${result.txHash}\n` +
-              `Block: ${result.blockNumber}\n` +
-              `Status: ${result.status}\n` +
-              `Payment: ${payment_id}\n` +
-              `Group: ${group_id}`,
+              `Batch deposit confirmed\n` +
+              `TX Hash: ${tx_hash}\n` +
+              `Group: ${group_id}\n` +
+              `Payments: ${detail.payments.length} → ESCROWED`,
           },
         ],
       };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unknown error";
-
-      // Transition to TX_FAILED so it doesn't get stuck in AWAITING_TX
-      try {
-        const currentPayment = await stateMachine.getPayment(payment_id);
-        if (currentPayment && currentPayment.status === "AWAITING_TX") {
-          await stateMachine.transition({
-            nexusPaymentId: payment_id,
-            toStatus: "TX_FAILED",
-            eventType: "RELAYER_TX_FAILED",
-            metadata: { error: message },
-          });
-        }
-      } catch {
-        // Best-effort cleanup
-      }
-
       return {
         content: [{ type: "text" as const, text: `Error: ${message}` }],
         isError: true,
@@ -1123,6 +986,63 @@ async function main(): Promise<void> {
           return;
         }
 
+        // POST /api/orchestrate — HTTP 402 Payment Required endpoint
+        if (url.pathname === "/api/orchestrate" && req.method === "POST") {
+          try {
+            const chunks: Buffer[] = [];
+            await new Promise<void>((resolve, reject) => {
+              req.on("data", (chunk: Buffer) => chunks.push(chunk));
+              req.on("end", resolve);
+              req.on("error", reject);
+            });
+            const body = JSON.parse(Buffer.concat(chunks).toString());
+            const rawQuotes = body.quotes ?? [];
+            const payerWallet = body.payer_wallet ?? "";
+
+            if (!payerWallet || !/^0x[a-fA-F0-9]{40}$/.test(payerWallet)) {
+              res.writeHead(400, {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+              });
+              res.end(JSON.stringify({ error: "Invalid payer_wallet" }));
+              return;
+            }
+
+            const normalized = normalizeQuotes(rawQuotes);
+            const result = await orchestrator.orchestratePayment({
+              quotes: normalized as NexusQuotePayload[],
+              payerWallet,
+            });
+
+            res.writeHead(402, {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type",
+            });
+            res.end(JSON.stringify(result.paymentRequired, null, 2));
+          } catch (err) {
+            const message =
+              err instanceof Error ? err.message : "Unknown error";
+            res.writeHead(500, {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            });
+            res.end(JSON.stringify({ error: message }));
+          }
+          return;
+        }
+
+        // CORS preflight for /api/orchestrate
+        if (url.pathname === "/api/orchestrate" && req.method === "OPTIONS") {
+          res.writeHead(204, {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+          });
+          res.end();
+          return;
+        }
+
         // Debug: last orchestration errors
         if (url.pathname === "/api/debug/last-errors" && req.method === "GET") {
           res.writeHead(200, { "Content-Type": "application/json" });
@@ -1187,7 +1107,6 @@ async function main(): Promise<void> {
           groupRepo,
           paymentRepo,
           stateMachine,
-          relayer,
           webhookNotifier,
           config,
         };

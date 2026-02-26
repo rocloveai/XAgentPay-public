@@ -8,10 +8,8 @@ import {
 import { makeTestPayment, makeTestGroup, makeTestQuote } from "./fixtures.js";
 import { PaymentStateMachine } from "../services/state-machine.js";
 import type { WebhookNotifier } from "../services/webhook-notifier.js";
-import type { NexusRelayer, RelayerTxResult } from "../services/relayer.js";
 import type { NexusCoreConfig } from "../config.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { Hex } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Helpers — minimal mock HTTP objects (same pattern as portal.test.ts)
@@ -67,27 +65,6 @@ function makeRes(): MockRes {
 }
 
 // ---------------------------------------------------------------------------
-// Mock relayer
-// ---------------------------------------------------------------------------
-
-function makeMockRelayer(): NexusRelayer {
-  return {
-    submitDeposit: vi.fn().mockResolvedValue({
-      txHash: "0xabc123" as Hex,
-      blockNumber: 42n,
-      status: "success",
-    } satisfies RelayerTxResult),
-    submitRelease: vi.fn(),
-    submitResolve: vi.fn(),
-    submitRefund: vi.fn(),
-    getAddress: vi
-      .fn()
-      .mockReturnValue("0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920"),
-    getRelayerBalance: vi.fn().mockResolvedValue(1000000000000000000n),
-  } as unknown as NexusRelayer;
-}
-
-// ---------------------------------------------------------------------------
 // Mock webhook notifier
 // ---------------------------------------------------------------------------
 
@@ -135,7 +112,6 @@ describe("Checkout", () => {
   let eventRepo: MockEventRepository;
   let stateMachine: PaymentStateMachine;
   let deps: CheckoutDeps;
-  let relayer: NexusRelayer;
 
   const GROUP_ID = "GRP-test-checkout-1";
 
@@ -144,7 +120,6 @@ describe("Checkout", () => {
     paymentRepo = new MockPaymentRepository();
     eventRepo = new MockEventRepository();
     stateMachine = new PaymentStateMachine(paymentRepo, eventRepo);
-    relayer = makeMockRelayer();
 
     // Seed a group
     await groupRepo.insert({
@@ -232,7 +207,6 @@ describe("Checkout", () => {
       groupRepo,
       paymentRepo,
       stateMachine,
-      relayer,
       webhookNotifier: makeMockWebhookNotifier(),
       config: testConfig,
     };
@@ -351,16 +325,12 @@ describe("Checkout", () => {
     });
   });
 
-  describe("POST /api/checkout/:groupId/submit", () => {
-    it("submits valid signature and calls relayer", async () => {
-      const body = JSON.stringify({
-        v: 27,
-        r: "0x" + "aa".repeat(32),
-        s: "0x" + "bb".repeat(32),
-      });
+  describe("POST /api/checkout/:groupId/confirm", () => {
+    it("confirms valid tx_hash and transitions payments to ESCROWED", async () => {
+      const body = JSON.stringify({ tx_hash: "0xabc123def456" });
       const { req, url } = makeReq(
         "POST",
-        `/api/checkout/${GROUP_ID}/submit`,
+        `/api/checkout/${GROUP_ID}/confirm`,
         body,
       );
       const res = makeRes();
@@ -375,47 +345,26 @@ describe("Checkout", () => {
       expect(res.statusCode).toBe(200);
 
       const data = JSON.parse(res.body);
-      expect(data.tx_hash).toBe("0xabc123");
-      expect(data.status).toBe("submitted");
-      expect(relayer.submitDeposit).toHaveBeenCalledTimes(1);
-    });
+      expect(data.tx_hash).toBe("0xabc123def456");
+      expect(data.status).toBe("escrowed");
+      expect(data.group_id).toBe(GROUP_ID);
 
-    it("returns 503 when relayer not configured", async () => {
-      const noRelayerDeps = { ...deps, relayer: null };
-      const body = JSON.stringify({
-        v: 27,
-        r: "0x" + "aa".repeat(32),
-        s: "0x" + "bb".repeat(32),
-      });
-      const { req, url } = makeReq(
-        "POST",
-        `/api/checkout/${GROUP_ID}/submit`,
-        body,
-      );
-      const res = makeRes();
-      await handleCheckoutRequest(
-        noRelayerDeps,
-        req,
-        res as unknown as ServerResponse,
-        url,
-      );
+      // Verify payment transitioned to ESCROWED
+      const payment = await paymentRepo.findById("PAY-checkout-1");
+      expect(payment?.status).toBe("ESCROWED");
 
-      expect(res.statusCode).toBe(503);
-      const data = JSON.parse(res.body);
-      expect(data.error).toContain("Relayer not configured");
+      // Verify group transitioned to GROUP_ESCROWED
+      const group = await groupRepo.findById(GROUP_ID);
+      expect(group?.status).toBe("GROUP_ESCROWED");
     });
 
     it("returns 409 when group already paid", async () => {
       await groupRepo.updateStatus(GROUP_ID, "GROUP_ESCROWED");
 
-      const body = JSON.stringify({
-        v: 27,
-        r: "0x" + "aa".repeat(32),
-        s: "0x" + "bb".repeat(32),
-      });
+      const body = JSON.stringify({ tx_hash: "0xabc123def456" });
       const { req, url } = makeReq(
         "POST",
-        `/api/checkout/${GROUP_ID}/submit`,
+        `/api/checkout/${GROUP_ID}/confirm`,
         body,
       );
       const res = makeRes();
@@ -431,11 +380,11 @@ describe("Checkout", () => {
       expect(data.error).toContain("GROUP_ESCROWED");
     });
 
-    it("returns 400 when missing v/r/s", async () => {
-      const body = JSON.stringify({ v: 27 });
+    it("returns 400 when missing tx_hash", async () => {
+      const body = JSON.stringify({ something: "else" });
       const { req, url } = makeReq(
         "POST",
-        `/api/checkout/${GROUP_ID}/submit`,
+        `/api/checkout/${GROUP_ID}/confirm`,
         body,
       );
       const res = makeRes();
@@ -448,15 +397,53 @@ describe("Checkout", () => {
 
       expect(res.statusCode).toBe(400);
       const data = JSON.parse(res.body);
-      expect(data.error).toContain("Missing required fields");
+      expect(data.error).toContain("tx_hash");
+    });
+
+    it("returns 400 when tx_hash does not start with 0x", async () => {
+      const body = JSON.stringify({ tx_hash: "abc123" });
+      const { req, url } = makeReq(
+        "POST",
+        `/api/checkout/${GROUP_ID}/confirm`,
+        body,
+      );
+      const res = makeRes();
+      await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(res.statusCode).toBe(400);
+      const data = JSON.parse(res.body);
+      expect(data.error).toContain("tx_hash");
+    });
+
+    it("returns 404 for nonexistent group", async () => {
+      const body = JSON.stringify({ tx_hash: "0xabc123def456" });
+      const { req, url } = makeReq(
+        "POST",
+        "/api/checkout/GRP-nonexistent/confirm",
+        body,
+      );
+      const res = makeRes();
+      await handleCheckoutRequest(
+        deps,
+        req,
+        res as unknown as ServerResponse,
+        url,
+      );
+
+      expect(res.statusCode).toBe(404);
     });
   });
 
-  describe("OPTIONS /api/checkout/:groupId/submit", () => {
+  describe("OPTIONS /api/checkout/:groupId/confirm", () => {
     it("returns CORS headers with 204", async () => {
       const { req, url } = makeReq(
         "OPTIONS",
-        `/api/checkout/${GROUP_ID}/submit`,
+        `/api/checkout/${GROUP_ID}/confirm`,
       );
       const res = makeRes();
       const handled = await handleCheckoutRequest(
