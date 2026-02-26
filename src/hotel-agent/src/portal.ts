@@ -748,8 +748,22 @@ async function handleRequest(
   );
   const path = url.pathname;
 
+  // Health check
+  if (path === "/health" && req.method === "GET") {
+    sendJson(res, 200, { status: "ok", sseHandler: !!sseHandler });
+    return;
+  }
+
   // MCP SSE routes (handled by server.ts when in HTTP mode)
-  if (sseHandler && (path === "/sse" || path === "/messages")) {
+  if (path === "/sse" || path === "/messages") {
+    if (!sseHandler) {
+      sendJson(res, 503, {
+        error:
+          "SSE handler not registered. TRANSPORT may not be set to 'http'.",
+        transport: process.env.TRANSPORT ?? "(unset)",
+      });
+      return;
+    }
     const handled = await sseHandler(req, res, url);
     if (handled) return;
   }
@@ -805,7 +819,12 @@ export function startPortal(config: Config): Server {
     handleRequest(config, req, res).catch((err) => {
       console.error("[Portal] Request error:", err);
       if (!res.headersSent) {
-        sendJson(res, 500, { error: "Internal server error" });
+        const message = err instanceof Error ? err.message : String(err);
+        sendJson(res, 500, {
+          error: "Internal server error",
+          detail: message,
+          path: req.url,
+        });
       }
     });
   });
