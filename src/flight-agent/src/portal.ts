@@ -98,7 +98,11 @@ function computeStats(orders: readonly Order[]): Stats {
   };
 }
 
-export function sendJson(res: ServerResponse, status: number, data: unknown): void {
+export function sendJson(
+  res: ServerResponse,
+  status: number,
+  data: unknown,
+): void {
   const body = JSON.stringify(data, null, 2);
   res.writeHead(status, {
     "Content-Type": "application/json",
@@ -157,7 +161,7 @@ async function handleApiInfo(
         (config.signerPrivateKey || "0x") as Hex,
       ).address;
     }
-  } catch (e) { }
+  } catch (e) {}
 
   try {
     if (config.paymentAddress) {
@@ -743,7 +747,10 @@ async function handleWebhook(
     return;
   }
 
-  const handleResult = await handleWebhookEvent(payload);
+  const handleResult = await handleWebhookEvent(payload, {
+    nexusCoreUrl: config.nexusCoreUrl,
+    merchantDid: config.merchantDid,
+  });
   sendJson(res, 200, handleResult);
 }
 

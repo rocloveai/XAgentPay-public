@@ -392,19 +392,19 @@ function createNexusCoreServer(): McpServer {
         if (result.payment) {
           parts.push(
             `Payment: ${result.payment.nexus_payment_id}\n` +
-            `  Status: ${result.payment.status}\n` +
-            `  Amount: ${result.payment.amount_display} ${result.payment.currency}\n` +
-            `  Merchant: ${result.payment.merchant_did}\n` +
-            `  Order Ref: ${result.payment.merchant_order_ref}`,
+              `  Status: ${result.payment.status}\n` +
+              `  Amount: ${result.payment.amount_display} ${result.payment.currency}\n` +
+              `  Merchant: ${result.payment.merchant_did}\n` +
+              `  Order Ref: ${result.payment.merchant_order_ref}`,
           );
         }
 
         if (result.group) {
           parts.push(
             `\nGroup: ${result.group.group_id}\n` +
-            `  Status: ${result.group.status}\n` +
-            `  Total: ${result.group.total_amount_display} ${result.group.currency}\n` +
-            `  Payments: ${result.group.payment_count}`,
+              `  Status: ${result.group.status}\n` +
+              `  Total: ${result.group.total_amount_display} ${result.group.currency}\n` +
+              `  Payments: ${result.group.payment_count}`,
           );
 
           if (result.groupPayments.length > 0) {
@@ -994,7 +994,7 @@ async function main(): Promise<void> {
           res.on("close", () => {
             const session = sseTransports.get(transport.sessionId);
             if (session) {
-              session.server.close().catch(() => { });
+              session.server.close().catch(() => {});
               sseTransports.delete(transport.sessionId);
             }
           });
@@ -1057,6 +1057,145 @@ async function main(): Promise<void> {
             });
             res.end(JSON.stringify({ error: message }));
           }
+          return;
+        }
+
+        // POST /api/merchant/confirm-fulfillment — merchant triggers escrow release
+        if (
+          url.pathname === "/api/merchant/confirm-fulfillment" &&
+          req.method === "POST"
+        ) {
+          const corsHeaders = {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+          } as const;
+
+          try {
+            const chunks: Buffer[] = [];
+            await new Promise<void>((resolve, reject) => {
+              req.on("data", (chunk: Buffer) => chunks.push(chunk));
+              req.on("end", resolve);
+              req.on("error", reject);
+            });
+            const body = JSON.parse(Buffer.concat(chunks).toString());
+            const { nexus_payment_id, merchant_did } = body;
+
+            if (!nexus_payment_id || !merchant_did) {
+              res.writeHead(400, corsHeaders);
+              res.end(
+                JSON.stringify({
+                  error: "Missing nexus_payment_id or merchant_did",
+                }),
+              );
+              return;
+            }
+
+            if (!relayer) {
+              res.writeHead(503, corsHeaders);
+              res.end(JSON.stringify({ error: "Relayer not configured" }));
+              return;
+            }
+
+            const payment = await stateMachine.getPayment(nexus_payment_id);
+            if (!payment) {
+              res.writeHead(404, corsHeaders);
+              res.end(
+                JSON.stringify({
+                  error: "Payment not found",
+                  payment_id: nexus_payment_id,
+                }),
+              );
+              return;
+            }
+
+            // Authorization: merchant_did must match
+            if (payment.merchant_did !== merchant_did) {
+              res.writeHead(403, corsHeaders);
+              res.end(
+                JSON.stringify({
+                  error: "merchant_did does not match payment",
+                }),
+              );
+              return;
+            }
+
+            // Already settled or completed — idempotent success
+            if (
+              payment.status === "SETTLED" ||
+              payment.status === "COMPLETED"
+            ) {
+              res.writeHead(200, corsHeaders);
+              res.end(
+                JSON.stringify({
+                  status: "already_settled",
+                  payment_id: nexus_payment_id,
+                }),
+              );
+              return;
+            }
+
+            // Only ESCROWED payments can be released
+            if (payment.status !== "ESCROWED") {
+              res.writeHead(409, corsHeaders);
+              res.end(
+                JSON.stringify({
+                  error: `Payment status is ${payment.status}, expected ESCROWED`,
+                  payment_id: nexus_payment_id,
+                }),
+              );
+              return;
+            }
+
+            if (!payment.payment_id_bytes32) {
+              res.writeHead(409, corsHeaders);
+              res.end(
+                JSON.stringify({
+                  error: "Payment has no payment_id_bytes32",
+                  payment_id: nexus_payment_id,
+                }),
+              );
+              return;
+            }
+
+            const result = await relayer.submitRelease(
+              payment.payment_id_bytes32 as Hex,
+            );
+
+            serverLog.info("Merchant confirm-fulfillment: release submitted", {
+              payment_id: nexus_payment_id,
+              merchant_did,
+              tx_hash: result.txHash,
+            });
+
+            res.writeHead(200, corsHeaders);
+            res.end(
+              JSON.stringify({
+                status: "release_submitted",
+                tx_hash: result.txHash,
+                payment_id: nexus_payment_id,
+              }),
+            );
+          } catch (err) {
+            const message =
+              err instanceof Error ? err.message : "Unknown error";
+            serverLog.error("confirm-fulfillment error", { error: message });
+            res.writeHead(500, corsHeaders);
+            res.end(JSON.stringify({ error: message }));
+          }
+          return;
+        }
+
+        // CORS preflight for /api/merchant/confirm-fulfillment
+        if (
+          url.pathname === "/api/merchant/confirm-fulfillment" &&
+          req.method === "OPTIONS"
+        ) {
+          res.writeHead(204, {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+          });
+          res.end();
           return;
         }
 

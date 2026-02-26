@@ -3,6 +3,37 @@ import type { WebhookPayload, WebhookEventType } from "../types.js";
 import { updateStatus } from "./order-store.js";
 
 // ---------------------------------------------------------------------------
+// Settlement request — fire-and-forget call to nexus-core
+// ---------------------------------------------------------------------------
+
+export async function requestSettlement(
+  nexusCoreUrl: string,
+  nexusPaymentId: string,
+  merchantDid: string,
+): Promise<void> {
+  const url = `${nexusCoreUrl}/api/merchant/confirm-fulfillment`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nexus_payment_id: nexusPaymentId,
+        merchant_did: merchantDid,
+      }),
+      signal: controller.signal,
+    });
+
+    const body = await resp.text();
+    console.error(`[Settlement] ${nexusPaymentId}: ${resp.status} ${body}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -89,8 +120,14 @@ export interface WebhookHandleResult {
   readonly action: string;
 }
 
+export interface SettlementConfig {
+  readonly nexusCoreUrl: string;
+  readonly merchantDid: string;
+}
+
 export async function handleWebhookEvent(
   payload: WebhookPayload,
+  settlementConfig?: SettlementConfig,
 ): Promise<WebhookHandleResult> {
   const { event_id, event_type, data } = payload;
 
@@ -112,6 +149,18 @@ export async function handleWebhookEvent(
       console.error(
         `[Webhook] ${event_type}: order ${data.merchant_order_ref} → ${newStatus}`,
       );
+
+      // Fire-and-forget: request escrow release after marking PAID
+      if (event_type === "payment.escrowed" && settlementConfig) {
+        requestSettlement(
+          settlementConfig.nexusCoreUrl,
+          data.nexus_payment_id,
+          settlementConfig.merchantDid,
+        ).catch((err) =>
+          console.error("[Webhook] Settlement request failed:", err),
+        );
+      }
+
       return { accepted: true, action: `status_updated_to_${newStatus}` };
     }
 
