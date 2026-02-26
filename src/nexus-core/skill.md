@@ -1,18 +1,25 @@
 ---
 name: nexus-core
-version: "0.4.0"
+version: "0.5.0"
 description: NexusPay Core — payment orchestration for multi-merchant aggregated checkout
 protocol: NUPS/1.5
 category: finance.payment
 currencies: [USDC]
 chain_id: 20250407
+escrow_proxy: "0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236"
 tools:
   - name: nexus_orchestrate_payment
     role: orchestrate
   - name: nexus_get_payment_status
     role: status
-  - name: nexus_submit_eip3009_signature
-    role: submit
+  - name: nexus_confirm_deposit
+    role: deposit
+  - name: nexus_release_payment
+    role: release
+  - name: nexus_dispute_payment
+    role: dispute
+  - name: nexus_resolve_dispute
+    role: resolve
   - name: nexus_confirm_fulfillment
     role: fulfillment
   - name: discover_agents
@@ -69,7 +76,9 @@ nexus_orchestrate_payment({
 
 Both options accept raw `config` objects, full UCP envelopes, or handler objects — the orchestrator auto-extracts the quote from wrapped formats.
 
-## MCP Connection
+## Connection
+
+### MCP (SSE)
 
 ```json
 {
@@ -81,7 +90,75 @@ Both options accept raw `config` objects, full UCP envelopes, or handler objects
 }
 ```
 
-## Available Tools
+### HTTP REST (curl)
+
+All core functionality is also available via plain HTTP. No MCP client required.
+
+**Base URL:** `https://nexus-core-361y.onrender.com`
+
+#### `POST /api/orchestrate` — Create Payment (HTTP 402)
+
+Submit quotes and receive payment instructions. Returns **HTTP 402 Payment Required** with EIP-3009 signing data.
+
+```bash
+curl -X POST https://nexus-core-361y.onrender.com/api/orchestrate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "quotes": [
+      {
+        "merchant_did": "did:nexus:20250407:demo_flight",
+        "merchant_order_ref": "FLT-001",
+        "amount": "100000",
+        "currency": "USDC",
+        "chain_id": 20250407,
+        "expiry": 9999999999,
+        "context": {"summary": "Flight SFO→LAX", "line_items": []},
+        "signature": "0x..."
+      }
+    ],
+    "payer_wallet": "0xYourWalletAddress"
+  }'
+```
+
+Response (HTTP 402):
+```json
+{
+  "group": { "group_id": "GRP-...", "total_amount": "100000" },
+  "checkout_url": "https://nexus-core-361y.onrender.com/checkout/GRP-...",
+  "sign_instruction": { "...EIP-3009 typed data..." }
+}
+```
+
+#### `GET /api/checkout/:groupId` — Payment Group Details
+
+```bash
+curl https://nexus-core-361y.onrender.com/api/checkout/GRP-abc123
+```
+
+#### `POST /api/checkout/:groupId/confirm` — Confirm Transaction
+
+After the user signs and submits the on-chain transaction:
+
+```bash
+curl -X POST https://nexus-core-361y.onrender.com/api/checkout/GRP-abc123/confirm \
+  -H "Content-Type: application/json" \
+  -d '{"tx_hash": "0xabcdef..."}'
+```
+
+#### `GET /checkout/:groupId` — Browser Checkout Page
+
+Open in browser for MetaMask-powered interactive checkout:
+```
+https://nexus-core-361y.onrender.com/checkout/GRP-abc123
+```
+
+#### `GET /health` — Health Check
+
+```bash
+curl https://nexus-core-361y.onrender.com/health
+```
+
+## MCP Tools
 
 ### `nexus_orchestrate_payment`
 
@@ -117,15 +194,69 @@ At least one parameter must be provided.
 
 ---
 
-### `nexus_submit_eip3009_signature`
+### `nexus_confirm_deposit`
 
-Submit a user's EIP-3009 signature to deposit funds into escrow via the relayer.
+Confirm a user-submitted batch deposit transaction. Call this after the user signs EIP-3009 and sends `batchDepositWithAuthorization` via MetaMask.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `group_id` | string | Yes | Payment group ID (e.g. `GRP-...`) |
+| `tx_hash` | string | Yes | Transaction hash from user's MetaMask submission (`0x...`) |
+
+---
+
+### `nexus_release_payment`
+
+Release escrowed funds to the merchant. Called by merchant agent after fulfillment.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `payment_id` | string | Yes | Nexus payment ID (e.g. `PAY-...`) |
+
+---
+
+### `nexus_dispute_payment`
+
+Open a dispute for an escrowed payment. Returns calldata for the payer to submit on-chain.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `payment_id` | string | Yes | Nexus payment ID (e.g. `PAY-...`) |
+| `reason` | string | Yes | Dispute reason (UTF-8, max 256 chars) |
+
+---
+
+### `nexus_resolve_dispute`
+
+Resolve a disputed payment by splitting funds between merchant and payer. Only callable when payment is DISPUTE_OPEN.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `payment_id` | string | Yes | Nexus payment ID (e.g. `PAY-...`) |
+| `merchant_bps` | number | Yes | Basis points (0–10000) allocated to merchant |
 
 ---
 
 ### `nexus_confirm_fulfillment`
 
-Confirm fulfillment of a payment. If ESCROWED, submits release. If SETTLED, transitions to COMPLETED.
+Confirm fulfillment of a payment. If ESCROWED, submits release to escrow contract. If SETTLED, transitions to COMPLETED. Two-step process: ESCROWED → SETTLED, then call again for SETTLED → COMPLETED.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `payment_id` | string | Yes | Nexus payment ID (e.g. `PAY-...`) |
+| `fulfillment_proof` | string | No | Proof of fulfillment (URL, hash, etc.) |
+
+---
 
 ### `discover_agents`
 
@@ -156,8 +287,14 @@ Fetch the full skill.md content for a specific merchant agent.
 ## End-to-End Payment Flow
 
 1. **Collect Quotes** — Call merchant agents' `nexus_generate_quote` tools. Each returns a UCP checkout response containing a `config` (NexusQuotePayload) inside `urn:ucp:payment:nexus_v1`.
-2. **Orchestrate** — Call `nexus_orchestrate_payment` with all `config` objects as the `quotes` array, plus the user's `payer_wallet`. Nexus Core validates each quote, creates a payment group, and returns a single EIP-3009 authorization for the total.
-3. **Sign** — Present the EIP-3009 authorization to the user for signing (one signature covers all merchants).
-4. **Submit** — Call `nexus_submit_eip3009_signature` with the signature components (v, r, s) and payment hashes.
+2. **Orchestrate** — Call `nexus_orchestrate_payment` with all `config` objects as the `quotes` array, plus the user's `payer_wallet`. Nexus Core validates each quote, creates a payment group, and returns a single EIP-3009 authorization for the total. Also available via `POST /api/orchestrate` (HTTP 402).
+3. **Sign & Submit** — User signs the EIP-3009 typed data and submits `batchDepositWithAuthorization` on-chain (via MetaMask checkout page or wallet SDK).
+4. **Confirm** — Call `nexus_confirm_deposit` with `group_id` + `tx_hash`, or `POST /api/checkout/:groupId/confirm`.
 5. **Track** — Call `nexus_get_payment_status` with `group_id` to monitor progress (CREATED → ESCROWED → SETTLED → COMPLETED).
 6. **Fulfill** — Each merchant confirms delivery via `nexus_confirm_fulfillment`.
+
+## Contract
+
+- **Escrow Proxy (UUPS):** `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` (stable address, upgradeable)
+- **USDC:** `0xFF8dEe9983768D0399673014cf77826896F97e4d`
+- **Chain:** PlatON Devnet (chainId 20250407)
