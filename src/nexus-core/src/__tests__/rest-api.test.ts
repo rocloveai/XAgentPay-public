@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { handleRestApiRequest, type RestApiDeps } from "../rest-api.js";
 import { MockMerchantRepository } from "./mocks/mock-merchant-repo.js";
 import { MockStarRepository } from "./mocks/mock-star-repo.js";
-import type { MerchantRecord, PaymentRecord, PaymentGroupRecord } from "../types.js";
+import type {
+  MerchantRecord,
+  PaymentRecord,
+  PaymentGroupRecord,
+} from "../types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { NexusOrchestrator } from "../services/orchestrator.js";
 
@@ -91,7 +95,9 @@ function makePayment(overrides?: Partial<PaymentRecord>): PaymentRecord {
   };
 }
 
-function makeGroup(overrides?: Partial<PaymentGroupRecord>): PaymentGroupRecord {
+function makeGroup(
+  overrides?: Partial<PaymentGroupRecord>,
+): PaymentGroupRecord {
   const now = new Date().toISOString();
   return {
     group_id: "GRP-TEST-001",
@@ -110,10 +116,7 @@ function makeGroup(overrides?: Partial<PaymentGroupRecord>): PaymentGroupRecord 
 }
 
 /** Lightweight mock for http.IncomingMessage */
-function mockReq(
-  method: string,
-  urlStr: string,
-): IncomingMessage {
+function mockReq(method: string, urlStr: string): IncomingMessage {
   return {
     method,
     url: urlStr,
@@ -132,9 +135,15 @@ function mockRes(): ServerResponse & {
   let body = "";
   let status = 200;
   return {
-    get _status() { return status; },
-    get _headers() { return headers; },
-    get _body() { return body; },
+    get _status() {
+      return status;
+    },
+    get _headers() {
+      return headers;
+    },
+    get _body() {
+      return body;
+    },
     writeHead(s: number, h?: Record<string, string>) {
       status = s;
       if (h) Object.assign(headers, h);
@@ -173,7 +182,13 @@ describe("rest-api", () => {
       getPaymentStatus: vi.fn(),
     } as unknown as NexusOrchestrator;
 
-    deps = { orchestrator, merchantRepo, starRepo, kvRepo: null };
+    deps = {
+      orchestrator,
+      merchantRepo,
+      starRepo,
+      kvRepo: null,
+      portalToken: "test-portal-token",
+    };
   });
 
   afterEach(() => {
@@ -190,6 +205,20 @@ describe("rest-api", () => {
     const url = new URL(req.url!, "http://localhost:3000");
     const handled = await handleRestApiRequest(deps, req, res, url);
     expect(handled).toBe(false);
+  });
+
+  it("skips /api/payments when portal token is present", async () => {
+    const req = {
+      ...mockReq("GET", "/api/payments?limit=50"),
+      headers: {
+        host: "localhost:3000",
+        authorization: "Bearer test-portal-token",
+      },
+    } as unknown as IncomingMessage;
+    const res = mockRes();
+    const url = new URL(req.url!, "http://localhost:3000");
+    const handled = await handleRestApiRequest(deps, req, res, url);
+    expect(handled).toBe(false); // let portal handle it
   });
 
   // -----------------------------------------------------------------------
@@ -308,10 +337,7 @@ describe("rest-api", () => {
         groupPayments: [],
       });
 
-      const req = mockReq(
-        "GET",
-        "/api/payments?merchant_order_ref=FLT-001",
-      );
+      const req = mockReq("GET", "/api/payments?merchant_order_ref=FLT-001");
       const res = mockRes();
       const url = new URL(req.url!, "http://localhost:3000");
       await handleRestApiRequest(deps, req, res, url);
@@ -468,10 +494,7 @@ describe("rest-api", () => {
         new Response(skillContent, { status: 200 }),
       );
 
-      const req = mockReq(
-        "GET",
-        "/api/agents/did:nexus:20250407:test/skill",
-      );
+      const req = mockReq("GET", "/api/agents/did:nexus:20250407:test/skill");
       const res = mockRes();
       const url = new URL(req.url!, "http://localhost:3000");
       await handleRestApiRequest(deps, req, res, url);
@@ -482,10 +505,7 @@ describe("rest-api", () => {
     });
 
     it("returns 404 for unknown agent", async () => {
-      const req = mockReq(
-        "GET",
-        "/api/agents/did:nexus:20250407:nope/skill",
-      );
+      const req = mockReq("GET", "/api/agents/did:nexus:20250407:nope/skill");
       const res = mockRes();
       const url = new URL(req.url!, "http://localhost:3000");
       await handleRestApiRequest(deps, req, res, url);
@@ -524,10 +544,7 @@ describe("rest-api", () => {
         new Response("Not Found", { status: 404 }),
       );
 
-      const req = mockReq(
-        "GET",
-        "/api/agents/did:nexus:20250407:test/skill",
-      );
+      const req = mockReq("GET", "/api/agents/did:nexus:20250407:test/skill");
       const res = mockRes();
       const url = new URL(req.url!, "http://localhost:3000");
       await handleRestApiRequest(deps, req, res, url);

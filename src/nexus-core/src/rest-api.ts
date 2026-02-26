@@ -23,6 +23,7 @@ export interface RestApiDeps {
   readonly merchantRepo: MerchantRepository;
   readonly starRepo: StarRepository;
   readonly kvRepo: KVRepository | null;
+  readonly portalToken: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,10 +119,7 @@ function addRateLimitHeaders(
 ): void {
   res.setHeader("X-RateLimit-Limit", String(RATE_CAPACITY));
   res.setHeader("X-RateLimit-Remaining", String(remaining));
-  res.setHeader(
-    "X-RateLimit-Reset",
-    String(Math.floor(resetMs / 1000)),
-  );
+  res.setHeader("X-RateLimit-Reset", String(Math.floor(resetMs / 1000)));
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +136,15 @@ export async function handleRestApiRequest(
   res: ServerResponse,
   url: URL,
 ): Promise<boolean> {
+  // Portal dashboard requests carry a Bearer token — let portal handler
+  // handle /api/payments and /api/payments/:id to avoid route conflict.
+  if (deps.portalToken && url.pathname.startsWith("/api/payments")) {
+    const auth = req.headers.authorization ?? "";
+    if (auth === `Bearer ${deps.portalToken}`) {
+      return false; // skip — portal handler will serve this
+    }
+  }
+
   // CORS preflight for all /api/ routes
   if (req.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
     res.writeHead(204, CORS_HEADERS);

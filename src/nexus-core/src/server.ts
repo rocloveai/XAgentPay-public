@@ -1272,6 +1272,7 @@ async function main(): Promise<void> {
           merchantRepo,
           starRepo,
           kvRepo,
+          portalToken: config.portalToken,
         };
         const restHandled = await handleRestApiRequest(
           restApiDeps,
