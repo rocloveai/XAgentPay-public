@@ -5,6 +5,7 @@ import React, {
   useState,
   useMemo,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 const API_URL =
   import.meta.env.VITE_NEXUS_CORE_URL || "https://nexus-core-361y.onrender.com";
@@ -24,6 +25,16 @@ const CATEGORIES = [
   "finance",
   "services",
 ] as const;
+
+const CATEGORY_KEYS: Record<string, string> = {
+  all: "marketplace.categoryAll",
+  travel: "marketplace.categoryTravel",
+  food: "marketplace.categoryFood",
+  retail: "marketplace.categoryRetail",
+  entertainment: "marketplace.categoryEntertainment",
+  finance: "marketplace.categoryFinance",
+  services: "marketplace.categoryServices",
+};
 
 interface SkillTool {
   readonly name: string;
@@ -75,6 +86,7 @@ const STATUS_COLORS: Record<string, string> = {
 type MarketTab = "discover" | "list";
 
 const MarketplacePage: React.FC = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<MarketTab>("discover");
   const [agents, setAgents] = useState<MarketAgent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,16 +194,17 @@ const MarketplacePage: React.FC = () => {
         {/* Page Header */}
         <div className="text-center mb-12">
           <h1 className="text-3xl md:text-5xl font-bold text-white mb-4">
-            Commercial Agent <span className="text-primary">Marketplace</span>
+            {t("marketplace.title")}{" "}
+            <span className="text-primary">
+              {t("marketplace.titleHighlight")}
+            </span>
           </h1>
           <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto">
-            Discover commercial AI agents that accept crypto payments. Connect
-            them to your AI workflow and pay with stablecoins &mdash; all
-            through MCP.
+            {t("marketplace.subtitle")}
           </p>
           {agents.length > 0 && (
             <span className="text-xs text-gray-500 mt-2 inline-block">
-              {agents.length} agents registered
+              {t("marketplace.agentsRegistered", { count: agents.length })}
             </span>
           )}
         </div>
@@ -208,7 +221,7 @@ const MarketplacePage: React.FC = () => {
               }`}
             >
               <span className="material-icons-round text-base">explore</span>
-              Discover Services
+              {t("marketplace.discoverServices")}
             </button>
             <button
               onClick={() => setActiveTab("list")}
@@ -221,7 +234,7 @@ const MarketplacePage: React.FC = () => {
               <span className="material-icons-round text-base">
                 add_business
               </span>
-              List Your Agent
+              {t("marketplace.listYourAgent")}
             </button>
           </div>
         </div>
@@ -234,15 +247,10 @@ const MarketplacePage: React.FC = () => {
             {/* How to use intro */}
             <div className="glass-panel rounded-xl p-6 max-w-4xl mx-auto mb-10">
               <h3 className="text-sm font-semibold text-white mb-3">
-                How to Use Marketplace Services
+                {t("marketplace.howToUse")}
               </h3>
               <p className="text-xs text-gray-400 leading-relaxed mb-5">
-                Every agent publishes a{" "}
-                <code className="text-primary/70 bg-primary/5 px-1 rounded">
-                  skill.md
-                </code>{" "}
-                &mdash; a natural-language manifest that any AI model can read
-                and follow. Two ways to get started:
+                {t("marketplace.howToUseIntro")}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Option A — single agent */}
@@ -252,37 +260,33 @@ const MarketplacePage: React.FC = () => {
                       description
                     </span>
                     <h4 className="text-xs font-semibold text-white">
-                      Install a Single Agent Skill
+                      {t("marketplace.installSingle")}
                     </h4>
                   </div>
                   <p className="text-[11px] text-gray-400 leading-relaxed mb-3">
-                    Click &ldquo;View Skill&rdquo; on any agent card below to
-                    open its{" "}
-                    <code className="text-primary/70 bg-primary/5 px-1 rounded">
-                      skill.md
-                    </code>
-                    . Then ask your AI:
+                    {t("marketplace.installSingleDesc")}
                   </p>
                   <div className="rounded-md bg-background-dark/60 border border-white/5 p-3 text-[11px] text-gray-300 leading-relaxed space-y-2">
                     <p className="text-accent-cyan/80 italic">
-                      &ldquo;Read the skill.md at this URL and help me book a
-                      flight from Shanghai to Tokyo.&rdquo;
+                      {t("marketplace.installSinglePrompt")}
                     </p>
-                    <p className="text-gray-500">Your AI model will:</p>
+                    <p className="text-gray-500">
+                      {t("marketplace.yourAiWill")}
+                    </p>
                     <ol className="list-decimal list-inside text-gray-400 space-y-1 pl-1">
-                      <li>Fetch and parse the skill.md</li>
-                      <li>Connect to the agent&apos;s MCP endpoint</li>
+                      <li>{t("marketplace.installStep1")}</li>
+                      <li>{t("marketplace.installStep2")}</li>
                       <li>
-                        Call tools like{" "}
+                        {t("marketplace.installStep3Call")}{" "}
                         <code className="text-primary/70 bg-primary/5 px-0.5 rounded">
                           search_flights
                         </code>{" "}
-                        and{" "}
+                        {t("marketplace.installStep3And")}{" "}
                         <code className="text-primary/70 bg-primary/5 px-0.5 rounded">
                           nexus_generate_quote
                         </code>
                       </li>
-                      <li>Walk you through the checkout flow</li>
+                      <li>{t("marketplace.installStep4")}</li>
                     </ol>
                   </div>
                 </div>
@@ -294,36 +298,34 @@ const MarketplacePage: React.FC = () => {
                       hub
                     </span>
                     <h4 className="text-xs font-semibold text-white">
-                      Discover All Agents via Nexus Core
+                      {t("marketplace.discoverAll")}
                     </h4>
                   </div>
                   <p className="text-[11px] text-gray-400 leading-relaxed mb-3">
-                    Connect your AI to Nexus Core and it can browse the entire
-                    marketplace:
+                    {t("marketplace.discoverAllDesc")}
                   </p>
                   <div className="rounded-md bg-background-dark/60 border border-white/5 p-3 text-[11px] text-gray-300 leading-relaxed space-y-2">
                     <p className="text-accent-cyan/80 italic">
-                      &ldquo;Connect to Nexus Core and find me a travel agent
-                      that can book hotels in Singapore.&rdquo;
+                      {t("marketplace.discoverAllPrompt")}
                     </p>
-                    <p className="text-gray-500">Your AI model will:</p>
+                    <p className="text-gray-500">
+                      {t("marketplace.yourAiWill")}
+                    </p>
                     <ol className="list-decimal list-inside text-gray-400 space-y-1 pl-1">
                       <li>
-                        Call{" "}
                         <code className="text-accent-cyan/70 bg-accent-cyan/5 px-0.5 rounded">
                           discover_agents
                         </code>{" "}
-                        to search by keyword
+                        {t("marketplace.discoverStep1")}
                       </li>
                       <li>
-                        Call{" "}
                         <code className="text-accent-cyan/70 bg-accent-cyan/5 px-0.5 rounded">
                           get_agent_skill
                         </code>{" "}
-                        to read the agent&apos;s skill.md
+                        {t("marketplace.discoverStep2")}
                       </li>
-                      <li>Follow the skill&apos;s checkout workflow</li>
-                      <li>Aggregate multiple quotes into one payment</li>
+                      <li>{t("marketplace.discoverStep3")}</li>
+                      <li>{t("marketplace.discoverStep4")}</li>
                     </ol>
                   </div>
                 </div>
@@ -338,7 +340,7 @@ const MarketplacePage: React.FC = () => {
                 </span>
                 <input
                   type="text"
-                  placeholder="Search agents..."
+                  placeholder={t("marketplace.searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm text-white placeholder-gray-500 bg-white/5 border border-white/10 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
@@ -355,7 +357,7 @@ const MarketplacePage: React.FC = () => {
                         : "bg-white/5 text-gray-400 border-white/10 hover:border-white/20"
                     }`}
                   >
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    {t(CATEGORY_KEYS[cat])}
                   </button>
                 ))}
               </div>
@@ -364,7 +366,7 @@ const MarketplacePage: React.FC = () => {
             {/* Loading */}
             {loading && (
               <div className="text-center py-20 text-gray-500">
-                <p className="text-lg">Loading agents...</p>
+                <p className="text-lg">{t("marketplace.loading")}</p>
               </div>
             )}
 
@@ -374,9 +376,9 @@ const MarketplacePage: React.FC = () => {
                 <span className="material-icons-round text-5xl mb-3 block">
                   search_off
                 </span>
-                <p className="text-lg">No agents found</p>
+                <p className="text-lg">{t("marketplace.noAgents")}</p>
                 <p className="text-sm mt-1">
-                  Try adjusting your search or filters
+                  {t("marketplace.noAgentsHint")}
                 </p>
               </div>
             )}
@@ -415,7 +417,7 @@ const MarketplacePage: React.FC = () => {
                           {agent.is_verified && (
                             <span
                               className="material-icons-round text-primary text-sm"
-                              title="Verified"
+                              title={t("marketplace.verified")}
                             >
                               verified
                             </span>
@@ -450,19 +452,21 @@ const MarketplacePage: React.FC = () => {
                             {c}
                           </span>
                         ))}
-                        {agent.skill_tools.map((t) => (
+                        {agent.skill_tools.map((tl) => (
                           <span
-                            key={t.name}
+                            key={tl.name}
                             className="inline-block px-2 py-0.5 rounded-md text-[11px] bg-primary/10 text-primary/80 border border-primary/15"
                           >
-                            {t.name}
+                            {tl.name}
                           </span>
                         ))}
                       </div>
 
                       {/* Status row */}
                       <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                        <span>Latency: {latency}</span>
+                        <span>
+                          {t("marketplace.latency")} {latency}
+                        </span>
                         <span>{chainName}</span>
                       </div>
 
@@ -499,8 +503,8 @@ const MarketplacePage: React.FC = () => {
                                   : "content_copy"}
                               </span>
                               {copiedDid === agent.merchant_did
-                                ? "Copied"
-                                : "Copy URL"}
+                                ? t("marketplace.copied")
+                                : t("marketplace.copyUrl")}
                             </button>
                             <a
                               href={agent.skill_md_url}
@@ -508,7 +512,7 @@ const MarketplacePage: React.FC = () => {
                               rel="noopener noreferrer"
                               className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
                             >
-                              View Skill
+                              {t("marketplace.viewSkill")}
                             </a>
                           </>
                         )}
@@ -528,13 +532,13 @@ const MarketplacePage: React.FC = () => {
           <div className="pt-4">
             <div className="text-center mb-10">
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-3">
-                List Your <span className="text-primary">Agent</span>
+                {t("marketplace.listTitle")}{" "}
+                <span className="text-primary">
+                  {t("marketplace.listTitleHighlight")}
+                </span>
               </h2>
               <p className="text-gray-400 text-sm sm:text-base max-w-2xl mx-auto">
-                Turn your AI agent into a commercial service. Register once to
-                get payment capability (receive stablecoins via escrow),
-                marketplace visibility (discoverable by other agents), and a
-                health-monitored listing.
+                {t("marketplace.listSubtitle")}
               </p>
             </div>
 
@@ -547,20 +551,11 @@ const MarketplacePage: React.FC = () => {
                     <span className="text-xs font-bold text-primary">1</span>
                   </div>
                   <h3 className="text-white font-semibold text-sm">
-                    Build Your MCP Agent
+                    {t("marketplace.step1Title")}
                   </h3>
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  Create an MCP server that exposes your commercial service as
-                  tools (e.g.{" "}
-                  <code className="text-primary/70 bg-primary/5 px-1 rounded">
-                    search_flights
-                  </code>
-                  ,{" "}
-                  <code className="text-primary/70 bg-primary/5 px-1 rounded">
-                    book_hotel
-                  </code>
-                  ). Use any framework &mdash; TypeScript SDK, Python, etc.
+                  {t("marketplace.step1Desc")}
                 </p>
               </div>
 
@@ -573,18 +568,11 @@ const MarketplacePage: React.FC = () => {
                     </span>
                   </div>
                   <h3 className="text-white font-semibold text-sm">
-                    Add Payment Tooling
+                    {t("marketplace.step2Title")}
                   </h3>
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  Add a{" "}
-                  <code className="text-accent-cyan/70 bg-accent-cyan/5 px-1 rounded">
-                    nexus_generate_quote
-                  </code>{" "}
-                  tool that returns an EIP-712 signed quote in{" "}
-                  <strong className="text-gray-300">UCP Checkout</strong>{" "}
-                  format. This lets Nexus Core aggregate and escrow payments for
-                  you.
+                  {t("marketplace.step2Desc")}
                 </p>
               </div>
 
@@ -597,17 +585,11 @@ const MarketplacePage: React.FC = () => {
                     </span>
                   </div>
                   <h3 className="text-white font-semibold text-sm">
-                    Write skill.md
+                    {t("marketplace.step3Title")}
                   </h3>
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  Publish a{" "}
-                  <code className="text-accent-purple/70 bg-accent-purple/5 px-1 rounded">
-                    skill.md
-                  </code>{" "}
-                  file at a public URL. It describes your agent&apos;s name,
-                  category, tools, MCP endpoint, and currencies accepted. Other
-                  agents use this to discover you.
+                  {t("marketplace.step3Desc")}
                 </p>
               </div>
 
@@ -618,16 +600,11 @@ const MarketplacePage: React.FC = () => {
                     <span className="text-xs font-bold text-green-400">4</span>
                   </div>
                   <h3 className="text-white font-semibold text-sm">
-                    Deploy &amp; Health Check
+                    {t("marketplace.step4Title")}
                   </h3>
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  Deploy your agent with a public{" "}
-                  <code className="text-green-400/70 bg-green-500/5 px-1 rounded">
-                    /health
-                  </code>{" "}
-                  endpoint (GET, returns 200). Nexus monitors it every 5 minutes
-                  and shows live status on your marketplace card.
+                  {t("marketplace.step4Desc")}
                 </p>
               </div>
 
@@ -638,13 +615,11 @@ const MarketplacePage: React.FC = () => {
                     <span className="text-xs font-bold text-yellow-400">5</span>
                   </div>
                   <h3 className="text-white font-semibold text-sm">
-                    Register on Nexus
+                    {t("marketplace.step5Title")}
                   </h3>
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed">
-                  One API call registers your agent for both payments and
-                  marketplace. You&apos;re live immediately &mdash; discoverable
-                  by AI agents and earning stablecoins.
+                  {t("marketplace.step5Desc")}
                 </p>
               </div>
             </div>
@@ -652,7 +627,7 @@ const MarketplacePage: React.FC = () => {
             {/* How it works diagram */}
             <div className="glass-panel rounded-xl p-6 max-w-4xl mx-auto mb-10">
               <h4 className="text-sm font-semibold text-white mb-4">
-                How It Works
+                {t("marketplace.howItWorks")}
               </h4>
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
                 <div className="flex flex-col items-center gap-1 text-center">
@@ -661,8 +636,10 @@ const MarketplacePage: React.FC = () => {
                       smart_toy
                     </span>
                   </div>
-                  <span className="font-medium text-gray-300">User Agent</span>
-                  <span>Calls discover_agents</span>
+                  <span className="font-medium text-gray-300">
+                    {t("marketplace.userAgent")}
+                  </span>
+                  <span>{t("marketplace.callsDiscoverAgents")}</span>
                 </div>
                 <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
                   arrow_forward
@@ -673,8 +650,10 @@ const MarketplacePage: React.FC = () => {
                       hub
                     </span>
                   </div>
-                  <span className="font-medium text-gray-300">Nexus Core</span>
-                  <span>Finds &amp; ranks agents</span>
+                  <span className="font-medium text-gray-300">
+                    {t("marketplace.nexusCore")}
+                  </span>
+                  <span>{t("marketplace.findsRanks")}</span>
                 </div>
                 <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
                   arrow_forward
@@ -685,8 +664,10 @@ const MarketplacePage: React.FC = () => {
                       storefront
                     </span>
                   </div>
-                  <span className="font-medium text-gray-300">Your Agent</span>
-                  <span>Returns quote via MCP</span>
+                  <span className="font-medium text-gray-300">
+                    {t("marketplace.yourAgent")}
+                  </span>
+                  <span>{t("marketplace.returnsQuote")}</span>
                 </div>
                 <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
                   arrow_forward
@@ -697,8 +678,10 @@ const MarketplacePage: React.FC = () => {
                       lock
                     </span>
                   </div>
-                  <span className="font-medium text-gray-300">Escrow</span>
-                  <span>Stablecoins held until fulfilled</span>
+                  <span className="font-medium text-gray-300">
+                    {t("marketplace.escrow")}
+                  </span>
+                  <span>{t("marketplace.stablecoinsHeld")}</span>
                 </div>
                 <span className="material-icons-round text-gray-600 text-lg rotate-90 sm:rotate-0">
                   arrow_forward
@@ -709,8 +692,10 @@ const MarketplacePage: React.FC = () => {
                       payments
                     </span>
                   </div>
-                  <span className="font-medium text-gray-300">Payout</span>
-                  <span>Stablecoins released to you</span>
+                  <span className="font-medium text-gray-300">
+                    {t("marketplace.payout")}
+                  </span>
+                  <span>{t("marketplace.stablecoinsReleased")}</span>
                 </div>
               </div>
             </div>
@@ -719,7 +704,7 @@ const MarketplacePage: React.FC = () => {
             <div className="glass-panel rounded-xl p-6 max-w-3xl mx-auto">
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-sm font-semibold text-white">
-                  Registration API
+                  {t("marketplace.registrationApi")}
                 </h4>
                 <span className="text-[11px] font-mono text-gray-500 bg-white/5 px-2 py-0.5 rounded">
                   POST /api/market/register
@@ -745,128 +730,117 @@ const MarketplacePage: React.FC = () => {
               <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="text-xs">
                   <h5 className="text-gray-300 font-medium mb-2">
-                    Required Fields
+                    {t("marketplace.requiredFields")}
                   </h5>
                   <ul className="space-y-1.5 text-gray-500">
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
                       <span>
                         <code className="text-primary/70">merchant_did</code>{" "}
-                        &mdash; Unique identifier (
-                        <code className="text-gray-400">
-                          did:nexus:chainId:name
-                        </code>
-                        )
+                        &mdash; {t("marketplace.merchantDidDesc")}
                       </span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
                       <span>
-                        <code className="text-primary/70">name</code> &mdash;
-                        Display name shown in marketplace
+                        <code className="text-primary/70">name</code> &mdash;{" "}
+                        {t("marketplace.nameDesc")}
                       </span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
                       <span>
                         <code className="text-primary/70">description</code>{" "}
-                        &mdash; What your agent does
+                        &mdash; {t("marketplace.descriptionDesc")}
                       </span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
                       <span>
                         <code className="text-primary/70">category</code>{" "}
-                        &mdash; e.g.{" "}
-                        <code className="text-gray-400">travel.flights</code>,{" "}
-                        <code className="text-gray-400">food.delivery</code>
+                        &mdash; {t("marketplace.categoryDesc")}
                       </span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
                       <span>
                         <code className="text-primary/70">signer_address</code>{" "}
-                        &mdash; EVM key for signing quotes (EIP-712)
+                        &mdash; {t("marketplace.signerDesc")}
                       </span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
                       <span>
-                        <code className="text-primary/70">payment_address</code>{" "}
-                        &mdash; EVM address to receive stablecoin payouts
+                        <code className="text-primary/70">
+                          payment_address
+                        </code>{" "}
+                        &mdash; {t("marketplace.paymentDesc")}
                       </span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
                       <span>
                         <code className="text-primary/70">skill_md_url</code>{" "}
-                        &mdash; Public URL to your skill.md
+                        &mdash; {t("marketplace.skillMdDesc")}
                       </span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
                       <span>
                         <code className="text-primary/70">health_url</code>{" "}
-                        &mdash; Health check (GET, 200 = online)
+                        &mdash; {t("marketplace.healthDesc")}
                       </span>
                     </li>
                   </ul>
                 </div>
                 <div className="text-xs">
                   <h5 className="text-gray-300 font-medium mb-2">
-                    Optional Fields
+                    {t("marketplace.optionalFields")}
                   </h5>
                   <ul className="space-y-1.5 text-gray-500">
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-gray-600 mt-1.5 flex-shrink-0"></span>
                       <span>
                         <code className="text-gray-400">webhook_url</code>{" "}
-                        &mdash; Receive payment lifecycle events (escrowed,
-                        settled, completed)
+                        &mdash; {t("marketplace.webhookUrlDesc")}
                       </span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-gray-600 mt-1.5 flex-shrink-0"></span>
                       <span>
                         <code className="text-gray-400">webhook_secret</code>{" "}
-                        &mdash; HMAC secret for webhook signature verification
+                        &mdash; {t("marketplace.webhookSecretDesc")}
                       </span>
                     </li>
                   </ul>
 
                   <h5 className="text-gray-300 font-medium mt-4 mb-2">
-                    What You Get
+                    {t("marketplace.whatYouGet")}
                   </h5>
                   <ul className="space-y-1.5 text-gray-500">
                     <li className="flex items-start gap-1.5">
                       <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
                         check_circle
                       </span>
-                      <span>Marketplace listing with live health status</span>
+                      <span>{t("marketplace.getListing")}</span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
                         check_circle
                       </span>
-                      <span>
-                        Discoverable via{" "}
-                        <code className="text-gray-400">discover_agents</code>{" "}
-                        MCP tool
-                      </span>
+                      <span>{t("marketplace.getDiscoverable")}</span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
                         check_circle
                       </span>
-                      <span>
-                        Stablecoin escrow payments with dispute protection
-                      </span>
+                      <span>{t("marketplace.getEscrow")}</span>
                     </li>
                     <li className="flex items-start gap-1.5">
                       <span className="material-icons-round text-green-400 text-xs mt-0.5 flex-shrink-0">
                         check_circle
                       </span>
-                      <span>Webhook notifications for payment events</span>
+                      <span>{t("marketplace.getWebhooks")}</span>
                     </li>
                   </ul>
                 </div>

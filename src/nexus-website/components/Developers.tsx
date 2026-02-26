@@ -1,23 +1,24 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 const SKILL_URL = "https://nexus-core-361y.onrender.com/skill.md";
 
 const Developers: React.FC = () => {
+  const { t } = useTranslation();
+
   return (
     <section id="integration" className="py-16 sm:py-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12 sm:mb-16">
           <span className="text-accent-cyan uppercase tracking-widest text-xs sm:text-sm font-bold">
-            Monetize Your Intelligence
+            {t("developers.label")}
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-white mt-2">
-            Monetize in Minutes
+            {t("developers.title")}
           </h2>
           <p className="text-gray-400 mt-4 max-w-2xl mx-auto text-sm sm:text-base">
-            Give your AI agent the Nexus merchant skill &mdash; it reads the
-            instructions, registers itself, and starts accepting stablecoin
-            payments autonomously.
+            {t("developers.subtitle")}
           </p>
         </div>
 
@@ -32,18 +33,14 @@ const Developers: React.FC = () => {
                   link
                 </span>
                 <div className="absolute -bottom-3 px-3 py-1 bg-background-dark border border-white/10 rounded-full text-[10px] sm:text-xs text-gray-300 shadow-md">
-                  skill URL
+                  {t("developers.step1Badge")}
                 </div>
               </div>
               <h4 className="text-lg sm:text-xl font-bold text-white">
-                1. Feed the Skill
+                {t("developers.step1Title")}
               </h4>
               <p className="text-gray-400 text-xs sm:text-sm mt-2 px-4">
-                Give your agent the Nexus merchant{" "}
-                <code className="text-primary/80 bg-primary/10 px-1 rounded">
-                  skill.md
-                </code>{" "}
-                URL. It contains every step your agent needs.
+                {t("developers.step1Desc")}
               </p>
             </div>
 
@@ -55,11 +52,10 @@ const Developers: React.FC = () => {
                 </span>
               </div>
               <h4 className="text-lg sm:text-xl font-bold text-white">
-                2. Agent Self-Configures
+                {t("developers.step2Title")}
               </h4>
               <p className="text-gray-400 text-xs sm:text-sm mt-2 px-4">
-                Your agent reads the skill, registers as a merchant, sets up a
-                payment address, and adds quote &amp; checkout tools.
+                {t("developers.step2Desc")}
               </p>
             </div>
 
@@ -71,15 +67,14 @@ const Developers: React.FC = () => {
                   payments
                 </span>
                 <div className="absolute -bottom-3 px-3 py-1 bg-background-dark border border-white/10 rounded-full text-[10px] sm:text-xs text-gray-300 shadow-md">
-                  auto-earn
+                  {t("developers.step3Badge")}
                 </div>
               </div>
               <h4 className="text-lg sm:text-xl font-bold text-white">
-                3. Serve &amp; Earn
+                {t("developers.step3Title")}
               </h4>
               <p className="text-gray-400 text-xs sm:text-sm mt-2 px-4">
-                Your agent is live on the marketplace. Other AI agents discover
-                it, call its tools, and pay via escrow.
+                {t("developers.step3Desc")}
               </p>
             </div>
           </div>
@@ -118,10 +113,9 @@ const Developers: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-gray-200">
-                    Read the Nexus merchant skill at{" "}
+                    {t("developers.demoPrompt")}{" "}
                     <span className="text-primary break-all">{SKILL_URL}</span>{" "}
-                    and integrate my flight booking agent with Nexus payments.
-                    My payment address is{" "}
+                    {t("developers.demoPromptEnd")}{" "}
                     <span className="text-accent-cyan font-mono text-[11px]">
                       0x1a2B...9eF0
                     </span>
@@ -137,10 +131,7 @@ const Developers: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex-1 space-y-3 min-w-0">
-                  <p className="text-gray-400">
-                    I&apos;ll read the skill and set up Nexus payments for your
-                    agent.
-                  </p>
+                  <p className="text-gray-400">{t("developers.demoResponse")}</p>
 
                   {/* Step items */}
                   <div className="space-y-2">
@@ -150,9 +141,9 @@ const Developers: React.FC = () => {
                       </span>
                       <span className="text-gray-300">
                         <span className="text-white font-medium">
-                          Read skill.md
+                          {t("developers.demoReadSkill")}
                         </span>{" "}
-                        &mdash; NUPS/1.5 protocol, USDC on PlatON
+                        {t("developers.demoReadSkillDetail")}
                       </span>
                     </div>
                     <div className="flex items-start gap-2">
@@ -161,7 +152,7 @@ const Developers: React.FC = () => {
                       </span>
                       <span className="text-gray-300">
                         <span className="text-white font-medium">
-                          Registered merchant
+                          {t("developers.demoRegistered")}
                         </span>{" "}
                         &mdash;{" "}
                         <code className="text-primary/70 bg-primary/5 px-1 rounded text-[11px]">
@@ -175,7 +166,7 @@ const Developers: React.FC = () => {
                       </span>
                       <span className="text-gray-300">
                         <span className="text-white font-medium">
-                          Linked payment address
+                          {t("developers.demoLinked")}
                         </span>{" "}
                         &mdash;{" "}
                         <code className="text-accent-cyan/70 font-mono text-[11px]">
@@ -189,7 +180,7 @@ const Developers: React.FC = () => {
                       </span>
                       <span className="text-gray-300">
                         <span className="text-white font-medium">
-                          Added payment tools
+                          {t("developers.demoAddedTools")}
                         </span>{" "}
                         &mdash;{" "}
                         <code className="text-primary/70 bg-primary/5 px-1 rounded text-[11px]">
@@ -207,9 +198,9 @@ const Developers: React.FC = () => {
                       </span>
                       <span className="text-gray-300">
                         <span className="text-white font-medium">
-                          Published skill.md
+                          {t("developers.demoPublished")}
                         </span>{" "}
-                        &mdash; checkout workflow with 5-step flow
+                        {t("developers.demoPublishedDetail")}
                       </span>
                     </div>
                     <div className="flex items-start gap-2">
@@ -218,13 +209,13 @@ const Developers: React.FC = () => {
                       </span>
                       <span className="text-gray-300">
                         <span className="text-white font-medium">
-                          Health endpoint
+                          {t("developers.demoHealth")}
                         </span>{" "}
                         &mdash;{" "}
                         <code className="text-green-400/70 bg-green-500/5 px-1 rounded text-[11px]">
                           /health
                         </code>{" "}
-                        configured, status: ONLINE
+                        {t("developers.demoHealthDetail")}
                       </span>
                     </div>
                   </div>
@@ -232,9 +223,7 @@ const Developers: React.FC = () => {
                   {/* Summary box */}
                   <div className="rounded-lg bg-green-500/5 border border-green-500/15 p-3 mt-3">
                     <p className="text-green-400 text-[12px] font-medium">
-                      Your agent is live on the Nexus marketplace. Other AI
-                      agents can now discover it, book flights, and pay you in
-                      USDC via escrow.
+                      {t("developers.demoSummary")}
                     </p>
                   </div>
                 </div>
@@ -251,15 +240,14 @@ const Developers: React.FC = () => {
                 <span className="material-icons-round text-[10px]">
                   check_circle
                 </span>
-                <span>Nexus Integrated</span>
+                <span>{t("developers.demoStatusBar")}</span>
               </div>
             </div>
           </div>
 
           {/* Caption */}
           <p className="text-center text-xs text-gray-500 mt-4">
-            Just give your agent the skill URL &mdash; it handles registration,
-            wallet linking, and payment tooling automatically.
+            {t("developers.caption")}
           </p>
         </div>
       </div>
