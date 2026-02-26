@@ -32,17 +32,8 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     // Constants
     // -----------------------------------------------------------------------
 
-    string public constant VERSION = "4.0.0";
+    string public constant VERSION = "3.0.0";
     uint16 public constant MAX_FEE_BPS = 500; // 5% hard cap
-    uint256 public constant MAX_BATCH_SIZE = 20;
-
-    // EIP-712 constants for group signature verification
-    bytes32 public constant NEXUS_GROUP_APPROVAL_TYPEHASH =
-        keccak256("NexusGroupApproval(bytes32 groupId,bytes32 entriesHash,uint256 totalAmount)");
-    bytes32 public constant EIP712_DOMAIN_TYPEHASH =
-        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
-    bytes32 public constant DOMAIN_NAME_HASH = keccak256("NexusPay");
-    bytes32 public constant DOMAIN_VERSION_HASH = keccak256("1");
 
     // -----------------------------------------------------------------------
     // Types
@@ -64,8 +55,7 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
         REFUNDED,
         DISPUTED,
         RESOLVED_TO_MERCHANT,
-        RESOLVED_TO_PAYER,
-        RESOLVED_SPLIT
+        RESOLVED_TO_PAYER
     }
 
     struct Escrow {
@@ -78,7 +68,6 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
         uint256 releaseDeadline;
         uint256 disputeDeadline;
         EscrowStatus status;
-        uint16 feeBps;
     }
 
     // -----------------------------------------------------------------------
@@ -98,16 +87,8 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     address public arbiter;
     address public coreOperator;
 
-    uint256 public arbitrationTimeout;
-
     /// @notice paymentId → Escrow
     mapping(bytes32 => Escrow) internal _escrows;
-
-    /// @notice Group signature replay protection
-    mapping(bytes32 => bool) public usedGroupIds;
-
-    /// @notice When true, all batch deposits must use batchDepositWithGroupApproval
-    bool public requireGroupSig;
 
     // -----------------------------------------------------------------------
     // Events
@@ -159,10 +140,6 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     event DisputeWindowUpdated(uint256 oldWindow, uint256 newWindow);
     event ProtocolFeeUpdated(uint16 oldBps, uint16 newBps);
     event FeeRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
-    event ArbitrationTimeoutUpdated(uint256 oldTimeout, uint256 newTimeout);
-    event DisputeAutoResolved(bytes32 indexed paymentId, address indexed payer, uint256 amount);
-    event GroupSigVerified(bytes32 indexed groupId, address indexed coreOperator);
-    event RequireGroupSigUpdated(bool oldValue, bool newValue);
 
     // -----------------------------------------------------------------------
     // Errors
@@ -184,11 +161,6 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     error ZeroTimeout();
     error EmptyBatch();
     error BatchAmountMismatch(uint256 expected, uint256 actual);
-    error BatchTooLarge(uint256 size);
-    error ArbitrationTimeoutNotReached(uint256 deadline, uint256 current);
-    error InvalidGroupSignature();
-    error GroupIdAlreadyUsed(bytes32 groupId);
-    error GroupSignatureRequired();
 
     // -----------------------------------------------------------------------
     // Modifiers
@@ -352,9 +324,7 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
         bytes32 r,
         bytes32 s
     ) external nonReentrant {
-        if (requireGroupSig) revert GroupSignatureRequired();
         if (entries.length == 0) revert EmptyBatch();
-        if (entries.length > MAX_BATCH_SIZE) revert BatchTooLarge(entries.length);
 
         // Verify total matches sum of entries
         uint256 sum = 0;
@@ -414,7 +384,7 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
 
         e.status = EscrowStatus.RELEASED;
 
-        uint256 fee = (e.amount * e.feeBps) / 10_000;
+        uint256 fee = (e.amount * protocolFeeBps) / 10_000;
         uint256 merchantAmount = e.amount - fee;
 
         if (fee > 0) {
@@ -459,7 +429,6 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
      */
     function dispute(bytes32 paymentId, bytes32 reason)
         external
-        nonReentrant
         onlyPayer(paymentId)
     {
         Escrow storage e = _escrows[paymentId];
@@ -504,7 +473,8 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
         } else if (merchantBps == 0) {
             e.status = EscrowStatus.RESOLVED_TO_PAYER;
         } else {
-            e.status = EscrowStatus.RESOLVED_SPLIT;
+            // Partial split — use RESOLVED_TO_MERCHANT as the "resolved with split" status
+            e.status = EscrowStatus.RESOLVED_TO_MERCHANT;
         }
 
         if (merchantAmount > 0) {
@@ -515,98 +485,6 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
         }
 
         emit Resolved(paymentId, merchantBps, merchantAmount, payerAmount);
-    }
-
-    // -----------------------------------------------------------------------
-    // Dispute auto-resolution (H-01 fix)
-    // -----------------------------------------------------------------------
-
-    /**
-     * @notice Refund escrowed funds to the payer if a disputed escrow remains
-     *         unresolved past the arbitration timeout. Permissionless.
-     */
-    function refundUnresolvedDispute(bytes32 paymentId) external nonReentrant {
-        Escrow storage e = _escrows[paymentId];
-        if (e.status != EscrowStatus.DISPUTED) {
-            revert InvalidStatus(e.status, EscrowStatus.DISPUTED);
-        }
-        if (block.timestamp < e.disputeDeadline + arbitrationTimeout) {
-            revert ArbitrationTimeoutNotReached(
-                e.disputeDeadline + arbitrationTimeout,
-                block.timestamp
-            );
-        }
-
-        e.status = EscrowStatus.RESOLVED_TO_PAYER;
-
-        IERC20(address(usdc)).safeTransfer(e.payer, e.amount);
-
-        emit DisputeAutoResolved(paymentId, e.payer, e.amount);
-    }
-
-    // -----------------------------------------------------------------------
-    // Batch Deposit with Group Approval (EIP-712 verified)
-    // -----------------------------------------------------------------------
-
-    /**
-     * @notice Batch deposit with on-chain verification of the Nexus Core
-     *         group signature. Prevents MITM tampering of entries.
-     */
-    function batchDepositWithGroupApproval(
-        BatchEntry[] calldata entries,
-        uint256 totalAmount,
-        bytes32 groupIdBytes32,
-        uint8 groupV,
-        bytes32 groupR,
-        bytes32 groupS,
-        uint256 validAfter,
-        uint256 validBefore,
-        bytes32 nonce,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external nonReentrant {
-        if (entries.length == 0) revert EmptyBatch();
-        if (entries.length > MAX_BATCH_SIZE) revert BatchTooLarge(entries.length);
-        if (usedGroupIds[groupIdBytes32]) revert GroupIdAlreadyUsed(groupIdBytes32);
-        usedGroupIds[groupIdBytes32] = true;
-
-        _verifyGroupSignature(groupIdBytes32, entries, totalAmount, groupV, groupR, groupS);
-
-        uint256 sum = 0;
-        for (uint256 i = 0; i < entries.length; i++) {
-            sum += entries[i].amount;
-        }
-        if (sum != totalAmount) revert BatchAmountMismatch(totalAmount, sum);
-
-        usdc.transferWithAuthorization(
-            msg.sender,
-            address(this),
-            totalAmount,
-            validAfter,
-            validBefore,
-            nonce,
-            v,
-            r,
-            s
-        );
-
-        for (uint256 i = 0; i < entries.length; i++) {
-            BatchEntry calldata e = entries[i];
-            _validateDeposit(e.paymentId, msg.sender, e.merchant, e.amount);
-            _createEscrow(
-                e.paymentId,
-                msg.sender,
-                e.merchant,
-                e.amount,
-                e.orderRef,
-                e.merchantDid,
-                e.contextHash
-            );
-        }
-
-        emit BatchDeposited(msg.sender, entries.length, totalAmount);
-        emit GroupSigVerified(groupIdBytes32, coreOperator);
     }
 
     // -----------------------------------------------------------------------
@@ -634,14 +512,6 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     function isDisputable(bytes32 paymentId) external view returns (bool) {
         Escrow storage e = _escrows[paymentId];
         return e.status == EscrowStatus.DEPOSITED && block.timestamp <= e.disputeDeadline;
-    }
-
-    function isGroupIdUsed(bytes32 groupIdBytes32) external view returns (bool) {
-        return usedGroupIds[groupIdBytes32];
-    }
-
-    function computeDomainSeparator() external view returns (bytes32) {
-        return _computeDomainSeparator();
     }
 
     // -----------------------------------------------------------------------
@@ -684,17 +554,6 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
         protocolFeeRecipient = newRecipient;
     }
 
-    function setArbitrationTimeout(uint256 newTimeout) external onlyOwner {
-        if (newTimeout == 0) revert ZeroTimeout();
-        emit ArbitrationTimeoutUpdated(arbitrationTimeout, newTimeout);
-        arbitrationTimeout = newTimeout;
-    }
-
-    function setRequireGroupSig(bool _require) external onlyOwner {
-        emit RequireGroupSigUpdated(requireGroupSig, _require);
-        requireGroupSig = _require;
-    }
-
     // -----------------------------------------------------------------------
     // UUPS upgrade authorization
     // -----------------------------------------------------------------------
@@ -704,57 +563,6 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     // -----------------------------------------------------------------------
     // Internal helpers
     // -----------------------------------------------------------------------
-
-    function _computeDomainSeparator() internal view returns (bytes32) {
-        return keccak256(abi.encode(
-            EIP712_DOMAIN_TYPEHASH,
-            DOMAIN_NAME_HASH,
-            DOMAIN_VERSION_HASH,
-            block.chainid,
-            address(this)
-        ));
-    }
-
-    function _computeEntriesHash(BatchEntry[] calldata entries) internal pure returns (bytes32) {
-        bytes memory packed;
-        for (uint256 i = 0; i < entries.length; i++) {
-            packed = bytes.concat(packed, abi.encode(
-                entries[i].paymentId,
-                entries[i].merchant,
-                entries[i].amount,
-                entries[i].orderRef,
-                entries[i].merchantDid,
-                entries[i].contextHash
-            ));
-        }
-        return keccak256(packed);
-    }
-
-    function _verifyGroupSignature(
-        bytes32 groupIdBytes32,
-        BatchEntry[] calldata entries,
-        uint256 totalAmount,
-        uint8 groupV,
-        bytes32 groupR,
-        bytes32 groupS
-    ) internal view {
-        bytes32 entriesHash = _computeEntriesHash(entries);
-        bytes32 structHash = keccak256(abi.encode(
-            NEXUS_GROUP_APPROVAL_TYPEHASH,
-            groupIdBytes32,
-            entriesHash,
-            totalAmount
-        ));
-        bytes32 digest = keccak256(abi.encodePacked(
-            "\x19\x01",
-            _computeDomainSeparator(),
-            structHash
-        ));
-        address signer = ecrecover(digest, groupV, groupR, groupS);
-        if (signer == address(0) || signer != coreOperator) {
-            revert InvalidGroupSignature();
-        }
-    }
 
     function _validateDeposit(
         bytes32 paymentId,
@@ -789,8 +597,7 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
             contextHash: contextHash,
             releaseDeadline: block.timestamp + defaultReleaseTimeout,
             disputeDeadline: block.timestamp + defaultDisputeWindow,
-            status: EscrowStatus.DEPOSITED,
-            feeBps: protocolFeeBps
+            status: EscrowStatus.DEPOSITED
         });
 
         emit Deposited(paymentId, payer, merchant, amount, orderRef);

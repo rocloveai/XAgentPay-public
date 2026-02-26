@@ -314,11 +314,19 @@ tailwind.config = {
     </div>
   </div>
 
+  <!-- Group Info -->
+  <div id="group-info" class="hidden fade-in">
+    <div class="bg-slate-800 rounded-xl border border-slate-700 px-6 py-4 flex items-center justify-between">
+      <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Group ID</span>
+      <span id="group-id-display" class="font-mono text-xs text-slate-300 truncate ml-3"></span>
+    </div>
+  </div>
+
   <!-- Order Summary (shown in most states) -->
   <div id="order-summary" class="hidden fade-in">
     <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
       <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Order Summary</h2>
-      <div id="line-items" class="space-y-2 mb-4"></div>
+      <div id="line-items" class="space-y-3 mb-4"></div>
       <div class="border-t border-slate-700 pt-3 flex justify-between items-center">
         <span class="text-sm font-semibold text-slate-300">Total</span>
         <span id="total-amount" class="text-lg font-bold text-slate-50"></span>
@@ -490,7 +498,7 @@ function truncAddr(addr) {
 }
 
 function showOnly(ids) {
-  var allStates = ["state-loading","order-summary","payment-details","action-area",
+  var allStates = ["state-loading","group-info","order-summary","payment-details","action-area",
     "state-success","state-already-paid","state-error",
     "no-metamask","connect-wallet","wrong-chain","wrong-wallet","ready-sign","signing","submitting","confirming"];
   for (var s of allStates) {
@@ -505,7 +513,7 @@ function showOnly(ids) {
 
 function showError(msg) {
   document.getElementById("error-message").textContent = msg;
-  showOnly(["order-summary","state-error"]);
+  showOnly(["group-info","order-summary","state-error"]);
 }
 
 async function loadCheckout() {
@@ -522,25 +530,27 @@ async function loadCheckout() {
     // Check if already paid
     var gs = checkoutData.group.status;
     if (gs !== "GROUP_CREATED") {
+      renderGroupInfo();
       renderOrderSummary();
       if (gs === "GROUP_ESCROWED" || gs === "GROUP_SETTLED" || gs === "GROUP_COMPLETED") {
-        showOnly(["order-summary","state-already-paid"]);
+        showOnly(["group-info","order-summary","state-already-paid"]);
       } else {
-        showOnly(["order-summary","state-already-paid"]);
+        showOnly(["group-info","order-summary","state-already-paid"]);
       }
       return;
     }
 
+    renderGroupInfo();
     renderOrderSummary();
     renderPaymentDetails();
 
     // Check MetaMask
     if (typeof window.ethereum === "undefined") {
-      showOnly(["order-summary","payment-details","action-area","no-metamask"]);
+      showOnly(["group-info","order-summary","payment-details","action-area","no-metamask"]);
       return;
     }
 
-    showOnly(["order-summary","payment-details","action-area","connect-wallet"]);
+    showOnly(["group-info","order-summary","payment-details","action-area","connect-wallet"]);
 
     // Check if already connected
     var accounts = await ethereum.request({ method: "eth_accounts" });
@@ -551,6 +561,11 @@ async function loadCheckout() {
   } catch (e) {
     showError(e.message || "Network error");
   }
+}
+
+function renderGroupInfo() {
+  var groupId = checkoutData.group.group_id;
+  document.getElementById("group-id-display").textContent = groupId;
 }
 
 function renderOrderSummary() {
@@ -564,10 +579,23 @@ function renderOrderSummary() {
     var p = payments[i];
     var display = p.amount_display || p.amount;
     var label = p.summary || p.merchant_order_ref || p.nexus_payment_id;
-    html += '<div class="flex justify-between items-center text-sm">' +
-      '<span class="text-slate-300">' + (i + 1) + '. ' + esc(label) + '</span>' +
-      '<span class="text-slate-300 font-medium">' + esc(display) + ' USDC</span>' +
-      '</div>';
+    var did = p.merchant_did || "-";
+    var orderRef = p.merchant_order_ref || "-";
+
+    html += '<div class="bg-slate-900/50 rounded-lg p-3 space-y-1.5">' +
+      '<div class="flex justify-between items-center">' +
+        '<span class="text-sm text-slate-200 font-medium">' + (i + 1) + '. ' + esc(label) + '</span>' +
+        '<span class="text-sm text-slate-200 font-semibold">' + esc(display) + ' USDC</span>' +
+      '</div>' +
+      '<div class="flex justify-between items-center">' +
+        '<span class="text-xs text-slate-500">Merchant DID</span>' +
+        '<span class="text-xs text-slate-400 font-mono truncate ml-2 max-w-[60%] text-right">' + esc(did) + '</span>' +
+      '</div>' +
+      '<div class="flex justify-between items-center">' +
+        '<span class="text-xs text-slate-500">Order Ref</span>' +
+        '<span class="text-xs text-slate-400 font-mono truncate ml-2 max-w-[60%] text-right">' + esc(orderRef) + '</span>' +
+      '</div>' +
+    '</div>';
   }
   container.innerHTML = html;
 
@@ -597,7 +625,7 @@ async function connectWallet() {
 async function checkChain() {
   var currentChainId = await ethereum.request({ method: "eth_chainId" });
   if (parseInt(currentChainId, 16) !== TARGET_CHAIN_ID) {
-    showOnly(["order-summary","payment-details","action-area","wrong-chain"]);
+    showOnly(["group-info","order-summary","payment-details","action-area","wrong-chain"]);
     return;
   }
   document.getElementById("chain-badge").classList.remove("hidden");
@@ -614,14 +642,14 @@ async function checkChain() {
   if (expectedFrom && account && expectedFrom.toLowerCase() !== account.toLowerCase()) {
     document.getElementById("expected-wallet").textContent = expectedFrom;
     document.getElementById("current-wallet").textContent = account;
-    showOnly(["order-summary","payment-details","action-area","wrong-wallet"]);
+    showOnly(["group-info","order-summary","payment-details","action-area","wrong-wallet"]);
     return;
   }
 
   document.getElementById("connected-address").textContent = truncAddr(account);
   var total = checkoutData.group.total_amount_display || checkoutData.group.total_amount;
   document.getElementById("btn-sign-amount").textContent = total + " USDC";
-  showOnly(["order-summary","payment-details","action-area","ready-sign"]);
+  showOnly(["group-info","order-summary","payment-details","action-area","ready-sign"]);
 }
 
 async function switchChain() {
@@ -685,7 +713,7 @@ async function signAndPay() {
   }
   console.log("[NexusPay] Group sig verified. Operator:", instr.core_operator_address);
 
-  showOnly(["order-summary","payment-details","action-area","signing"]);
+  showOnly(["group-info","order-summary","payment-details","action-area","signing"]);
 
   try {
     // Step 1: Sign EIP-3009 typed data via MetaMask
@@ -720,7 +748,7 @@ async function signAndPay() {
     console.log("[NexusPay] Signature:", { v: v, r: r, s: s });
 
     // Step 2: Build batchDepositWithAuthorization calldata and send tx
-    showOnly(["order-summary","payment-details","action-area","submitting"]);
+    showOnly(["group-info","order-summary","payment-details","action-area","submitting"]);
 
     var instr = checkoutData.instruction;
     var depositTx = instr.deposit_tx;
@@ -773,7 +801,7 @@ async function signAndPay() {
     console.log("[NexusPay] TX hash:", txHash);
 
     // Step 3: Confirm with server
-    showOnly(["order-summary","payment-details","action-area","confirming"]);
+    showOnly(["group-info","order-summary","payment-details","action-area","confirming"]);
 
     var confirmRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID) + "/confirm", {
       method: "POST",
@@ -797,7 +825,7 @@ async function signAndPay() {
           if (gs === "GROUP_ESCROWED" || gs === "GROUP_SETTLED" || gs === "GROUP_COMPLETED") {
             clearInterval(pollTimer);
             document.getElementById("success-tx-hash").textContent = "TX: " + txHash;
-            showOnly(["order-summary","state-success"]);
+            showOnly(["group-info","order-summary","state-success"]);
           }
         }
       } catch (e) { /* ignore poll errors */ }
@@ -810,13 +838,13 @@ async function signAndPay() {
         pollTimer = null;
       }
       document.getElementById("success-tx-hash").textContent = "TX: " + txHash;
-      showOnly(["order-summary","state-success"]);
+      showOnly(["group-info","order-summary","state-success"]);
     }, 15000);
 
   } catch (e) {
     if (e.code === 4001) {
       // User rejected signing or transaction
-      showOnly(["order-summary","payment-details","action-area","ready-sign"]);
+      showOnly(["group-info","order-summary","payment-details","action-area","ready-sign"]);
     } else {
       showError(e.message || "Transaction failed");
     }
@@ -1000,7 +1028,7 @@ if (typeof window.ethereum !== "undefined") {
   ethereum.on("chainChanged", function() { if (account) checkChain(); });
   ethereum.on("accountsChanged", function(accs) {
     if (accs.length > 0) { account = accs[0]; checkChain(); }
-    else { account = null; showOnly(["order-summary","payment-details","action-area","connect-wallet"]); }
+    else { account = null; showOnly(["group-info","order-summary","payment-details","action-area","connect-wallet"]); }
   });
 }
 

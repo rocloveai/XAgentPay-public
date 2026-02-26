@@ -7,7 +7,7 @@ VALUES (
   'NexusPay Demo Flight Agent',
   '0xdd31F8EcD2F5DE824238AB1A761212006A1E11b6',
   '0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1',
-  'http://localhost:3001/webhook',
+  'https://nexus-flight-agent.onrender.com/webhook',
   'REDACTED_WEBHOOK_SECRET',
   TRUE
 )
@@ -26,7 +26,7 @@ VALUES (
   'NexusPay Demo Hotel Agent',
   '0x5916667cfBD5f329c0A6474bf81d7F58c3BFB2C4',
   '0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd',
-  'http://localhost:3002/webhook',
+  'https://nexus-hotel-agent.onrender.com/webhook',
   'REDACTED_WEBHOOK_SECRET',
   TRUE
 )

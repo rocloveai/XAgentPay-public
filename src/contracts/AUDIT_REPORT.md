@@ -1,9 +1,10 @@
-# NexusPayEscrow v4.0.0 — Security Audit Report
+# NexusPayEscrow v4.0.0 — Security Audit Report (Re-audit)
 
 **Date:** 2026-02-26
 **Auditor:** Claude Opus 4.6 (automated, methodology: solidity-security-audit-skill v2.0.2)
 **Scope:** `src/NexusPayEscrow.sol`, `src/interfaces/IERC3009.sol`, `script/Deploy.s.sol`, `script/Upgrade.s.sol`
 **Solidity:** 0.8.24 | **OpenZeppelin:** 5.5.0 | **Framework:** Foundry
+**Tests:** 98 passing (forge test)
 
 ---
 
@@ -11,13 +12,20 @@
 
 NexusPayEscrow is a UUPS-upgradeable three-way payment escrow contract supporting EIP-3009 signed transfers and traditional approve/transferFrom, with dispute resolution, batch deposits, and on-chain group signature verification (v4.0.0). Deployed on PlatON Devnet (chainId 20250407).
 
-Overall the contract is well-structured with proper use of OpenZeppelin primitives (ReentrancyGuard, SafeERC20, Ownable, UUPS). The code follows Checks-Effects-Interactions (CEI) pattern in most functions and has comprehensive input validation.
-
-**1 High, 3 Medium, 4 Low, 4 Informational** findings were identified in v3.0.0. **6 findings have been fixed in v4.0.0.**
+v4.0.0 fixes 6 of 12 findings from the v3.0.0 audit and adds group signature verification. However, the re-audit identified **1 new CRITICAL storage layout collision** that **MUST be fixed before deploying the upgrade**. The `arbitrationTimeout` variable was inserted before `_escrows`, shifting the mapping from slot 7 to slot 8 — this would orphan all existing v3 escrow data and lock user funds.
 
 ---
 
-## Findings Summary
+## NEW v4.0.0 Findings
+
+| ID | Severity | Title |
+|----|----------|-------|
+| **NEW-01** | **CRITICAL** | Storage layout collision: `_escrows` shifts from slot 7 to slot 8 on upgrade |
+| NEW-02 | MEDIUM | `arbitrationTimeout` defaults to 0 — not set in `initialize()` |
+| NEW-03 | LOW | `_computeEntriesHash` grows memory in loop (gas inefficiency for large batches) |
+| NEW-04 | INFO | Existing v3 escrows would have `feeBps = 0` after upgrade (no fee collected) |
+
+## v3.0.0 Findings Status
 
 | ID | Severity | Title | Status (v4.0.0) |
 |----|----------|-------|-----------------|
@@ -36,7 +44,148 @@ Overall the contract is well-structured with proper use of OpenZeppelin primitiv
 
 ---
 
-## Detailed Findings
+## NEW v4.0.0 Detailed Findings
+
+### NEW-01: CRITICAL — Storage Layout Collision on UUPS Upgrade
+
+**Severity:** CRITICAL
+**Location:** [NexusPayEscrow.sol:101](src/NexusPayEscrow.sol#L101) (`arbitrationTimeout` declaration)
+
+**Description:**
+The `arbitrationTimeout` state variable was inserted between `coreOperator` (slot 6) and `_escrows` (previously slot 7). This shifts the `_escrows` mapping from **slot 7 to slot 8**. Verified via `forge inspect`:
+
+```
+v3.0.0 Storage Layout:
+| coreOperator | slot 6 |
+| _escrows     | slot 7 |   ← mapping base slot
+
+v4.0.0 Storage Layout:
+| coreOperator          | slot 6  |
+| arbitrationTimeout    | slot 7  |   ← NEW, takes _escrows' old slot!
+| _escrows              | slot 8  |   ← SHIFTED from 7 to 8
+| usedGroupIds          | slot 9  |   ← NEW
+| requireGroupSig       | slot 10 |   ← NEW
+```
+
+After upgrade, all escrow lookups use `keccak256(paymentId, 8)` instead of `keccak256(paymentId, 7)`. **Every existing v3 escrow becomes inaccessible.** The funds remain in the contract's USDC balance but cannot be released, refunded, or disputed through the contract's functions.
+
+**Impact:** All escrowed USDC funds from v3 are permanently locked. The `release()`, `refund()`, `dispute()`, and `resolve()` functions will see `EscrowStatus.NONE` for all existing payment IDs.
+
+**Recommendation:**
+Move new state variables AFTER `_escrows` to preserve slot positions:
+
+```solidity
+// --- Storage (must match v3 layout exactly) ---
+IERC3009 public usdc;                                // slot 1
+uint256 public defaultReleaseTimeout;                // slot 2
+uint256 public defaultDisputeWindow;                 // slot 3
+uint16 public protocolFeeBps;                        // slot 4 (packed)
+address public protocolFeeRecipient;                 // slot 4 (packed)
+address public arbiter;                              // slot 5
+address public coreOperator;                         // slot 6
+mapping(bytes32 => Escrow) internal _escrows;        // slot 7 ← MUST stay at slot 7
+
+// --- v4 new storage (append-only, after existing layout) ---
+uint256 public arbitrationTimeout;                   // slot 8
+mapping(bytes32 => bool) public usedGroupIds;        // slot 9
+bool public requireGroupSig;                         // slot 10
+```
+
+After fixing, verify with `forge inspect NexusPayEscrow storageLayout` that `_escrows` remains at slot 7.
+
+---
+
+### NEW-02: `arbitrationTimeout` Not Set in `initialize()` — Defaults to 0
+
+**Severity:** MEDIUM
+**Location:** [NexusPayEscrow.sol:236-260](src/NexusPayEscrow.sol#L236-L260)
+
+**Description:**
+The `arbitrationTimeout` is not set in `initialize()`. For a fresh deployment (not an upgrade), it defaults to 0. The `refundUnresolvedDispute()` function checks:
+
+```solidity
+if (block.timestamp < e.disputeDeadline + arbitrationTimeout)
+```
+
+With `arbitrationTimeout = 0`, this becomes `e.disputeDeadline + 0 = e.disputeDeadline`, meaning disputed escrows can be auto-refunded immediately after the dispute deadline — giving the arbiter zero time to resolve.
+
+The Upgrade script correctly calls `setArbitrationTimeout()`, but a fresh deployment via Deploy.s.sol would leave it at 0.
+
+**Impact:** On fresh deployment, the arbiter has no time window to resolve disputes. Any user could dispute and then immediately call `refundUnresolvedDispute()` after the dispute deadline, bypassing arbiter resolution entirely.
+
+**Recommendation:**
+Either add `arbitrationTimeout` to `initialize()`:
+
+```solidity
+function initialize(
+    ...
+    uint256 _arbitrationTimeout
+) external initializer {
+    ...
+    if (_arbitrationTimeout == 0) revert ZeroTimeout();
+    arbitrationTimeout = _arbitrationTimeout;
+}
+```
+
+Or set it in Deploy.s.sol after proxy creation.
+
+---
+
+### NEW-03: `_computeEntriesHash` Memory Growth in Loop
+
+**Severity:** LOW
+**Location:** [NexusPayEscrow.sol:718-731](src/NexusPayEscrow.sol#L718-L731)
+
+**Description:**
+`_computeEntriesHash` uses `bytes.concat` in a loop, which creates increasingly large memory allocations:
+
+```solidity
+bytes memory packed;
+for (uint256 i = 0; i < entries.length; i++) {
+    packed = bytes.concat(packed, abi.encode(...));  // grows each iteration
+}
+```
+
+For 20 entries (MAX_BATCH_SIZE), each entry is 192 bytes (6 × 32), so the final buffer is ~3.8 KB. The intermediate memory copies (concat copies the entire accumulated buffer each iteration) result in O(n²) memory usage.
+
+**Impact:** Gas overhead for large batches. At MAX_BATCH_SIZE=20, the extra gas cost is ~50-100K, which is acceptable but wasteful.
+
+**Recommendation:**
+Pre-allocate the full buffer:
+
+```solidity
+function _computeEntriesHash(BatchEntry[] calldata entries) internal pure returns (bytes32) {
+    return keccak256(abi.encode(entries));  // ABI-encode entire array at once
+}
+```
+
+Or use `abi.encodePacked` with fixed-size fields for deterministic encoding without the loop.
+
+---
+
+### NEW-04: Existing v3 Escrows Would Have `feeBps = 0`
+
+**Severity:** INFORMATIONAL
+**Location:** [NexusPayEscrow.sol:81](src/NexusPayEscrow.sol#L81) (new `feeBps` field in Escrow struct)
+
+**Description:**
+The `Escrow` struct gained a `uint16 feeBps` field at the end. For existing v3 escrows (assuming NEW-01 is fixed), this field was not present in v3 and would read as 0 from uninitialized storage.
+
+When `release()` calculates the fee:
+```solidity
+uint256 fee = (e.amount * e.feeBps) / 10_000;  // e.feeBps = 0 for v3 escrows
+```
+
+The fee would be 0, meaning merchants receive the full amount with no protocol fee deducted.
+
+**Impact:** Protocol loses fee revenue on pre-existing v3 escrows. Merchants benefit. This is arguably acceptable as a one-time migration cost, and the number of in-flight v3 escrows at upgrade time should be small.
+
+**Recommendation:**
+Document this as expected behavior. Alternatively, in the upgrade script, release or refund all pending v3 escrows before upgrading.
+
+---
+
+## v3.0.0 Detailed Findings (for reference)
 
 ### H-01: Disputed Escrow Blocks Funds Indefinitely if Arbiter Key is Lost
 
@@ -498,9 +647,58 @@ All terminal states (RELEASED, REFUNDED, RESOLVED_*) are correctly guarded — n
 
 ---
 
+## New v4 Features — Security Assessment
+
+### Group Signature Verification (`batchDepositWithGroupApproval`)
+
+| Check | Result |
+|-------|--------|
+| EIP-712 structured data | Correct — typehash, domain separator, struct hash all properly computed |
+| `ecrecover` zero-address check | `signer == address(0) \|\| signer != coreOperator` — correct |
+| Replay protection | `usedGroupIds[groupId]` mapping — prevents reuse |
+| Signature malleability | Not exploitable — groupId replay protection prevents double-use regardless of malleability |
+| Domain separator includes chainId | Yes — prevents cross-chain replay |
+| Domain separator includes contract address | Yes — prevents cross-contract replay |
+| `requireGroupSig` toggle | Correctly blocks `batchDepositWithAuthorization` when enabled |
+
+**Assessment:** Group signature verification is correctly implemented. The EIP-712 signing and verification follow best practices.
+
+### Dispute Auto-Resolution (`refundUnresolvedDispute`)
+
+| Check | Result |
+|-------|--------|
+| Status check | Requires `DISPUTED` — correct |
+| Timeout calculation | `e.disputeDeadline + arbitrationTimeout` — correct |
+| CEI pattern | Check → Effect (status) → Interaction (transfer) — correct |
+| `nonReentrant` | Present — correct |
+| Overflow | Solidity 0.8.24 built-in protection — reverts safely |
+
+**Assessment:** Correctly implemented. Fixes H-01 as intended.
+
+### Fee Snapshot (`Escrow.feeBps`)
+
+| Check | Result |
+|-------|--------|
+| Snapshot at deposit | `_createEscrow` stores `protocolFeeBps` — correct |
+| Used at release | `e.amount * e.feeBps` — uses snapshot, not global — correct |
+| Struct packing | `EscrowStatus` (1 byte) + `feeBps` (2 bytes) pack into same slot — efficient |
+
+**Assessment:** Correctly implemented. Fixes L-04 as intended.
+
+---
+
 ## Conclusion
 
-NexusPayEscrow v4.0.0 addresses all critical and high-severity findings from the v3.0.0 audit:
+NexusPayEscrow v4.0.0 successfully addresses 6 of 12 v3.0.0 findings and adds robust group signature verification. However, the re-audit revealed a **CRITICAL storage layout collision (NEW-01)** that must be fixed before deploying the upgrade.
+
+### MUST FIX Before Upgrade
+
+| ID | Severity | Fix |
+|----|----------|-----|
+| **NEW-01** | CRITICAL | Move `arbitrationTimeout`, `usedGroupIds`, `requireGroupSig` AFTER `_escrows` in storage declaration order |
+| NEW-02 | MEDIUM | Set `arbitrationTimeout` in `initialize()` or Deploy.s.sol |
+
+### v3 Fixes Verified
 
 - **H-01 FIXED** — `refundUnresolvedDispute()` prevents permanent fund lockup
 - **M-01 FIXED** — Upgrade script corrects PlatON ms timeout values
@@ -509,8 +707,6 @@ NexusPayEscrow v4.0.0 addresses all critical and high-severity findings from the
 - **L-01 FIXED** — `dispute()` now has `nonReentrant`
 - **L-04 FIXED** — `Escrow.feeBps` snapshot prevents retroactive fee changes
 - **I-03 FIXED** — Fuzz tests for fee and split invariants
-
-Additionally, v4.0.0 adds **on-chain group signature verification** (`batchDepositWithGroupApproval`) which prevents MITM tampering of batch deposit entries. This is the core security enhancement for the Nexus payment flow.
 
 ### Remaining Items (Accepted / Won't Fix)
 
@@ -521,3 +717,5 @@ Additionally, v4.0.0 adds **on-chain group signature verification** (`batchDepos
 | I-01 | Accepted | Single owner is acceptable for devnet; multi-sig for production |
 | I-02 | Won't fix | ERC-165 not needed for escrow contract |
 | I-04 | Accepted | UUPS upgrade covers USDC migration scenario |
+| NEW-03 | Won't fix | Gas overhead acceptable at MAX_BATCH_SIZE=20 |
+| NEW-04 | Accepted | One-time migration cost, v3 escrow count expected to be low |
