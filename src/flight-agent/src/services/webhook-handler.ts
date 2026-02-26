@@ -79,6 +79,7 @@ export function verifyWebhookSignature(
 
 /** Maps webhook event types to local order status changes */
 const STATUS_MAP: Partial<Record<WebhookEventType, "PAID" | "EXPIRED">> = {
+  "payment.escrowed": "PAID",
   "payment.settled": "PAID",
   "payment.expired": "EXPIRED",
 };
