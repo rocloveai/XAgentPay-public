@@ -262,31 +262,27 @@ function createNexusCoreServer(): McpServer {
           payerWallet: payer_wallet,
         });
 
+        const checkoutUrl = result.paymentRequired.checkout_url;
+        const paymentLines = result.payments
+          .map(
+            (p, i) =>
+              `  ${i + 1}. ${p.merchant_order_ref} — ${p.amount_display} ${p.currency}`,
+          )
+          .join("\n");
+
         return {
           content: [
             {
               type: "text" as const,
               text:
-                `Payment Group Created\n` +
-                `Group ID: ${result.group.group_id}\n` +
-                `Total Amount: ${result.group.total_amount_display} ${result.group.currency}\n` +
-                `Payments: ${result.payments.length}\n` +
-                `Status: ${result.group.status}\n\n` +
-                `Payments:\n` +
-                result.payments
-                  .map(
-                    (p, i) =>
-                      `  ${i + 1}. ${p.merchant_order_ref} — ${p.amount_display} ${p.currency} (${p.nexus_payment_id})`,
-                  )
-                  .join("\n") +
-                `\n\n## Payment Options\n` +
-                `**Option A (Browser):** Direct the user to open this checkout URL in MetaMask browser:\n` +
-                `  ${result.paymentRequired.checkout_url}\n\n` +
-                `**Option B (Direct):** Use the instruction below to have the user sign EIP-3009 and submit the batchDeposit tx directly.\n` +
-                `  User action: ${result.instruction.user_action}\n` +
-                `  Gas paid by: ${result.instruction.gas_paid_by}\n\n` +
-                `HTTP 402 Payment Required Response:\n` +
-                JSON.stringify(result.paymentRequired, null, 2),
+                `CHECKOUT_URL: ${checkoutUrl}\n\n` +
+                `Direct the user to open the checkout URL above in their browser (MetaMask required). ` +
+                `Do NOT construct your own URL — use the exact checkout_url returned here.\n\n` +
+                `Payment Summary:\n` +
+                `  Group: ${result.group.group_id}\n` +
+                `  Total: ${result.group.total_amount_display} ${result.group.currency} (${result.payments.length} payment${result.payments.length > 1 ? "s" : ""})\n` +
+                paymentLines +
+                `\n\nTo track status later: nexus_get_payment_status({ group_id: "${result.group.group_id}" })`,
             },
           ],
         };
