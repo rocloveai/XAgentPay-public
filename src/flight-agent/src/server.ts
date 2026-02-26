@@ -28,12 +28,21 @@ if (config.databaseUrl) {
   console.error("Warning: DATABASE_URL not set. Using in-memory storage only.");
 }
 
-// In-memory cache: offer_id -> FlightOffer (shared across connections)
-const offerCache = new Map<string, FlightOffer>();
+// Stateless REST calls share a process-level cache (offer_id contains unique
+// timestamp prefix so there's no cross-user collision risk)
+const statelessOfferCache = new Map<string, FlightOffer>();
 
-// ── Tool Implementations (Shared) ───────────────────────────────────────────
+// ── Tool Implementations (accept offerCache as parameter) ───────────────────
 
-async function handleSearchFlights({ origin, destination, date, passengers }: { origin: string, destination: string, date: string, passengers: number }) {
+async function handleSearchFlights(
+  cache: Map<string, FlightOffer>,
+  {
+    origin,
+    destination,
+    date,
+    passengers,
+  }: { origin: string; destination: string; date: string; passengers: number },
+) {
   const { offers, error } = await searchFlights({
     origin: origin.toUpperCase(),
     destination: destination.toUpperCase(),
@@ -42,7 +51,7 @@ async function handleSearchFlights({ origin, destination, date, passengers }: { 
   });
 
   for (const offer of offers) {
-    offerCache.set(offer.offer_id, offer);
+    cache.set(offer.offer_id, offer);
   }
 
   const lines = offers.map(
@@ -60,14 +69,25 @@ async function handleSearchFlights({ origin, destination, date, passengers }: { 
 
   return {
     text: header + lines.join("\n\n"),
-    data: offers
+    data: offers,
   };
 }
 
-async function handleGenerateQuote({ flight_offer_id, payer_wallet }: { flight_offer_id: string, payer_wallet: string }) {
-  const offer = offerCache.get(flight_offer_id);
+async function handleGenerateQuote(
+  cache: Map<string, FlightOffer>,
+  {
+    flight_offer_id,
+    payer_wallet,
+  }: {
+    flight_offer_id: string;
+    payer_wallet: string;
+  },
+) {
+  const offer = cache.get(flight_offer_id);
   if (!offer) {
-    throw new Error(`Flight offer "${flight_offer_id}" not found. Please search for flights first.`);
+    throw new Error(
+      `Flight offer "${flight_offer_id}" not found. Please search for flights first.`,
+    );
   }
 
   const orderRef = newOrderRef();
@@ -123,13 +143,14 @@ async function handleGenerateQuote({ flight_offer_id, payer_wallet }: { flight_o
     totals: [
       {
         type: "total",
-        amount: Math.round(parseFloat(totalAmount) * 1e6).toString(),
+        amount: quote.amount,
       },
     ],
   };
 
   return {
-    text: `Nexus Payment Quote Generated\n` +
+    text:
+      `Nexus Payment Quote Generated\n` +
       `Order Ref: ${order.order_ref}\n` +
       `Original Amount: ${totalAmount} USDC\n` +
       `Demo Discount: 0.10 USDC (test mode)\n` +
@@ -138,7 +159,7 @@ async function handleGenerateQuote({ flight_offer_id, payer_wallet }: { flight_o
       `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
       `NUPS Payload (UCP Checkout Format):\n${JSON.stringify(ucpCheckoutResponse, null, 2)}`,
     data: ucpCheckoutResponse,
-    order_ref: order.order_ref
+    order_ref: order.order_ref,
   };
 }
 
@@ -149,20 +170,22 @@ async function handleCheckStatus({ order_ref }: { order_ref: string }) {
   }
 
   return {
-    text: `Order Status\n` +
+    text:
+      `Order Status\n` +
       `Ref: ${order.order_ref}\n` +
       `Status: ${order.status}\n` +
       `Amount: ${order.quote_payload.amount} ${order.quote_payload.currency}\n` +
       `Summary: ${order.quote_payload.context.summary}\n` +
       `Created: ${order.created_at}\n` +
       `Updated: ${order.updated_at}`,
-    data: order
+    data: order,
   };
 }
 
 // ── McpServer factory (one instance per SSE connection) ─────────────────────
 
 function createMcpServer(): McpServer {
+  const sessionOfferCache = new Map<string, FlightOffer>();
   const srv = new McpServer({
     name: "nexus-flight-agent",
     version: "0.1.0",
@@ -190,7 +213,12 @@ function createMcpServer(): McpServer {
         .describe("Number of passengers (1-9)"),
     },
     async ({ origin, destination, date, passengers }) => {
-      const result = await handleSearchFlights({ origin, destination, date, passengers });
+      const result = await handleSearchFlights(sessionOfferCache, {
+        origin,
+        destination,
+        date,
+        passengers,
+      });
       return {
         content: [{ type: "text" as const, text: result.text }],
       };
@@ -213,7 +241,10 @@ function createMcpServer(): McpServer {
     },
     async ({ flight_offer_id, payer_wallet }) => {
       try {
-        const result = await handleGenerateQuote({ flight_offer_id, payer_wallet });
+        const result = await handleGenerateQuote(sessionOfferCache, {
+          flight_offer_id,
+          payer_wallet,
+        });
         return {
           content: [{ type: "text" as const, text: result.text }],
         };
@@ -349,9 +380,9 @@ async function handleStatelessCall(
 
     let result;
     if (tool === "search_flights") {
-      result = await handleSearchFlights(args);
+      result = await handleSearchFlights(statelessOfferCache, args);
     } else if (tool === "nexus_generate_quote") {
-      result = await handleGenerateQuote(args);
+      result = await handleGenerateQuote(statelessOfferCache, args);
     } else if (tool === "nexus_check_status") {
       result = await handleCheckStatus(args);
     } else {
@@ -391,7 +422,7 @@ async function startHttpMode() {
         res.on("close", () => {
           const session = sessions.get(transport.sessionId);
           if (session) {
-            session.server.close().catch(() => { });
+            session.server.close().catch(() => {});
             sessions.delete(transport.sessionId);
           }
         });

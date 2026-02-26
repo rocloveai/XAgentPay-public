@@ -28,12 +28,23 @@ if (config.databaseUrl) {
   console.error("Warning: DATABASE_URL not set. Using in-memory storage only.");
 }
 
-// In-memory cache: offer_id -> { offer, nights } (shared across connections)
-const offerCache = new Map<string, { offer: HotelOffer; nights: number }>();
+type HotelCacheEntry = { offer: HotelOffer; nights: number };
 
-// ── Tool Implementations (Shared) ───────────────────────────────────────────
+// Stateless REST calls share a process-level cache (offer_id contains unique
+// timestamp prefix so there's no cross-user collision risk)
+const statelessOfferCache = new Map<string, HotelCacheEntry>();
 
-async function handleSearchHotels({ city, check_in, check_out, guests }: { city: string, check_in: string, check_out: string, guests: number }) {
+// ── Tool Implementations (accept offerCache as parameter) ───────────────────
+
+async function handleSearchHotels(
+  cache: Map<string, HotelCacheEntry>,
+  {
+    city,
+    check_in,
+    check_out,
+    guests,
+  }: { city: string; check_in: string; check_out: string; guests: number },
+) {
   const { offers, nights, error } = await searchHotels({
     city,
     check_in,
@@ -46,7 +57,7 @@ async function handleSearchHotels({ city, check_in, check_out, guests }: { city:
   }
 
   for (const offer of offers) {
-    offerCache.set(offer.offer_id, { offer, nights });
+    cache.set(offer.offer_id, { offer, nights });
   }
 
   const stars = (n: number) => "\u2605".repeat(n) + "\u2606".repeat(5 - n);
@@ -62,23 +73,35 @@ async function handleSearchHotels({ city, check_in, check_out, guests }: { city:
   );
 
   return {
-    text: `Hotels in ${city} (${check_in} to ${check_out}, ${nights} nights, ${guests} guest(s)):\n\n` +
+    text:
+      `Hotels in ${city} (${check_in} to ${check_out}, ${nights} nights, ${guests} guest(s)):\n\n` +
       lines.join("\n\n"),
-    data: { offers, nights }
+    data: { offers, nights },
   };
 }
 
-async function handleGenerateQuote({ hotel_offer_id, payer_wallet }: { hotel_offer_id: string, payer_wallet: string }) {
-  const cached = offerCache.get(hotel_offer_id);
+async function handleGenerateQuote(
+  cache: Map<string, HotelCacheEntry>,
+  {
+    hotel_offer_id,
+    payer_wallet,
+  }: {
+    hotel_offer_id: string;
+    payer_wallet: string;
+  },
+) {
+  const cached = cache.get(hotel_offer_id);
   if (!cached) {
-    throw new Error(`Hotel offer "${hotel_offer_id}" not found. Please search for hotels first.`);
+    throw new Error(
+      `Hotel offer "${hotel_offer_id}" not found. Please search for hotels first.`,
+    );
   }
 
   const { offer, nights } = cached;
   const orderRef = newOrderRef();
-  const roomTotal = (
-    parseFloat(offer.price_per_night.amount) * nights
-  ).toFixed(2);
+  const roomTotal = (parseFloat(offer.price_per_night.amount) * nights).toFixed(
+    2,
+  );
   const taxAmount = (parseFloat(roomTotal) * 0.1).toFixed(2);
   const serviceCharge = (parseFloat(roomTotal) * 0.05).toFixed(2);
   const totalAmount = (
@@ -135,13 +158,14 @@ async function handleGenerateQuote({ hotel_offer_id, payer_wallet }: { hotel_off
     totals: [
       {
         type: "total",
-        amount: Math.round(parseFloat(totalAmount) * 1e6).toString(),
+        amount: quote.amount,
       },
     ],
   };
 
   return {
-    text: `Nexus Payment Quote Generated\n` +
+    text:
+      `Nexus Payment Quote Generated\n` +
       `Order Ref: ${order.order_ref}\n` +
       `Original Amount: ${totalAmount} USDC\n` +
       `Demo Discount: 0.10 USDC (test mode)\n` +
@@ -150,7 +174,7 @@ async function handleGenerateQuote({ hotel_offer_id, payer_wallet }: { hotel_off
       `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
       `NUPS Payload (UCP Checkout Format):\n${JSON.stringify(ucpCheckoutResponse, null, 2)}`,
     data: ucpCheckoutResponse,
-    order_ref: order.order_ref
+    order_ref: order.order_ref,
   };
 }
 
@@ -161,20 +185,22 @@ async function handleCheckStatus({ order_ref }: { order_ref: string }) {
   }
 
   return {
-    text: `Order Status\n` +
+    text:
+      `Order Status\n` +
       `Ref: ${order.order_ref}\n` +
       `Status: ${order.status}\n` +
       `Amount: ${order.quote_payload.amount} ${order.quote_payload.currency}\n` +
       `Summary: ${order.quote_payload.context.summary}\n` +
       `Created: ${order.created_at}\n` +
       `Updated: ${order.updated_at}`,
-    data: order
+    data: order,
   };
 }
 
 // ── McpServer factory (one instance per SSE connection) ─────────────────────
 
 function createMcpServer(): McpServer {
+  const sessionOfferCache = new Map<string, HotelCacheEntry>();
   const srv = new McpServer({
     name: "nexus-hotel-agent",
     version: "0.1.0",
@@ -201,7 +227,12 @@ function createMcpServer(): McpServer {
     },
     async ({ city, check_in, check_out, guests }) => {
       try {
-        const result = await handleSearchHotels({ city, check_in, check_out, guests });
+        const result = await handleSearchHotels(sessionOfferCache, {
+          city,
+          check_in,
+          check_out,
+          guests,
+        });
         return {
           content: [{ type: "text" as const, text: result.text }],
         };
@@ -230,7 +261,10 @@ function createMcpServer(): McpServer {
     },
     async ({ hotel_offer_id, payer_wallet }) => {
       try {
-        const result = await handleGenerateQuote({ hotel_offer_id, payer_wallet });
+        const result = await handleGenerateQuote(sessionOfferCache, {
+          hotel_offer_id,
+          payer_wallet,
+        });
         return {
           content: [{ type: "text" as const, text: result.text }],
         };
@@ -366,9 +400,9 @@ async function handleStatelessCall(
 
     let result;
     if (tool === "search_hotels") {
-      result = await handleSearchHotels(args);
+      result = await handleSearchHotels(statelessOfferCache, args);
     } else if (tool === "nexus_generate_quote") {
-      result = await handleGenerateQuote(args);
+      result = await handleGenerateQuote(statelessOfferCache, args);
     } else if (tool === "nexus_check_status") {
       result = await handleCheckStatus(args);
     } else {
@@ -408,7 +442,7 @@ async function startHttpMode() {
         res.on("close", () => {
           const session = sessions.get(transport.sessionId);
           if (session) {
-            session.server.close().catch(() => { });
+            session.server.close().catch(() => {});
             sessions.delete(transport.sessionId);
           }
         });
