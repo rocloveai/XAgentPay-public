@@ -50,6 +50,7 @@ import {
 import { NeonStarRepository } from "./db/star-repo.js";
 import { normalizeQuotes } from "./normalize-quotes.js";
 import { createLogger } from "./logger.js";
+import { handleRestApiRequest, type RestApiDeps } from "./rest-api.js";
 
 const serverLog = createLogger("NexusCore");
 
@@ -1264,6 +1265,21 @@ async function main(): Promise<void> {
           );
           return;
         }
+
+        // Stateless REST API routes (/api/payments, /api/agents)
+        const restApiDeps: RestApiDeps = {
+          orchestrator,
+          merchantRepo,
+          starRepo,
+          kvRepo,
+        };
+        const restHandled = await handleRestApiRequest(
+          restApiDeps,
+          req,
+          res,
+          url,
+        );
+        if (restHandled) return;
 
         // Checkout routes (before portal, since portal handles /)
         const checkoutDeps: CheckoutDeps = {

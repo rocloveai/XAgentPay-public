@@ -1,0 +1,448 @@
+/**
+ * NexusPay Core — Stateless REST API routes.
+ *
+ * Pure HTTP endpoints for LLM tools that cannot use MCP SSE transport.
+ * All endpoints are stateless — no session or cookie required.
+ */
+import type { IncomingMessage, ServerResponse } from "node:http";
+import type { NexusOrchestrator } from "./services/orchestrator.js";
+import type { MerchantRepository } from "./db/interfaces/merchant-repo.js";
+import type { StarRepository } from "./db/interfaces/star-repo.js";
+import type { KVRepository } from "./db/interfaces/kv-repo.js";
+import type { MerchantRecord } from "./types.js";
+import { createLogger } from "./logger.js";
+
+const log = createLogger("REST-API");
+
+// ---------------------------------------------------------------------------
+// Dependencies
+// ---------------------------------------------------------------------------
+
+export interface RestApiDeps {
+  readonly orchestrator: NexusOrchestrator;
+  readonly merchantRepo: MerchantRepository;
+  readonly starRepo: StarRepository;
+  readonly kvRepo: KVRepository | null;
+}
+
+// ---------------------------------------------------------------------------
+// IP Rate Limiter (Token Bucket, in-memory fallback)
+// ---------------------------------------------------------------------------
+
+interface RateBucket {
+  tokens: number;
+  lastRefill: number;
+}
+
+const RATE_BUCKETS = new Map<string, RateBucket>();
+const RATE_CAPACITY = 30; // max burst
+const RATE_REFILL_PER_SEC = 0.5; // 30 req/min
+const RATE_CLEANUP_INTERVAL = 60_000;
+
+// Periodic cleanup of stale buckets (prevent memory leak)
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, bucket] of RATE_BUCKETS) {
+    if (now - bucket.lastRefill > 300_000) {
+      RATE_BUCKETS.delete(key);
+    }
+  }
+}, RATE_CLEANUP_INTERVAL).unref();
+
+function checkRateLimit(ip: string): {
+  allowed: boolean;
+  remaining: number;
+  resetMs: number;
+} {
+  const now = Date.now();
+  let bucket = RATE_BUCKETS.get(ip);
+
+  if (!bucket) {
+    bucket = { tokens: RATE_CAPACITY - 1, lastRefill: now };
+    RATE_BUCKETS.set(ip, bucket);
+    return { allowed: true, remaining: bucket.tokens, resetMs: now + 60_000 };
+  }
+
+  // Refill tokens
+  const elapsedSec = (now - bucket.lastRefill) / 1000;
+  const refilled = Math.min(
+    RATE_CAPACITY,
+    bucket.tokens + elapsedSec * RATE_REFILL_PER_SEC,
+  );
+
+  if (refilled >= 1) {
+    const updated = { tokens: refilled - 1, lastRefill: now };
+    RATE_BUCKETS.set(ip, updated);
+    return {
+      allowed: true,
+      remaining: Math.floor(updated.tokens),
+      resetMs: now + 60_000,
+    };
+  }
+
+  return { allowed: false, remaining: 0, resetMs: now + 60_000 };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+} as const;
+
+function jsonResponse(
+  res: ServerResponse,
+  status: number,
+  body: unknown,
+): void {
+  res.writeHead(status, {
+    "Content-Type": "application/json",
+    ...CORS_HEADERS,
+  });
+  res.end(JSON.stringify(body, null, 2));
+}
+
+function getClientIp(req: IncomingMessage): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
+  return req.socket.remoteAddress ?? "unknown";
+}
+
+function addRateLimitHeaders(
+  res: ServerResponse,
+  remaining: number,
+  resetMs: number,
+): void {
+  res.setHeader("X-RateLimit-Limit", String(RATE_CAPACITY));
+  res.setHeader("X-RateLimit-Remaining", String(remaining));
+  res.setHeader(
+    "X-RateLimit-Reset",
+    String(Math.floor(resetMs / 1000)),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
+
+/**
+ * Handle stateless REST API requests.
+ * Returns true if the request was handled, false otherwise.
+ */
+export async function handleRestApiRequest(
+  deps: RestApiDeps,
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: URL,
+): Promise<boolean> {
+  // CORS preflight for all /api/ routes
+  if (req.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
+    res.writeHead(204, CORS_HEADERS);
+    res.end();
+    return true;
+  }
+
+  // Rate limit check (applies to all REST API endpoints below)
+  const ip = getClientIp(req);
+  const rateResult = checkRateLimit(ip);
+  addRateLimitHeaders(res, rateResult.remaining, rateResult.resetMs);
+
+  if (!rateResult.allowed) {
+    jsonResponse(res, 429, {
+      error: { code: "RATE_LIMIT_EXCEEDED", message: "Too many requests" },
+    });
+    return true;
+  }
+
+  // --- GET /api/payments/:id ---
+  const paymentByIdMatch = url.pathname.match(
+    /^\/api\/payments\/(PAY-[A-Za-z0-9_-]+)$/,
+  );
+  if (paymentByIdMatch && req.method === "GET") {
+    return handlePaymentStatus(deps, res, {
+      nexusPaymentId: paymentByIdMatch[1],
+    });
+  }
+
+  // --- GET /api/payments?group_id=...&merchant_order_ref=...&nexus_payment_id=... ---
+  if (url.pathname === "/api/payments" && req.method === "GET") {
+    const groupId = url.searchParams.get("group_id") ?? undefined;
+    const orderRef = url.searchParams.get("merchant_order_ref") ?? undefined;
+    const paymentId = url.searchParams.get("nexus_payment_id") ?? undefined;
+
+    if (!groupId && !orderRef && !paymentId) {
+      jsonResponse(res, 400, {
+        error: {
+          code: "MISSING_PARAMS",
+          message:
+            "Provide at least one of: group_id, merchant_order_ref, nexus_payment_id",
+        },
+      });
+      return true;
+    }
+
+    return handlePaymentStatus(deps, res, {
+      nexusPaymentId: paymentId,
+      merchantOrderRef: orderRef,
+      groupId,
+    });
+  }
+
+  // --- GET /api/agents ---
+  if (url.pathname === "/api/agents" && req.method === "GET") {
+    return handleAgentDiscovery(deps, res, {
+      query: url.searchParams.get("query") ?? undefined,
+      category: url.searchParams.get("category") ?? undefined,
+      limit: url.searchParams.has("limit")
+        ? Number(url.searchParams.get("limit"))
+        : undefined,
+    });
+  }
+
+  // --- GET /api/agents/:did/skill ---
+  // DID format: did:nexus:20250407:demo_flight (contains colons)
+  const agentSkillMatch = url.pathname.match(
+    /^\/api\/agents\/(did:nexus:[^/]+)\/skill$/,
+  );
+  if (agentSkillMatch && req.method === "GET") {
+    return handleAgentSkill(deps, res, agentSkillMatch[1]);
+  }
+
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/payments — Payment Status
+// ---------------------------------------------------------------------------
+
+async function handlePaymentStatus(
+  deps: RestApiDeps,
+  res: ServerResponse,
+  params: {
+    nexusPaymentId?: string;
+    merchantOrderRef?: string;
+    groupId?: string;
+  },
+): Promise<true> {
+  try {
+    const result = await deps.orchestrator.getPaymentStatus({
+      nexusPaymentId: params.nexusPaymentId,
+      merchantOrderRef: params.merchantOrderRef,
+      groupId: params.groupId,
+    });
+
+    if (!result.payment && !result.group) {
+      jsonResponse(res, 404, {
+        error: { code: "NOT_FOUND", message: "Payment or group not found" },
+      });
+      return true;
+    }
+
+    // Build safe response (exclude sensitive fields like quote_payload, iso_metadata)
+    const payment = result.payment
+      ? {
+          nexus_payment_id: result.payment.nexus_payment_id,
+          group_id: result.payment.group_id,
+          status: result.payment.status,
+          amount: result.payment.amount,
+          amount_display: result.payment.amount_display,
+          currency: result.payment.currency,
+          chain_id: result.payment.chain_id,
+          merchant_did: result.payment.merchant_did,
+          merchant_order_ref: result.payment.merchant_order_ref,
+          tx_hash: result.payment.tx_hash,
+          block_number: result.payment.block_number,
+          payment_id_bytes32: result.payment.payment_id_bytes32,
+          created_at: result.payment.created_at,
+          escrowed_at: result.payment.settled_at
+            ? undefined
+            : result.payment.updated_at,
+          settled_at: result.payment.settled_at,
+          completed_at: result.payment.completed_at,
+        }
+      : null;
+
+    const group = result.group
+      ? {
+          group_id: result.group.group_id,
+          status: result.group.status,
+          total_amount: result.group.total_amount,
+          total_amount_display: result.group.total_amount_display,
+          currency: result.group.currency,
+          chain_id: result.group.chain_id,
+          payment_count: result.group.payment_count,
+          tx_hash: result.group.tx_hash,
+          created_at: result.group.created_at,
+        }
+      : null;
+
+    const groupPayments = result.groupPayments.map((p) => ({
+      nexus_payment_id: p.nexus_payment_id,
+      status: p.status,
+      amount_display: p.amount_display,
+      currency: p.currency,
+      merchant_did: p.merchant_did,
+      merchant_order_ref: p.merchant_order_ref,
+    }));
+
+    jsonResponse(res, 200, { payment, group, group_payments: groupPayments });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    log.error("GET /api/payments error", { error: message });
+    jsonResponse(res, 500, {
+      error: { code: "INTERNAL_ERROR", message },
+    });
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/agents — Agent Discovery
+// ---------------------------------------------------------------------------
+
+interface AgentJSON {
+  readonly merchant_did: string;
+  readonly name: string;
+  readonly description: string;
+  readonly category: string;
+  readonly mcp_endpoint: string | null;
+  readonly skill_md_url: string | null;
+  readonly currencies: readonly string[];
+  readonly health_status: string;
+  readonly stars: number;
+  readonly tools: readonly { name: string; role: string }[];
+}
+
+async function handleAgentDiscovery(
+  deps: RestApiDeps,
+  res: ServerResponse,
+  params: { query?: string; category?: string; limit?: number },
+): Promise<true> {
+  try {
+    const merchants = await deps.merchantRepo.listForMarket({
+      category: params.category,
+    });
+
+    const dids = merchants.map((m) => m.merchant_did);
+    const starCounts = await deps.starRepo.getStarCounts(dids);
+
+    // Text filter
+    let filtered: readonly MerchantRecord[] = merchants;
+    if (params.query) {
+      const q = params.query.toLowerCase();
+      filtered = merchants.filter(
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          m.description.toLowerCase().includes(q) ||
+          (m.skill_name?.toLowerCase().includes(q) ?? false),
+      );
+    }
+
+    // Sort: stars DESC → ONLINE first → name ASC
+    const sorted = [...filtered].sort((a, b) => {
+      const starsA = starCounts.get(a.merchant_did) ?? 0;
+      const starsB = starCounts.get(b.merchant_did) ?? 0;
+      if (starsB !== starsA) return starsB - starsA;
+      const onlineA = a.health_status === "ONLINE" ? 0 : 1;
+      const onlineB = b.health_status === "ONLINE" ? 0 : 1;
+      if (onlineA !== onlineB) return onlineA - onlineB;
+      return a.name.localeCompare(b.name);
+    });
+
+    const limit = Math.min(Math.max(params.limit ?? 20, 1), 50);
+    const results = sorted.slice(0, limit);
+
+    const agents: AgentJSON[] = results.map((m) => ({
+      merchant_did: m.merchant_did,
+      name: m.name,
+      description: m.description,
+      category: m.category,
+      mcp_endpoint: m.mcp_endpoint,
+      skill_md_url: m.skill_md_url,
+      currencies: m.currencies,
+      health_status: m.health_status,
+      stars: starCounts.get(m.merchant_did) ?? 0,
+      tools: m.skill_tools,
+    }));
+
+    jsonResponse(res, 200, {
+      agents,
+      total: agents.length,
+      limit,
+      offset: 0,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    log.error("GET /api/agents error", { error: message });
+    jsonResponse(res, 500, {
+      error: { code: "INTERNAL_ERROR", message },
+    });
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/agents/:did/skill — Agent Skill
+// ---------------------------------------------------------------------------
+
+async function handleAgentSkill(
+  deps: RestApiDeps,
+  res: ServerResponse,
+  merchantDid: string,
+): Promise<true> {
+  try {
+    const merchant = await deps.merchantRepo.findByDid(merchantDid);
+    if (!merchant) {
+      jsonResponse(res, 404, {
+        error: {
+          code: "AGENT_NOT_FOUND",
+          message: `Agent not found: ${merchantDid}`,
+        },
+      });
+      return true;
+    }
+
+    if (!merchant.skill_md_url) {
+      jsonResponse(res, 404, {
+        error: {
+          code: "NO_SKILL",
+          message: `Agent ${merchantDid} has no skill.md configured`,
+        },
+      });
+      return true;
+    }
+
+    const response = await fetch(merchant.skill_md_url, {
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!response.ok) {
+      jsonResponse(res, 502, {
+        error: {
+          code: "SKILL_FETCH_FAILED",
+          message: `Failed to fetch skill.md: HTTP ${response.status}`,
+        },
+      });
+      return true;
+    }
+
+    const skillContent = await response.text();
+
+    // Return as markdown with proper content type
+    res.writeHead(200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+      ...CORS_HEADERS,
+    });
+    res.end(skillContent);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    log.error("GET /api/agents/:did/skill error", { error: message });
+    jsonResponse(res, 500, {
+      error: { code: "INTERNAL_ERROR", message },
+    });
+  }
+  return true;
+}

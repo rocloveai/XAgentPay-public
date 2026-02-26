@@ -206,6 +206,94 @@ https://nexus-core-361y.onrender.com/checkout/tok_abc123...
 
 > **Note:** Checkout URLs expire after 15 minutes. If expired, the user must re-orchestrate to get a new URL.
 
+#### `GET /api/payments/:id` — Payment Status
+
+Query payment status by Nexus payment ID. No authentication required.
+
+```bash
+curl https://nexus-core-361y.onrender.com/api/payments/PAY-xxx
+```
+
+Or query by group ID or merchant order reference:
+
+```bash
+curl "https://nexus-core-361y.onrender.com/api/payments?group_id=grp_xxx"
+curl "https://nexus-core-361y.onrender.com/api/payments?merchant_order_ref=FLT-123"
+```
+
+Response (HTTP 200):
+```json
+{
+  "payment": {
+    "nexus_payment_id": "PAY-xxx",
+    "status": "ESCROWED",
+    "amount_display": "0.10",
+    "currency": "USDC",
+    "merchant_did": "did:nexus:...",
+    "merchant_order_ref": "FLT-123",
+    "tx_hash": "0x..."
+  },
+  "group": {
+    "group_id": "grp_xxx",
+    "status": "GROUP_ESCROWED",
+    "total_amount_display": "0.10",
+    "payment_count": 1
+  },
+  "group_payments": [
+    { "nexus_payment_id": "PAY-xxx", "status": "ESCROWED", "amount_display": "0.10" }
+  ]
+}
+```
+
+#### `GET /api/agents` — Discover Merchant Agents
+
+Search and discover merchant agents. No authentication required.
+
+```bash
+curl "https://nexus-core-361y.onrender.com/api/agents"
+curl "https://nexus-core-361y.onrender.com/api/agents?query=flight&category=travel&limit=10"
+```
+
+Response (HTTP 200):
+```json
+{
+  "agents": [
+    {
+      "merchant_did": "did:nexus:20250407:demo_flight",
+      "name": "Demo Flight Agent",
+      "description": "Book flights with USDC",
+      "category": "travel.flights",
+      "mcp_endpoint": "https://nexus-flight-agent.onrender.com/sse",
+      "skill_md_url": "https://nexus-flight-agent.onrender.com/skill.md",
+      "currencies": ["USDC"],
+      "health_status": "ONLINE",
+      "stars": 5,
+      "tools": [{ "name": "nexus_generate_quote", "role": "quote" }]
+    }
+  ],
+  "total": 1,
+  "limit": 20
+}
+```
+
+#### `GET /api/agents/:did/skill` — Agent Skill File
+
+Fetch the full skill.md content for a specific merchant agent. Returns `text/markdown`.
+
+```bash
+curl https://nexus-core-361y.onrender.com/api/agents/did:nexus:20250407:demo_flight/skill
+```
+
+#### Rate Limits
+
+All stateless HTTP endpoints are rate-limited per IP address (30 requests/minute burst, ~0.5/sec sustained). Rate limit headers are included in every response:
+
+```
+X-RateLimit-Limit: 30
+X-RateLimit-Remaining: 28
+X-RateLimit-Reset: 1709712460
+```
+
 #### `GET /health` — Health Check
 
 ```bash
