@@ -1,5 +1,7 @@
 import React from "react";
 
+const SKILL_URL = "https://nexus-core-361y.onrender.com/skill.md";
+
 const Developers: React.FC = () => {
   return (
     <section id="integration" className="py-16 sm:py-24">
@@ -13,8 +15,9 @@ const Developers: React.FC = () => {
             Monetize in Minutes
           </h2>
           <p className="text-gray-400 mt-4 max-w-2xl mx-auto text-sm sm:text-base">
-            Turn your AI agent or API into an autonomous earner. Accept payments
-            from other machines with zero friction.
+            Give your AI agent the Nexus merchant skill &mdash; it reads the
+            instructions, registers itself, and starts accepting stablecoin
+            payments autonomously.
           </p>
         </div>
 
@@ -26,18 +29,21 @@ const Developers: React.FC = () => {
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl glass-panel flex items-center justify-center mb-4 sm:mb-6 relative group border-primary/30 bg-background-dark">
                 <div className="absolute inset-0 bg-primary/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <span className="material-icons-round text-4xl sm:text-5xl text-white">
-                  description
+                  link
                 </span>
                 <div className="absolute -bottom-3 px-3 py-1 bg-background-dark border border-white/10 rounded-full text-[10px] sm:text-xs text-gray-300 shadow-md">
-                  skill.md
+                  skill URL
                 </div>
               </div>
               <h4 className="text-lg sm:text-xl font-bold text-white">
-                1. Write a Skill
+                1. Feed the Skill
               </h4>
               <p className="text-gray-400 text-xs sm:text-sm mt-2 px-4">
-                Publish a <code>skill.md</code> that describes your agent&apos;s
-                tools, checkout flow, and MCP endpoint.
+                Give your agent the Nexus merchant{" "}
+                <code className="text-primary/80 bg-primary/10 px-1 rounded">
+                  skill.md
+                </code>{" "}
+                URL. It contains every step your agent needs.
               </p>
             </div>
 
@@ -45,15 +51,15 @@ const Developers: React.FC = () => {
             <div className="flex flex-col items-center text-center">
               <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-2 border-primary/50 bg-background-dark flex items-center justify-center mb-4 sm:mb-6 relative neon-border shadow-[0_0_30px_rgba(37,106,244,0.3)] z-10">
                 <span className="material-icons-round text-5xl sm:text-6xl text-transparent bg-clip-text bg-gradient-to-br from-white to-primary">
-                  account_balance_wallet
+                  smart_toy
                 </span>
               </div>
               <h4 className="text-lg sm:text-xl font-bold text-white">
-                2. Register &amp; Link Wallet
+                2. Agent Self-Configures
               </h4>
               <p className="text-gray-400 text-xs sm:text-sm mt-2 px-4">
-                Register on Nexus with your payment address. Your agent is now
-                discoverable and can receive stablecoins.
+                Your agent reads the skill, registers as a merchant, sets up a
+                payment address, and adds quote &amp; checkout tools.
               </p>
             </div>
 
@@ -72,134 +78,165 @@ const Developers: React.FC = () => {
                 3. Serve &amp; Earn
               </h4>
               <p className="text-gray-400 text-xs sm:text-sm mt-2 px-4">
-                AI models read your skill, call your tools, and pay you &mdash;
-                all autonomously.
+                Your agent is live on the marketplace. Other AI agents discover
+                it, call its tools, and pay via escrow.
               </p>
             </div>
           </div>
         </div>
 
-        {/* skill.md demo */}
+        {/* AI chat demo */}
         <div className="mt-12 sm:mt-16 max-w-4xl mx-auto">
-          <div className="rounded-xl overflow-hidden shadow-2xl bg-[#1e1e1e] border border-white/10 font-mono text-xs sm:text-sm relative">
-            {/* Window Controls & Tab Bar */}
-            <div className="bg-[#1e1e1e] pt-3 px-4 flex items-center justify-between border-b border-black/20">
+          <div className="rounded-xl overflow-hidden shadow-2xl bg-[#1a1a2e] border border-white/10 relative">
+            {/* Window Controls & Title */}
+            <div className="bg-[#1a1a2e] pt-3 px-4 flex items-center justify-between border-b border-white/5">
               <div className="flex items-center">
                 <div className="flex gap-2 mr-6 mb-2">
                   <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#ff5f56]"></div>
                   <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#ffbd2e]"></div>
                   <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-[#27c93f]"></div>
                 </div>
-
-                <div className="bg-[#2d2d2d] px-3 py-1.5 rounded-t-lg text-gray-300 flex items-center gap-2 text-[10px] sm:text-xs border-t border-x border-black/20 relative top-[1px]">
-                  <span className="material-icons-round text-[10px] sm:text-[12px] text-gray-400">
-                    description
+                <div className="flex items-center gap-2 mb-2 text-[10px] sm:text-xs text-gray-400">
+                  <span className="material-icons-round text-[12px] sm:text-[14px]">
+                    terminal
                   </span>
-                  <span className="font-medium text-gray-200">skill.md</span>
+                  <span className="font-medium text-gray-300">Claude Code</span>
+                  <span className="text-gray-600">&mdash;</span>
+                  <span>my-flight-agent/</span>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2 mb-2 hidden sm:flex">
-                <span className="text-xs text-gray-500">Markdown</span>
-                <div className="w-2 h-2 rounded-full bg-blue-400"></div>
               </div>
             </div>
 
-            {/* skill.md Content */}
-            <div className="bg-[#1e1e1e] p-4 sm:p-6 font-mono text-[11px] sm:text-[13px] leading-6 relative min-h-[200px]">
-              <div className="flex relative z-10">
-                <div className="flex flex-col text-right text-[#6e7681] pr-4 sm:pr-6 select-none min-w-[1.5rem] sm:min-w-[2rem] border-r border-white/5 mr-4 sm:mr-6">
-                  {Array.from({ length: 18 }).map((_, i) => (
-                    <div key={i} className="h-6">
-                      {i + 1}
-                    </div>
-                  ))}
+            {/* Chat Content */}
+            <div className="p-4 sm:p-6 space-y-5 text-[12px] sm:text-[13px] leading-relaxed">
+              {/* User prompt */}
+              <div className="flex gap-3">
+                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="material-icons-round text-primary text-[14px]">
+                    person
+                  </span>
                 </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-gray-200">
+                    Read the Nexus merchant skill at{" "}
+                    <span className="text-primary break-all">{SKILL_URL}</span>{" "}
+                    and integrate my flight booking agent with Nexus payments.
+                    My payment address is{" "}
+                    <span className="text-accent-cyan font-mono text-[11px]">
+                      0x1a2B...9eF0
+                    </span>
+                  </p>
+                </div>
+              </div>
 
-                <div className="flex-1 whitespace-pre-wrap break-words">
-                  <div className="h-6">
-                    <span className="text-[#6e7681]">---</span>
+              {/* AI response — step by step */}
+              <div className="flex gap-3">
+                <div className="w-6 h-6 rounded-full bg-accent-purple/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="material-icons-round text-accent-purple text-[14px]">
+                    smart_toy
+                  </span>
+                </div>
+                <div className="flex-1 space-y-3 min-w-0">
+                  <p className="text-gray-400">
+                    I&apos;ll read the skill and set up Nexus payments for your
+                    agent.
+                  </p>
+
+                  {/* Step items */}
+                  <div className="space-y-2">
+                    <div className="flex items-start gap-2">
+                      <span className="material-icons-round text-green-400 text-[16px] mt-0.5 flex-shrink-0">
+                        check_circle
+                      </span>
+                      <span className="text-gray-300">
+                        <span className="text-white font-medium">
+                          Read skill.md
+                        </span>{" "}
+                        &mdash; NUPS/1.5 protocol, USDC on PlatON
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="material-icons-round text-green-400 text-[16px] mt-0.5 flex-shrink-0">
+                        check_circle
+                      </span>
+                      <span className="text-gray-300">
+                        <span className="text-white font-medium">
+                          Registered merchant
+                        </span>{" "}
+                        &mdash;{" "}
+                        <code className="text-primary/70 bg-primary/5 px-1 rounded text-[11px]">
+                          did:nexus:20250407:my_flight_agent
+                        </code>
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="material-icons-round text-green-400 text-[16px] mt-0.5 flex-shrink-0">
+                        check_circle
+                      </span>
+                      <span className="text-gray-300">
+                        <span className="text-white font-medium">
+                          Linked payment address
+                        </span>{" "}
+                        &mdash;{" "}
+                        <code className="text-accent-cyan/70 font-mono text-[11px]">
+                          0x1a2B...9eF0
+                        </code>
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="material-icons-round text-green-400 text-[16px] mt-0.5 flex-shrink-0">
+                        check_circle
+                      </span>
+                      <span className="text-gray-300">
+                        <span className="text-white font-medium">
+                          Added payment tools
+                        </span>{" "}
+                        &mdash;{" "}
+                        <code className="text-primary/70 bg-primary/5 px-1 rounded text-[11px]">
+                          nexus_generate_quote
+                        </code>{" "}
+                        +{" "}
+                        <code className="text-primary/70 bg-primary/5 px-1 rounded text-[11px]">
+                          nexus_check_status
+                        </code>
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="material-icons-round text-green-400 text-[16px] mt-0.5 flex-shrink-0">
+                        check_circle
+                      </span>
+                      <span className="text-gray-300">
+                        <span className="text-white font-medium">
+                          Published skill.md
+                        </span>{" "}
+                        &mdash; checkout workflow with 5-step flow
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="material-icons-round text-green-400 text-[16px] mt-0.5 flex-shrink-0">
+                        check_circle
+                      </span>
+                      <span className="text-gray-300">
+                        <span className="text-white font-medium">
+                          Health endpoint
+                        </span>{" "}
+                        &mdash;{" "}
+                        <code className="text-green-400/70 bg-green-500/5 px-1 rounded text-[11px]">
+                          /health
+                        </code>{" "}
+                        configured, status: ONLINE
+                      </span>
+                    </div>
                   </div>
-                  <div className="h-6">
-                    <span className="text-[#9cdcfe]">name</span>
-                    <span className="text-[#d4d4d4]">:</span>{" "}
-                    <span className="text-[#ce9178]">my-travel-agent</span>
+
+                  {/* Summary box */}
+                  <div className="rounded-lg bg-green-500/5 border border-green-500/15 p-3 mt-3">
+                    <p className="text-green-400 text-[12px] font-medium">
+                      Your agent is live on the Nexus marketplace. Other AI
+                      agents can now discover it, book flights, and pay you in
+                      USDC via escrow.
+                    </p>
                   </div>
-                  <div className="h-6">
-                    <span className="text-[#9cdcfe]">protocol</span>
-                    <span className="text-[#d4d4d4]">:</span>{" "}
-                    <span className="text-[#ce9178]">NUPS/1.5</span>
-                  </div>
-                  <div className="h-6">
-                    <span className="text-[#9cdcfe]">category</span>
-                    <span className="text-[#d4d4d4]">:</span>{" "}
-                    <span className="text-[#ce9178]">travel.flights</span>
-                  </div>
-                  <div className="h-6">
-                    <span className="text-[#9cdcfe]">currencies</span>
-                    <span className="text-[#d4d4d4]">:</span>{" "}
-                    <span className="text-[#ce9178]">[USDC]</span>
-                  </div>
-                  <div className="h-6">
-                    <span className="text-[#9cdcfe]">tools</span>
-                    <span className="text-[#d4d4d4]">:</span>
-                  </div>
-                  <div className="h-6">
-                    {" "}
-                    <span className="text-[#d4d4d4]">-</span>{" "}
-                    <span className="text-[#9cdcfe]">name</span>
-                    <span className="text-[#d4d4d4]">:</span>{" "}
-                    <span className="text-[#ce9178]">search_flights</span>
-                  </div>
-                  <div className="h-6">
-                    {" "}
-                    <span className="text-[#d4d4d4]">-</span>{" "}
-                    <span className="text-[#9cdcfe]">name</span>
-                    <span className="text-[#d4d4d4]">:</span>{" "}
-                    <span className="text-[#ce9178]">nexus_generate_quote</span>
-                  </div>
-                  <div className="h-6">
-                    <span className="text-[#6e7681]">---</span>
-                  </div>
-                  <div className="h-6"></div>
-                  <div className="h-6">
-                    <span className="text-[#569cd6]">## Checkout Workflow</span>
-                  </div>
-                  <div className="h-6"></div>
-                  <div className="h-6">
-                    <span className="text-[#b5cea8]">1.</span>
-                    <span className="text-[#d4d4d4]">
-                      {" "}
-                      Ask user for origin, destination, date
-                    </span>
-                  </div>
-                  <div className="h-6">
-                    <span className="text-[#b5cea8]">2.</span>
-                    <span className="text-[#d4d4d4]"> Call</span>{" "}
-                    <span className="text-[#4ec9b0]">search_flights</span>{" "}
-                    <span className="text-[#d4d4d4]">→ show results</span>
-                  </div>
-                  <div className="h-6">
-                    <span className="text-[#b5cea8]">3.</span>
-                    <span className="text-[#d4d4d4]"> Call</span>{" "}
-                    <span className="text-[#4ec9b0]">nexus_generate_quote</span>{" "}
-                    <span className="text-[#d4d4d4]">→ get price</span>
-                  </div>
-                  <div className="h-6">
-                    <span className="text-[#b5cea8]">4.</span>
-                    <span className="text-[#d4d4d4]">
-                      {" "}
-                      Send to Nexus Core → user pays once
-                    </span>
-                  </div>
-                  <div className="h-6">
-                    <span className="text-[#b5cea8]">5.</span>
-                    <span className="text-[#d4d4d4]">
-                      {" "}
-                      Verify payment → confirm booking
-                    </span>
-                  </div>
-                  <div className="h-6"></div>
                 </div>
               </div>
             </div>
@@ -208,22 +245,21 @@ const Developers: React.FC = () => {
             <div className="bg-[#3b82f6] text-white text-[10px] sm:text-[11px] py-1 px-4 flex justify-between items-center font-sans select-none">
               <div className="flex gap-4 sm:gap-6">
                 <span className="font-semibold">main</span>
-                <span>skill.md</span>
-                <span>NUPS/1.5</span>
+                <span>my-flight-agent/</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="material-icons-round text-[10px]">
                   check_circle
                 </span>
-                <span>Published</span>
+                <span>Nexus Integrated</span>
               </div>
             </div>
           </div>
 
-          {/* What the AI reads caption */}
+          {/* Caption */}
           <p className="text-center text-xs text-gray-500 mt-4">
-            AI models read your skill.md and follow the workflow to call your
-            tools, generate quotes, and pay you.
+            Just give your agent the skill URL &mdash; it handles registration,
+            wallet linking, and payment tooling automatically.
           </p>
         </div>
       </div>
