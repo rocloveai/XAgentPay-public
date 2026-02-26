@@ -184,7 +184,7 @@ async function handleCheckoutConfirm(
 
     // Fire-and-forget webhook notifications
     for (const payment of payments) {
-      deps.webhookNotifier.notify(payment, "payment.escrowed").catch(() => {});
+      deps.webhookNotifier.notify(payment, "payment.escrowed").catch(() => { });
     }
 
     sendJson(res, 200, {
@@ -975,7 +975,7 @@ export async function handleCheckoutRequest(
   }
 
   // GET /checkout/:groupId — HTML page
-  const htmlMatch = path.match(/^\/checkout\/(GRP-[a-zA-Z0-9_-]+)$/);
+  const htmlMatch = path.match(/^\/checkout\/((?:GRP-|grp_)[a-zA-Z0-9_-]+)$/i);
   if (htmlMatch && req.method === "GET") {
     const groupId = decodeURIComponent(htmlMatch[1]);
     const group = await deps.groupRepo.findById(groupId);
@@ -990,7 +990,7 @@ export async function handleCheckoutRequest(
 
   // POST /api/checkout/:groupId/confirm — confirm user-submitted tx hash
   const confirmMatch = path.match(
-    /^\/api\/checkout\/(GRP-[a-zA-Z0-9_-]+)\/confirm$/,
+    /^\/api\/checkout\/((?:GRP-|grp_)[a-zA-Z0-9_-]+)\/confirm$/i,
   );
   if (confirmMatch && req.method === "POST") {
     const groupId = decodeURIComponent(confirmMatch[1]);
@@ -999,7 +999,7 @@ export async function handleCheckoutRequest(
   }
 
   // GET /api/checkout/:groupId — JSON data
-  const apiMatch = path.match(/^\/api\/checkout\/(GRP-[a-zA-Z0-9_-]+)$/);
+  const apiMatch = path.match(/^\/api\/checkout\/((?:GRP-|grp_)[a-zA-Z0-9_-]+)$/i);
   if (apiMatch && req.method === "GET") {
     const groupId = decodeURIComponent(apiMatch[1]);
     await handleApiCheckout(deps, groupId, res);

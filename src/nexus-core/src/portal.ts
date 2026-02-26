@@ -751,7 +751,7 @@ export async function handlePortalRequest(
     return true;
   }
 
-  const groupMatch = path.match(/^\/api\/groups\/(GRP-[a-zA-Z0-9-]+)$/);
+  const groupMatch = path.match(/^\/api\/groups\/((?:GRP-|grp_)[a-zA-Z0-9_-]+)$/i);
   if (groupMatch && req.method === "GET") {
     await handleApiGroupDetail(deps, decodeURIComponent(groupMatch[1]), res);
     return true;
