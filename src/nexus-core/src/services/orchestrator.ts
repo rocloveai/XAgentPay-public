@@ -162,7 +162,7 @@ export class NexusOrchestrator {
     const baseUrl =
       this.config.baseUrl || `http://localhost:${this.config.port}`;
     const paymentRequired: PaymentRequired402 = {
-      nexus_version: "0.4.0",
+      nexus_version: "0.5.0",
       group_id: group.group_id,
       status: "PAYMENT_REQUIRED",
       checkout_url: `${baseUrl}/checkout/${group.group_id}`,

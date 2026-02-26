@@ -9,8 +9,16 @@ import { updateStatus } from "./order-store.js";
 /** Maximum age of a webhook timestamp before it's rejected (5 minutes) */
 const MAX_TIMESTAMP_DRIFT_S = 300;
 
-/** In-memory idempotency set — prevents duplicate event processing */
-const processedEvents = new Set<string>();
+/** In-memory idempotency map — prevents duplicate event processing (with TTL) */
+const processedEvents = new Map<string, number>();
+const EVENT_TTL_MS = 3_600_000; // 1 hour
+
+function pruneProcessedEvents(): void {
+  const now = Date.now();
+  for (const [id, ts] of processedEvents) {
+    if (now - ts > EVENT_TTL_MS) processedEvents.delete(id);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Signature verification
@@ -85,6 +93,9 @@ export async function handleWebhookEvent(
 ): Promise<WebhookHandleResult> {
   const { event_id, event_type, data } = payload;
 
+  // Prune expired entries to prevent unbounded growth
+  pruneProcessedEvents();
+
   // Idempotency check
   if (processedEvents.has(event_id)) {
     return { accepted: true, action: "duplicate_ignored" };
@@ -94,7 +105,7 @@ export async function handleWebhookEvent(
 
   if (newStatus) {
     const updated = await updateStatus(data.merchant_order_ref, newStatus);
-    processedEvents.add(event_id);
+    processedEvents.set(event_id, Date.now());
 
     if (updated) {
       console.error(
@@ -110,7 +121,7 @@ export async function handleWebhookEvent(
   }
 
   // Acknowledge other events without state change
-  processedEvents.add(event_id);
+  processedEvents.set(event_id, Date.now());
   console.error(`[Webhook] ${event_type}: acknowledged (no status change)`);
   return { accepted: true, action: "acknowledged" };
 }

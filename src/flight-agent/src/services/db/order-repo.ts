@@ -82,13 +82,21 @@ export async function updateOrderStatus(
   };
 }
 
-export async function selectAllOrders(): Promise<readonly Order[]> {
+export async function selectAllOrders(
+  payerWallet?: string,
+): Promise<readonly Order[]> {
   const sql = getPool();
-  const rows = await sql(
-    `SELECT order_ref, status, quote_payload, payer_wallet, created_at, updated_at
-     FROM orders WHERE agent_type = $1 ORDER BY created_at DESC`,
-    [AGENT_TYPE],
-  );
+  const rows = payerWallet
+    ? await sql(
+        `SELECT order_ref, status, quote_payload, payer_wallet, created_at, updated_at
+         FROM orders WHERE agent_type = $1 AND payer_wallet = $2 ORDER BY created_at DESC`,
+        [AGENT_TYPE, payerWallet],
+      )
+    : await sql(
+        `SELECT order_ref, status, quote_payload, payer_wallet, created_at, updated_at
+         FROM orders WHERE agent_type = $1 ORDER BY created_at DESC`,
+        [AGENT_TYPE],
+      );
 
   return rows.map((row) => ({
     order_ref: row.order_ref as string,

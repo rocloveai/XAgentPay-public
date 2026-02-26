@@ -68,9 +68,15 @@ export function newOrderRef(): string {
   return generateOrderRef();
 }
 
-export async function listOrders(): Promise<readonly Order[]> {
+export async function listOrders(
+  payerWallet?: string,
+): Promise<readonly Order[]> {
   if (isPoolInitialized()) {
-    return selectAllOrders();
+    return selectAllOrders(payerWallet);
   }
-  return Array.from(memOrders.values());
+  const all = Array.from(memOrders.values());
+  if (payerWallet) {
+    return all.filter((o) => o.payer_wallet === payerWallet);
+  }
+  return all;
 }

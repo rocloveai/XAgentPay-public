@@ -134,7 +134,7 @@ if (config.relayerPrivateKey) {
 // MCP Server
 // ---------------------------------------------------------------------------
 
-const NEXUS_CORE_VERSION = "0.4.0";
+const NEXUS_CORE_VERSION = "0.5.0";
 
 // Read skill.md from disk (fallback to hardcoded string)
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -146,671 +146,382 @@ try {
     "# Nexus Core\n\nPayment orchestration MCP server. Use nexus_orchestrate_payment tool.";
 }
 
-const server = new McpServer({
-  name: "nexus-core",
-  version: NEXUS_CORE_VERSION,
-});
+// ---------------------------------------------------------------------------
+// McpServer factory — one instance per SSE connection (or one for stdio)
+// ---------------------------------------------------------------------------
 
-// Tool: nexus_orchestrate_payment
-server.tool(
-  "nexus_orchestrate_payment",
-  "Orchestrate aggregated payment for one or more merchant quotes. Returns a single EIP-3009 signing instruction covering the total amount. Pass quotes as EITHER the quotes array OR a quotes_json string (preferred for CLI compatibility).",
-  {
-    quotes: z
-      .array(z.record(z.unknown()))
-      .optional()
-      .describe(
-        "Array of NexusQuotePayload objects. Optional if quotes_json is provided.",
-      ),
-    quotes_json: z
-      .string()
-      .optional()
-      .describe(
-        'JSON string of the quotes array — use this instead of quotes for better CLI compatibility. Example: \'[{"merchant_did":"...","amount":"...","signature":"..."}]\'',
-      ),
-    payer_wallet: z
-      .string()
-      .regex(/^0x[a-fA-F0-9]{40}$/)
-      .describe("Payer EVM wallet address"),
-  },
-  async ({ quotes, quotes_json, payer_wallet }) => {
-    // Declare outside try so catch block can access for diagnostics
-    let rawQuotes: Record<string, unknown>[] = [];
-    try {
-      // Helper: try parsing a JSON string into an array of quote objects
-      function tryParseQuotesJson(
-        json: string,
-      ): Record<string, unknown>[] | null {
-        try {
-          const parsed = JSON.parse(json);
-          if (Array.isArray(parsed)) return parsed;
-          if (parsed && typeof parsed === "object") return [parsed];
-        } catch {
-          /* not valid JSON */
+function createNexusCoreServer(): McpServer {
+  const srv = new McpServer({
+    name: "nexus-core",
+    version: NEXUS_CORE_VERSION,
+  });
+
+  // Tool: nexus_orchestrate_payment
+  srv.tool(
+    "nexus_orchestrate_payment",
+    "Orchestrate aggregated payment for one or more merchant quotes. Returns a single EIP-3009 signing instruction covering the total amount. Pass quotes as EITHER the quotes array OR a quotes_json string (preferred for CLI compatibility).",
+    {
+      quotes: z
+        .array(z.record(z.unknown()))
+        .optional()
+        .describe(
+          "Array of NexusQuotePayload objects. Optional if quotes_json is provided.",
+        ),
+      quotes_json: z
+        .string()
+        .optional()
+        .describe(
+          'JSON string of the quotes array — use this instead of quotes for better CLI compatibility. Example: \'[{"merchant_did":"...","amount":"...","signature":"..."}]\'',
+        ),
+      payer_wallet: z
+        .string()
+        .regex(/^0x[a-fA-F0-9]{40}$/)
+        .describe("Payer EVM wallet address"),
+    },
+    async ({ quotes, quotes_json, payer_wallet }) => {
+      // Declare outside try so catch block can access for diagnostics
+      let rawQuotes: Record<string, unknown>[] = [];
+      try {
+        // Helper: try parsing a JSON string into an array of quote objects
+        function tryParseQuotesJson(
+          json: string,
+        ): Record<string, unknown>[] | null {
+          try {
+            const parsed = JSON.parse(json);
+            if (Array.isArray(parsed)) return parsed;
+            if (parsed && typeof parsed === "object") return [parsed];
+          } catch {
+            /* not valid JSON */
+          }
+          return null;
         }
-        return null;
-      }
 
-      // Helper: check if a value looks like a real quote object
-      function isQuoteObject(v: unknown): boolean {
-        return (
-          v != null &&
-          typeof v === "object" &&
-          !Array.isArray(v) &&
-          typeof (v as Record<string, unknown>).merchant_did === "string"
-        );
-      }
+        // Helper: check if a value looks like a real quote object
+        function isQuoteObject(v: unknown): boolean {
+          return (
+            v != null &&
+            typeof v === "object" &&
+            !Array.isArray(v) &&
+            typeof (v as Record<string, unknown>).merchant_did === "string"
+          );
+        }
 
-      // Resolve quotes from either parameter, with smart fallbacks
-      if (quotes_json) {
-        // Prefer quotes_json when provided — it's the most reliable
-        const parsed = tryParseQuotesJson(quotes_json);
-        if (parsed) {
-          rawQuotes = parsed;
+        // Resolve quotes from either parameter, with smart fallbacks
+        if (quotes_json) {
+          // Prefer quotes_json when provided — it's the most reliable
+          const parsed = tryParseQuotesJson(quotes_json);
+          if (parsed) {
+            rawQuotes = parsed;
+          } else {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Error: quotes_json is not valid JSON",
+                },
+              ],
+              isError: true,
+            };
+          }
+        } else if (quotes && Array.isArray(quotes) && quotes.length > 0) {
+          // Check if first element is a real quote object
+          if (isQuoteObject(quotes[0])) {
+            rawQuotes = quotes;
+          } else if (
+            typeof quotes[0] === "string" &&
+            (quotes[0] as string).startsWith("{")
+          ) {
+            // MCP client may have split a JSON string into array elements
+            const joined = quotes.join("");
+            const parsed = tryParseQuotesJson(joined);
+            if (parsed) {
+              rawQuotes = parsed;
+            } else {
+              rawQuotes = quotes; // let downstream validation catch it
+            }
+          } else {
+            rawQuotes = quotes; // let downstream validation catch it
+          }
         } else {
           return {
             content: [
               {
                 type: "text" as const,
-                text: "Error: quotes_json is not valid JSON",
+                text: "Error: Either quotes or quotes_json must be provided",
               },
             ],
             isError: true,
           };
         }
-      } else if (quotes && Array.isArray(quotes) && quotes.length > 0) {
-        // Check if first element is a real quote object
-        if (isQuoteObject(quotes[0])) {
-          rawQuotes = quotes;
-        } else if (
-          typeof quotes[0] === "string" &&
-          (quotes[0] as string).startsWith("{")
-        ) {
-          // MCP client may have split a JSON string into array elements
-          const joined = quotes.join("");
-          const parsed = tryParseQuotesJson(joined);
-          if (parsed) {
-            rawQuotes = parsed;
-          } else {
-            rawQuotes = quotes; // let downstream validation catch it
-          }
-        } else {
-          rawQuotes = quotes; // let downstream validation catch it
-        }
-      } else {
+
+        const normalized = normalizeQuotes(rawQuotes);
+        const result = await orchestrator.orchestratePayment({
+          quotes: normalized as NexusQuotePayload[],
+          payerWallet: payer_wallet,
+        });
+
         return {
           content: [
             {
               type: "text" as const,
-              text: "Error: Either quotes or quotes_json must be provided",
+              text:
+                `Payment Group Created\n` +
+                `Group ID: ${result.group.group_id}\n` +
+                `Total Amount: ${result.group.total_amount_display} ${result.group.currency}\n` +
+                `Payments: ${result.payments.length}\n` +
+                `Status: ${result.group.status}\n\n` +
+                `Payments:\n` +
+                result.payments
+                  .map(
+                    (p, i) =>
+                      `  ${i + 1}. ${p.merchant_order_ref} — ${p.amount_display} ${p.currency} (${p.nexus_payment_id})`,
+                  )
+                  .join("\n") +
+                `\n\n## Payment Options\n` +
+                `**Option A (Browser):** Direct the user to open this checkout URL in MetaMask browser:\n` +
+                `  ${result.paymentRequired.checkout_url}\n\n` +
+                `**Option B (Direct):** Use the instruction below to have the user sign EIP-3009 and submit the batchDeposit tx directly.\n` +
+                `  User action: ${result.instruction.user_action}\n` +
+                `  Gas paid by: ${result.instruction.gas_paid_by}\n\n` +
+                `HTTP 402 Payment Required Response:\n` +
+                JSON.stringify(result.paymentRequired, null, 2),
             },
           ],
-          isError: true,
         };
-      }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
 
-      const normalized = normalizeQuotes(rawQuotes);
-      const result = await orchestrator.orchestratePayment({
-        quotes: normalized as NexusQuotePayload[],
-        payerWallet: payer_wallet,
-      });
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              `Payment Group Created\n` +
-              `Group ID: ${result.group.group_id}\n` +
-              `Total Amount: ${result.group.total_amount_display} ${result.group.currency}\n` +
-              `Payments: ${result.payments.length}\n` +
-              `Status: ${result.group.status}\n\n` +
-              `Payments:\n` +
-              result.payments
-                .map(
-                  (p, i) =>
-                    `  ${i + 1}. ${p.merchant_order_ref} — ${p.amount_display} ${p.currency} (${p.nexus_payment_id})`,
-                )
-                .join("\n") +
-              `\n\n## Payment Options\n` +
-              `**Option A (Browser):** Direct the user to open this checkout URL in MetaMask browser:\n` +
-              `  ${result.paymentRequired.checkout_url}\n\n` +
-              `**Option B (Direct):** Use the instruction below to have the user sign EIP-3009 and submit the batchDeposit tx directly.\n` +
-              `  User action: ${result.instruction.user_action}\n` +
-              `  Gas paid by: ${result.instruction.gas_paid_by}\n\n` +
-              `HTTP 402 Payment Required Response:\n` +
-              JSON.stringify(result.paymentRequired, null, 2),
-          },
-        ],
-      };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-
-      // Capture debug info
-      const details: Record<string, unknown> =
-        err instanceof Error && "details" in err
-          ? (err as { details: Record<string, unknown> }).details
-          : {};
-      const inputSnapshot: Record<string, unknown> = {};
-      try {
-        const firstQuote = rawQuotes[0];
-        inputSnapshot.quote_count = rawQuotes.length;
-        inputSnapshot.first_quote_keys = firstQuote
-          ? Object.keys(firstQuote)
-          : [];
-        if (firstQuote) {
-          inputSnapshot.merchant_did = (
-            firstQuote as Record<string, unknown>
-          ).merchant_did;
-          inputSnapshot.amount = (firstQuote as Record<string, unknown>).amount;
-          inputSnapshot.amount_type = typeof (
-            firstQuote as Record<string, unknown>
-          ).amount;
-          inputSnapshot.chain_id = (
-            firstQuote as Record<string, unknown>
-          ).chain_id;
-          inputSnapshot.chain_id_type = typeof (
-            firstQuote as Record<string, unknown>
-          ).chain_id;
-          inputSnapshot.expiry = (firstQuote as Record<string, unknown>).expiry;
-          inputSnapshot.signature_length = String(
-            (firstQuote as Record<string, unknown>).signature ?? "",
-          ).length;
-          const ctx = (firstQuote as Record<string, unknown>).context as
-            | Record<string, unknown>
-            | undefined;
-          if (ctx) {
-            inputSnapshot.context_keys = Object.keys(ctx);
-            if (Array.isArray(ctx.line_items) && ctx.line_items.length > 0) {
-              const li = ctx.line_items[0] as Record<string, unknown>;
-              inputSnapshot.line_item_0_amount = li.amount;
-              inputSnapshot.line_item_0_amount_type = typeof li.amount;
+        // Capture debug info
+        const details: Record<string, unknown> =
+          err instanceof Error && "details" in err
+            ? (err as { details: Record<string, unknown> }).details
+            : {};
+        const inputSnapshot: Record<string, unknown> = {};
+        try {
+          const firstQuote = rawQuotes[0];
+          inputSnapshot.quote_count = rawQuotes.length;
+          inputSnapshot.first_quote_keys = firstQuote
+            ? Object.keys(firstQuote)
+            : [];
+          if (firstQuote) {
+            inputSnapshot.merchant_did = (
+              firstQuote as Record<string, unknown>
+            ).merchant_did;
+            inputSnapshot.amount = (
+              firstQuote as Record<string, unknown>
+            ).amount;
+            inputSnapshot.amount_type = typeof (
+              firstQuote as Record<string, unknown>
+            ).amount;
+            inputSnapshot.chain_id = (
+              firstQuote as Record<string, unknown>
+            ).chain_id;
+            inputSnapshot.chain_id_type = typeof (
+              firstQuote as Record<string, unknown>
+            ).chain_id;
+            inputSnapshot.expiry = (
+              firstQuote as Record<string, unknown>
+            ).expiry;
+            inputSnapshot.signature_length = String(
+              (firstQuote as Record<string, unknown>).signature ?? "",
+            ).length;
+            const ctx = (firstQuote as Record<string, unknown>).context as
+              | Record<string, unknown>
+              | undefined;
+            if (ctx) {
+              inputSnapshot.context_keys = Object.keys(ctx);
+              if (Array.isArray(ctx.line_items) && ctx.line_items.length > 0) {
+                const li = ctx.line_items[0] as Record<string, unknown>;
+                inputSnapshot.line_item_0_amount = li.amount;
+                inputSnapshot.line_item_0_amount_type = typeof li.amount;
+              }
+              inputSnapshot.original_amount = ctx.original_amount;
+              inputSnapshot.original_amount_type = typeof ctx.original_amount;
             }
-            inputSnapshot.original_amount = ctx.original_amount;
-            inputSnapshot.original_amount_type = typeof ctx.original_amount;
           }
+        } catch {
+          /* ignore snapshot errors */
         }
-      } catch {
-        /* ignore snapshot errors */
-      }
 
-      const entry: DebugEntry = {
-        ts: new Date().toISOString(),
-        error: message,
-        details,
-        input_snapshot: inputSnapshot,
-      };
-      debugErrors.push(entry);
-      if (debugErrors.length > DEBUG_RING_SIZE) debugErrors.shift();
+        const entry: DebugEntry = {
+          ts: new Date().toISOString(),
+          error: message,
+          details,
+          input_snapshot: inputSnapshot,
+        };
+        debugErrors.push(entry);
+        if (debugErrors.length > DEBUG_RING_SIZE) debugErrors.shift();
 
-      serverLog.error("orchestrate failed", {
-        error: message,
-        ...inputSnapshot,
-      });
+        serverLog.error("orchestrate failed", {
+          error: message,
+          ...inputSnapshot,
+        });
 
-      return {
-        content: [{ type: "text" as const, text: `Error: ${message}` }],
-        isError: true,
-      };
-    }
-  },
-);
-
-// Tool: nexus_get_payment_status
-server.tool(
-  "nexus_get_payment_status",
-  "Check payment status by nexus_payment_id, merchant_order_ref, or group_id.",
-  {
-    nexus_payment_id: z.string().optional().describe("Nexus payment ID"),
-    merchant_order_ref: z
-      .string()
-      .optional()
-      .describe("Merchant order reference"),
-    group_id: z.string().optional().describe("Payment group ID"),
-  },
-  async ({ nexus_payment_id, merchant_order_ref, group_id }) => {
-    try {
-      const result = await orchestrator.getPaymentStatus({
-        nexusPaymentId: nexus_payment_id,
-        merchantOrderRef: merchant_order_ref,
-        groupId: group_id,
-      });
-
-      const parts: string[] = [];
-
-      if (result.payment) {
-        parts.push(
-          `Payment: ${result.payment.nexus_payment_id}\n` +
-            `  Status: ${result.payment.status}\n` +
-            `  Amount: ${result.payment.amount_display} ${result.payment.currency}\n` +
-            `  Merchant: ${result.payment.merchant_did}\n` +
-            `  Order Ref: ${result.payment.merchant_order_ref}`,
-        );
-      }
-
-      if (result.group) {
-        parts.push(
-          `\nGroup: ${result.group.group_id}\n` +
-            `  Status: ${result.group.status}\n` +
-            `  Total: ${result.group.total_amount_display} ${result.group.currency}\n` +
-            `  Payments: ${result.group.payment_count}`,
-        );
-
-        if (result.groupPayments.length > 0) {
-          parts.push(`\nGroup Payments:`);
-          for (const p of result.groupPayments) {
-            parts.push(
-              `  - ${p.nexus_payment_id}: ${p.status} (${p.amount_display} ${p.currency})`,
-            );
-          }
-        }
-      }
-
-      if (parts.length === 0) {
-        parts.push("No payment found for the given parameters.");
-      }
-
-      return {
-        content: [{ type: "text" as const, text: parts.join("\n") }],
-      };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return {
-        content: [{ type: "text" as const, text: `Error: ${message}` }],
-        isError: true,
-      };
-    }
-  },
-);
-
-// Tool: nexus_confirm_deposit (replaces nexus_submit_eip3009_signature)
-// Deposit is now submitted directly by the user via MetaMask.
-// This tool allows User Agent to confirm a tx hash after user submits.
-server.tool(
-  "nexus_confirm_deposit",
-  "Confirm a user-submitted batch deposit transaction. Call this after the user signs EIP-3009 and sends batchDepositWithAuthorization via MetaMask.",
-  {
-    group_id: z.string().describe("Payment group ID (GRP-...)"),
-    tx_hash: z
-      .string()
-      .regex(/^0x[0-9a-fA-F]+$/)
-      .describe("Transaction hash from user's MetaMask submission"),
-  },
-  async ({ group_id, tx_hash }) => {
-    try {
-      const detail = await groupManager.confirmGroupDeposit(group_id, tx_hash);
-      if (!detail) {
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Group ${group_id} not found`,
-            },
-          ],
+          content: [{ type: "text" as const, text: `Error: ${message}` }],
           isError: true,
         };
       }
+    },
+  );
 
-      // Notify webhooks (fire-and-forget)
-      for (const payment of detail.payments) {
-        webhookNotifier
-          .notify(payment, "payment.escrowed")
-          .catch((err) =>
-            console.error("[server] webhook notify failed:", err),
+  // Tool: nexus_get_payment_status
+  srv.tool(
+    "nexus_get_payment_status",
+    "Check payment status by nexus_payment_id, merchant_order_ref, or group_id.",
+    {
+      nexus_payment_id: z.string().optional().describe("Nexus payment ID"),
+      merchant_order_ref: z
+        .string()
+        .optional()
+        .describe("Merchant order reference"),
+      group_id: z.string().optional().describe("Payment group ID"),
+    },
+    async ({ nexus_payment_id, merchant_order_ref, group_id }) => {
+      try {
+        const result = await orchestrator.getPaymentStatus({
+          nexusPaymentId: nexus_payment_id,
+          merchantOrderRef: merchant_order_ref,
+          groupId: group_id,
+        });
+
+        const parts: string[] = [];
+
+        if (result.payment) {
+          parts.push(
+            `Payment: ${result.payment.nexus_payment_id}\n` +
+              `  Status: ${result.payment.status}\n` +
+              `  Amount: ${result.payment.amount_display} ${result.payment.currency}\n` +
+              `  Merchant: ${result.payment.merchant_did}\n` +
+              `  Order Ref: ${result.payment.merchant_order_ref}`,
           );
+        }
+
+        if (result.group) {
+          parts.push(
+            `\nGroup: ${result.group.group_id}\n` +
+              `  Status: ${result.group.status}\n` +
+              `  Total: ${result.group.total_amount_display} ${result.group.currency}\n` +
+              `  Payments: ${result.group.payment_count}`,
+          );
+
+          if (result.groupPayments.length > 0) {
+            parts.push(`\nGroup Payments:`);
+            for (const p of result.groupPayments) {
+              parts.push(
+                `  - ${p.nexus_payment_id}: ${p.status} (${p.amount_display} ${p.currency})`,
+              );
+            }
+          }
+        }
+
+        if (parts.length === 0) {
+          parts.push("No payment found for the given parameters.");
+        }
+
+        return {
+          content: [{ type: "text" as const, text: parts.join("\n") }],
+        };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        return {
+          content: [{ type: "text" as const, text: `Error: ${message}` }],
+          isError: true,
+        };
       }
+    },
+  );
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              `Batch deposit confirmed\n` +
-              `TX Hash: ${tx_hash}\n` +
-              `Group: ${group_id}\n` +
-              `Payments: ${detail.payments.length} → ESCROWED`,
-          },
-        ],
-      };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return {
-        content: [{ type: "text" as const, text: `Error: ${message}` }],
-        isError: true,
-      };
-    }
-  },
-);
+  // Tool: nexus_confirm_deposit (replaces nexus_submit_eip3009_signature)
+  // Deposit is now submitted directly by the user via MetaMask.
+  // This tool allows User Agent to confirm a tx hash after user submits.
+  srv.tool(
+    "nexus_confirm_deposit",
+    "Confirm a user-submitted batch deposit transaction. Call this after the user signs EIP-3009 and sends batchDepositWithAuthorization via MetaMask.",
+    {
+      group_id: z.string().describe("Payment group ID (GRP-...)"),
+      tx_hash: z
+        .string()
+        .regex(/^0x[0-9a-fA-F]+$/)
+        .describe("Transaction hash from user's MetaMask submission"),
+    },
+    async ({ group_id, tx_hash }) => {
+      try {
+        const detail = await groupManager.confirmGroupDeposit(
+          group_id,
+          tx_hash,
+        );
+        if (!detail) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error: Group ${group_id} not found`,
+              },
+            ],
+            isError: true,
+          };
+        }
 
-// Tool: nexus_release_payment
-server.tool(
-  "nexus_release_payment",
-  "Release escrowed funds to the merchant. Called by merchant agent after fulfillment.",
-  {
-    payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
-  },
-  async ({ payment_id }) => {
-    try {
-      if (!relayer) {
+        // Notify webhooks (fire-and-forget)
+        for (const payment of detail.payments) {
+          webhookNotifier
+            .notify(payment, "payment.escrowed")
+            .catch((err) =>
+              console.error("[server] webhook notify failed:", err),
+            );
+        }
+
         return {
           content: [
             {
               type: "text" as const,
-              text: "Error: Relayer not configured (RELAYER_PRIVATE_KEY missing)",
+              text:
+                `Batch deposit confirmed\n` +
+                `TX Hash: ${tx_hash}\n` +
+                `Group: ${group_id}\n` +
+                `Payments: ${detail.payments.length} → ESCROWED`,
             },
           ],
-          isError: true,
         };
-      }
-
-      const payment = await stateMachine.getPayment(payment_id);
-      if (!payment) {
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
         return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Payment ${payment_id} not found`,
-            },
-          ],
+          content: [{ type: "text" as const, text: `Error: ${message}` }],
           isError: true,
         };
       }
+    },
+  );
 
-      if (!payment.payment_id_bytes32) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Error: Payment has no payment_id_bytes32",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      const result = await relayer.submitRelease(
-        payment.payment_id_bytes32 as Hex,
-      );
-
-      // ChainWatcher will handle the Released event and transition state
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              `Release submitted\n` +
-              `TX Hash: ${result.txHash}\n` +
-              `Block: ${result.blockNumber}\n` +
-              `Status: ${result.status}\n` +
-              `Payment: ${payment_id}`,
-          },
-        ],
-      };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return {
-        content: [{ type: "text" as const, text: `Error: ${message}` }],
-        isError: true,
-      };
-    }
-  },
-);
-
-// Tool: nexus_dispute_payment
-server.tool(
-  "nexus_dispute_payment",
-  "Open a dispute for an escrowed payment. Returns calldata for the payer to submit on-chain (only payer can call dispute on the contract).",
-  {
-    payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
-    reason: z
-      .string()
-      .max(256)
-      .describe("Dispute reason (UTF-8, max 256 chars)"),
-  },
-  async ({ payment_id, reason }) => {
-    try {
-      const payment = await stateMachine.getPayment(payment_id);
-      if (!payment) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Payment ${payment_id} not found`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      if (payment.status !== "ESCROWED") {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Payment must be ESCROWED to dispute (current: ${payment.status})`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      if (
-        payment.dispute_deadline &&
-        new Date(payment.dispute_deadline).getTime() < Date.now()
-      ) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Dispute window has expired (deadline: ${payment.dispute_deadline})`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      if (!payment.payment_id_bytes32) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Error: Payment has no payment_id_bytes32",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      const reasonBytes32 = keccak256(toHex(reason));
-
-      // Optimistic DB transition
-      await stateMachine.transition({
-        nexusPaymentId: payment_id,
-        toStatus: "DISPUTE_OPEN",
-        eventType: "DISPUTE_OPENED",
-        metadata: { reason, reason_bytes32: reasonBytes32 },
-        fields: { dispute_reason: reasonBytes32 },
-      });
-
-      // Build calldata for payer to submit
-      const calldata = encodeFunctionData({
-        abi: NEXUS_PAY_ESCROW_ABI,
-        functionName: "dispute",
-        args: [payment.payment_id_bytes32 as Hex, reasonBytes32],
-      });
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              `Dispute Recorded\n` +
-              `Payment: ${payment_id}\n` +
-              `Status: DISPUTE_OPEN\n` +
-              `Reason: "${reason}"\n\n` +
-              `On-chain submission required:\n` +
-              `The payer must submit the following transaction to finalize the dispute on-chain:\n` +
-              `Contract: ${config.escrowContract}\n` +
-              `Calldata: ${calldata}\n\n` +
-              `The ChainWatcher will confirm the dispute once the transaction is mined.`,
-          },
-        ],
-      };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return {
-        content: [{ type: "text" as const, text: `Error: ${message}` }],
-        isError: true,
-      };
-    }
-  },
-);
-
-// Tool: nexus_resolve_dispute
-server.tool(
-  "nexus_resolve_dispute",
-  "Resolve a disputed payment by splitting funds between merchant and payer. Only callable when payment is DISPUTE_OPEN.",
-  {
-    payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
-    merchant_bps: z
-      .number()
-      .int()
-      .min(0)
-      .max(10000)
-      .describe(
-        "Basis points (0-10000) of funds to merchant. 0 = full refund, 10000 = full to merchant.",
-      ),
-    resolution_reason: z
-      .string()
-      .optional()
-      .describe("Reason for resolution decision"),
-  },
-  async ({ payment_id, merchant_bps, resolution_reason }) => {
-    try {
-      if (!relayer) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Error: Relayer not configured (RELAYER_PRIVATE_KEY missing)",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      const payment = await stateMachine.getPayment(payment_id);
-      if (!payment) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Payment ${payment_id} not found`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      if (payment.status !== "DISPUTE_OPEN") {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Payment must be DISPUTE_OPEN to resolve (current: ${payment.status})`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      if (!payment.payment_id_bytes32) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: "Error: Payment has no payment_id_bytes32",
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      const result = await relayer.submitResolve(
-        payment.payment_id_bytes32 as Hex,
-        merchant_bps,
-      );
-
-      // ChainWatcher will handle the Resolved event → DISPUTE_RESOLVED
-      const totalAmount = BigInt(payment.amount);
-      const merchantAmount = (totalAmount * BigInt(merchant_bps)) / 10000n;
-      const payerAmount = totalAmount - merchantAmount;
-      const decimals = config.usdcDecimals;
-      const formatAmount = (raw: bigint): string =>
-        (Number(raw) / 10 ** decimals).toFixed(decimals);
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text:
-              `Dispute Resolution Submitted\n` +
-              `TX Hash: ${result.txHash}\n` +
-              `Block: ${result.blockNumber}\n` +
-              `Payment: ${payment_id}\n` +
-              `Merchant BPS: ${merchant_bps} (${(merchant_bps / 100).toFixed(2)}%)\n` +
-              `Merchant receives: ${formatAmount(merchantAmount)} USDC\n` +
-              `Payer receives: ${formatAmount(payerAmount)} USDC` +
-              (resolution_reason
-                ? `\nResolution reason: ${resolution_reason}`
-                : ""),
-          },
-        ],
-      };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return {
-        content: [{ type: "text" as const, text: `Error: ${message}` }],
-        isError: true,
-      };
-    }
-  },
-);
-
-// Tool: nexus_confirm_fulfillment
-server.tool(
-  "nexus_confirm_fulfillment",
-  "Confirm fulfillment of a payment. If ESCROWED, submits release to escrow contract (async — call again after SETTLED). If SETTLED, transitions to COMPLETED. Two-step process: ESCROWED→release→SETTLED, then call again for SETTLED→COMPLETED.",
-  {
-    payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
-    fulfillment_proof: z
-      .string()
-      .optional()
-      .describe("Proof of fulfillment (URL, hash, etc.)"),
-  },
-  async ({ payment_id, fulfillment_proof }) => {
-    try {
-      const payment = await stateMachine.getPayment(payment_id);
-      if (!payment) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Error: Payment ${payment_id} not found`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      if (payment.status === "ESCROWED") {
+  // Tool: nexus_release_payment
+  srv.tool(
+    "nexus_release_payment",
+    "Release escrowed funds to the merchant. Called by merchant agent after fulfillment.",
+    {
+      payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+    },
+    async ({ payment_id }) => {
+      try {
         if (!relayer) {
           return {
             content: [
               {
                 type: "text" as const,
                 text: "Error: Relayer not configured (RELAYER_PRIVATE_KEY missing)",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const payment = await stateMachine.getPayment(payment_id);
+        if (!payment) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error: Payment ${payment_id} not found`,
               },
             ],
             isError: true,
@@ -833,117 +544,421 @@ server.tool(
           payment.payment_id_bytes32 as Hex,
         );
 
+        // ChainWatcher will handle the Released event and transition state
+
         return {
           content: [
             {
               type: "text" as const,
               text:
-                `Release submitted — ChainWatcher will transition to SETTLED\n` +
+                `Release submitted\n` +
                 `TX Hash: ${result.txHash}\n` +
                 `Block: ${result.blockNumber}\n` +
-                `Payment: ${payment_id}\n\n` +
-                `Call nexus_confirm_fulfillment again after status becomes SETTLED to complete.`,
+                `Status: ${result.status}\n` +
+                `Payment: ${payment_id}`,
             },
           ],
         };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        return {
+          content: [{ type: "text" as const, text: `Error: ${message}` }],
+          isError: true,
+        };
       }
+    },
+  );
 
-      if (payment.status === "SETTLED") {
-        const now = new Date().toISOString();
+  // Tool: nexus_dispute_payment
+  srv.tool(
+    "nexus_dispute_payment",
+    "Open a dispute for an escrowed payment. Returns calldata for the payer to submit on-chain (only payer can call dispute on the contract).",
+    {
+      payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+      reason: z
+        .string()
+        .max(256)
+        .describe("Dispute reason (UTF-8, max 256 chars)"),
+    },
+    async ({ payment_id, reason }) => {
+      try {
+        const payment = await stateMachine.getPayment(payment_id);
+        if (!payment) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error: Payment ${payment_id} not found`,
+              },
+            ],
+            isError: true,
+          };
+        }
 
+        if (payment.status !== "ESCROWED") {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error: Payment must be ESCROWED to dispute (current: ${payment.status})`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (
+          payment.dispute_deadline &&
+          new Date(payment.dispute_deadline).getTime() < Date.now()
+        ) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error: Dispute window has expired (deadline: ${payment.dispute_deadline})`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (!payment.payment_id_bytes32) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Error: Payment has no payment_id_bytes32",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const reasonBytes32 = keccak256(toHex(reason));
+
+        // Optimistic DB transition
         await stateMachine.transition({
           nexusPaymentId: payment_id,
-          toStatus: "COMPLETED",
-          eventType: "FULFILLMENT_CONFIRMED",
-          metadata: {
-            fulfillment_proof: fulfillment_proof ?? null,
-          },
-          fields: { completed_at: now },
+          toStatus: "DISPUTE_OPEN",
+          eventType: "DISPUTE_OPENED",
+          metadata: { reason, reason_bytes32: reasonBytes32 },
+          fields: { dispute_reason: reasonBytes32 },
         });
 
-        // Send payment.completed webhook
-        webhookNotifier
-          .notify(payment, "payment.completed")
-          .catch((err) =>
-            console.error("[server] webhook notify failed:", err),
-          );
+        // Build calldata for payer to submit
+        const calldata = encodeFunctionData({
+          abi: NEXUS_PAY_ESCROW_ABI,
+          functionName: "dispute",
+          args: [payment.payment_id_bytes32 as Hex, reasonBytes32],
+        });
 
         return {
           content: [
             {
               type: "text" as const,
               text:
-                `Payment COMPLETED\n` +
+                `Dispute Recorded\n` +
                 `Payment: ${payment_id}\n` +
-                `Completed at: ${now}` +
-                (fulfillment_proof
-                  ? `\nFulfillment proof: ${fulfillment_proof}`
+                `Status: DISPUTE_OPEN\n` +
+                `Reason: "${reason}"\n\n` +
+                `On-chain submission required:\n` +
+                `The payer must submit the following transaction to finalize the dispute on-chain:\n` +
+                `Contract: ${config.escrowContract}\n` +
+                `Calldata: ${calldata}\n\n` +
+                `The ChainWatcher will confirm the dispute once the transaction is mined.`,
+            },
+          ],
+        };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        return {
+          content: [{ type: "text" as const, text: `Error: ${message}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // Tool: nexus_resolve_dispute
+  srv.tool(
+    "nexus_resolve_dispute",
+    "Resolve a disputed payment by splitting funds between merchant and payer. Only callable when payment is DISPUTE_OPEN.",
+    {
+      payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+      merchant_bps: z
+        .number()
+        .int()
+        .min(0)
+        .max(10000)
+        .describe(
+          "Basis points (0-10000) of funds to merchant. 0 = full refund, 10000 = full to merchant.",
+        ),
+      resolution_reason: z
+        .string()
+        .optional()
+        .describe("Reason for resolution decision"),
+    },
+    async ({ payment_id, merchant_bps, resolution_reason }) => {
+      try {
+        if (!relayer) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Error: Relayer not configured (RELAYER_PRIVATE_KEY missing)",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const payment = await stateMachine.getPayment(payment_id);
+        if (!payment) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error: Payment ${payment_id} not found`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (payment.status !== "DISPUTE_OPEN") {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error: Payment must be DISPUTE_OPEN to resolve (current: ${payment.status})`,
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        if (!payment.payment_id_bytes32) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: "Error: Payment has no payment_id_bytes32",
+              },
+            ],
+            isError: true,
+          };
+        }
+
+        const result = await relayer.submitResolve(
+          payment.payment_id_bytes32 as Hex,
+          merchant_bps,
+        );
+
+        // ChainWatcher will handle the Resolved event → DISPUTE_RESOLVED
+        const totalAmount = BigInt(payment.amount);
+        const merchantAmount = (totalAmount * BigInt(merchant_bps)) / 10000n;
+        const payerAmount = totalAmount - merchantAmount;
+        const decimals = config.usdcDecimals;
+        const formatAmount = (raw: bigint): string =>
+          (Number(raw) / 10 ** decimals).toFixed(decimals);
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text:
+                `Dispute Resolution Submitted\n` +
+                `TX Hash: ${result.txHash}\n` +
+                `Block: ${result.blockNumber}\n` +
+                `Payment: ${payment_id}\n` +
+                `Merchant BPS: ${merchant_bps} (${(merchant_bps / 100).toFixed(2)}%)\n` +
+                `Merchant receives: ${formatAmount(merchantAmount)} USDC\n` +
+                `Payer receives: ${formatAmount(payerAmount)} USDC` +
+                (resolution_reason
+                  ? `\nResolution reason: ${resolution_reason}`
                   : ""),
             },
           ],
         };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        return {
+          content: [{ type: "text" as const, text: `Error: ${message}` }],
+          isError: true,
+        };
       }
+    },
+  );
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Error: Cannot confirm fulfillment — payment status is ${payment.status} (must be ESCROWED or SETTLED)`,
-          },
-        ],
-        isError: true,
-      };
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      return {
-        content: [{ type: "text" as const, text: `Error: ${message}` }],
-        isError: true,
-      };
-    }
-  },
-);
+  // Tool: nexus_confirm_fulfillment
+  srv.tool(
+    "nexus_confirm_fulfillment",
+    "Confirm fulfillment of a payment. If ESCROWED, submits release to escrow contract (async — call again after SETTLED). If SETTLED, transitions to COMPLETED. Two-step process: ESCROWED→release→SETTLED, then call again for SETTLED→COMPLETED.",
+    {
+      payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+      fulfillment_proof: z
+        .string()
+        .optional()
+        .describe("Proof of fulfillment (URL, hash, etc.)"),
+    },
+    async ({ payment_id, fulfillment_proof }) => {
+      try {
+        const payment = await stateMachine.getPayment(payment_id);
+        if (!payment) {
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text: `Error: Payment ${payment_id} not found`,
+              },
+            ],
+            isError: true,
+          };
+        }
 
-// Tool: discover_agents
-server.tool(
-  "discover_agents",
-  "Search and discover merchant agents in the Nexus marketplace. Returns agents ranked by stars, filterable by keyword and category.",
-  {
-    query: z
-      .string()
-      .optional()
-      .describe("Keyword to search agent names and descriptions"),
-    category: z
-      .string()
-      .optional()
-      .describe("Category prefix filter (e.g. 'travel', 'food')"),
-    limit: z
-      .number()
-      .int()
-      .min(1)
-      .max(50)
-      .optional()
-      .describe("Max results to return (default 20, max 50)"),
-  },
-  async (input) => {
-    const result = await handleDiscoverAgents(merchantRepo, starRepo, input);
-    return { content: [...result.content], isError: result.isError };
-  },
-);
+        if (payment.status === "ESCROWED") {
+          if (!relayer) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Error: Relayer not configured (RELAYER_PRIVATE_KEY missing)",
+                },
+              ],
+              isError: true,
+            };
+          }
 
-// Tool: get_agent_skill
-server.tool(
-  "get_agent_skill",
-  "Fetch the full skill.md content for a specific merchant agent. Use this to understand an agent's capabilities, tools, and MCP connection details.",
-  {
-    merchant_did: z
-      .string()
-      .describe("Merchant DID (e.g. 'did:nexus:20250407:demo_flight')"),
-  },
-  async (input) => {
-    const result = await handleGetAgentSkill(merchantRepo, input);
-    return { content: [...result.content], isError: result.isError };
-  },
-);
+          if (!payment.payment_id_bytes32) {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text: "Error: Payment has no payment_id_bytes32",
+                },
+              ],
+              isError: true,
+            };
+          }
+
+          const result = await relayer.submitRelease(
+            payment.payment_id_bytes32 as Hex,
+          );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text:
+                  `Release submitted — ChainWatcher will transition to SETTLED\n` +
+                  `TX Hash: ${result.txHash}\n` +
+                  `Block: ${result.blockNumber}\n` +
+                  `Payment: ${payment_id}\n\n` +
+                  `Call nexus_confirm_fulfillment again after status becomes SETTLED to complete.`,
+              },
+            ],
+          };
+        }
+
+        if (payment.status === "SETTLED") {
+          const now = new Date().toISOString();
+
+          await stateMachine.transition({
+            nexusPaymentId: payment_id,
+            toStatus: "COMPLETED",
+            eventType: "FULFILLMENT_CONFIRMED",
+            metadata: {
+              fulfillment_proof: fulfillment_proof ?? null,
+            },
+            fields: { completed_at: now },
+          });
+
+          // Send payment.completed webhook
+          webhookNotifier
+            .notify(payment, "payment.completed")
+            .catch((err) =>
+              console.error("[server] webhook notify failed:", err),
+            );
+
+          return {
+            content: [
+              {
+                type: "text" as const,
+                text:
+                  `Payment COMPLETED\n` +
+                  `Payment: ${payment_id}\n` +
+                  `Completed at: ${now}` +
+                  (fulfillment_proof
+                    ? `\nFulfillment proof: ${fulfillment_proof}`
+                    : ""),
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `Error: Cannot confirm fulfillment — payment status is ${payment.status} (must be ESCROWED or SETTLED)`,
+            },
+          ],
+          isError: true,
+        };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        return {
+          content: [{ type: "text" as const, text: `Error: ${message}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  // Tool: discover_agents
+  srv.tool(
+    "discover_agents",
+    "Search and discover merchant agents in the Nexus marketplace. Returns agents ranked by stars, filterable by keyword and category.",
+    {
+      query: z
+        .string()
+        .optional()
+        .describe("Keyword to search agent names and descriptions"),
+      category: z
+        .string()
+        .optional()
+        .describe("Category prefix filter (e.g. 'travel', 'food')"),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .optional()
+        .describe("Max results to return (default 20, max 50)"),
+    },
+    async (input) => {
+      const result = await handleDiscoverAgents(merchantRepo, starRepo, input);
+      return { content: [...result.content], isError: result.isError };
+    },
+  );
+
+  // Tool: get_agent_skill
+  srv.tool(
+    "get_agent_skill",
+    "Fetch the full skill.md content for a specific merchant agent. Use this to understand an agent's capabilities, tools, and MCP connection details.",
+    {
+      merchant_did: z
+        .string()
+        .describe("Merchant DID (e.g. 'did:nexus:20250407:demo_flight')"),
+    },
+    async (input) => {
+      const result = await handleGetAgentSkill(merchantRepo, input);
+      return { content: [...result.content], isError: result.isError };
+    },
+  );
+
+  return srv;
+}
 
 // ---------------------------------------------------------------------------
 // Transport setup
@@ -951,7 +966,10 @@ server.tool(
 
 async function main(): Promise<void> {
   if (transportMode === "sse") {
-    const sseTransports = new Map<string, SSEServerTransport>();
+    const sseTransports = new Map<
+      string,
+      { transport: SSEServerTransport; server: McpServer }
+    >();
 
     const httpServer = createServer(
       async (req: IncomingMessage, res: ServerResponse) => {
@@ -966,19 +984,27 @@ async function main(): Promise<void> {
 
         if (url.pathname === "/sse" && req.method === "GET") {
           const transport = new SSEServerTransport("/messages", res);
-          sseTransports.set(transport.sessionId, transport);
-          res.on("close", () => {
-            sseTransports.delete(transport.sessionId);
+          const mcpServer = createNexusCoreServer();
+          sseTransports.set(transport.sessionId, {
+            transport,
+            server: mcpServer,
           });
-          await server.connect(transport);
+          res.on("close", () => {
+            const session = sseTransports.get(transport.sessionId);
+            if (session) {
+              session.server.close().catch(() => {});
+              sseTransports.delete(transport.sessionId);
+            }
+          });
+          await mcpServer.connect(transport);
           return;
         }
 
         if (url.pathname === "/messages" && req.method === "POST") {
           const sessionId = url.searchParams.get("sessionId") ?? "";
-          const transport = sseTransports.get(sessionId);
-          if (transport) {
-            await transport.handlePostMessage(req, res);
+          const session = sseTransports.get(sessionId);
+          if (session) {
+            await session.transport.handlePostMessage(req, res);
           } else {
             res.writeHead(404);
             res.end("Session not found");
@@ -1165,8 +1191,9 @@ async function main(): Promise<void> {
       webhookNotifier.startRetryLoop(config.webhookRetryIntervalMs);
     });
   } else {
+    const mcpServer = createNexusCoreServer();
     const transport = new StdioServerTransport();
-    await server.connect(transport);
+    await mcpServer.connect(transport);
     serverLog.info("Connected via stdio transport");
   }
 }

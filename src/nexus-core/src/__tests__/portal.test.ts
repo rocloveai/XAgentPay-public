@@ -109,7 +109,7 @@ describe("Portal", () => {
       relayer: null,
       escrowContract: "0x1111111111111111111111111111111111111111",
       chainId: 20250407,
-      version: "0.4.0",
+      version: "0.5.0",
       portalToken: "",
     };
   });
