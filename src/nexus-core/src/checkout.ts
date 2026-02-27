@@ -1276,7 +1276,16 @@ export async function handleCheckoutRequest(
   );
   if (confirmMatch && req.method === "POST") {
     const tokenOrGroupId = decodeURIComponent(confirmMatch[1]);
-    await handleCheckoutConfirm(deps, tokenOrGroupId, req, res);
+    try {
+      await handleCheckoutConfirm(deps, tokenOrGroupId, req, res);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Internal error";
+      checkoutLog.error("checkout confirm error", {
+        error: message,
+        token: tokenOrGroupId,
+      });
+      sendJson(res, 500, { error: message });
+    }
     return true;
   }
 
@@ -1286,7 +1295,16 @@ export async function handleCheckoutRequest(
   );
   if (apiMatch && req.method === "GET") {
     const tokenOrGroupId = decodeURIComponent(apiMatch[1]);
-    await handleApiCheckout(deps, tokenOrGroupId, res);
+    try {
+      await handleApiCheckout(deps, tokenOrGroupId, res);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Internal error";
+      checkoutLog.error("checkout API error", {
+        error: message,
+        token: tokenOrGroupId,
+      });
+      sendJson(res, 500, { error: message });
+    }
     return true;
   }
 

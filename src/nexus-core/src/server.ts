@@ -984,369 +984,387 @@ async function main(): Promise<void> {
     const httpServer = createServer(
       async (req: IncomingMessage, res: ServerResponse) => {
         const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
-
-        // Serve skill.md (full developer docs)
-        if (url.pathname === "/skill.md" && req.method === "GET") {
-          res.writeHead(200, {
-            "Content-Type": "text/markdown; charset=utf-8",
-          });
-          res.end(skillMdContent);
-          return;
-        }
-
-        // Serve skill-user.md (simplified user agent guide)
-        if (url.pathname === "/skill-user.md" && req.method === "GET") {
-          res.writeHead(200, {
-            "Content-Type": "text/markdown; charset=utf-8",
-          });
-          res.end(skillUserMdContent);
-          return;
-        }
-
-        if (url.pathname === "/sse" && req.method === "GET") {
-          const transport = new SSEServerTransport("/messages", res);
-          const mcpServer = createNexusCoreServer();
-          sseTransports.set(transport.sessionId, {
-            transport,
-            server: mcpServer,
-          });
-          res.on("close", () => {
-            const session = sseTransports.get(transport.sessionId);
-            if (session) {
-              session.server.close().catch(() => {});
-              sseTransports.delete(transport.sessionId);
-            }
-          });
-          await mcpServer.connect(transport);
-          return;
-        }
-
-        if (url.pathname === "/messages" && req.method === "POST") {
-          const sessionId = url.searchParams.get("sessionId") ?? "";
-          const session = sseTransports.get(sessionId);
-          if (session) {
-            await session.transport.handlePostMessage(req, res);
-          } else {
-            res.writeHead(404);
-            res.end("Session not found");
-          }
-          return;
-        }
-
-        // POST /api/orchestrate — HTTP 402 Payment Required endpoint
-        if (url.pathname === "/api/orchestrate" && req.method === "POST") {
-          try {
-            const chunks: Buffer[] = [];
-            await new Promise<void>((resolve, reject) => {
-              req.on("data", (chunk: Buffer) => chunks.push(chunk));
-              req.on("end", resolve);
-              req.on("error", reject);
+        try {
+          // Serve skill.md (full developer docs)
+          if (url.pathname === "/skill.md" && req.method === "GET") {
+            res.writeHead(200, {
+              "Content-Type": "text/markdown; charset=utf-8",
             });
-            const body = JSON.parse(Buffer.concat(chunks).toString());
-            const rawQuotes = body.quotes ?? [];
-            const payerWallet = body.payer_wallet ?? "";
+            res.end(skillMdContent);
+            return;
+          }
 
-            if (!payerWallet || !/^0x[a-fA-F0-9]{40}$/.test(payerWallet)) {
-              res.writeHead(400, {
+          // Serve skill-user.md (simplified user agent guide)
+          if (url.pathname === "/skill-user.md" && req.method === "GET") {
+            res.writeHead(200, {
+              "Content-Type": "text/markdown; charset=utf-8",
+            });
+            res.end(skillUserMdContent);
+            return;
+          }
+
+          if (url.pathname === "/sse" && req.method === "GET") {
+            const transport = new SSEServerTransport("/messages", res);
+            const mcpServer = createNexusCoreServer();
+            sseTransports.set(transport.sessionId, {
+              transport,
+              server: mcpServer,
+            });
+            res.on("close", () => {
+              const session = sseTransports.get(transport.sessionId);
+              if (session) {
+                session.server.close().catch(() => {});
+                sseTransports.delete(transport.sessionId);
+              }
+            });
+            await mcpServer.connect(transport);
+            return;
+          }
+
+          if (url.pathname === "/messages" && req.method === "POST") {
+            const sessionId = url.searchParams.get("sessionId") ?? "";
+            const session = sseTransports.get(sessionId);
+            if (session) {
+              await session.transport.handlePostMessage(req, res);
+            } else {
+              res.writeHead(404);
+              res.end("Session not found");
+            }
+            return;
+          }
+
+          // POST /api/orchestrate — HTTP 402 Payment Required endpoint
+          if (url.pathname === "/api/orchestrate" && req.method === "POST") {
+            try {
+              const chunks: Buffer[] = [];
+              await new Promise<void>((resolve, reject) => {
+                req.on("data", (chunk: Buffer) => chunks.push(chunk));
+                req.on("end", resolve);
+                req.on("error", reject);
+              });
+              const body = JSON.parse(Buffer.concat(chunks).toString());
+              const rawQuotes = body.quotes ?? [];
+              const payerWallet = body.payer_wallet ?? "";
+
+              if (!payerWallet || !/^0x[a-fA-F0-9]{40}$/.test(payerWallet)) {
+                res.writeHead(400, {
+                  "Content-Type": "application/json",
+                  "Access-Control-Allow-Origin": "*",
+                });
+                res.end(JSON.stringify({ error: "Invalid payer_wallet" }));
+                return;
+              }
+
+              const normalized = normalizeQuotes(rawQuotes);
+              const result = await orchestrator.orchestratePayment({
+                quotes: normalized as NexusQuotePayload[],
+                payerWallet,
+              });
+
+              res.writeHead(402, {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Content-Type",
+              });
+              res.end(JSON.stringify(result.paymentRequired, null, 2));
+            } catch (err) {
+              const message =
+                err instanceof Error ? err.message : "Unknown error";
+              res.writeHead(500, {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
               });
-              res.end(JSON.stringify({ error: "Invalid payer_wallet" }));
-              return;
+              res.end(JSON.stringify({ error: message }));
             }
-
-            const normalized = normalizeQuotes(rawQuotes);
-            const result = await orchestrator.orchestratePayment({
-              quotes: normalized as NexusQuotePayload[],
-              payerWallet,
-            });
-
-            res.writeHead(402, {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-              "Access-Control-Allow-Headers": "Content-Type",
-            });
-            res.end(JSON.stringify(result.paymentRequired, null, 2));
-          } catch (err) {
-            const message =
-              err instanceof Error ? err.message : "Unknown error";
-            res.writeHead(500, {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
-            });
-            res.end(JSON.stringify({ error: message }));
+            return;
           }
-          return;
-        }
 
-        // POST /api/merchant/confirm-fulfillment — merchant triggers escrow release
-        if (
-          url.pathname === "/api/merchant/confirm-fulfillment" &&
-          req.method === "POST"
-        ) {
-          const corsHeaders = {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-          } as const;
+          // POST /api/merchant/confirm-fulfillment — merchant triggers escrow release
+          if (
+            url.pathname === "/api/merchant/confirm-fulfillment" &&
+            req.method === "POST"
+          ) {
+            const corsHeaders = {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+            } as const;
 
-          try {
-            const chunks: Buffer[] = [];
-            await new Promise<void>((resolve, reject) => {
-              req.on("data", (chunk: Buffer) => chunks.push(chunk));
-              req.on("end", resolve);
-              req.on("error", reject);
-            });
-            const body = JSON.parse(Buffer.concat(chunks).toString());
-            const { nexus_payment_id, merchant_did } = body;
+            try {
+              const chunks: Buffer[] = [];
+              await new Promise<void>((resolve, reject) => {
+                req.on("data", (chunk: Buffer) => chunks.push(chunk));
+                req.on("end", resolve);
+                req.on("error", reject);
+              });
+              const body = JSON.parse(Buffer.concat(chunks).toString());
+              const { nexus_payment_id, merchant_did } = body;
 
-            if (!nexus_payment_id || !merchant_did) {
-              res.writeHead(400, corsHeaders);
-              res.end(
-                JSON.stringify({
-                  error: "Missing nexus_payment_id or merchant_did",
-                }),
+              if (!nexus_payment_id || !merchant_did) {
+                res.writeHead(400, corsHeaders);
+                res.end(
+                  JSON.stringify({
+                    error: "Missing nexus_payment_id or merchant_did",
+                  }),
+                );
+                return;
+              }
+
+              if (!relayer) {
+                res.writeHead(503, corsHeaders);
+                res.end(JSON.stringify({ error: "Relayer not configured" }));
+                return;
+              }
+
+              const payment = await stateMachine.getPayment(nexus_payment_id);
+              if (!payment) {
+                res.writeHead(404, corsHeaders);
+                res.end(
+                  JSON.stringify({
+                    error: "Payment not found",
+                    payment_id: nexus_payment_id,
+                  }),
+                );
+                return;
+              }
+
+              // Authorization: merchant_did must match
+              if (payment.merchant_did !== merchant_did) {
+                res.writeHead(403, corsHeaders);
+                res.end(
+                  JSON.stringify({
+                    error: "merchant_did does not match payment",
+                  }),
+                );
+                return;
+              }
+
+              // Already settled or completed — idempotent success
+              if (
+                payment.status === "SETTLED" ||
+                payment.status === "COMPLETED"
+              ) {
+                res.writeHead(200, corsHeaders);
+                res.end(
+                  JSON.stringify({
+                    status: "already_settled",
+                    payment_id: nexus_payment_id,
+                  }),
+                );
+                return;
+              }
+
+              // Only ESCROWED payments can be released
+              if (payment.status !== "ESCROWED") {
+                res.writeHead(409, corsHeaders);
+                res.end(
+                  JSON.stringify({
+                    error: `Payment status is ${payment.status}, expected ESCROWED`,
+                    payment_id: nexus_payment_id,
+                  }),
+                );
+                return;
+              }
+
+              if (!payment.payment_id_bytes32) {
+                res.writeHead(409, corsHeaders);
+                res.end(
+                  JSON.stringify({
+                    error: "Payment has no payment_id_bytes32",
+                    payment_id: nexus_payment_id,
+                  }),
+                );
+                return;
+              }
+
+              const result = await relayer.submitRelease(
+                payment.payment_id_bytes32 as Hex,
               );
-              return;
-            }
 
-            if (!relayer) {
-              res.writeHead(503, corsHeaders);
-              res.end(JSON.stringify({ error: "Relayer not configured" }));
-              return;
-            }
-
-            const payment = await stateMachine.getPayment(nexus_payment_id);
-            if (!payment) {
-              res.writeHead(404, corsHeaders);
-              res.end(
-                JSON.stringify({
-                  error: "Payment not found",
+              serverLog.info(
+                "Merchant confirm-fulfillment: release submitted",
+                {
                   payment_id: nexus_payment_id,
-                }),
+                  merchant_did,
+                  tx_hash: result.txHash,
+                },
               );
-              return;
-            }
 
-            // Authorization: merchant_did must match
-            if (payment.merchant_did !== merchant_did) {
-              res.writeHead(403, corsHeaders);
-              res.end(
-                JSON.stringify({
-                  error: "merchant_did does not match payment",
-                }),
-              );
-              return;
-            }
-
-            // Already settled or completed — idempotent success
-            if (
-              payment.status === "SETTLED" ||
-              payment.status === "COMPLETED"
-            ) {
               res.writeHead(200, corsHeaders);
               res.end(
                 JSON.stringify({
-                  status: "already_settled",
+                  status: "release_submitted",
+                  tx_hash: result.txHash,
                   payment_id: nexus_payment_id,
                 }),
               );
-              return;
+            } catch (err) {
+              const message =
+                err instanceof Error ? err.message : "Unknown error";
+              serverLog.error("confirm-fulfillment error", { error: message });
+              res.writeHead(500, corsHeaders);
+              res.end(JSON.stringify({ error: message }));
             }
+            return;
+          }
 
-            // Only ESCROWED payments can be released
-            if (payment.status !== "ESCROWED") {
-              res.writeHead(409, corsHeaders);
-              res.end(
-                JSON.stringify({
-                  error: `Payment status is ${payment.status}, expected ESCROWED`,
-                  payment_id: nexus_payment_id,
-                }),
-              );
-              return;
-            }
-
-            if (!payment.payment_id_bytes32) {
-              res.writeHead(409, corsHeaders);
-              res.end(
-                JSON.stringify({
-                  error: "Payment has no payment_id_bytes32",
-                  payment_id: nexus_payment_id,
-                }),
-              );
-              return;
-            }
-
-            const result = await relayer.submitRelease(
-              payment.payment_id_bytes32 as Hex,
-            );
-
-            serverLog.info("Merchant confirm-fulfillment: release submitted", {
-              payment_id: nexus_payment_id,
-              merchant_did,
-              tx_hash: result.txHash,
+          // CORS preflight for /api/merchant/confirm-fulfillment
+          if (
+            url.pathname === "/api/merchant/confirm-fulfillment" &&
+            req.method === "OPTIONS"
+          ) {
+            res.writeHead(204, {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type",
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
             });
+            res.end();
+            return;
+          }
 
-            res.writeHead(200, corsHeaders);
+          // CORS preflight for /api/orchestrate
+          if (url.pathname === "/api/orchestrate" && req.method === "OPTIONS") {
+            res.writeHead(204, {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type",
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+            });
+            res.end();
+            return;
+          }
+
+          // Debug: last orchestration errors
+          if (
+            url.pathname === "/api/debug/last-errors" &&
+            req.method === "GET"
+          ) {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ errors: debugErrors }, null, 2));
+            return;
+          }
+
+          // Health check — fast, no I/O (used by Render health check)
+          if (url.pathname === "/health") {
+            res.writeHead(200, { "Content-Type": "application/json" });
             res.end(
               JSON.stringify({
-                status: "release_submitted",
-                tx_hash: result.txHash,
-                payment_id: nexus_payment_id,
+                status: "ok",
+                version: NEXUS_CORE_VERSION,
+                transport: "sse",
               }),
             );
-          } catch (err) {
-            const message =
-              err instanceof Error ? err.message : "Unknown error";
-            serverLog.error("confirm-fulfillment error", { error: message });
-            res.writeHead(500, corsHeaders);
+            return;
+          }
+
+          // Detailed health — includes relayer balance (async RPC call)
+          if (url.pathname === "/api/health") {
+            let relayerInfo: Record<string, unknown> | null = null;
+            if (relayer) {
+              try {
+                const address = relayer.getAddress();
+                const balance = await relayer.getRelayerBalance();
+                relayerInfo = {
+                  address,
+                  lat_balance_wei: balance.toString(),
+                  lat_balance: formatUnits(balance, 18),
+                  escrow_contract: config.escrowContract,
+                  chain_id: config.chainId,
+                  low_balance: balance < 1_000_000_000_000_000n,
+                };
+              } catch (err) {
+                relayerInfo = {
+                  error: err instanceof Error ? err.message : "RPC call failed",
+                };
+              }
+            }
+
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(
+              JSON.stringify({
+                status: "ok",
+                version: NEXUS_CORE_VERSION,
+                transport: "sse",
+                services: {
+                  chain_watcher: watcher ? "running" : "disabled",
+                  timeout_handler: timeoutHandler ? "running" : "disabled",
+                  webhook_notifier: "running",
+                },
+                relayer: relayerInfo,
+              }),
+            );
+            return;
+          }
+
+          // Stateless REST API routes (/api/payments, /api/agents)
+          const restApiDeps: RestApiDeps = {
+            orchestrator,
+            merchantRepo,
+            starRepo,
+            kvRepo,
+            portalToken: config.portalToken,
+          };
+          const restHandled = await handleRestApiRequest(
+            restApiDeps,
+            req,
+            res,
+            url,
+          );
+          if (restHandled) return;
+
+          // Checkout routes (before portal, since portal handles /)
+          const checkoutDeps: CheckoutDeps = {
+            groupRepo,
+            paymentRepo,
+            stateMachine,
+            webhookNotifier,
+            kvRepo,
+            config,
+          };
+          const checkoutHandled = await handleCheckoutRequest(
+            checkoutDeps,
+            req,
+            res,
+            url,
+          );
+          if (checkoutHandled) return;
+
+          // Market routes
+          const marketDeps: MarketDeps = { merchantRepo, starRepo, config };
+          const marketHandled = await handleMarketRequest(
+            marketDeps,
+            req,
+            res,
+            url,
+          );
+          if (marketHandled) return;
+
+          // Portal routes
+          const portalDeps: PortalDeps = {
+            paymentRepo,
+            eventRepo,
+            groupRepo,
+            relayer,
+            escrowContract: config.escrowContract,
+            chainId: config.chainId,
+            version: NEXUS_CORE_VERSION,
+            portalToken: config.portalToken,
+          };
+          const handled = await handlePortalRequest(portalDeps, req, res, url);
+          if (handled) return;
+
+          res.writeHead(404);
+          res.end("Not found");
+        } catch (err) {
+          const message =
+            err instanceof Error ? err.message : "Internal server error";
+          serverLog.error("Unhandled request error", {
+            error: message,
+            path: url.pathname,
+          });
+          if (!res.headersSent) {
+            res.writeHead(500, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ error: message }));
           }
-          return;
         }
-
-        // CORS preflight for /api/merchant/confirm-fulfillment
-        if (
-          url.pathname === "/api/merchant/confirm-fulfillment" &&
-          req.method === "OPTIONS"
-        ) {
-          res.writeHead(204, {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-          });
-          res.end();
-          return;
-        }
-
-        // CORS preflight for /api/orchestrate
-        if (url.pathname === "/api/orchestrate" && req.method === "OPTIONS") {
-          res.writeHead(204, {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type",
-            "Access-Control-Allow-Methods": "POST, OPTIONS",
-          });
-          res.end();
-          return;
-        }
-
-        // Debug: last orchestration errors
-        if (url.pathname === "/api/debug/last-errors" && req.method === "GET") {
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ errors: debugErrors }, null, 2));
-          return;
-        }
-
-        // Health check — fast, no I/O (used by Render health check)
-        if (url.pathname === "/health") {
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(
-            JSON.stringify({
-              status: "ok",
-              version: NEXUS_CORE_VERSION,
-              transport: "sse",
-            }),
-          );
-          return;
-        }
-
-        // Detailed health — includes relayer balance (async RPC call)
-        if (url.pathname === "/api/health") {
-          let relayerInfo: Record<string, unknown> | null = null;
-          if (relayer) {
-            try {
-              const address = relayer.getAddress();
-              const balance = await relayer.getRelayerBalance();
-              relayerInfo = {
-                address,
-                lat_balance_wei: balance.toString(),
-                lat_balance: formatUnits(balance, 18),
-                escrow_contract: config.escrowContract,
-                chain_id: config.chainId,
-                low_balance: balance < 1_000_000_000_000_000n,
-              };
-            } catch (err) {
-              relayerInfo = {
-                error: err instanceof Error ? err.message : "RPC call failed",
-              };
-            }
-          }
-
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(
-            JSON.stringify({
-              status: "ok",
-              version: NEXUS_CORE_VERSION,
-              transport: "sse",
-              services: {
-                chain_watcher: watcher ? "running" : "disabled",
-                timeout_handler: timeoutHandler ? "running" : "disabled",
-                webhook_notifier: "running",
-              },
-              relayer: relayerInfo,
-            }),
-          );
-          return;
-        }
-
-        // Stateless REST API routes (/api/payments, /api/agents)
-        const restApiDeps: RestApiDeps = {
-          orchestrator,
-          merchantRepo,
-          starRepo,
-          kvRepo,
-          portalToken: config.portalToken,
-        };
-        const restHandled = await handleRestApiRequest(
-          restApiDeps,
-          req,
-          res,
-          url,
-        );
-        if (restHandled) return;
-
-        // Checkout routes (before portal, since portal handles /)
-        const checkoutDeps: CheckoutDeps = {
-          groupRepo,
-          paymentRepo,
-          stateMachine,
-          webhookNotifier,
-          kvRepo,
-          config,
-        };
-        const checkoutHandled = await handleCheckoutRequest(
-          checkoutDeps,
-          req,
-          res,
-          url,
-        );
-        if (checkoutHandled) return;
-
-        // Market routes
-        const marketDeps: MarketDeps = { merchantRepo, starRepo, config };
-        const marketHandled = await handleMarketRequest(
-          marketDeps,
-          req,
-          res,
-          url,
-        );
-        if (marketHandled) return;
-
-        // Portal routes
-        const portalDeps: PortalDeps = {
-          paymentRepo,
-          eventRepo,
-          groupRepo,
-          relayer,
-          escrowContract: config.escrowContract,
-          chainId: config.chainId,
-          version: NEXUS_CORE_VERSION,
-          portalToken: config.portalToken,
-        };
-        const handled = await handlePortalRequest(portalDeps, req, res, url);
-        if (handled) return;
-
-        res.writeHead(404);
-        res.end("Not found");
       },
     );
 
