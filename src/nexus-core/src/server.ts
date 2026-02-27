@@ -160,6 +160,25 @@ try {
   skillUserMdContent = skillMdContent; // fallback to full skill.md
 }
 
+// Platform-specific messaging skills (served from /skills/*.md)
+const platformSkills = new Map<string, string>();
+const skillsDir = join(__dirname, "..", "skills");
+try {
+  const { readdirSync } = await import("node:fs");
+  for (const file of readdirSync(skillsDir)) {
+    if (file.endsWith(".md")) {
+      platformSkills.set(file, readFileSync(join(skillsDir, file), "utf-8"));
+    }
+  }
+  if (platformSkills.size > 0) {
+    console.error(
+      `[Skills] Loaded ${platformSkills.size} platform skill(s): ${[...platformSkills.keys()].join(", ")}`,
+    );
+  }
+} catch {
+  // skills directory doesn't exist — skip silently
+}
+
 // ---------------------------------------------------------------------------
 // McpServer factory — one instance per SSE connection (or one for stdio)
 // ---------------------------------------------------------------------------
@@ -1001,6 +1020,19 @@ async function main(): Promise<void> {
             });
             res.end(skillUserMdContent);
             return;
+          }
+
+          // Serve platform-specific skill files: /skills/<name>.md
+          const skillMatch = url.pathname.match(/^\/skills\/([\w-]+\.md)$/);
+          if (skillMatch && req.method === "GET") {
+            const content = platformSkills.get(skillMatch[1]);
+            if (content) {
+              res.writeHead(200, {
+                "Content-Type": "text/markdown; charset=utf-8",
+              });
+              res.end(content);
+              return;
+            }
           }
 
           if (url.pathname === "/sse" && req.method === "GET") {
