@@ -1,116 +1,122 @@
 ---
 name: nexus-tg-messaging
-description: Specialized skill for presenting Nexus payment orders via Telegram Bot API InlineKeyboard
-version: 1.0.0
+description: Send Nexus payment orders as Telegram rich messages with InlineKeyboard buttons
+version: 2.0.0
 ---
 
 # Nexus Telegram Messaging Skill
 
-Present Nexus payment orders as rich Telegram messages using `InlineKeyboardMarkup`, Markdown formatting, and status update via `editMessageText`.
+## CRITICAL RULE
 
-## Message Format
+**NEVER put the checkout URL as plain text in the message.** It MUST be inside an `InlineKeyboardMarkup` button. Use the Telegram Bot API `sendMessage` method with `reply_markup` parameter.
 
-When you receive a checkout response from `nexus_orchestrate_payment` (or `POST /api/orchestrate`), present it to the user as follows.
+## How to Send an Order Card
 
-### Order Card (Markdown + InlineKeyboard)
+After you receive the orchestrate response (containing `checkout_url`, `group_id`, `instruction`), send a Telegram message using **exactly** this structure:
+
+### API Call: `sendMessage`
 
 ```
-📋 *NexusPay Order*
+POST https://api.telegram.org/bot<TOKEN>/sendMessage
+Content-Type: application/json
 
-1️⃣ Japan Airlines JL710 (SIN-NRT)
-   └ 0.10 USDC · `did:nexus:...:demo_flight`
-
-2️⃣ Hotel Gracery Shinjuku (Tokyo)
-   └ 0.10 USDC · `did:nexus:...:demo_hotel`
-
-━━━━━━━━━━━━━━━
-💰 *Total: 0.20 USDC*
-🔗 Chain: PlatON Devnet
-📦 Group: `GRP-xxx`
-⏳ Status: ⚪ Awaiting Payment
-```
-
-With `InlineKeyboardMarkup`:
-
-```json
 {
-  "inline_keyboard": [
-    [{ "text": "💳 Pay Now", "url": "${checkout_url}" }],
-    [{ "text": "🔄 Check Status", "callback_data": "nexus_status:${group_id}" }]
-  ]
-}
-```
-
-### Field Mapping
-
-| Orchestrate Response Field | Telegram Display |
-|---|---|
-| `instruction.payments[].summary` | Line item name (numbered) |
-| `instruction.payments[].amount_display` | Amount per item |
-| `instruction.payments[].merchant_did` | Merchant identifier (truncated) |
-| `instruction.total_amount_display` | Total amount (bold) |
-| `instruction.chain_name` | Chain badge |
-| `group_id` | Group reference (monospace) |
-| `checkout_url` | "Pay Now" button URL |
-
-### Status Icons
-
-| Status | Icon | Label |
-|---|---|---|
-| `GROUP_CREATED` | ⚪ | Awaiting Payment |
-| `GROUP_AWAITING_TX` | 🟡 | Transaction Pending |
-| `GROUP_ESCROWED` | 🟢 | Paid — In Escrow |
-| `GROUP_SETTLED` | ✅ | Settled |
-| `GROUP_COMPLETED` | ✅ | Completed |
-| `EXPIRED` | 🔴 | Expired |
-
-## Status Update Protocol
-
-Telegram supports `editMessageText` — when payment status changes:
-
-1. **After user clicks "Pay Now" and completes checkout:**
-   - Poll `GET /api/checkout/${token}` every 5 seconds (max 60s)
-   - Or wait for webhook callback if configured
-
-2. **On status change, edit the original message:**
-   - Update the status line: `⏳ Status: ⚪ Awaiting Payment` → `⏳ Status: 🟢 Paid — In Escrow`
-   - Replace the "Pay Now" button with "✅ Payment Confirmed"
-   - Keep the order details unchanged
-
-3. **On settlement:**
-   - Update status to `✅ Settled`
-   - Add "📄 View Receipt" button linking to portal if available
-
-### editMessageText Example
-
-```json
-{
-  "method": "editMessageText",
-  "chat_id": "${chat_id}",
-  "message_id": "${original_message_id}",
-  "text": "📋 *NexusPay Order*\n\n1️⃣ ...\n\n━━━━━━━━━━━━━━━\n💰 *Total: 0.20 USDC*\n⏳ Status: 🟢 Paid — In Escrow\n🔗 TX: `0xabc...def`",
-  "parse_mode": "Markdown",
+  "chat_id": "<CHAT_ID>",
+  "parse_mode": "HTML",
+  "text": "<b>📋 NexusPay Order</b>\n\n1️⃣ Japan Airlines JL710 (SIN-NRT)\n   └ 0.10 USDC · <code>demo_flight</code>\n\n2️⃣ Hotel Gracery Shinjuku (Tokyo)\n   └ 0.10 USDC · <code>demo_hotel</code>\n\n━━━━━━━━━━━━━━━\n💰 <b>Total: 0.20 USDC</b>\n🔗 Chain: PlatON Devnet\n📦 Group: <code>GRP-xxx</code>\n⏳ Status: ⚪ Awaiting Payment",
   "reply_markup": {
     "inline_keyboard": [
-      [{ "text": "✅ Payment Confirmed", "callback_data": "noop" }],
-      [{ "text": "🔄 Check Status", "callback_data": "nexus_status:${group_id}" }]
+      [{ "text": "💳 Pay Now", "url": "https://nexus-core-361y.onrender.com/checkout/tok_xxx" }],
+      [{ "text": "🔄 Check Status", "callback_data": "nexus_status:GRP-xxx" }]
     ]
   }
 }
 ```
 
-## Callback Query Handling
+### Key Points
 
-When user taps "Check Status" button:
+1. **`parse_mode`**: Use `"HTML"` (safer than Markdown — no escaping issues with special chars)
+2. **`reply_markup.inline_keyboard`**: The "Pay Now" button uses `"url"` field — Telegram renders it as a clickable button that opens the checkout page in the browser
+3. **`text`**: The message body contains order details only — NO raw URLs
+4. **`callback_data`**: Store the `group_id` so you can query status when the user taps "Check Status"
 
-1. Answer the callback query immediately: `answerCallbackQuery`
-2. Call `GET /api/payments?group_id=${group_id}`
-3. Edit the message with updated status using the mapping above
+## Building the Text
 
-## Key Rules
+From the orchestrate response, map fields to the message `text`:
 
-- Always use `parse_mode: "Markdown"` (or `MarkdownV2` with proper escaping)
-- Keep the checkout_url in an InlineKeyboard button — never as raw text
-- Truncate `merchant_did` to last segment for readability (e.g., `demo_flight`)
-- Use monospace (backticks) for IDs, hashes, and addresses
-- Maximum 3 buttons per row for mobile readability
+```
+<b>📋 NexusPay Order</b>
+
+{for each instruction.payments[i]:}
+{i+1}️⃣ {payments[i].summary}
+   └ {payments[i].amount_display} USDC · <code>{last segment of payments[i].merchant_did}</code>
+
+━━━━━━━━━━━━━━━
+💰 <b>Total: {instruction.total_amount_display} USDC</b>
+🔗 Chain: {instruction.chain_name}
+📦 Group: <code>{group_id}</code>
+⏳ Status: ⚪ Awaiting Payment
+```
+
+## Building the Buttons
+
+```json
+{
+  "inline_keyboard": [
+    [{ "text": "💳 Pay Now", "url": "{checkout_url}" }],
+    [{ "text": "🔄 Check Status", "callback_data": "nexus_status:{group_id}" }]
+  ]
+}
+```
+
+- The `"url"` type button opens an external link — user taps it → browser opens checkout page
+- The `"callback_data"` type button sends a callback query to your bot
+
+## Status Updates via `editMessageText`
+
+When payment status changes, **edit the original message** (do NOT send a new one):
+
+```
+POST https://api.telegram.org/bot<TOKEN>/editMessageText
+Content-Type: application/json
+
+{
+  "chat_id": "<CHAT_ID>",
+  "message_id": <ORIGINAL_MSG_ID>,
+  "parse_mode": "HTML",
+  "text": "<b>📋 NexusPay Order</b>\n\n1️⃣ ...\n\n━━━━━━━━━━━━━━━\n💰 <b>Total: 0.20 USDC</b>\n⏳ Status: 🟢 Paid — In Escrow\n🔗 TX: <code>0xabc...def</code>",
+  "reply_markup": {
+    "inline_keyboard": [
+      [{ "text": "✅ Payment Confirmed", "callback_data": "noop" }],
+      [{ "text": "🔄 Check Status", "callback_data": "nexus_status:GRP-xxx" }]
+    ]
+  }
+}
+```
+
+### Status Icons
+
+| Status | Icon + Label |
+|---|---|
+| `GROUP_CREATED` | ⚪ Awaiting Payment |
+| `GROUP_AWAITING_TX` | 🟡 Transaction Pending |
+| `GROUP_ESCROWED` | 🟢 Paid — In Escrow |
+| `GROUP_SETTLED` | ✅ Settled |
+| `GROUP_COMPLETED` | ✅ Completed |
+| `EXPIRED` | 🔴 Expired |
+
+## Handling "Check Status" Callback
+
+When user taps the "Check Status" button:
+
+1. Call `answerCallbackQuery` to dismiss the loading spinner
+2. Fetch status: `GET https://nexus-core-361y.onrender.com/api/payments?group_id={group_id}`
+3. Call `editMessageText` to update the status line and buttons
+
+## Summary Checklist
+
+- [ ] Checkout URL is in `InlineKeyboardMarkup` button with `"url"` field — NEVER in text
+- [ ] Using `parse_mode: "HTML"` (not Markdown)
+- [ ] Bold text uses `<b>...</b>`, monospace uses `<code>...</code>`
+- [ ] Status updates use `editMessageText` on the original message (not a new message)
+- [ ] `merchant_did` truncated to last segment (e.g., `did:nexus:20250407:demo_flight` → `demo_flight`)
