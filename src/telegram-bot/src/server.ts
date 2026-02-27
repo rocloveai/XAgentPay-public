@@ -120,12 +120,6 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Telegram webhook (callback queries from inline buttons)
-  if (method === "POST" && url === "/telegram-webhook") {
-    await telegramClient.handleWebhook(req, res);
-    return;
-  }
-
   // Render order
   if (method === "POST" && url === "/api/render-order") {
     await handleRenderOrder(req, res);
@@ -212,20 +206,9 @@ server.listen(config.port, async () => {
     nexus_core_url: config.nexusCoreUrl,
   });
 
-  // Set up Telegram webhook for callback queries (inline button presses)
-  if (config.baseUrl) {
-    try {
-      await telegramClient.setupWebhook(config.baseUrl);
-    } catch (err) {
-      log.error("Failed to set webhook", {
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  } else {
-    log.warn(
-      "BASE_URL not set — Telegram webhook not configured (callback buttons won't respond)",
-    );
-  }
+  // Clean up any stale webhook from previous deploys
+  // so updates flow back to OpenClaw's polling
+  await telegramClient.deleteWebhookIfSet();
 });
 
 async function shutdown(): Promise<void> {

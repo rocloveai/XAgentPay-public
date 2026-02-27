@@ -2,10 +2,10 @@
  * Telegram Bot — grammy Bot API wrapper.
  *
  * API-only mode: sends and edits messages via Bot API.
- * Handles callback queries via webhook (no long polling).
+ * No polling, no webhook — only outgoing API calls.
+ * This avoids hijacking updates from OpenClaw or other bot consumers.
  */
-import { Bot, webhookCallback } from "grammy";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import { Bot } from "grammy";
 import { createLogger } from "./logger.js";
 import type { RenderedMessage } from "./message-renderer.js";
 
@@ -16,11 +16,6 @@ export class TelegramClient {
 
   constructor(token: string) {
     this.bot = new Bot(token);
-
-    // Handle "noop" callback from inline keyboard buttons
-    this.bot.callbackQuery("noop", async (ctx) => {
-      await ctx.answerCallbackQuery();
-    });
   }
 
   /**
@@ -74,32 +69,22 @@ export class TelegramClient {
   }
 
   /**
-   * Set up webhook so Telegram sends callback queries to our server.
-   * Call once after the HTTP server is listening.
+   * Ensure no webhook is set on this bot, so updates flow to
+   * whoever is polling (e.g. OpenClaw).
    */
-  async setupWebhook(baseUrl: string): Promise<void> {
-    const webhookUrl = `${baseUrl}/telegram-webhook`;
-    await this.bot.api.setWebhook(webhookUrl);
-    log.info("Webhook set", { url: webhookUrl });
-  }
-
-  /**
-   * Handle incoming Telegram webhook request (callback queries, etc).
-   */
-  async handleWebhook(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const handler = webhookCallback(this.bot, "http");
-    await handler(req, res);
-  }
-
-  /**
-   * Remove webhook and clean up on shutdown.
-   */
-  async stop(): Promise<void> {
+  async deleteWebhookIfSet(): Promise<void> {
     try {
-      await this.bot.api.deleteWebhook();
+      const info = await this.bot.api.getWebhookInfo();
+      if (info.url) {
+        await this.bot.api.deleteWebhook();
+        log.info("Deleted stale webhook", { was: info.url });
+      }
     } catch {
-      // Ignore cleanup errors
+      // Ignore errors
     }
+  }
+
+  async stop(): Promise<void> {
     log.info("Bot stopped");
   }
 }
