@@ -554,7 +554,7 @@ describe("Checkout", () => {
         `checkout:token:${TOKEN_ID}`,
         JSON.stringify({
           groupId: GROUP_ID,
-          expiresAt: Date.now() + 15 * 60 * 1000,
+          expiresAt: Date.now() + 60 * 60 * 1000,
         }),
       );
     });

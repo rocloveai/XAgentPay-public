@@ -182,7 +182,7 @@ export class NexusOrchestrator {
     if (this.kvRepo) {
       const tokenBytes = randomBytes(16).toString("hex");
       checkoutToken = `tok_${tokenBytes}`;
-      const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+      const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
       await this.kvRepo.set(
         `checkout:token:${checkoutToken}`,
         JSON.stringify({ groupId: group.group_id, expiresAt }),
