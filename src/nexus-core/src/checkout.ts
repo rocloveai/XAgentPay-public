@@ -563,7 +563,7 @@ function isMobile() {
 function getMetaMaskDeepLink() {
   // metamask.app.link opens MetaMask's in-app browser with window.ethereum available
   var currentUrl = window.location.href;
-  var dappUrl = currentUrl.replace(/^https?:\/\//, "");
+  var dappUrl = currentUrl.replace(/^https?:\\/\\//, "");
   return "https://metamask.app.link/dapp/" + dappUrl;
 }
 
