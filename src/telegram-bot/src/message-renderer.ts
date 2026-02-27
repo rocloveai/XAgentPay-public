@@ -5,7 +5,10 @@
  * No side effects — all functions are pure and trivially testable.
  */
 import { createHash } from "node:crypto";
-import type { InlineKeyboardMarkup, InlineKeyboardButton } from "@grammyjs/types";
+import type {
+  InlineKeyboardMarkup,
+  InlineKeyboardButton,
+} from "@grammyjs/types";
 import type {
   RenderOrderRequest,
   GroupInfo,
@@ -94,9 +97,7 @@ function buildKeyboard(
     groupStatus === "COMPLETED"
   ) {
     return {
-      inline_keyboard: [
-        [callbackButton(`${s.emoji} ${s.label}`, "noop")],
-      ],
+      inline_keyboard: [[callbackButton(`${s.emoji} ${s.label}`, "noop")]],
     };
   }
 
@@ -107,8 +108,19 @@ function buildKeyboard(
     groupStatus === "ESCROWED"
   ) {
     return {
+      inline_keyboard: [[callbackButton("\u2705 Payment Received", "noop")]],
+    };
+  }
+
+  // TX submitted, awaiting confirmation — show "Paid"
+  if (
+    groupStatus === "GROUP_AWAITING_TX" ||
+    groupStatus === "AWAITING_TX" ||
+    groupStatus === "BROADCASTED"
+  ) {
+    return {
       inline_keyboard: [
-        [callbackButton("\u2705 Payment Received", "noop")],
+        [callbackButton("\u{1F4B3} Paid \u2014 Confirming...", "noop")],
       ],
     };
   }
