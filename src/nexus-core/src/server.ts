@@ -129,6 +129,7 @@ if (config.relayerPrivateKey) {
     relayer,
     paymentRepo,
     stateMachine,
+    groupManager,
     config.timeoutSweepIntervalMs,
   );
 }
@@ -1347,6 +1348,7 @@ async function main(): Promise<void> {
             groupRepo,
             paymentRepo,
             stateMachine,
+            groupManager,
             webhookNotifier,
             kvRepo,
             config,

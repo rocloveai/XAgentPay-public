@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Hex } from "viem";
 import { TimeoutHandler } from "../../services/timeout-handler.js";
 import { PaymentStateMachine } from "../../services/state-machine.js";
+import { GroupManager } from "../../services/group-manager.js";
 import { MockPaymentRepository } from "../mocks/mock-payment-repo.js";
 import { MockEventRepository } from "../mocks/mock-event-repo.js";
+import { MockGroupRepository } from "../mocks/mock-group-repo.js";
 import { makeTestPayment } from "../fixtures.js";
 
 // ---------------------------------------------------------------------------
@@ -28,18 +30,23 @@ const PAYMENT_ID_BYTES32 = ("0x" + "aa".repeat(32)) as Hex;
 describe("TimeoutHandler", () => {
   let paymentRepo: MockPaymentRepository;
   let eventRepo: MockEventRepository;
+  let groupRepo: MockGroupRepository;
   let stateMachine: PaymentStateMachine;
+  let groupManager: GroupManager;
   let handler: TimeoutHandler;
 
   beforeEach(() => {
     vi.clearAllMocks();
     paymentRepo = new MockPaymentRepository();
     eventRepo = new MockEventRepository();
+    groupRepo = new MockGroupRepository();
     stateMachine = new PaymentStateMachine(paymentRepo, eventRepo);
+    groupManager = new GroupManager(groupRepo, paymentRepo, eventRepo);
     handler = new TimeoutHandler(
       mockRelayer as never,
       paymentRepo,
       stateMachine,
+      groupManager,
       60000,
     );
   });

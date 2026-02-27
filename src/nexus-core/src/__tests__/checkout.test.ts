@@ -8,6 +8,7 @@ import {
 } from "./mocks/index.js";
 import { makeTestPayment, makeTestGroup, makeTestQuote } from "./fixtures.js";
 import { PaymentStateMachine } from "../services/state-machine.js";
+import { GroupManager } from "../services/group-manager.js";
 import type { WebhookNotifier } from "../services/webhook-notifier.js";
 import type { NexusCoreConfig } from "../config.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -224,6 +225,7 @@ describe("Checkout", () => {
       groupRepo,
       paymentRepo,
       stateMachine,
+      groupManager: new GroupManager(groupRepo, paymentRepo, eventRepo),
       webhookNotifier: makeMockWebhookNotifier(),
       kvRepo,
       config: testConfig,
@@ -443,6 +445,8 @@ describe("Checkout", () => {
     });
 
     it("returns 409 when group already paid", async () => {
+      // Update both payment and group to ESCROWED so syncGroupStatus stays consistent
+      await paymentRepo.updateStatus("PAY-checkout-1", "ESCROWED");
       await groupRepo.updateStatus(GROUP_ID, "GROUP_ESCROWED");
 
       const body = JSON.stringify({ tx_hash: "0xabc123def456" });

@@ -10,6 +10,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { GroupRepository } from "./db/interfaces/group-repo.js";
 import type { PaymentRepository } from "./db/interfaces/payment-repo.js";
 import type { PaymentStateMachine } from "./services/state-machine.js";
+import type { GroupManager } from "./services/group-manager.js";
 import type { WebhookNotifier } from "./services/webhook-notifier.js";
 import type { KVRepository } from "./db/interfaces/kv-repo.js";
 import type { NexusCoreConfig } from "./config.js";
@@ -27,6 +28,7 @@ export interface CheckoutDeps {
   readonly groupRepo: GroupRepository;
   readonly paymentRepo: PaymentRepository;
   readonly stateMachine: PaymentStateMachine;
+  readonly groupManager: GroupManager;
   readonly webhookNotifier: WebhookNotifier;
   readonly kvRepo: KVRepository | null;
   readonly config: NexusCoreConfig;
@@ -117,9 +119,22 @@ async function handleApiCheckout(
     return;
   }
 
-  const group = await deps.groupRepo.findById(groupId);
+  let group = await deps.groupRepo.findById(groupId);
   if (!group) {
     sendJson(res, 404, { error: "Group not found" });
+    return;
+  }
+
+  // Sync group status from child payments to catch recent expirations
+  const synced = await deps.groupManager.syncGroupStatus(groupId);
+  if (synced) group = synced;
+
+  if (group.status === "GROUP_EXPIRED") {
+    sendJson(res, 410, {
+      error: "This order has expired. Please create a new order.",
+      group_id: groupId,
+      status: group.status,
+    });
     return;
   }
 
@@ -189,9 +204,22 @@ async function handleCheckoutConfirm(
     return;
   }
 
-  const group = await deps.groupRepo.findById(groupId);
+  let group = await deps.groupRepo.findById(groupId);
   if (!group) {
     sendJson(res, 404, { error: "Group not found" });
+    return;
+  }
+
+  // Sync group status to catch recent payment expirations
+  const synced = await deps.groupManager.syncGroupStatus(groupId);
+  if (synced) group = synced;
+
+  if (group.status === "GROUP_EXPIRED") {
+    sendJson(res, 410, {
+      error: "This order has expired. Please create a new order.",
+      group_id: groupId,
+      status: group.status,
+    });
     return;
   }
 

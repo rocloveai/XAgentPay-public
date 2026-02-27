@@ -178,14 +178,22 @@ export class NexusOrchestrator {
     }
 
     // Phase 7: Generate short-lived secure token for checkout URL
+    // Token expiry = earliest payment expiry (so token can't outlive sub-payments)
+    const earliestPaymentExpiry = Math.min(
+      ...quotes.map((q) => q.expiry * 1000), // quote.expiry is unix seconds → ms
+    );
+    const fallbackExpiry = Date.now() + 60 * 60 * 1000; // 1 hour
+    const tokenExpiresAt = Number.isFinite(earliestPaymentExpiry)
+      ? earliestPaymentExpiry
+      : fallbackExpiry;
+
     let checkoutToken = group.group_id; // Default fallback
     if (this.kvRepo) {
       const tokenBytes = randomBytes(16).toString("hex");
       checkoutToken = `tok_${tokenBytes}`;
-      const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
       await this.kvRepo.set(
         `checkout:token:${checkoutToken}`,
-        JSON.stringify({ groupId: group.group_id, expiresAt }),
+        JSON.stringify({ groupId: group.group_id, expiresAt: tokenExpiresAt }),
       );
     }
 

@@ -9,6 +9,7 @@ import type { Hex } from "viem";
 import type { NexusRelayer } from "./relayer.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
 import type { PaymentStateMachine } from "./state-machine.js";
+import type { GroupManager } from "./group-manager.js";
 
 export class TimeoutHandler {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -18,6 +19,7 @@ export class TimeoutHandler {
     private readonly relayer: NexusRelayer,
     private readonly paymentRepo: PaymentRepository,
     private readonly stateMachine: PaymentStateMachine,
+    private readonly groupManager: GroupManager,
     intervalMs: number,
   ) {
     this.intervalMs = intervalMs;
@@ -42,7 +44,24 @@ export class TimeoutHandler {
 
   async sweepOnce(): Promise<void> {
     // 1. Handle AWAITING_TX timeouts (state machine only, no chain tx)
-    await this.stateMachine.runTimeoutSweep();
+    const expiredPayments = await this.stateMachine.runTimeoutSweep();
+
+    // 1b. Sync group status for any groups with newly-expired payments
+    const affectedGroupIds = new Set(
+      expiredPayments
+        .map((p) => p.group_id)
+        .filter((id): id is string => id !== null),
+    );
+    for (const groupId of affectedGroupIds) {
+      try {
+        await this.groupManager.syncGroupStatus(groupId);
+      } catch (err) {
+        console.error(
+          `[TimeoutHandler] Failed to sync group ${groupId}:`,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
 
     // 2. Handle expired ESCROWED payments — submit on-chain refund
     const now = new Date().toISOString();
