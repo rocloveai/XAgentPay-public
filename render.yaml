@@ -94,3 +94,18 @@ services:
         value: "did:nexus:20250407:demo_flight"
       - key: NEXUS_CORE_URL
         value: "https://nexus-core-361y.onrender.com"
+
+  - type: web
+    name: nexus-telegram-bot
+    runtime: docker
+    dockerfilePath: src/telegram-bot/Dockerfile
+    dockerContext: src/telegram-bot
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: NEXUS_CORE_URL
+        value: "https://nexus-core-361y.onrender.com"
+      - key: PORT
+        value: "10000"
