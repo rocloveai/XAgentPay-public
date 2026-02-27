@@ -398,13 +398,30 @@ tailwind.config = {
   <div id="action-area" class="hidden fade-in">
     <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center space-y-4">
 
-      <!-- No MetaMask -->
+      <!-- No MetaMask (desktop) -->
       <div id="no-metamask" class="hidden">
         <p class="text-red-400 text-sm mb-2">MetaMask not detected</p>
         <a href="https://metamask.io/download/" target="_blank" rel="noopener"
            class="inline-block bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors">
           Install MetaMask
         </a>
+      </div>
+
+      <!-- No MetaMask (mobile) — deep link to MetaMask app -->
+      <div id="no-metamask-mobile" class="hidden">
+        <p class="text-slate-400 text-sm mb-3">Open in MetaMask to complete payment</p>
+        <a id="metamask-deeplink" href="#"
+           class="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-8 rounded-lg transition-colors text-lg">
+          <svg class="w-6 h-6" viewBox="0 0 35 33" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M32.96 1L19.59 10.89l2.49-5.88L32.96 1z" fill="#E2761B" stroke="#E2761B" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M2.03 1l13.24 9.99-2.36-5.98L2.03 1zM28.15 23.53l-3.55 5.44 7.6 2.09 2.18-7.39-6.23-.14zM.62 23.67l2.17 7.39 7.6-2.09-3.55-5.44-6.22.14z" fill="#E4761B" stroke="#E4761B" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9.96 14.53l-2.12 3.21 7.55.34-.26-8.12-5.17 4.57zM25.03 14.53l-5.24-4.67-.17 8.22 7.54-.34-2.13-3.21zM10.39 28.97l4.53-2.21-3.91-3.05-.62 5.26zM20.07 26.76l4.55 2.21-.63-5.26-3.92 3.05z" fill="#E4761B" stroke="#E4761B" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Open in MetaMask
+        </a>
+        <p class="text-slate-500 text-xs mt-3">Don't have MetaMask?
+          <a href="https://metamask.io/download/" target="_blank" rel="noopener" class="text-indigo-400 hover:underline">Download here</a>
+        </p>
       </div>
 
       <!-- Connect Wallet -->
@@ -539,6 +556,17 @@ function esc(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
+function isMobile() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+function getMetaMaskDeepLink() {
+  // metamask.app.link opens MetaMask's in-app browser with window.ethereum available
+  var currentUrl = window.location.href;
+  var dappUrl = currentUrl.replace(/^https?:\/\//, "");
+  return "https://metamask.app.link/dapp/" + dappUrl;
+}
+
 function truncAddr(addr) {
   if (!addr) return "-";
   return addr.slice(0, 6) + "..." + addr.slice(-4);
@@ -547,7 +575,7 @@ function truncAddr(addr) {
 function showOnly(ids) {
   var allStates = ["state-loading","group-info","order-summary","payment-details","action-area",
     "state-success","state-already-paid","state-error",
-    "no-metamask","connect-wallet","wrong-chain","wrong-wallet","ready-sign","signing","submitting","confirming"];
+    "no-metamask","no-metamask-mobile","connect-wallet","wrong-chain","wrong-wallet","ready-sign","signing","submitting","confirming"];
   for (var s of allStates) {
     var el = document.getElementById(s);
     if (el) el.classList.add("hidden");
@@ -593,7 +621,14 @@ async function loadCheckout() {
 
     // Check MetaMask
     if (typeof window.ethereum === "undefined") {
-      showOnly(["group-info","order-summary","payment-details","action-area","no-metamask"]);
+      if (isMobile()) {
+        // Mobile: show deep link to open MetaMask app
+        document.getElementById("metamask-deeplink").href = getMetaMaskDeepLink();
+        showOnly(["group-info","order-summary","payment-details","action-area","no-metamask-mobile"]);
+      } else {
+        // Desktop: show install MetaMask
+        showOnly(["group-info","order-summary","payment-details","action-area","no-metamask"]);
+      }
       return;
     }
 
