@@ -101,6 +101,13 @@ function buildKeyboard(
     };
   }
 
+  // Partial settlement — some paid, some still settling
+  if (groupStatus === "GROUP_PARTIAL") {
+    return {
+      inline_keyboard: [[callbackButton("\u2699\uFE0F Settling...", "noop")]],
+    };
+  }
+
   // Escrowed — payment received
   if (
     groupStatus === "GROUP_ESCROWED" ||
