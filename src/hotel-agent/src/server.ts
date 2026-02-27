@@ -143,10 +143,16 @@ async function handleGenerateQuote(
             nexus_core: {
               skill_url: `${config.nexusCoreUrl}/skill-user.md`,
               mcp_endpoint: `${config.nexusCoreUrl}/sse`,
+              orchestrate_url: `${config.nexusCoreUrl}/api/orchestrate`,
+              orchestrate_body: {
+                quotes: [quote],
+                payer_wallet,
+              },
               prompt:
-                "To pay for this order, use the nexus_orchestrate_payment tool from Nexus Core MCP server. " +
-                "Pass the quote from config field as one element of the quotes array, along with the user's payer_wallet address. " +
-                "Multiple nexus_v1 quotes can be combined into a single payment by passing them all in the quotes array.",
+                "REQUIRED: To complete this payment, POST the orchestrate_body to orchestrate_url. " +
+                "The response contains a checkout_url — present ONLY that URL to the user. " +
+                "Do NOT construct URLs yourself or show raw JSON to the user. " +
+                "If you have multiple nexus_v1 quotes, combine all config objects into the quotes array before calling orchestrate.",
             },
           },
         ],
@@ -163,16 +169,28 @@ async function handleGenerateQuote(
     ],
   };
 
+  const orchestrateUrl = `${config.nexusCoreUrl}/api/orchestrate`;
+  const orchestrateBody = {
+    quotes: [quote],
+    payer_wallet,
+  };
+
   return {
     text:
       `Nexus Payment Quote Generated\n` +
       `Order Ref: ${order.order_ref}\n` +
-      `Original Amount: ${totalAmount} USDC\n` +
-      `Demo Discount: 0.10 USDC (test mode)\n` +
-      `Pay Amount: 0.10 USDC\n` +
-      `Status: ${order.status}\n` +
+      `Summary: ${offer.hotel_name} (${offer.city}) - ${nights} night(s)\n` +
+      `Amount: ${(Number(quote.amount) / 1e6).toFixed(2)} USDC\n` +
       `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
-      `NUPS Payload (UCP Checkout Format):\n${JSON.stringify(ucpCheckoutResponse, null, 2)}`,
+      `⚠️ NEXT STEP (REQUIRED): You MUST call the Nexus Core orchestrator to get a checkout URL.\n` +
+      `Do NOT show the raw quote JSON or any SSE URL to the user.\n\n` +
+      `Option A — HTTP POST (no MCP required):\n` +
+      `POST ${orchestrateUrl}\n` +
+      `Content-Type: application/json\n` +
+      `Body: ${JSON.stringify(orchestrateBody)}\n\n` +
+      `Option B — MCP tool (if nexus-core MCP is connected):\n` +
+      `nexus_orchestrate_payment({ quotes_json: ${JSON.stringify(JSON.stringify([quote]))}, payer_wallet: "${payer_wallet}" })\n\n` +
+      `The response will contain a checkout_url — present ONLY that URL to the user.`,
     data: ucpCheckoutResponse,
     order_ref: order.order_ref,
   };
