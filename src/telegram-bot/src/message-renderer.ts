@@ -140,6 +140,47 @@ function computeHash(text: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Card layout helpers
+// ---------------------------------------------------------------------------
+
+const SEPARATOR =
+  "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500";
+const NUM_EMOJI = [
+  "\u0031\uFE0F\u20E3",
+  "\u0032\uFE0F\u20E3",
+  "\u0033\uFE0F\u20E3",
+  "\u0034\uFE0F\u20E3",
+  "\u0035\uFE0F\u20E3",
+  "\u0036\uFE0F\u20E3",
+  "\u0037\uFE0F\u20E3",
+  "\u0038\uFE0F\u20E3",
+  "\u0039\uFE0F\u20E3",
+];
+
+function numEmoji(i: number): string {
+  return i < NUM_EMOJI.length ? NUM_EMOJI[i] : `${i + 1}.`;
+}
+
+function statusBadge(status: string): string {
+  const s = statusDisplay(status);
+  return `${s.emoji} ${s.label}`;
+}
+
+function renderItemBlock(
+  index: number,
+  label: string,
+  amount: string,
+  currency: string,
+  status: string,
+): string {
+  const badge = statusBadge(status);
+  return [
+    `${numEmoji(index)}  <b>${escapeHtml(label)}</b>`,
+    `      ${escapeHtml(amount)} ${escapeHtml(currency)}  \u00B7  ${badge}`,
+  ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
 // Render: initial order (from POST body)
 // ---------------------------------------------------------------------------
 
@@ -147,30 +188,31 @@ export function renderOrderMessage(order: RenderOrderRequest): RenderedMessage {
   const groupStatus = inferGroupStatus(order.payments);
   const s = statusDisplay(groupStatus);
 
-  const lines: string[] = [
-    `<b>\u{1F4E6} NexusPay Order</b>`,
-    ``,
-    `${s.emoji} Status: <b>${escapeHtml(s.label)}</b>`,
-    ``,
-    `<b>Items</b>`,
-  ];
-
-  order.payments.forEach((p, i) => {
-    const ps = statusDisplay(p.status);
-    const label = p.summary ?? p.merchant_order_ref;
-    lines.push(
-      `${i + 1}. ${escapeHtml(label)}`,
-      `   ${escapeHtml(p.amount_display)} ${escapeHtml(order.currency)}  [${ps.emoji} ${escapeHtml(ps.label)}]`,
-    );
-  });
-
-  lines.push(
-    ``,
-    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501`,
-    `<b>Total: ${escapeHtml(order.total_amount_display)} ${escapeHtml(order.currency)}</b>`,
-    ``,
-    `<code>${escapeHtml(order.group_id)}</code>`,
+  const items = order.payments.map((p, i) =>
+    renderItemBlock(
+      i,
+      p.summary ?? p.merchant_order_ref,
+      p.amount_display,
+      order.currency,
+      p.status,
+    ),
   );
+
+  const lines: string[] = [
+    `\u{1F3AB} <b>NexusPay Order</b>`,
+    ``,
+    `<blockquote>${s.emoji} <b>${escapeHtml(s.label)}</b>`,
+    ``,
+    SEPARATOR,
+    ``,
+    items.join("\n\n"),
+    ``,
+    SEPARATOR,
+    ``,
+    `\u{1F4B0} <b>Total: ${escapeHtml(order.total_amount_display)} ${escapeHtml(order.currency)}</b></blockquote>`,
+    ``,
+    `\u{1F194} <code>${escapeHtml(order.group_id)}</code>`,
+  ];
 
   const text = lines.join("\n");
   return {
@@ -191,33 +233,34 @@ export function renderStatusUpdate(
 ): RenderedMessage {
   const s = statusDisplay(group.status);
 
-  const lines: string[] = [
-    `<b>\u{1F4E6} NexusPay Order</b>`,
-    ``,
-    `${s.emoji} Status: <b>${escapeHtml(s.label)}</b>`,
-    ``,
-    `<b>Items</b>`,
-  ];
-
-  payments.forEach((p, i) => {
-    const ps = statusDisplay(p.status);
-    const label = p.merchant_order_ref;
-    lines.push(
-      `${i + 1}. ${escapeHtml(label)}`,
-      `   ${escapeHtml(p.amount_display)} ${escapeHtml(p.currency)}  [${ps.emoji} ${escapeHtml(ps.label)}]`,
-    );
-  });
-
-  lines.push(
-    ``,
-    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501`,
-    `<b>Total: ${escapeHtml(group.total_amount_display)} ${escapeHtml(group.currency)}</b>`,
-    ``,
-    `<code>${escapeHtml(group.group_id)}</code>`,
+  const items = payments.map((p, i) =>
+    renderItemBlock(
+      i,
+      p.merchant_order_ref,
+      p.amount_display,
+      p.currency,
+      p.status,
+    ),
   );
 
+  const lines: string[] = [
+    `\u{1F3AB} <b>NexusPay Order</b>`,
+    ``,
+    `<blockquote>${s.emoji} <b>${escapeHtml(s.label)}</b>`,
+    ``,
+    SEPARATOR,
+    ``,
+    items.join("\n\n"),
+    ``,
+    SEPARATOR,
+    ``,
+    `\u{1F4B0} <b>Total: ${escapeHtml(group.total_amount_display)} ${escapeHtml(group.currency)}</b></blockquote>`,
+    ``,
+    `\u{1F194} <code>${escapeHtml(group.group_id)}</code>`,
+  ];
+
   if (group.tx_hash) {
-    lines.push(`TX: <code>${escapeHtml(group.tx_hash)}</code>`);
+    lines.push(`\u{1F517} <code>${escapeHtml(group.tx_hash)}</code>`);
   }
 
   const text = lines.join("\n");

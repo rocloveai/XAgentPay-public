@@ -23,7 +23,7 @@ After you call `nexus_orchestrate_payment` and receive a `checkout_url` + `group
 
 ### `POST /api/render-order`
 
-**Base URL:** `http://localhost:4100` (local) or your deployed URL
+**Base URL:** `https://nexus-telegram-bot.onrender.com`
 
 **Request:**
 
