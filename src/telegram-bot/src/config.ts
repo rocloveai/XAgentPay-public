@@ -7,6 +7,7 @@
 export interface TelegramBotConfig {
   readonly telegramBotToken: string;
   readonly nexusCoreUrl: string;
+  readonly baseUrl: string | null;
   readonly port: number;
   readonly pollIntervalMs: number;
   readonly maxPollDurationMs: number;
@@ -15,10 +16,12 @@ export interface TelegramBotConfig {
 export function loadConfig(): TelegramBotConfig {
   const telegramBotToken = requireEnv("TELEGRAM_BOT_TOKEN");
   const nexusCoreUrl = requireEnv("NEXUS_CORE_URL");
+  const baseUrl = process.env.BASE_URL?.replace(/\/+$/, "") ?? null;
 
   return {
     telegramBotToken,
     nexusCoreUrl: nexusCoreUrl.replace(/\/+$/, ""), // strip trailing slash
+    baseUrl,
     port: intEnv("PORT", 4100),
     pollIntervalMs: intEnv("POLL_INTERVAL_MS", 10_000),
     maxPollDurationMs: intEnv("MAX_POLL_DURATION_MS", 3_600_000),

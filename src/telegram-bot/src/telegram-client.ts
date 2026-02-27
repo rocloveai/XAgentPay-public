@@ -1,9 +1,11 @@
 /**
  * Telegram Bot — grammy Bot API wrapper.
  *
- * Thin layer around grammy for sending and editing messages.
+ * API-only mode: sends and edits messages via Bot API.
+ * Handles callback queries via webhook (no long polling).
  */
-import { Bot } from "grammy";
+import { Bot, webhookCallback } from "grammy";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { createLogger } from "./logger.js";
 import type { RenderedMessage } from "./message-renderer.js";
 
@@ -14,6 +16,11 @@ export class TelegramClient {
 
   constructor(token: string) {
     this.bot = new Bot(token);
+
+    // Handle "noop" callback from inline keyboard buttons
+    this.bot.callbackQuery("noop", async (ctx) => {
+      await ctx.answerCallbackQuery();
+    });
   }
 
   /**
@@ -67,28 +74,32 @@ export class TelegramClient {
   }
 
   /**
-   * Handle callback queries (e.g., "noop" button presses).
-   * Call this once at startup to register the handler.
+   * Set up webhook so Telegram sends callback queries to our server.
+   * Call once after the HTTP server is listening.
    */
-  registerCallbackHandler(): void {
-    this.bot.callbackQuery("noop", async (ctx) => {
-      await ctx.answerCallbackQuery();
-    });
+  async setupWebhook(baseUrl: string): Promise<void> {
+    const webhookUrl = `${baseUrl}/telegram-webhook`;
+    await this.bot.api.setWebhook(webhookUrl);
+    log.info("Webhook set", { url: webhookUrl });
   }
 
   /**
-   * Start the bot (long polling for callback queries).
-   * Non-blocking — runs in the background.
+   * Handle incoming Telegram webhook request (callback queries, etc).
    */
-  start(): void {
-    this.registerCallbackHandler();
-    this.bot.start({
-      onStart: () => log.info("Bot started"),
-    });
+  async handleWebhook(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const handler = webhookCallback(this.bot, "http");
+    await handler(req, res);
   }
 
+  /**
+   * Remove webhook and clean up on shutdown.
+   */
   async stop(): Promise<void> {
-    await this.bot.stop();
+    try {
+      await this.bot.api.deleteWebhook();
+    } catch {
+      // Ignore cleanup errors
+    }
     log.info("Bot stopped");
   }
 }

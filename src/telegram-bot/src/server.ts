@@ -120,6 +120,12 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // Telegram webhook (callback queries from inline buttons)
+  if (method === "POST" && url === "/telegram-webhook") {
+    await telegramClient.handleWebhook(req, res);
+    return;
+  }
+
   // Render order
   if (method === "POST" && url === "/api/render-order") {
     await handleRenderOrder(req, res);
@@ -200,13 +206,26 @@ async function handleRenderOrder(
 // Startup & shutdown
 // ---------------------------------------------------------------------------
 
-telegramClient.start();
-
-server.listen(config.port, () => {
+server.listen(config.port, async () => {
   log.info("Telegram bot server started", {
     port: config.port,
     nexus_core_url: config.nexusCoreUrl,
   });
+
+  // Set up Telegram webhook for callback queries (inline button presses)
+  if (config.baseUrl) {
+    try {
+      await telegramClient.setupWebhook(config.baseUrl);
+    } catch (err) {
+      log.error("Failed to set webhook", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  } else {
+    log.warn(
+      "BASE_URL not set — Telegram webhook not configured (callback buttons won't respond)",
+    );
+  }
 });
 
 async function shutdown(): Promise<void> {

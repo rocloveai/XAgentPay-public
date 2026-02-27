@@ -109,3 +109,5 @@ services:
         value: "https://nexus-core-361y.onrender.com"
       - key: PORT
         value: "10000"
+      - key: BASE_URL
+        sync: false
