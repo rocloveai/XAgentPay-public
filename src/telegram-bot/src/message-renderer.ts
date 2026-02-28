@@ -101,6 +101,20 @@ function buildKeyboard(
     };
   }
 
+  // Expired / failed / refunded — non-clickable terminal badge
+  if (
+    groupStatus === "GROUP_EXPIRED" ||
+    groupStatus === "EXPIRED" ||
+    groupStatus === "TX_FAILED" ||
+    groupStatus === "REFUNDED" ||
+    groupStatus === "RISK_REJECTED" ||
+    groupStatus === "DISPUTE_RESOLVED"
+  ) {
+    return {
+      inline_keyboard: [[callbackButton(`${s.emoji} ${s.label}`, "noop")]],
+    };
+  }
+
   // Partial settlement — some paid, some still settling
   if (groupStatus === "GROUP_PARTIAL") {
     return {
@@ -297,5 +311,8 @@ function inferGroupStatus(
     )
   )
     return "GROUP_ESCROWED";
-  return "GROUP_CREATED";
+  if (statuses.every((s) => s === "EXPIRED")) return "GROUP_EXPIRED";
+  if (statuses.every((s) => s === "CREATED" || s === "AWAITING_TX"))
+    return "GROUP_CREATED";
+  return "GROUP_PARTIAL";
 }

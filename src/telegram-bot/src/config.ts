@@ -9,8 +9,12 @@ export interface TelegramBotConfig {
   readonly nexusCoreUrl: string;
   readonly baseUrl: string | null;
   readonly port: number;
+  /** Initial polling interval in ms (first poll after this delay) */
   readonly pollIntervalMs: number;
-  readonly maxPollDurationMs: number;
+  /** Each subsequent poll adds this many ms to the interval */
+  readonly pollBackoffMs: number;
+  /** Hard cap on number of status queries per order message */
+  readonly maxPollCount: number;
 }
 
 export function loadConfig(): TelegramBotConfig {
@@ -24,7 +28,8 @@ export function loadConfig(): TelegramBotConfig {
     baseUrl,
     port: intEnv("PORT", 4100),
     pollIntervalMs: intEnv("POLL_INTERVAL_MS", 10_000),
-    maxPollDurationMs: intEnv("MAX_POLL_DURATION_MS", 3_600_000),
+    pollBackoffMs: intEnv("POLL_BACKOFF_MS", 5_000),
+    maxPollCount: intEnv("MAX_POLL_COUNT", 20),
   };
 }
 

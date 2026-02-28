@@ -82,7 +82,8 @@ const nexusClient = new NexusClient(config.nexusCoreUrl);
 const telegramClient = new TelegramClient(config.telegramBotToken);
 const statusPoller = new StatusPoller(nexusClient, telegramClient, {
   pollIntervalMs: config.pollIntervalMs,
-  maxPollDurationMs: config.maxPollDurationMs,
+  pollBackoffMs: config.pollBackoffMs,
+  maxPollCount: config.maxPollCount,
 });
 
 const server = createServer(async (req, res) => {

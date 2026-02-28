@@ -88,9 +88,12 @@ After you call `nexus_orchestrate_payment` and receive a `checkout_url` + `group
 4. You POST to /api/render-order with chat_id + order details
    → User sees a rich order card with "Pay Now" button in Telegram
 5. User taps "Pay Now" → opens MetaMask checkout in browser
-6. User pays → the order card auto-updates every 10s:
+6. User pays → the order card auto-updates with progressive backoff:
+   10s → 15s → 20s → … (adds 5s each poll, max 20 queries ≈ 19 min)
    ⏳ Pending → 🔒 Escrowed → ✅ Settled → 🎉 Completed
+   If order expires: ⏳ Pending → ❌ Expired (button changes to non-clickable badge)
 7. No further action needed — the service handles all status updates
+8. Polling stops on: terminal status, or after 20 queries
 ```
 
 ## How to Extract Data from Orchestration Response
@@ -138,6 +141,27 @@ grp_abc123
 [💳 Pay Now]  ← clickable button opens checkout URL
 ```
 
+If the order expires before payment, the message auto-updates to:
+
+```
+📦 NexusPay Order
+
+❌ Status: Expired
+
+Items
+1. Flight SQ321 PVG-NRT
+   0.10 USDC  [❌ Expired]
+2. Hotel Tokyo Shibuya 2 nights
+   0.20 USDC  [❌ Expired]
+
+━━━━━━━━━━━━━━━
+Total: 0.30 USDC
+
+grp_abc123
+
+[❌ Expired]  ← non-clickable badge
+```
+
 After payment, the message auto-updates to:
 
 ```
@@ -174,5 +198,6 @@ GET /health
 | `TELEGRAM_BOT_TOKEN` | Yes | — | Bot token from @BotFather |
 | `NEXUS_CORE_URL` | Yes | — | NexusPay Core URL for status polling |
 | `PORT` | No | `4100` | HTTP server port |
-| `POLL_INTERVAL_MS` | No | `10000` | Status poll interval in ms |
-| `MAX_POLL_DURATION_MS` | No | `3600000` | Max polling duration per message (1h) |
+| `POLL_INTERVAL_MS` | No | `10000` | Initial poll interval in ms |
+| `POLL_BACKOFF_MS` | No | `5000` | Added to interval per successive poll |
+| `MAX_POLL_COUNT` | No | `20` | Max status queries per message |
