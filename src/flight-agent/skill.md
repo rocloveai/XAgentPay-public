@@ -8,6 +8,8 @@ category: travel.flights
 currencies: [USDC]
 chain_id: 20250407
 tools:
+  - name: search_and_quote
+    role: search+quote
   - name: search_flights
     role: search
   - name: nexus_generate_quote
@@ -38,9 +40,9 @@ Transport: **Streamable HTTP** (stateless, single `POST /mcp` per request).
 
 ## Available Tools
 
-### `search_flights` (role: search)
+### `search_and_quote` (role: search+quote) — Recommended
 
-Search available flights between airports.
+Search flights AND generate a NUPS quote in one call. Fastest way to get a flight quote.
 
 **Parameters:**
 
@@ -50,19 +52,36 @@ Search available flights between airports.
 | `destination` | string | Yes | IATA airport code for arrival (e.g. `NRT`, `PVG`) |
 | `date` | string | Yes | Departure date in `YYYY-MM-DD` format |
 | `passengers` | number | No | Number of passengers, 1-9. Default: `1` |
+| `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
+| `offer_index` | number | No | Zero-based index of flight to quote (default: `0`). Call again with a different index to re-quote |
 
-**Returns:** List of flight offers with `offer_id`, airline, flight number, departure/arrival times, duration, cabin class, and price (USD).
+**Returns:** All available flights + a ready-to-use `QUOTE_JSON` for the selected flight.
 
 **Example:**
 ```
-search_flights({ origin: "SIN", destination: "PVG", date: "2026-04-01", passengers: 1 })
+search_and_quote({ origin: "SIN", destination: "PVG", date: "2026-04-01", payer_wallet: "0x..." })
 ```
+
+---
+
+### `search_flights` (role: search)
+
+Search available flights. Use `search_and_quote` instead for faster flow.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `origin` | string | Yes | IATA airport code for departure |
+| `destination` | string | Yes | IATA airport code for arrival |
+| `date` | string | Yes | Departure date in `YYYY-MM-DD` format |
+| `passengers` | number | No | Default: `1` |
 
 ---
 
 ### `nexus_generate_quote` (role: quote)
 
-Generates a Nexus Payment (NUPS) quote for a selected flight offer. Required before payment.
+Generate a NUPS quote for a selected flight offer. Use `search_and_quote` instead for faster flow.
 
 **Parameters:**
 
@@ -70,8 +89,6 @@ Generates a Nexus Payment (NUPS) quote for a selected flight offer. Required bef
 |------|------|----------|-------------|
 | `flight_offer_id` | string | Yes | The `offer_id` from `search_flights` results |
 | `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
-
-**Returns:** NUPS quote payload with `merchant_order_ref`, amount, currency, expiry, line items, payer wallet, and signature.
 
 ---
 
@@ -89,8 +106,7 @@ Checks the payment status of a flight order.
 
 ## Checkout Workflow
 
-1. **Discover** — Ask the user for departure city, destination, and travel date.
-2. **Search** — Call `search_flights` with IATA codes and date. Present results to the user.
-3. **Quote** — When the user selects a flight, collect their EVM wallet address, then call `nexus_generate_quote` with the `offer_id` and `payer_wallet`. Display the NUPS payment payload.
-4. **Pay** — The UCP response contains a `nexus_core` object with `mcp_endpoint` (`https://api.nexus-mvp.topos.one/mcp`). Connect to Nexus Core MCP server and call `nexus_orchestrate_payment` with the quote's `config` object as one element of the `quotes` array, along with the user's `payer_wallet`. Multiple `nexus_v1` quotes from different merchants can be combined into a single call for aggregated payment — the user signs once for the total amount.
-5. **Verify** — After user confirms payment, call `nexus_check_status` to verify. Only confirm booking when status is `PAID`.
+**Fast path (recommended):**
+1. **Search + Quote** — Call `search_and_quote` with origin, destination, date, and payer wallet. Returns flights + ready-to-use quote.
+2. **Pay** — Call `nexus_orchestrate_payment` on Nexus Core with the `QUOTE_JSON` from step 1. Multiple quotes from different merchants can be combined into a single call.
+3. **Verify** — Call `nexus_check_status` to verify. Only confirm booking when status is `PAID`.

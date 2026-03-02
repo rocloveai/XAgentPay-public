@@ -8,6 +8,8 @@ category: travel.hotels
 currencies: [USDC]
 chain_id: 20250407
 tools:
+  - name: search_and_quote
+    role: search+quote
   - name: search_hotels
     role: search
   - name: nexus_generate_quote
@@ -38,9 +40,9 @@ Transport: **Streamable HTTP** (stateless, single `POST /mcp` per request).
 
 ## Available Tools
 
-### `search_hotels` (role: search)
+### `search_and_quote` (role: search+quote) — Recommended
 
-Search available hotels in a city.
+Search hotels AND generate a NUPS quote in one call. Fastest way to get a hotel quote.
 
 **Parameters:**
 
@@ -50,19 +52,36 @@ Search available hotels in a city.
 | `check_in` | string | Yes | Check-in date in `YYYY-MM-DD` format |
 | `check_out` | string | Yes | Check-out date in `YYYY-MM-DD` format |
 | `guests` | number | No | Number of guests, 1-10. Default: `1` |
+| `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
+| `offer_index` | number | No | Zero-based index of hotel to quote (default: `0`). Call again with a different index to re-quote |
 
-**Returns:** List of hotel offers with `offer_id`, hotel name, star rating, room type, location, price per night (USD), total price, and amenities.
+**Returns:** All available hotels + a ready-to-use `QUOTE_JSON` for the selected hotel.
 
 **Example:**
 ```
-search_hotels({ city: "Tokyo", check_in: "2026-04-01", check_out: "2026-04-03", guests: 2 })
+search_and_quote({ city: "Tokyo", check_in: "2026-04-01", check_out: "2026-04-03", payer_wallet: "0x..." })
 ```
+
+---
+
+### `search_hotels` (role: search)
+
+Search available hotels. Use `search_and_quote` instead for faster flow.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `city` | string | Yes | City name |
+| `check_in` | string | Yes | Check-in date `YYYY-MM-DD` |
+| `check_out` | string | Yes | Check-out date `YYYY-MM-DD` |
+| `guests` | number | No | Default: `1` |
 
 ---
 
 ### `nexus_generate_quote` (role: quote)
 
-Generates a Nexus Payment (NUPS) quote for a selected hotel offer. Required before payment.
+Generate a NUPS quote for a selected hotel offer. Use `search_and_quote` instead for faster flow.
 
 **Parameters:**
 
@@ -70,8 +89,6 @@ Generates a Nexus Payment (NUPS) quote for a selected hotel offer. Required befo
 |------|------|----------|-------------|
 | `hotel_offer_id` | string | Yes | The `offer_id` from `search_hotels` results |
 | `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
-
-**Returns:** NUPS quote payload with `merchant_order_ref`, amount (including 10% tax + 5% service charge), currency, expiry, line items, payer wallet, and signature.
 
 ---
 
@@ -89,8 +106,7 @@ Checks the payment status of a hotel order.
 
 ## Checkout Workflow
 
-1. **Discover** — Ask the user for destination city, check-in date, check-out date, and number of guests.
-2. **Search** — Call `search_hotels` with the provided details. Present results to the user.
-3. **Quote** — When the user selects a hotel, collect their EVM wallet address, then call `nexus_generate_quote` with the `offer_id` and `payer_wallet`. Display the NUPS payment payload.
-4. **Pay** — The UCP response contains a `nexus_core` object with `mcp_endpoint` (`https://api.nexus-mvp.topos.one/mcp`). Connect to Nexus Core MCP server and call `nexus_orchestrate_payment` with the quote's `config` object as one element of the `quotes` array, along with the user's `payer_wallet`. Multiple `nexus_v1` quotes from different merchants can be combined into a single call for aggregated payment — the user signs once for the total amount.
-5. **Verify** — After user confirms payment, call `nexus_check_status` to verify. Only confirm booking when status is `PAID`.
+**Fast path (recommended):**
+1. **Search + Quote** — Call `search_and_quote` with city, dates, and payer wallet. Returns hotels + ready-to-use quote.
+2. **Pay** — Call `nexus_orchestrate_payment` on Nexus Core with the `QUOTE_JSON` from step 1. Multiple quotes from different merchants can be combined into a single call.
+3. **Verify** — Call `nexus_check_status` to verify. Only confirm booking when status is `PAID`.
