@@ -146,7 +146,7 @@ def main():
     quotes = [q1, q2, q3]
     
     print("Orchestrating payment in Core...")
-    payment_result = call_mcp_tool("https://nexus-mvp.topos.one/sse", "nexus_orchestrate_payment", {
+    payment_result = call_mcp_tool("https://api.nexus-mvp.topos.one/sse", "nexus_orchestrate_payment", {
         "quotes_json": json.dumps(quotes),
         "payer_wallet": WALLET
     })

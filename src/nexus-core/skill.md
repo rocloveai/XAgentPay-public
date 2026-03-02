@@ -84,7 +84,7 @@ Both options accept raw `config` objects, full UCP envelopes, or handler objects
 {
   "mcpServers": {
     "nexus-core": {
-      "url": "https://nexus-mvp.topos.one/sse"
+      "url": "https://api.nexus-mvp.topos.one/sse"
     }
   }
 }
@@ -94,14 +94,14 @@ Both options accept raw `config` objects, full UCP envelopes, or handler objects
 
 All core functionality is also available via plain HTTP. No MCP client required.
 
-**Base URL:** `https://nexus-mvp.topos.one`
+**Base URL:** `https://api.nexus-mvp.topos.one`
 
 #### `POST /api/orchestrate` — Create Payment (HTTP 402)
 
 Submit quotes and receive payment instructions. Returns **HTTP 402 Payment Required** with a `BatchDepositInstruction` containing EIP-3009 signing data, precomputed on-chain hashes, and a Nexus Core group signature.
 
 ```bash
-curl -X POST https://nexus-mvp.topos.one/api/orchestrate \
+curl -X POST https://api.nexus-mvp.topos.one/api/orchestrate \
   -H "Content-Type: application/json" \
   -d '{
     "quotes": [
@@ -126,7 +126,7 @@ Response (HTTP 402):
   "nexus_version": "0.5.0",
   "group_id": "grp_...",
   "status": "PAYMENT_REQUIRED",
-  "checkout_url": "https://nexus-mvp.topos.one/checkout/tok_...",
+  "checkout_url": "https://api.nexus-mvp.topos.one/checkout/tok_...",
   "instruction": {
     "group_id": "grp_...",
     "chain_id": 20250407,
@@ -183,7 +183,7 @@ Response (HTTP 402):
 Retrieve group, payments, and instruction for a checkout token. The `:token` can be a `tok_...` token (from `checkout_url`) or a direct `grp_...` / `GRP-...` group ID.
 
 ```bash
-curl https://nexus-mvp.topos.one/api/checkout/tok_abc123...
+curl https://api.nexus-mvp.topos.one/api/checkout/tok_abc123...
 ```
 
 #### `POST /api/checkout/:token/confirm` — Confirm Transaction
@@ -191,7 +191,7 @@ curl https://nexus-mvp.topos.one/api/checkout/tok_abc123...
 After the user signs and submits the on-chain transaction:
 
 ```bash
-curl -X POST https://nexus-mvp.topos.one/api/checkout/tok_abc123.../confirm \
+curl -X POST https://api.nexus-mvp.topos.one/api/checkout/tok_abc123.../confirm \
   -H "Content-Type: application/json" \
   -d '{"tx_hash": "0xabcdef..."}'
 ```
@@ -201,7 +201,7 @@ curl -X POST https://nexus-mvp.topos.one/api/checkout/tok_abc123.../confirm \
 Open in browser for MetaMask-powered interactive checkout. The checkout page handles wallet connection, chain switching, EIP-3009 signing, and transaction submission.
 
 ```
-https://nexus-mvp.topos.one/checkout/tok_abc123...
+https://api.nexus-mvp.topos.one/checkout/tok_abc123...
 ```
 
 > **Note:** Checkout URLs expire after 15 minutes. If expired, the user must re-orchestrate to get a new URL.
@@ -211,14 +211,14 @@ https://nexus-mvp.topos.one/checkout/tok_abc123...
 Query payment status by Nexus payment ID. No authentication required.
 
 ```bash
-curl https://nexus-mvp.topos.one/api/payments/PAY-xxx
+curl https://api.nexus-mvp.topos.one/api/payments/PAY-xxx
 ```
 
 Or query by group ID or merchant order reference:
 
 ```bash
-curl "https://nexus-mvp.topos.one/api/payments?group_id=grp_xxx"
-curl "https://nexus-mvp.topos.one/api/payments?merchant_order_ref=FLT-123"
+curl "https://api.nexus-mvp.topos.one/api/payments?group_id=grp_xxx"
+curl "https://api.nexus-mvp.topos.one/api/payments?merchant_order_ref=FLT-123"
 ```
 
 Response (HTTP 200):
@@ -250,8 +250,8 @@ Response (HTTP 200):
 Search and discover merchant agents. No authentication required.
 
 ```bash
-curl "https://nexus-mvp.topos.one/api/agents"
-curl "https://nexus-mvp.topos.one/api/agents?query=flight&category=travel&limit=10"
+curl "https://api.nexus-mvp.topos.one/api/agents"
+curl "https://api.nexus-mvp.topos.one/api/agents?query=flight&category=travel&limit=10"
 ```
 
 Response (HTTP 200):
@@ -281,7 +281,7 @@ Response (HTTP 200):
 Fetch the full skill.md content for a specific merchant agent. Returns `text/markdown`.
 
 ```bash
-curl https://nexus-mvp.topos.one/api/agents/did:nexus:20250407:demo_flight/skill
+curl https://api.nexus-mvp.topos.one/api/agents/did:nexus:20250407:demo_flight/skill
 ```
 
 #### Rate Limits
@@ -297,7 +297,7 @@ X-RateLimit-Reset: 1709712460
 #### `GET /health` — Health Check
 
 ```bash
-curl https://nexus-mvp.topos.one/health
+curl https://api.nexus-mvp.topos.one/health
 ```
 
 #### `GET /api/health` — Detailed Health
@@ -305,7 +305,7 @@ curl https://nexus-mvp.topos.one/health
 Returns service status including relayer balance and background service states.
 
 ```bash
-curl https://nexus-mvp.topos.one/api/health
+curl https://api.nexus-mvp.topos.one/api/health
 ```
 
 ## MCP Tools

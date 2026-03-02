@@ -8,7 +8,7 @@ import React, {
 import { useTranslation } from "react-i18next";
 
 const API_URL =
-  import.meta.env.VITE_NEXUS_CORE_URL || "https://nexus-mvp.topos.one";
+  import.meta.env.VITE_NEXUS_CORE_URL || "https://api.nexus-mvp.topos.one";
 
 const CHAIN_NAMES: Record<number, string> = {
   20250407: "PlatON Devnet",

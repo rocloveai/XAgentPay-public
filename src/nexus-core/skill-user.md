@@ -26,7 +26,7 @@ nexus_orchestrate_payment({
 
 **HTTP (no MCP required):**
 ```bash
-curl -X POST https://nexus-mvp.topos.one/api/orchestrate \
+curl -X POST https://api.nexus-mvp.topos.one/api/orchestrate \
   -H "Content-Type: application/json" \
   -d '{"quotes": [...], "payer_wallet": "0x..."}'
 ```
@@ -34,7 +34,7 @@ curl -X POST https://nexus-mvp.topos.one/api/orchestrate \
 **Response** (HTTP 402):
 ```json
 {
-  "checkout_url": "https://nexus-mvp.topos.one/checkout/tok_...",
+  "checkout_url": "https://api.nexus-mvp.topos.one/checkout/tok_...",
   "group_id": "grp_...",
   "instruction": {
     "total_amount_display": "0.10",
@@ -69,7 +69,7 @@ nexus_confirm_deposit({ group_id: "grp_...", tx_hash: "0x..." })
 
 **HTTP:**
 ```bash
-curl -X POST https://nexus-mvp.topos.one/api/checkout/tok_.../confirm \
+curl -X POST https://api.nexus-mvp.topos.one/api/checkout/tok_.../confirm \
   -H "Content-Type: application/json" \
   -d '{"tx_hash": "0x..."}'
 ```
@@ -83,7 +83,7 @@ nexus_get_payment_status({ group_id: "grp_..." })
 
 **HTTP:**
 ```bash
-curl "https://nexus-mvp.topos.one/api/payments?group_id=grp_..."
+curl "https://api.nexus-mvp.topos.one/api/payments?group_id=grp_..."
 ```
 
 Status lifecycle: `CREATED` → `ESCROWED` → `SETTLED` → `COMPLETED`
@@ -92,11 +92,11 @@ Status lifecycle: `CREATED` → `ESCROWED` → `SETTLED` → `COMPLETED`
 
 ### MCP (SSE)
 ```json
-{ "mcpServers": { "nexus-core": { "url": "https://nexus-mvp.topos.one/sse" } } }
+{ "mcpServers": { "nexus-core": { "url": "https://api.nexus-mvp.topos.one/sse" } } }
 ```
 
 ### HTTP REST
-Base URL: `https://nexus-mvp.topos.one`
+Base URL: `https://api.nexus-mvp.topos.one`
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|

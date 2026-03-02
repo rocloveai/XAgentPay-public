@@ -742,7 +742,7 @@ if (restHandled) return;
 
 **For LLM tools without SSE support**, all core functionality is available via stateless REST API with Bearer token authentication.
 
-**Base URL:** `https://nexus-mvp.topos.one`
+**Base URL:** `https://api.nexus-mvp.topos.one`
 
 #### Authentication
 
@@ -786,7 +786,7 @@ X-RateLimit-Reset: 1709712400
 #### Example: Release Payment (Merchant)
 
 ```bash
-curl -X POST https://nexus-mvp.topos.one/api/payments/PAY-xxx/release \
+curl -X POST https://api.nexus-mvp.topos.one/api/payments/PAY-xxx/release \
   -H "Authorization: Bearer $NEXUS_API_KEY" \
   -H "Idempotency-Key: rel_$(uuidgen)" \
   -H "Content-Type: application/json" \
@@ -796,11 +796,11 @@ curl -X POST https://nexus-mvp.topos.one/api/payments/PAY-xxx/release \
 #### Example: Get Payment Status (Public)
 
 ```bash
-curl https://nexus-mvp.topos.one/api/payments/PAY-xxx
+curl https://api.nexus-mvp.topos.one/api/payments/PAY-xxx
 ```
 
 **For complete API reference, see:**
-- 📖 REST API Docs: `https://nexus-mvp.topos.one/docs` (OpenAPI)
+- 📖 REST API Docs: `https://api.nexus-mvp.topos.one/docs` (OpenAPI)
 - 🔐 Security: All endpoints use HTTPS + Bearer token auth
 ```
 

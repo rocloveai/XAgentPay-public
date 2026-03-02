@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 
-const SKILL_URL = "https://nexus-mvp.topos.one/skill.md";
+const SKILL_URL = "https://api.nexus-mvp.topos.one/skill.md";
 
 const Developers: React.FC = () => {
   const { t } = useTranslation();
