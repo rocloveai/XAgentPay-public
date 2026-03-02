@@ -98,7 +98,19 @@ const MarketplacePage: React.FC = () => {
     new Map(),
   );
   const [copiedDid, setCopiedDid] = useState<string | null>(null);
+  const [copiedSkillUrl, setCopiedSkillUrl] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout>>();
+  const skillUrlTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const nexusCoreSkillUrl = `${API_URL}/skill.md`;
+
+  const copyNexusCoreSkillUrl = useCallback(() => {
+    navigator.clipboard.writeText(nexusCoreSkillUrl).then(() => {
+      setCopiedSkillUrl(true);
+      clearTimeout(skillUrlTimer.current);
+      skillUrlTimer.current = setTimeout(() => setCopiedSkillUrl(false), 2000);
+    });
+  }, [nexusCoreSkillUrl]);
 
   const copySkillUrl = useCallback((did: string, url: string) => {
     navigator.clipboard.writeText(url).then(() => {
@@ -304,6 +316,25 @@ const MarketplacePage: React.FC = () => {
                   <p className="text-[11px] text-gray-400 leading-relaxed mb-3">
                     {t("marketplace.discoverAllDesc")}
                   </p>
+                  <div className="flex items-center gap-2 mb-3 rounded-md bg-accent-cyan/5 border border-accent-cyan/15 px-3 py-2">
+                    <span className="material-icons-round text-accent-cyan text-sm">
+                      link
+                    </span>
+                    <code className="text-[11px] text-accent-cyan/90 flex-1 truncate">
+                      {nexusCoreSkillUrl}
+                    </code>
+                    <button
+                      onClick={copyNexusCoreSkillUrl}
+                      className="flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-accent-cyan/10 text-accent-cyan/80 border border-accent-cyan/20 hover:bg-accent-cyan/20 transition-colors cursor-pointer flex-shrink-0"
+                    >
+                      <span className="material-icons-round text-xs">
+                        {copiedSkillUrl ? "check" : "content_copy"}
+                      </span>
+                      {copiedSkillUrl
+                        ? t("marketplace.copied")
+                        : t("marketplace.copyUrl")}
+                    </button>
+                  </div>
                   <div className="rounded-md bg-background-dark/60 border border-white/5 p-3 text-[11px] text-gray-300 leading-relaxed space-y-2">
                     <p className="text-accent-cyan/80 italic">
                       {t("marketplace.discoverAllPrompt")}
