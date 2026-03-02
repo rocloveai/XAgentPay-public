@@ -5,7 +5,6 @@
 
 ## Prerequisites
 - merchant_registry populated with at least 2 agents
-- Health checker running
 
 ---
 
@@ -93,7 +92,7 @@
 **Expected:**
 - HTTP 200
 - Response: `{ "http_status": 200, "agents": [...], "total": N, "limit": 10, "offset": 0 }`
-- Each agent includes: `merchant_did`, `name`, `description`, `category`, `mcp_endpoint`, `skill_md_url`, `currencies`, `health_status`, `stars`, `tools`
+- Each agent includes: `merchant_did`, `name`, `description`, `category`, `mcp_endpoint`, `skill_md_url`, `skill_user_url`, `currencies`, `health_status`, `stars`, `tools`
 
 **Note:** The field is `tools` (not `skill_tools`).
 
@@ -250,32 +249,18 @@
 
 ---
 
-## E. Health Checking
+## E. Marketplace Skill File
 
-### TC-006-16: Agent Health Status
+### TC-006-16: Marketplace Discovery Skill
 
 **Priority:** P1
 **Type:** Functional
 
 **Steps:**
-1. Verify health checker polls agent `health_url`
+1. `GET /skill-market.md` on nexus-core
 
 **Expected:**
-- ONLINE: health endpoint returns 200 within timeout
-- OFFLINE: health endpoint fails or returns error
-- DEGRADED: health endpoint returns 200 but high latency
-- `last_health_latency_ms` recorded
-
----
-
-### TC-006-17: Agent Registration Without health_url
-
-**Priority:** P2
-**Type:** Negative
-
-**Steps:**
-1. Register agent without `health_url` field
-
-**Expected:**
-- HTTP 400: registration fails (health_url is required)
-- Agent not created
+- HTTP 200, Content-Type: text/markdown
+- Contains marketplace discovery API documentation
+- Describes agent search, skill retrieval, and star endpoints
+- Distinct from `/skill.md` (payment skill) and `/skill-user.md` (HTTP payment skill)

@@ -10,7 +10,67 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 ---
 
-## A. Flight Agent
+## A. Flight Agent — search_and_quote (Fast Path)
+
+### TC-009-01a: Search and Quote (Flight)
+
+**Priority:** P0
+**Type:** Functional
+
+**Steps:**
+1. Call `search_and_quote` via MCP or REST:
+   ```json
+   {
+     "tool": "search_and_quote",
+     "arguments": {
+       "origin": "PVG",
+       "destination": "NRT",
+       "date": "2026-04-01",
+       "passengers": 1,
+       "payer_wallet": "0x..."
+     }
+   }
+   ```
+
+**Expected:**
+- Returns all available flights (compact format with arrow indicator `→` for selected)
+- Includes ready-to-use `QUOTE_JSON` for the first flight (index 0)
+- Quote contains: merchant_did, merchant_order_ref (FLT-xxx), amount (with 6% tax), currency, signature
+- `PAYER:` line with wallet address
+- Instructions to call `nexus_orchestrate_payment` with collected quotes
+
+---
+
+### TC-009-01b: Search and Quote with offer_index
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. Call `search_and_quote` with `offer_index: 2`
+
+**Expected:**
+- Quote generated for the 3rd flight (index 2), not the first
+- Arrow `→` indicator on the selected flight
+- Different `QUOTE_JSON` than default (index 0)
+
+---
+
+### TC-009-01c: Search and Quote - No Results
+
+**Priority:** P1
+**Type:** Negative
+
+**Steps:**
+1. Call `search_and_quote` with invalid route (no DB templates, no fallback match)
+
+**Expected:**
+- Error message returned
+- No quote generated
+
+---
+
+## B. Flight Agent — Individual Tools
 
 ### TC-009-01: Search Flights
 
@@ -135,11 +195,11 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 **Steps:**
 1. `POST /api/v1/call-tool` on flight agent:
    ```json
-   { "tool": "search_flights", "arguments": { "origin": "SIN", "destination": "PVG", "date": "2026-04-01" } }
+   { "tool": "search_and_quote", "arguments": { "origin": "SIN", "destination": "PVG", "date": "2026-04-01", "payer_wallet": "0x..." } }
    ```
 
 **Expected:**
-- Same results as MCP call
+- Same results as MCP call (flights list + QUOTE_JSON)
 - HTTP 200 with tool response
 
 ---
@@ -172,7 +232,51 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 ---
 
-## B. Hotel Agent
+## C. Hotel Agent — search_and_quote (Fast Path)
+
+### TC-009-11a: Search and Quote (Hotel)
+
+**Priority:** P0
+**Type:** Functional
+
+**Steps:**
+1. Call `search_and_quote` via MCP or REST:
+   ```json
+   {
+     "tool": "search_and_quote",
+     "arguments": {
+       "city": "Tokyo",
+       "check_in": "2026-04-01",
+       "check_out": "2026-04-03",
+       "guests": 2,
+       "payer_wallet": "0x..."
+     }
+   }
+   ```
+
+**Expected:**
+- Returns all available hotels (compact format with star ratings)
+- Includes ready-to-use `QUOTE_JSON` for the first hotel (index 0)
+- Quote amount includes: room rate x nights + 10% tax + 5% service charge
+- `PAYER:` line with wallet address
+
+---
+
+### TC-009-11b: Search and Quote with offer_index (Hotel)
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. Call `search_and_quote` with `offer_index: 1`
+
+**Expected:**
+- Quote generated for the 2nd hotel (index 1)
+- Arrow `→` indicator on the selected hotel
+
+---
+
+## D. Hotel Agent — Individual Tools
 
 ### TC-009-11: Search Hotels
 
@@ -314,7 +418,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 ---
 
-## C. MCP Connection (Streamable HTTP)
+## E. MCP Connection (Streamable HTTP)
 
 ### TC-009-16: MCP Connect (Flight)
 
@@ -326,7 +430,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 **Expected:**
 - HTTP 200 with JSON-RPC response
-- Tool list received: search_flights, nexus_generate_quote, nexus_check_status
+- Tool list received: search_flights, search_and_quote, nexus_generate_quote, nexus_check_status
 
 ---
 
@@ -340,7 +444,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 **Expected:**
 - HTTP 200 with JSON-RPC response
-- Tool list received: search_hotels, nexus_generate_quote, nexus_check_status
+- Tool list received: search_hotels, search_and_quote, nexus_generate_quote, nexus_check_status
 
 ---
 

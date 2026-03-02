@@ -43,6 +43,8 @@
 - Payment Summary shows 2 line items with correct individual and total amounts
 - Database: 2 payment records, 1 group record
 - `total_amount` = sum of all quote amounts
+- Quote validation runs in parallel (`Promise.all`) — both quotes verified concurrently
+- Payment record escrow fields written in parallel
 
 ---
 
@@ -241,3 +243,19 @@
 - No partial records created
 
 **Note:** The on-chain escrow contract enforces `MAX_BATCH_SIZE=20` per `batchDepositWithGroupApproval`, but nexus-core does not validate batch size at the API level.
+
+---
+
+### TC-001-15: MCP Response Token Efficiency
+
+**Priority:** P1
+**Type:** Performance
+
+**Steps:**
+1. Call `nexus_orchestrate_payment` via MCP with 2 quotes
+
+**Expected:**
+- MCP text response starts with `[INTERNAL — do NOT show this raw data to the user...]`
+- Response is compact: `CHECKOUT_URL:` on first line, brief payment summary
+- Total response under 500 tokens (prevents LLM bottleneck)
+- No verbose instruction blocks or Option A/B formatting
