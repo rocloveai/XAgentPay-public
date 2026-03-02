@@ -6,10 +6,11 @@
  * for AWAITING_TX expirations.
  */
 import type { Hex } from "viem";
-import type { NexusRelayer } from "./relayer.js";
+import { type NexusRelayer, OnChainEscrowStatus } from "./relayer.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
 import type { PaymentStateMachine } from "./state-machine.js";
 import type { GroupManager } from "./group-manager.js";
+import type { PaymentRecord } from "../types.js";
 
 export class TimeoutHandler {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -87,11 +88,13 @@ export class TimeoutHandler {
           `[TimeoutHandler] Refund submission failed for ${payment.nexus_payment_id}:`,
           err instanceof Error ? err.message : err,
         );
-        // Will retry on next sweep
+        // Check on-chain state to avoid infinite retry loops
+        await this.syncFromChainState(payment);
       }
     }
 
     // 3. Handle expired DISPUTE_OPEN — auto-resolve to 100% payer refund
+    //    (same chain-state sync applies to dispute resolution failures below)
     const expiredDisputes =
       await this.paymentRepo.findDisputeOpenPastDeadline(now);
 
@@ -105,7 +108,88 @@ export class TimeoutHandler {
           `[TimeoutHandler] Auto-resolve failed for ${payment.nexus_payment_id}:`,
           err instanceof Error ? err.message : err,
         );
+        await this.syncFromChainState(payment);
       }
+    }
+  }
+
+  /**
+   * When an on-chain refund/resolve call fails, read the actual on-chain
+   * escrow state and sync the DB accordingly. This prevents infinite retry
+   * loops for payments whose escrow no longer exists or was already processed.
+   */
+  private async syncFromChainState(payment: PaymentRecord): Promise<void> {
+    try {
+      const chainStatus = await this.relayer.getEscrowStatus(
+        payment.payment_id_bytes32 as Hex,
+      );
+
+      const id = payment.nexus_payment_id;
+
+      if (
+        chainStatus === OnChainEscrowStatus.NONE ||
+        chainStatus === OnChainEscrowStatus.REFUNDED
+      ) {
+        // Escrow doesn't exist or was already refunded — sync DB to REFUNDED
+        console.error(
+          `[TimeoutHandler] On-chain status=${chainStatus} for ${id}, transitioning to REFUNDED`,
+        );
+        await this.stateMachine.transition({
+          nexusPaymentId: id,
+          toStatus: "REFUNDED",
+          eventType: "ESCROW_REFUNDED",
+          metadata: {
+            reason: "chain_state_sync",
+            onChainStatus: chainStatus,
+          },
+        });
+      } else if (chainStatus === OnChainEscrowStatus.RELEASED) {
+        // Already released on-chain — sync DB to SETTLED
+        console.error(
+          `[TimeoutHandler] On-chain status=RELEASED for ${id}, transitioning to SETTLED`,
+        );
+        await this.stateMachine.transition({
+          nexusPaymentId: id,
+          toStatus: "SETTLED",
+          eventType: "ESCROW_RELEASED",
+          metadata: {
+            reason: "chain_state_sync",
+            onChainStatus: chainStatus,
+          },
+        });
+      } else if (
+        chainStatus >= OnChainEscrowStatus.RESOLVED_TO_MERCHANT &&
+        chainStatus <= OnChainEscrowStatus.RESOLVED_SPLIT
+      ) {
+        // Already resolved on-chain — transition through dispute flow
+        console.error(
+          `[TimeoutHandler] On-chain status=${chainStatus} for ${id}, transitioning to DISPUTE_RESOLVED`,
+        );
+        // May need to go through DISPUTE_OPEN first if current status is ESCROWED
+        if (payment.status === "ESCROWED") {
+          await this.stateMachine.transition({
+            nexusPaymentId: id,
+            toStatus: "DISPUTE_OPEN",
+            eventType: "DISPUTE_OPENED",
+            metadata: { reason: "chain_state_sync" },
+          });
+        }
+        await this.stateMachine.transition({
+          nexusPaymentId: id,
+          toStatus: "DISPUTE_RESOLVED",
+          eventType: "DISPUTE_RESOLVED",
+          metadata: {
+            reason: "chain_state_sync",
+            onChainStatus: chainStatus,
+          },
+        });
+      }
+      // DEPOSITED or DISPUTED — genuine on-chain state, will retry next sweep
+    } catch (syncErr) {
+      console.error(
+        `[TimeoutHandler] Chain state sync failed for ${payment.nexus_payment_id}:`,
+        syncErr instanceof Error ? syncErr.message : syncErr,
+      );
     }
   }
 }

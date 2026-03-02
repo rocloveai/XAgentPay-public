@@ -31,6 +31,21 @@ export interface RelayerTxResult {
   readonly status: "success" | "reverted";
 }
 
+/** On-chain EscrowStatus enum values from NexusPayEscrow.sol */
+export const OnChainEscrowStatus = {
+  NONE: 0,
+  DEPOSITED: 1,
+  RELEASED: 2,
+  REFUNDED: 3,
+  DISPUTED: 4,
+  RESOLVED_TO_MERCHANT: 5,
+  RESOLVED_TO_PAYER: 6,
+  RESOLVED_SPLIT: 7,
+} as const;
+
+export type OnChainEscrowStatusValue =
+  (typeof OnChainEscrowStatus)[keyof typeof OnChainEscrowStatus];
+
 // ---------------------------------------------------------------------------
 // PlatON chain definition (shared by relayer + chain-watcher)
 // ---------------------------------------------------------------------------
@@ -134,6 +149,20 @@ export class NexusRelayer {
     return this.publicClient.getBalance({
       address: this.walletClient.account.address,
     });
+  }
+
+  async getEscrowStatus(
+    paymentIdBytes32: Hex,
+  ): Promise<OnChainEscrowStatusValue> {
+    const result = await this.publicClient.readContract({
+      address: this.escrowAddress,
+      abi: NEXUS_PAY_ESCROW_ABI,
+      functionName: "getEscrow",
+      args: [paymentIdBytes32],
+    });
+    // getEscrow returns a tuple; status is the last element (index 8)
+    const tuple = result as readonly unknown[];
+    return Number(tuple[8]) as OnChainEscrowStatusValue;
   }
 
   async submitRefund(paymentIdBytes32: Hex): Promise<RelayerTxResult> {
