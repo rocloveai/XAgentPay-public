@@ -22,10 +22,9 @@
 
 **Expected:**
 - Response contains `CHECKOUT_URL:` with valid `tok_` token
-- `group_id` starts with `grp_`
+- `group_id` starts with `GRP-`
 - Payment Summary shows correct amount and currency
 - Database: 1 payment record (status=CREATED), 1 group record (status=GROUP_CREATED)
-- Webhook `payment.created` sent to merchant
 
 ---
 
@@ -44,7 +43,6 @@
 - Payment Summary shows 2 line items with correct individual and total amounts
 - Database: 2 payment records, 1 group record
 - `total_amount` = sum of all quote amounts
-- Webhooks: 2x `payment.created` (one per merchant)
 
 ---
 
@@ -64,7 +62,7 @@
 
 **Expected:**
 - HTTP status: **402 Payment Required**
-- Response includes `checkout_url`, `group_id`, `instruction`
+- Response envelope: `{ "http_status": 402, "checkout_url": "...", "group_id": "GRP-...", "instruction": {...} }`
 - `instruction` contains: `eip3009_sign_data`, `deposit_tx`, `payments[]`, `nexus_group_sig`
 - Each payment includes precomputed `payment_id_bytes32`, `order_ref_bytes32`, `context_hash`
 
@@ -116,9 +114,12 @@
 **Steps:**
 1. Call with `payer_wallet`: `"0xinvalid"`
 
-**Expected:**
-- Error: wallet address validation failure
+**Expected (REST):**
+- HTTP 400 with `{ "http_status": 400, "error": "Invalid payer_wallet" }`
 - No records created in database
+
+**Expected (MCP):**
+- Error text returned, no records created
 
 ---
 
@@ -223,19 +224,20 @@
 
 **Expected:**
 - Second orchestration creates new group with new payment
-- Each payment has unique `nexus_payment_id`
+- Each payment has unique `nexus_payment_id` (format: `PAY-<uuid>`)
 
 ---
 
-### TC-001-14: Maximum Batch Size (20)
+### TC-001-14: Server Error Handling
 
 **Priority:** P2
-**Type:** Boundary
+**Type:** Error Handling
 
 **Steps:**
-1. Call with 20 valid quotes (MAX_BATCH_SIZE)
-2. Call with 21 quotes
+1. Trigger internal server error during orchestration (e.g. database unavailable)
 
-**Expected:**
-- 20 quotes: success, 20 payments created
-- 21 quotes: error, batch size exceeded
+**Expected (REST):**
+- HTTP 500 with `{ "http_status": 500, "error": "..." }`
+- No partial records created
+
+**Note:** The on-chain escrow contract enforces `MAX_BATCH_SIZE=20` per `batchDepositWithGroupApproval`, but nexus-core does not validate batch size at the API level.

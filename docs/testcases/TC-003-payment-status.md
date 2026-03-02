@@ -16,15 +16,15 @@
 **Type:** Functional
 
 **Steps:**
-1. Orchestrate payment → CREATED
-2. User submits deposit → ESCROWED
-3. Relayer releases escrow → SETTLED
-4. Merchant confirms fulfillment → COMPLETED
+1. Orchestrate payment -> CREATED
+2. User submits deposit -> ESCROWED
+3. Relayer releases escrow -> SETTLED
+4. Merchant confirms fulfillment -> COMPLETED
 
 **Expected:**
 - Each transition creates a `payment_events` record
 - Event records: `from_status`, `to_status`, `metadata`
-- Group status mirrors: GROUP_CREATED → GROUP_ESCROWED → GROUP_SETTLED → GROUP_COMPLETED
+- Group status mirrors: GROUP_CREATED -> GROUP_DEPOSITED -> GROUP_ESCROWED -> GROUP_SETTLED -> GROUP_COMPLETED
 - Terminal state: no further transitions allowed
 
 ---
@@ -35,14 +35,16 @@
 **Type:** Functional
 
 **Steps:**
-1. Orchestrate payment → CREATED
+1. Orchestrate payment -> CREATED
 2. Wait for AWAITING_TX timeout (30 minutes)
+3. Timeout sweep runs via `runTimeoutSweep()` (background job)
 
 **Expected:**
 - Payment transitions to EXPIRED
 - Group transitions to GROUP_EXPIRED
-- Webhook `payment.expired` sent
 - No further state changes possible
+
+**Note:** Timeout sweep is a scheduled background operation, not triggered by REST requests.
 
 ---
 
@@ -52,7 +54,7 @@
 **Type:** Functional
 
 **Steps:**
-1. Orchestrate and submit tx → GROUP_AWAITING_TX
+1. Orchestrate and submit tx -> GROUP_AWAITING_TX
 2. ChainWatcher detects deposit event on-chain
 
 **Expected:**
@@ -91,7 +93,6 @@
 **Expected:**
 - Payment transitions to REFUNDED
 - Funds returned to payer
-- Webhook `payment.refunded` sent
 
 ---
 
@@ -106,8 +107,9 @@
 1. `GET /api/payments/PAY-xxx`
 
 **Expected:**
-- HTTP 200
-- Response: `payment` object with all fields
+- HTTP 200 with `{ "http_status": 200, "payment": {...}, "group": {...}, "group_payments": [...] }`
+- Payment fields: `nexus_payment_id`, `group_id`, `status`, `amount`, `amount_display`, `currency`, `chain_id`, `merchant_did`, `merchant_order_ref`, `tx_hash`, `block_number`, `payment_id_bytes32`, `created_at`, `escrowed_at`, `settled_at`, `completed_at`
+- `escrowed_at` is `updated_at` when payment is in ESCROWED state, excluded after settlement
 - `group` object with group-level status
 - `group_payments` array with all payments in group
 
@@ -119,10 +121,10 @@
 **Type:** Functional
 
 **Steps:**
-1. `GET /api/payments?group_id=grp_xxx`
+1. `GET /api/payments?group_id=GRP-xxx`
 
 **Expected:**
-- HTTP 200
+- HTTP 200 with `http_status: 200` envelope
 - Returns first payment matching the group
 - Group info included
 
@@ -137,7 +139,7 @@
 1. `GET /api/payments?merchant_order_ref=FLT-001`
 
 **Expected:**
-- HTTP 200
+- HTTP 200 with `http_status: 200` envelope
 - Returns payment with matching order ref
 
 ---
@@ -148,7 +150,7 @@
 **Type:** Functional
 
 **Steps:**
-1. Call `nexus_get_payment_status` with `group_id: "grp_xxx"`
+1. Call `nexus_get_payment_status` with `group_id: "GRP-xxx"`
 
 **Expected:**
 - Returns formatted text with payment details
@@ -165,8 +167,7 @@
 1. `GET /api/payments/PAY-nonexistent`
 
 **Expected:**
-- HTTP 404
-- Error: payment not found
+- HTTP 404 with `{ "http_status": 404, "error": { "code": "NOT_FOUND", "message": "Payment or group not found" } }`
 
 ---
 
@@ -176,7 +177,7 @@
 **Type:** Functional
 
 **Steps:**
-1. `GET /api/payments?group_id=grp_xxx&merchant_order_ref=FLT-001`
+1. `GET /api/payments?group_id=GRP-xxx&merchant_order_ref=FLT-001`
 
 **Expected:**
 - Returns payment matching both filters
@@ -192,9 +193,9 @@
 
 **Steps:**
 1. Create group with 2 payments
-2. Escrow both → GROUP_ESCROWED
-3. Settle one → check group status
-4. Settle both → GROUP_SETTLED
+2. Escrow both -> GROUP_ESCROWED
+3. Settle one -> check group status
+4. Settle both -> GROUP_SETTLED
 
 **Expected:**
 - Group status reflects aggregate state of all payments

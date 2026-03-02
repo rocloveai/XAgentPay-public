@@ -9,56 +9,45 @@ WebhookNotifier / Merchant Webhook Handler
 
 ---
 
-### TC-007-01: payment.created Webhook
+### TC-007-01: payment.escrowed Webhook
 
 **Priority:** P0
 **Type:** Functional
 
 **Steps:**
-1. Orchestrate a payment
+1. Confirm deposit for a payment (checkout flow completes)
 
 **Expected:**
 - Webhook `POST` sent to merchant's `webhook_url`
 - Body contains:
   ```json
   {
-    "event": "payment.created",
-    "event_id": "evt_...",
+    "event": "payment.escrowed",
+    "event_id": "WHEVT-<uuid>",
     "timestamp": "...",
     "data": {
       "nexus_payment_id": "PAY-xxx",
       "merchant_order_ref": "FLT-001",
-      "status": "CREATED",
+      "status": "ESCROWED",
       "amount": "100000",
-      "currency": "USDC"
+      "currency": "USDC",
+      "tx_hash": "0x..."
     }
   }
   ```
 - Headers include `X-Nexus-Signature` and `X-Nexus-Timestamp`
 
+**Note:** `event_id` format is `WHEVT-<uuid>` (not `evt_`).
+
 ---
 
-### TC-007-02: payment.escrowed Webhook
+### TC-007-02: payment.settled Webhook
 
 **Priority:** P0
 **Type:** Functional
 
 **Steps:**
-1. Confirm deposit for a payment
-
-**Expected:**
-- Webhook sent with `event: "payment.escrowed"`
-- Data includes `tx_hash`
-
----
-
-### TC-007-03: payment.settled Webhook
-
-**Priority:** P0
-**Type:** Functional
-
-**Steps:**
-1. Release escrow for a payment
+1. Release escrow for a payment (relayer submits on-chain)
 
 **Expected:**
 - Webhook sent with `event: "payment.settled"`
@@ -66,7 +55,7 @@ WebhookNotifier / Merchant Webhook Handler
 
 ---
 
-### TC-007-04: payment.completed Webhook
+### TC-007-03: payment.completed Webhook
 
 **Priority:** P1
 **Type:** Functional
@@ -79,20 +68,7 @@ WebhookNotifier / Merchant Webhook Handler
 
 ---
 
-### TC-007-05: payment.expired Webhook
-
-**Priority:** P1
-**Type:** Functional
-
-**Steps:**
-1. Let a payment expire (timeout)
-
-**Expected:**
-- Webhook sent with `event: "payment.expired"`
-
----
-
-### TC-007-06: dispute.opened Webhook
+### TC-007-04: dispute.opened Webhook
 
 **Priority:** P1
 **Type:** Functional
@@ -106,7 +82,7 @@ WebhookNotifier / Merchant Webhook Handler
 
 ---
 
-### TC-007-07: dispute.resolved Webhook
+### TC-007-05: dispute.resolved Webhook
 
 **Priority:** P1
 **Type:** Functional
@@ -120,23 +96,24 @@ WebhookNotifier / Merchant Webhook Handler
 
 ---
 
-### TC-007-08: Signature Verification (HMAC-SHA256)
+### TC-007-06: Signature Verification (HMAC-SHA256)
 
 **Priority:** P0
 **Type:** Security
 
 **Steps:**
 1. Receive webhook
-2. Compute `HMAC-SHA256(timestamp + "." + rawBody, webhook_secret)`
-3. Compare with `X-Nexus-Signature` header
+2. Extract `X-Nexus-Timestamp` header (Unix timestamp in **seconds**)
+3. Compute `HMAC-SHA256(timestamp + "." + rawBody, webhook_secret)`
+4. Compare with `X-Nexus-Signature` header (format: `sha256=<hex>`)
 
 **Expected:**
 - Signatures match
-- Timing-safe comparison used
+- Timing-safe comparison used by merchant handler
 
 ---
 
-### TC-007-09: Timestamp Freshness
+### TC-007-07: Timestamp Freshness (Merchant-Side)
 
 **Priority:** P0
 **Type:** Security
@@ -146,12 +123,14 @@ WebhookNotifier / Merchant Webhook Handler
 2. Check `X-Nexus-Timestamp` against current time
 
 **Expected:**
-- Timestamp within 5-minute window
+- Merchant should validate timestamp within 5-minute window
 - Reject replay attacks with old timestamps
+
+**Note:** Timestamp freshness validation is the **merchant's responsibility**. Nexus-core generates the timestamp but does not enforce freshness on the sending side.
 
 ---
 
-### TC-007-10: Retry on Failure
+### TC-007-08: Retry on Failure
 
 **Priority:** P0
 **Type:** Functional
@@ -167,7 +146,7 @@ WebhookNotifier / Merchant Webhook Handler
 
 ---
 
-### TC-007-11: Retry on Timeout
+### TC-007-09: Retry on Timeout
 
 **Priority:** P1
 **Type:** Functional
@@ -176,27 +155,29 @@ WebhookNotifier / Merchant Webhook Handler
 1. Merchant webhook endpoint doesn't respond (hangs)
 
 **Expected:**
-- Request times out
+- Request times out after 10 seconds
 - Retry triggered per backoff schedule
 
 ---
 
-### TC-007-12: Idempotent Delivery
+### TC-007-10: Idempotent Delivery
 
 **Priority:** P0
 **Type:** Functional
 
 **Steps:**
-1. Deliver webhook with `event_id: "evt_abc"`
+1. Deliver webhook with `event_id: "WHEVT-abc"`
 2. Attempt redelivery with same `event_id`
 
 **Expected:**
 - Merchant can detect duplicate via `event_id`
-- 1-hour TTL on idempotency window
+- Event IDs stored in `webhook_delivery_logs` table
+
+**Note:** Idempotency deduplication is the **merchant's responsibility** using the `event_id`. There is no enforced TTL in nexus-core.
 
 ---
 
-### TC-007-13: Webhook to Unreachable URL
+### TC-007-11: Webhook to Unreachable URL
 
 **Priority:** P1
 **Type:** Error Handling
@@ -206,21 +187,22 @@ WebhookNotifier / Merchant Webhook Handler
 
 **Expected:**
 - Connection error caught
-- Retries triggered
-- Payment state not affected by webhook failure
+- Retries triggered per backoff schedule
+- Payment state not affected by webhook failure (fire-and-forget)
 
 ---
 
-### TC-007-14: Multi-Merchant Webhooks
+### TC-007-12: Multi-Merchant Webhooks
 
 **Priority:** P0
 **Type:** Functional
 
 **Steps:**
 1. Orchestrate payment with 2 merchants (flight + hotel)
-2. Each merchant has different webhook_url
+2. Confirm deposit -> both payments ESCROWED
+3. Each merchant has different webhook_url
 
 **Expected:**
-- Each merchant receives its own `payment.created` webhook
-- Correct merchant_order_ref in each webhook
-- Webhooks sent in parallel (fire-and-forget)
+- Each merchant receives its own `payment.escrowed` webhook
+- Correct `merchant_order_ref` in each webhook
+- Webhooks sent fire-and-forget (non-blocking)

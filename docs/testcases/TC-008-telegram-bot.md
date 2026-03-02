@@ -22,7 +22,7 @@ nexus-telegram-bot / `POST /api/render-order` / Status Polling
    {
      "chat_id": 123456789,
      "checkout_url": "https://api.nexus-mvp.topos.one/checkout/tok_xxx",
-     "group_id": "grp_abc123",
+     "group_id": "GRP-abc123",
      "total_amount_display": "0.30",
      "currency": "USDC",
      "payments": [
@@ -45,10 +45,10 @@ nexus-telegram-bot / `POST /api/render-order` / Status Polling
    ```
 
 **Expected:**
-- HTTP 200: `{ "ok": true, "message_id": 42, "group_id": "grp_abc123" }`
+- HTTP 200: `{ "ok": true, "message_id": 42, "group_id": "GRP-abc123" }`
 - Telegram message sent to chat with formatted order card
 - Shows all line items, amounts, total
-- "Pay Now" inline button links to checkout_url
+- Inline button links to checkout_url
 
 ---
 
@@ -58,25 +58,27 @@ nexus-telegram-bot / `POST /api/render-order` / Status Polling
 **Type:** UI
 
 **Steps:**
-1. Check rendered Telegram message
+1. Check rendered Telegram message (HTML parse mode)
 
 **Expected:**
 ```
-NexusPay Order
+🎫 NexusPay Order
 
-Status: Pending Payment
+⏳ Pending Payment
+────────────────────
+1️⃣ Flight SQ321 PVG-NRT
+   0.10 USDC · ⏳ Pending
 
-Items
-1. Flight SQ321 PVG-NRT
-   0.10 USDC  [Pending]
-2. Hotel Tokyo Shibuya 2 nights
-   0.20 USDC  [Pending]
+2️⃣ Hotel Tokyo Shibuya 2 nights
+   0.20 USDC · ⏳ Pending
+────────────────────
+💰 Total: 0.30 USDC
+🔤 GRP-abc123
 
-Total: 0.30 USDC
-grp_abc123
-
-[Pay Now]  <- InlineKeyboardButton
+[💳 Pay Now]  <- InlineKeyboardButton (URL button)
 ```
+
+**Note:** Message uses HTML formatting with `<b>`, `<blockquote>`, `<code>` tags. Item numbering uses emoji digits (1️⃣, 2️⃣, etc.).
 
 ---
 
@@ -92,7 +94,7 @@ grp_abc123
 **Expected:**
 - Bot polls nexus-core for payment status
 - Polling intervals: 10s, 15s, 20s, 25s... (adds 5s per poll)
-- Maximum 20 polls (~19 minutes)
+- Maximum 20 polls (~19 minutes total)
 
 ---
 
@@ -108,8 +110,12 @@ grp_abc123
 
 **Expected:**
 - Message auto-updates in-place:
-  - Pending -> Escrowed -> Settled
-- Button updates from "Pay Now" to "Settled" badge
+  - ⏳ Pending -> ✅ Payment Received (ESCROWED)
+  - ✅ Payment Received -> ✅ Settled (SETTLED)
+- Button updates:
+  - 💳 Pay Now -> 💳 Paid — Confirming... (AWAITING_TX)
+  - -> ✅ Payment Received (ESCROWED)
+  - -> ✅ Settled (SETTLED/COMPLETED)
 - TX hash shown after settlement
 
 ---
@@ -125,8 +131,8 @@ grp_abc123
 
 **Expected:**
 - Message updates to show Expired status
-- All items show "Expired"
-- Button changes to non-clickable "Expired" badge
+- All items show expired indicator
+- Button changes to non-clickable badge
 - Polling stops
 
 ---
@@ -138,10 +144,10 @@ grp_abc123
 
 **Steps:**
 1. Render order card
-2. Payment reaches terminal status (SETTLED/EXPIRED/COMPLETED)
+2. Payment reaches terminal status
 
 **Expected:**
-- Polling stops immediately
+- Polling stops immediately when group status is in `TERMINAL_GROUP_STATUSES` (GROUP_SETTLED, GROUP_COMPLETED, GROUP_EXPIRED) OR all individual payments are in terminal statuses (SETTLED, COMPLETED, REFUNDED, EXPIRED, TX_FAILED, RISK_REJECTED)
 - No further nexus-core API calls
 
 ---

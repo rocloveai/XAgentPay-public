@@ -26,8 +26,7 @@
    ```
 
 **Expected:**
-- HTTP 200
-- Response: `{ "status": "release_submitted", "tx_hash": "0x..." }`
+- HTTP 200 with `{ "http_status": 200, "status": "release_submitted", "tx_hash": "0x...", "payment_id": "PAY-xxx" }`
 - Relayer submits `release()` tx on-chain
 - Payment remains ESCROWED until on-chain confirmation
 
@@ -76,8 +75,7 @@
 2. Call confirm-fulfillment with `merchant_did: "did:nexus:20250407:demo_hotel"`
 
 **Expected:**
-- HTTP 403
-- Error: merchant_did does not match payment
+- HTTP 403 with `{ "http_status": 403, "error": "merchant_did does not match payment" }`
 - No state change
 
 ---
@@ -92,7 +90,7 @@
 2. Call confirm-fulfillment
 
 **Expected:**
-- Error: payment not in valid state for fulfillment
+- HTTP 409 with `{ "http_status": 409, "error": "Payment status is CREATED, expected ESCROWED" }`
 - No state change
 
 ---
@@ -103,12 +101,12 @@
 **Type:** Edge Case
 
 **Steps:**
-1. Payment already SETTLED
+1. Payment already SETTLED or COMPLETED
 2. Call confirm-fulfillment via REST
 
 **Expected:**
-- Response: `{ "status": "already_settled" }` or transitions to COMPLETED
-- Idempotent, no error
+- HTTP 200 with `{ "http_status": 200, "status": "already_settled", "payment_id": "PAY-xxx" }`
+- Idempotent, no error, no state change
 
 ---
 
@@ -122,7 +120,14 @@
 
 **Expected:**
 - Relayer submits release tx
-- Returns tx_hash, block_number
+- Returns text format (not JSON):
+  ```
+  Release submitted
+  TX Hash: 0x...
+  Block: 12345
+  Status: success
+  Payment: PAY-xxx
+  ```
 - Same end result as confirm-fulfillment
 
 ---
@@ -137,9 +142,9 @@
 2. Attempt fulfillment
 
 **Expected:**
-- Error: relayer gas insufficient
+- HTTP 500 with generic RPC error (gas check happens at submission time, no pre-check)
 - Payment state unchanged
-- Portal `/api/relayer` shows `low_balance: true`
+- Portal `/api/health` shows `low_balance: true` when relayer balance < 0.001 LAT
 
 ---
 
@@ -153,7 +158,7 @@
 2. Attempt fulfillment
 
 **Expected:**
-- Error: relayer not configured
+- HTTP 503 with `{ "http_status": 503, "error": "Relayer not configured" }`
 - Payment state unchanged
 
 ---

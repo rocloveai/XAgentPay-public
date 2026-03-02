@@ -38,7 +38,7 @@
 
 **Expected:**
 - HTTP 200
-- Response contains: group info, payments array, instruction
+- Response envelope: `{ "http_status": 200, "group": {...}, "payments": [...], "instruction": {...} }`
 - `instruction.eip3009_sign_data` present
 - `instruction.deposit_tx` present with ABI
 
@@ -50,11 +50,11 @@
 **Type:** Functional
 
 **Steps:**
-1. `GET /api/checkout/grp_xxx` (using group_id instead of token)
+1. `GET /api/checkout/GRP-xxx` (using group_id instead of token)
 
 **Expected:**
 - HTTP 200
-- Same response as token-based access
+- Same response as token-based access (with `http_status: 200` envelope)
 
 ---
 
@@ -113,7 +113,7 @@
 1. Open checkout URL on mobile browser (without MetaMask app open)
 
 **Expected:**
-- Deep link opens MetaMask mobile app
+- Deep link opens MetaMask mobile app via `https://metamask.app.link/dapp/<url>`
 - Checkout page loads within MetaMask browser
 - Payment flow works as on desktop
 
@@ -148,9 +148,9 @@
 
 **Expected:**
 - Transaction submitted to PlatON Devnet
-- Frontend polls for receipt (every 5s, max 120s)
+- Frontend polls for receipt (every 5s, max 24 attempts = 120s)
 - On receipt: `POST /api/checkout/:token/confirm` called with tx_hash
-- Server returns 200 (receipt verified) → status ESCROWED
+- Server returns `{ "http_status": 200, ... }` (receipt verified) -> status ESCROWED
 - Checkout page shows success status
 
 ---
@@ -164,7 +164,7 @@
 1. `POST /api/checkout/:token/confirm` with valid tx_hash (receipt available, status=1)
 
 **Expected:**
-- HTTP 200
+- HTTP 200 with `{ "http_status": 200, "status": "confirmed", "group_id": "GRP-..." }`
 - All payments transition to ESCROWED
 - Group transitions to GROUP_ESCROWED
 - Webhook `payment.escrowed` sent to each merchant
@@ -180,9 +180,10 @@
 1. `POST /api/checkout/:token/confirm` with tx_hash that has no receipt yet
 
 **Expected:**
-- HTTP 202
-- Group transitions to GROUP_AWAITING_TX
+- HTTP 202 with `{ "http_status": 202, "tx_hash": "0x...", "status": "awaiting_confirmation", "group_id": "GRP-..." }`
+- Group remains in GROUP_CREATED (no state transition)
 - Frontend continues polling every 5s
+- ChainWatcher will handle state transition when deposit is confirmed on-chain
 
 ---
 
@@ -195,9 +196,8 @@
 1. `POST /api/checkout/:token/confirm` with tx_hash that reverted on-chain
 
 **Expected:**
-- HTTP 422
+- HTTP 422 with `{ "http_status": 422, "error": "Transaction reverted on-chain" }`
 - No state change
-- Error message: transaction reverted
 
 ---
 
@@ -210,8 +210,7 @@
 1. `POST /api/checkout/:token/confirm` with empty body or missing tx_hash
 
 **Expected:**
-- HTTP 400
-- Error: tx_hash required
+- HTTP 400 with `{ "http_status": 400, "error": "tx_hash required" }`
 
 ---
 
@@ -243,3 +242,20 @@
 - Group shows GROUP_PARTIAL status
 - Button does not revert to "Pay Now"
 - Individual payment statuses shown correctly
+
+---
+
+### TC-002-16: GROUP_AWAITING_TX Retry Scenario
+
+**Priority:** P1
+**Type:** Edge Case
+
+**Steps:**
+1. Submit a deposit tx, get 202 response (receipt not yet available)
+2. The group remains in GROUP_CREATED
+3. Attempt to submit a new payment on the same checkout page
+
+**Expected:**
+- Checkout page treats GROUP_CREATED and GROUP_AWAITING_TX as payable states
+- User can retry payment if original tx was dropped
+- No duplicate deposit possible (on-chain nonce protection)

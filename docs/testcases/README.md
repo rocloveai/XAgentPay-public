@@ -18,16 +18,16 @@
 
 | ID | Module | Test Cases | Priority Coverage |
 |----|--------|-----------|-------------------|
-| [TC-001](TC-001-payment-orchestration.md) | Payment Orchestration | 14 | 4x P0, 7x P1, 3x P2 |
-| [TC-002](TC-002-checkout-flow.md) | Checkout Flow | 15 | 6x P0, 7x P1, 2x P2 |
+| [TC-001](TC-001-payment-orchestration.md) | Payment Orchestration | 14 | 4x P0, 6x P1, 4x P2 |
+| [TC-002](TC-002-checkout-flow.md) | Checkout Flow | 16 | 6x P0, 8x P1, 2x P2 |
 | [TC-003](TC-003-payment-status.md) | Payment Status & State Machine | 13 | 6x P0, 5x P1, 2x P2 |
 | [TC-004](TC-004-merchant-settlement.md) | Merchant Settlement | 10 | 4x P0, 5x P1, 1x P2 |
 | [TC-005](TC-005-dispute-flow.md) | Dispute Flow | 12 | 4x P0, 5x P1, 3x P2 |
 | [TC-006](TC-006-marketplace.md) | Marketplace & Discovery | 17 | 5x P0, 7x P1, 5x P2 |
-| [TC-007](TC-007-webhooks.md) | Webhooks | 14 | 6x P0, 5x P1, 3x P2 |
+| [TC-007](TC-007-webhooks.md) | Webhooks | 12 | 4x P0, 4x P1, 0x P2 |
 | [TC-008](TC-008-telegram-bot.md) | Telegram Bot | 12 | 3x P0, 5x P1, 4x P2 |
 | [TC-009](TC-009-merchant-agents.md) | Merchant Agents | 18 | 7x P0, 9x P1, 2x P2 |
-| **Total** | | **125** | **45x P0, 55x P1, 25x P2** |
+| **Total** | | **124** | **43x P0, 54x P1, 23x P2** |
 
 ## Priority Definitions
 
@@ -61,9 +61,11 @@ Run this sequence to verify the entire system is operational:
 5. **Pay** — Connect MetaMask, sign, submit tx
 6. **Confirm** — `POST /api/checkout/:token/confirm`
 7. **Verify Escrowed** — `nexus_get_payment_status` shows ESCROWED
-8. **Settle** — Merchant calls `confirm-fulfillment`, relayer releases
+8. **Settle** — Merchant calls `POST /api/merchant/confirm-fulfillment`, relayer releases
 9. **Verify Settled** — Status shows SETTLED
 10. **Complete** — Second fulfillment call, status COMPLETED
+
+All JSON responses include `http_status` field in envelope (e.g. `{ "http_status": 402, ... }`).
 
 ## Payment State Machine Reference
 
@@ -73,11 +75,17 @@ CREATED ──────> AWAITING_TX ──────> BROADCASTED
   │                 │                    ├──> ESCROWED ──> SETTLED ──> COMPLETED
   │                 │                    │       │
   │                 │                    │       ├──> DISPUTE_OPEN ──> DISPUTE_RESOLVED
-  │                 │                    │       │
+  │                 │                    │       │                     (RESOLVED_TO_MERCHANT /
+  │                 │                    │       │                      RESOLVED_TO_PAYER /
+  │                 │                    │       │                      RESOLVED_SPLIT on-chain)
   │                 │                    │       └──> REFUNDED
   │                 │                    │
   ├──> EXPIRED      ├──> EXPIRED         ├──> TX_FAILED
   └──> RISK_REJECTED└──> RISK_REJECTED   └──> RISK_REJECTED
 ```
+
+Group statuses: GROUP_CREATED, GROUP_DEPOSITED, GROUP_AWAITING_TX, GROUP_ESCROWED, GROUP_SETTLED, GROUP_COMPLETED, GROUP_PARTIAL, GROUP_EXPIRED
+
+ID Formats: `GRP-<uuid>` (group), `PAY-<uuid>` (payment), `tok_<uuid>` (checkout token), `WHEVT-<uuid>` (webhook event)
 
 Terminal states: COMPLETED, EXPIRED, TX_FAILED, RISK_REJECTED, REFUNDED, DISPUTE_RESOLVED

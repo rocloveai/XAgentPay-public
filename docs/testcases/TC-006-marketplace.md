@@ -78,6 +78,7 @@
 
 **Expected:**
 - Capped at 50 results
+- Default limit is 20
 
 ---
 
@@ -91,8 +92,10 @@
 
 **Expected:**
 - HTTP 200
-- Response: `{ agents: [...], total: N, limit: 10 }`
-- Agents include health_status, skill_tools, currencies, mcp_endpoint
+- Response: `{ "http_status": 200, "agents": [...], "total": N, "limit": 10, "offset": 0 }`
+- Each agent includes: `merchant_did`, `name`, `description`, `category`, `mcp_endpoint`, `skill_md_url`, `currencies`, `health_status`, `stars`, `tools`
+
+**Note:** The field is `tools` (not `skill_tools`).
 
 ---
 
@@ -136,7 +139,7 @@
 1. Call `get_agent_skill` with unknown DID
 
 **Expected:**
-- Error: agent not found
+- HTTP 404 with `{ "http_status": 404, "error": "Agent not found" }`
 
 ---
 
@@ -163,9 +166,11 @@
    ```
 
 **Expected:**
-- HTTP 200/201
+- HTTP 201
 - Agent created in merchant_registry
 - Discoverable via `discover_agents`
+
+**Note:** All fields including `health_url` are **required**. Registration will fail with 400 if any field is missing.
 
 ---
 
@@ -209,8 +214,8 @@
 1. `POST /api/market/agents/:did/star` with `{ "wallet_address": "0x..." }`
 
 **Expected:**
-- HTTP 200
-- Response: `{ star_count: N }`
+- HTTP 201 (new star) or HTTP 200 (duplicate star, idempotent)
+- Response: `{ "http_status": 201, "starred": true, "star_count": N }`
 - Star count incremented
 
 ---
@@ -225,7 +230,7 @@
 2. `DELETE /api/market/agents/:did/star` with `{ "wallet_address": "0x..." }`
 
 **Expected:**
-- HTTP 200
+- HTTP 200 with `{ "http_status": 200, "starred": false, "star_count": N }`
 - Star count decremented
 
 ---
@@ -239,8 +244,9 @@
 1. Star same agent twice with same wallet
 
 **Expected:**
+- First star: HTTP 201
+- Second star: HTTP 200 (idempotent)
 - Star count only incremented once
-- Idempotent behavior
 
 ---
 
@@ -262,14 +268,14 @@
 
 ---
 
-### TC-006-17: Agent with No Health URL
+### TC-006-17: Agent Registration Without health_url
 
 **Priority:** P2
-**Type:** Edge Case
+**Type:** Negative
 
 **Steps:**
-1. Register agent without `health_url`
+1. Register agent without `health_url` field
 
 **Expected:**
-- health_status: UNKNOWN
-- No polling attempted
+- HTTP 400: registration fails (health_url is required)
+- Agent not created

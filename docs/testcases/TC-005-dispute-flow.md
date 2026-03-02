@@ -7,6 +7,7 @@
 - Payment in ESCROWED state
 - Within dispute window (72 hours from escrow)
 - Escrow contract v4.0.0 deployed
+- **Note:** PlatON Devnet uses millisecond `block.timestamp` — all on-chain timeouts are in milliseconds
 
 ---
 
@@ -55,6 +56,7 @@
 
 **Expected (each):**
 - Error: payment not in valid state for dispute
+- On-chain: `InvalidStatus` error (escrow requires status == DEPOSITED)
 - No state change
 
 ---
@@ -69,8 +71,10 @@
 2. Attempt to open dispute
 
 **Expected:**
-- Error: dispute window expired
+- On-chain: `DisputeWindowExpired` error
 - No state change
+
+**Note:** Dispute window = 259,200,000 ms on PlatON (72 hours in milliseconds, since `block.timestamp` is ms)
 
 ---
 
@@ -87,7 +91,8 @@
 
 **Expected:**
 - Relayer submits `resolveDispute()` on-chain
-- Payment transitions DISPUTE_OPEN -> DISPUTE_RESOLVED
+- On-chain status: `RESOLVED_SPLIT` (0 < merchantBps < 10000)
+- nexus-core maps to: DISPUTE_RESOLVED
 - 70% of escrow sent to merchant, 30% to payer
 - Webhook `dispute.resolved` sent
 - Response includes tx_hash and split amounts
@@ -105,6 +110,7 @@
 **Expected:**
 - Full amount released to merchant
 - 0 refunded to payer
+- On-chain status: `RESOLVED_TO_MERCHANT`
 - Valid transaction
 
 ---
@@ -120,6 +126,7 @@
 **Expected:**
 - Full amount refunded to payer
 - 0 released to merchant
+- On-chain status: `RESOLVED_TO_PAYER`
 - Valid transaction
 
 ---
@@ -134,7 +141,7 @@
 2. Call resolve with `merchant_bps: 15000`
 
 **Expected (each):**
-- Error: merchant_bps must be 0-10000
+- On-chain: `InvalidBps` error (must be 0-10000)
 - No state change
 
 ---
@@ -148,7 +155,7 @@
 1. Attempt resolve on ESCROWED payment (not disputed)
 
 **Expected:**
-- Error: payment not in DISPUTE_OPEN state
+- On-chain: `InvalidStatus` error (requires DISPUTED status)
 - No state change
 
 ---
@@ -164,9 +171,13 @@
 3. Call `refundUnresolvedDispute` on escrow contract
 
 **Expected:**
-- Full amount refunded to payer
-- Payment transitions to REFUNDED
+- On-chain: requires `block.timestamp >= disputeDeadline + arbitrationTimeout`
+- Full amount refunded to payer (status: `RESOLVED_TO_PAYER`)
+- nexus-core: payment transitions to REFUNDED
 - H-01 audit fix verified
+- `DisputeAutoResolved` event emitted
+
+**Note:** Arbitration timeout = 604,800,000 ms on PlatON (7 days in milliseconds)
 
 ---
 
@@ -190,10 +201,11 @@
 **Type:** Security
 
 **Steps:**
-1. Note feeBps at time of escrow
+1. Note feeBps at time of escrow (stored in Escrow struct)
 2. Admin changes feeBps
 3. Resolve dispute
 
 **Expected:**
-- Fee calculated using snapshotted feeBps (not current)
+- Fee calculated using snapshotted feeBps (not current), used at release time
+- Dispute resolution (`resolveDispute`) does not deduct fees — only `release()` does
 - L-04 audit fix verified
