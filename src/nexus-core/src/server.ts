@@ -420,19 +420,19 @@ function createNexusCoreServer(): McpServer {
         if (result.payment) {
           parts.push(
             `Payment: ${result.payment.nexus_payment_id}\n` +
-              `  Status: ${result.payment.status}\n` +
-              `  Amount: ${result.payment.amount_display} ${result.payment.currency}\n` +
-              `  Merchant: ${result.payment.merchant_did}\n` +
-              `  Order Ref: ${result.payment.merchant_order_ref}`,
+            `  Status: ${result.payment.status}\n` +
+            `  Amount: ${result.payment.amount_display} ${result.payment.currency}\n` +
+            `  Merchant: ${result.payment.merchant_did}\n` +
+            `  Order Ref: ${result.payment.merchant_order_ref}`,
           );
         }
 
         if (result.group) {
           parts.push(
             `\nGroup: ${result.group.group_id}\n` +
-              `  Status: ${result.group.status}\n` +
-              `  Total: ${result.group.total_amount_display} ${result.group.currency}\n` +
-              `  Payments: ${result.group.payment_count}`,
+            `  Status: ${result.group.status}\n` +
+            `  Total: ${result.group.total_amount_display} ${result.group.currency}\n` +
+            `  Payments: ${result.group.payment_count}`,
           );
 
           if (result.groupPayments.length > 0) {
@@ -1056,7 +1056,21 @@ async function main(): Promise<void> {
                 req.on("error", reject);
               });
               const body = JSON.parse(Buffer.concat(chunks).toString());
-              const rawQuotes = body.quotes ?? [];
+              let rawQuotes = body.quotes ?? [];
+
+              const quotesJson = body.quotes_json;
+              if (quotesJson) {
+                if (typeof quotesJson === "string") {
+                  try {
+                    rawQuotes = JSON.parse(quotesJson);
+                  } catch (e) {
+                    throw new Error("Invalid quotes_json format");
+                  }
+                } else if (Array.isArray(quotesJson)) {
+                  rawQuotes = quotesJson;
+                }
+              }
+
               const payerWallet = body.payer_wallet ?? "";
 
               if (!payerWallet || !/^0x[a-fA-F0-9]{40}$/.test(payerWallet)) {
@@ -1094,6 +1108,7 @@ async function main(): Promise<void> {
             } catch (err) {
               const message =
                 err instanceof Error ? err.message : "Unknown error";
+              console.error("[Orchestrate Error]", err);
               res.writeHead(500, {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
@@ -1448,7 +1463,7 @@ process.on("SIGTERM", () => {
   webhookNotifier.stopRetryLoop();
   Promise.all(stops)
     .then(() => closePool())
-    .catch(() => {})
+    .catch(() => { })
     .finally(() => process.exit(0));
 });
 

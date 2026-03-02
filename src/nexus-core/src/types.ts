@@ -256,6 +256,7 @@ export interface MerchantRecord {
   readonly description: string;
   readonly category: string;
   readonly skill_md_url: string | null;
+  readonly skill_user_url: string | null;
   readonly health_url: string | null;
   readonly mcp_endpoint: string | null;
   readonly skill_name: string | null;
@@ -505,6 +506,7 @@ export interface RegisterMerchantParams {
   readonly signer_address: string;
   readonly payment_address: string;
   readonly skill_md_url: string;
+  readonly skill_user_url?: string;
   readonly health_url: string;
   readonly webhook_url?: string;
   readonly webhook_secret?: string;

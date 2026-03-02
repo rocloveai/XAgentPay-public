@@ -170,6 +170,7 @@ function toMarketAgent(m: MerchantRecord, starCount = 0) {
     description: m.description,
     category: m.category,
     skill_md_url: m.skill_md_url,
+    skill_user_url: m.skill_user_url,
     health_status: m.health_status,
     last_health_latency_ms: m.last_health_latency_ms,
     skill_name: m.skill_name,
@@ -269,6 +270,7 @@ async function handleRegister(
     signer_address,
     payment_address,
     skill_md_url,
+    skill_user_url,
     health_url,
     webhook_url,
     webhook_secret,
@@ -302,6 +304,7 @@ async function handleRegister(
     signer_address,
     payment_address,
     skill_md_url,
+    skill_user_url,
     health_url,
     webhook_url,
     webhook_secret,
@@ -497,6 +500,7 @@ curl -X POST ${baseUrl}/api/market/register \\
     "signer_address": "0xYourSignerAddress",
     "payment_address": "0xYourPaymentAddress",
     "skill_md_url": "https://my-agent.example.com/skill.md",
+    "skill_user_url": "https://my-agent.example.com/skill-user.md",
     "health_url": "https://my-agent.example.com/health"
   }'</pre>
 
@@ -510,7 +514,8 @@ curl -X POST ${baseUrl}/api/market/register \\
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">category</td><td class="py-1.5 pl-3">e.g. travel.hotels, food.delivery</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">signer_address</td><td class="py-1.5 pl-3">EVM address for quote signing</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">payment_address</td><td class="py-1.5 pl-3">EVM address for receiving stablecoins</td></tr>
-                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">skill_md_url</td><td class="py-1.5 pl-3">Public URL to your skill.md</td></tr>
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">skill_md_url</td><td class="py-1.5 pl-3">Public URL to your skill.md (MCP tool definitions)</td></tr>
+                <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-gray-500">skill_user_url</td><td class="py-1.5 pl-3 text-gray-500">Optional: URL to skill-user.md (HTTP REST API docs for end users)</td></tr>
                 <tr class="border-b border-white/5"><td class="py-1.5 font-mono text-brand/80">health_url</td><td class="py-1.5 pl-3">Health check endpoint (GET, 200=OK)</td></tr>
                 <tr><td class="py-1.5 font-mono text-gray-500">webhook_url</td><td class="py-1.5 pl-3 text-gray-500">Optional: webhook for payment events</td></tr>
               </tbody>
@@ -586,7 +591,7 @@ curl -X POST ${baseUrl}/api/market/register \\
           '<span>' + esc(chainName) + '</span>' +
         '</div>' +
         '<div class="flex gap-2">' +
-          '<a href="' + esc(a.skill_md_url || '#') + '" target="_blank" class="text-xs px-3 py-1.5 rounded-md bg-brand/10 text-brand-light border border-brand/20 hover:bg-brand/20 transition-colors">View Skill</a>' +
+          '<a href="' + esc(a.skill_user_url || a.skill_md_url || '#') + '" target="_blank" class="text-xs px-3 py-1.5 rounded-md bg-brand/10 text-brand-light border border-brand/20 hover:bg-brand/20 transition-colors">View Skill</a>' +
         '</div>' +
       '</div>';
     }).join('');

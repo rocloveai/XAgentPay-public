@@ -327,6 +327,7 @@ interface AgentJSON {
   readonly category: string;
   readonly mcp_endpoint: string | null;
   readonly skill_md_url: string | null;
+  readonly skill_user_url: string | null;
   readonly currencies: readonly string[];
   readonly health_status: string;
   readonly stars: number;
@@ -379,6 +380,7 @@ async function handleAgentDiscovery(
       category: m.category,
       mcp_endpoint: m.mcp_endpoint,
       skill_md_url: m.skill_md_url,
+      skill_user_url: m.skill_user_url,
       currencies: m.currencies,
       health_status: m.health_status,
       stars: starCounts.get(m.merchant_did) ?? 0,

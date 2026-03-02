@@ -29,6 +29,7 @@ function rowToMerchant(row: Record<string, unknown>): MerchantRecord {
     description: (row.description as string) ?? "",
     category: (row.category as string) ?? "general",
     skill_md_url: (row.skill_md_url as string) ?? null,
+    skill_user_url: (row.skill_user_url as string) ?? null,
     health_url: (row.health_url as string) ?? null,
     mcp_endpoint: (row.mcp_endpoint as string) ?? null,
     skill_name: (row.skill_name as string) ?? null,
@@ -109,8 +110,8 @@ export class NeonMerchantRepository implements MerchantRepository {
     const rows = await sql(
       `INSERT INTO merchant_registry
          (merchant_did, name, description, category, signer_address, payment_address,
-          skill_md_url, health_url, webhook_url, webhook_secret, mcp_endpoint)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          skill_md_url, skill_user_url, health_url, webhook_url, webhook_secret, mcp_endpoint)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (merchant_did) DO UPDATE SET
          name = EXCLUDED.name,
          description = EXCLUDED.description,
@@ -118,6 +119,7 @@ export class NeonMerchantRepository implements MerchantRepository {
          signer_address = EXCLUDED.signer_address,
          payment_address = EXCLUDED.payment_address,
          skill_md_url = EXCLUDED.skill_md_url,
+         skill_user_url = COALESCE(EXCLUDED.skill_user_url, merchant_registry.skill_user_url),
          health_url = EXCLUDED.health_url,
          webhook_url = COALESCE(EXCLUDED.webhook_url, merchant_registry.webhook_url),
          webhook_secret = COALESCE(EXCLUDED.webhook_secret, merchant_registry.webhook_secret),
@@ -133,6 +135,7 @@ export class NeonMerchantRepository implements MerchantRepository {
         params.signer_address,
         params.payment_address,
         params.skill_md_url,
+        params.skill_user_url ?? null,
         params.health_url,
         params.webhook_url ?? null,
         params.webhook_secret ?? null,

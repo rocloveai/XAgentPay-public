@@ -66,16 +66,18 @@ export function validateConfig(
   return errors;
 }
 
+import { getAddress } from "viem";
+
 export function loadNexusCoreConfig(): NexusCoreConfig {
+  const escrowContract = process.env.ESCROW_CONTRACT ?? "0x0000000000000000000000000000000000000000";
+  const usdcAddress = process.env.USDC_ADDRESS ?? "0xFF8dEe9983768D0399673014cf77826896F97e4d";
+
   return {
     databaseUrl: process.env.DATABASE_URL ?? "",
-    escrowContract:
-      process.env.ESCROW_CONTRACT ??
-      "0x0000000000000000000000000000000000000000",
+    escrowContract: getAddress(escrowContract),
     chainId: Number(process.env.CHAIN_ID ?? "20250407"),
     chainName: process.env.CHAIN_NAME ?? "PlatON Devnet",
-    usdcAddress:
-      process.env.USDC_ADDRESS ?? "0xFF8dEe9983768D0399673014cf77826896F97e4d",
+    usdcAddress: getAddress(usdcAddress),
     usdcDecimals: 6,
     protocolFeeBps: Number(process.env.PROTOCOL_FEE_BPS ?? "30"),
     releaseTimeoutS: Number(process.env.RELEASE_TIMEOUT_S ?? "86400"),

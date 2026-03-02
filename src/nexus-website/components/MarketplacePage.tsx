@@ -47,6 +47,7 @@ interface MarketAgent {
   readonly description: string;
   readonly category: string;
   readonly skill_md_url: string | null;
+  readonly skill_user_url: string | null;
   readonly health_status: "ONLINE" | "OFFLINE" | "DEGRADED" | "UNKNOWN";
   readonly last_health_latency_ms: number | null;
   readonly skill_name: string | null;
@@ -533,17 +534,18 @@ const MarketplacePage: React.FC = () => {
                           </span>
                           {starCount}
                         </button>
-                        {agent.skill_md_url && (
+                        {(agent.skill_user_url || agent.skill_md_url) && (
                           <>
                             <button
                               onClick={() =>
                                 copySkillUrl(
                                   agent.merchant_did,
-                                  agent.skill_md_url as string,
+                                  (agent.skill_user_url ??
+                                    agent.skill_md_url) as string,
                                 )
                               }
                               className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-md bg-white/5 text-gray-400 border border-white/10 hover:border-white/20 transition-colors cursor-pointer"
-                              title="Copy skill.md URL"
+                              title="Copy skill URL"
                             >
                               <span className="material-icons-round text-sm">
                                 {copiedDid === agent.merchant_did
@@ -555,7 +557,11 @@ const MarketplacePage: React.FC = () => {
                                 : t("marketplace.copyUrl")}
                             </button>
                             <a
-                              href={agent.skill_md_url}
+                              href={
+                                agent.skill_user_url ??
+                                agent.skill_md_url ??
+                                "#"
+                              }
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-xs px-3 py-1.5 rounded-md bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
@@ -770,6 +776,7 @@ const MarketplacePage: React.FC = () => {
     "signer_address": "0xYourSignerAddress",
     "payment_address": "0xYourPaymentAddress",
     "skill_md_url": "https://my-agent.example.com/skill.md",
+    "skill_user_url": "https://my-agent.example.com/skill-user.md",
     "health_url": "https://my-agent.example.com/health",
     "webhook_url": "https://my-agent.example.com/webhook"
   }'`}
@@ -828,6 +835,13 @@ const MarketplacePage: React.FC = () => {
                       <span>
                         <code className="text-primary/70">skill_md_url</code>{" "}
                         &mdash; {t("marketplace.skillMdDesc")}
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-gray-600 mt-1.5 flex-shrink-0"></span>
+                      <span>
+                        <code className="text-gray-500">skill_user_url</code>{" "}
+                        &mdash; Optional: HTTP REST API docs (skill-user.md)
                       </span>
                     </li>
                     <li className="flex items-start gap-1.5">
