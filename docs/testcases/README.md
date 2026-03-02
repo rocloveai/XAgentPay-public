@@ -8,7 +8,7 @@
 | USDC | `0xFF8dEe9983768D0399673014cf77826896F97e4d` |
 | Escrow Proxy | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` |
 | Core API | `https://api.nexus-mvp.topos.one` |
-| Core MCP | `https://api.nexus-mvp.topos.one/sse` |
+| Core MCP | `https://api.nexus-mvp.topos.one/mcp` |
 | Website | `https://nexus-mvp.topos.one` |
 | Flight Agent | `https://nexus-flight-agent-nr8m.onrender.com` |
 | Hotel Agent | `https://nexus-hotel-agent-nr8m.onrender.com` |

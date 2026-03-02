@@ -28,12 +28,11 @@ const AGENT_NAME = "Nexus Flight Agent";
 const ACCENT = "blue";
 const startedAt = Date.now();
 
-// ── SSE handler registry (injected by server.ts in HTTP mode) ───────────────
+// ── MCP handler registry (injected by server.ts in HTTP mode) ───────────────
 
-type SseHandler = (
+type McpHandler = (
   req: IncomingMessage,
   res: ServerResponse,
-  url: URL,
 ) => Promise<boolean>;
 
 type StatelessHandler = (
@@ -42,11 +41,11 @@ type StatelessHandler = (
   url: URL,
 ) => Promise<boolean>;
 
-let sseHandler: SseHandler | null = null;
+let mcpHandler: McpHandler | null = null;
 let statelessHandler: StatelessHandler | null = null;
 
-export function registerSseHandler(handler: SseHandler): void {
-  sseHandler = handler;
+export function registerMcpHandler(handler: McpHandler): void {
+  mcpHandler = handler;
 }
 
 export function registerStatelessHandler(handler: StatelessHandler): void {
@@ -135,6 +134,12 @@ function send404(res: ServerResponse): void {
 function loadSkillMd(): string {
   const currentDir = dirname(fileURLToPath(import.meta.url));
   const skillPath = resolve(currentDir, "..", "skill.md");
+  return readFileSync(skillPath, "utf-8");
+}
+
+function loadSkillUserMd(): string {
+  const currentDir = dirname(fileURLToPath(import.meta.url));
+  const skillPath = resolve(currentDir, "..", "skill-user.md");
   return readFileSync(skillPath, "utf-8");
 }
 
@@ -369,8 +374,8 @@ tailwind.config = {
               </div>
             </a>
             <div class="bg-slate-950 rounded-lg border border-slate-700 p-3">
-              <div class="text-xs text-slate-500 mb-1">SSE Endpoint</div>
-              <code id="sse-url" class="text-xs text-${ACCENT}-400 font-mono break-all"></code>
+              <div class="text-xs text-slate-500 mb-1">MCP Endpoint</div>
+              <code id="mcp-url" class="text-xs text-${ACCENT}-400 font-mono break-all"></code>
             </div>
             <div class="bg-slate-950 rounded-lg border border-slate-700 p-3">
               <div class="text-xs text-slate-500 mb-1">Protocol</div>
@@ -443,10 +448,10 @@ tailwind.config = {
 
 <script>
 // ── Install panel ──
-var sseUrl = window.location.origin + "/sse";
-var mcpConfig = JSON.stringify({ mcpServers: { "flight-agent": { url: sseUrl } } }, null, 2);
+var mcpUrl = window.location.origin + "/mcp";
+var mcpConfig = JSON.stringify({ mcpServers: { "flight-agent": { url: mcpUrl } } }, null, 2);
 document.getElementById("mcp-config").textContent = mcpConfig;
-document.getElementById("sse-url").textContent = sseUrl;
+document.getElementById("mcp-url").textContent = mcpUrl;
 
 document.getElementById("install-toggle").addEventListener("click", function() {
   var body = document.getElementById("install-body");
@@ -769,21 +774,21 @@ async function handleRequest(
 
   // Health check
   if (path === "/health" && req.method === "GET") {
-    sendJson(res, 200, { status: "ok", sseHandler: !!sseHandler });
+    sendJson(res, 200, { status: "ok", mcpHandler: !!mcpHandler });
     return;
   }
 
-  // MCP SSE routes (handled by server.ts when in HTTP mode)
-  if (path === "/sse" || path === "/messages") {
-    if (!sseHandler) {
+  // MCP Streamable HTTP endpoint (stateless, handled by server.ts)
+  if (path === "/mcp") {
+    if (!mcpHandler) {
       sendJson(res, 503, {
         error:
-          "SSE handler not registered. TRANSPORT may not be set to 'http'.",
+          "MCP handler not registered. TRANSPORT may not be set to 'http'.",
         transport: process.env.TRANSPORT ?? "(unset)",
       });
       return;
     }
-    const handled = await sseHandler(req, res, url);
+    const handled = await mcpHandler(req, res);
     if (handled) return;
   }
 
@@ -808,6 +813,16 @@ async function handleRequest(
       sendText(res, content, "text/markdown; charset=utf-8");
     } catch {
       sendJson(res, 500, { error: "skill.md not found" });
+    }
+    return;
+  }
+
+  if (path === "/skill-user.md" && req.method === "GET") {
+    try {
+      const content = loadSkillUserMd();
+      sendText(res, content, "text/markdown; charset=utf-8");
+    } catch {
+      sendJson(res, 500, { error: "skill-user.md not found" });
     }
     return;
   }

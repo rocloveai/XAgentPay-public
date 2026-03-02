@@ -3,11 +3,11 @@
  * NexusPay Core — MCP Server.
  *
  * Exposes payment orchestration as MCP tools.
- * Dual transport: stdio (default) + SSE.
+ * Dual transport: stdio (default) + Streamable HTTP (stateless).
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import {
   createServer,
@@ -995,12 +995,9 @@ function createNexusCoreServer(): McpServer {
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  if (transportMode === "sse") {
-    const sseTransports = new Map<
-      string,
-      { transport: SSEServerTransport; server: McpServer }
-    >();
-
+  if (transportMode === "http") {
+    // Stateless Streamable HTTP: each POST /mcp creates a fresh
+    // transport + McpServer, handles the JSON-RPC request, and returns.
     const httpServer = createServer(
       async (req: IncomingMessage, res: ServerResponse) => {
         const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
@@ -1036,33 +1033,16 @@ async function main(): Promise<void> {
             }
           }
 
-          if (url.pathname === "/sse" && req.method === "GET") {
-            const transport = new SSEServerTransport("/messages", res);
+          // MCP Streamable HTTP endpoint (stateless)
+          if (url.pathname === "/mcp") {
+            const transport = new StreamableHTTPServerTransport({
+              sessionIdGenerator: undefined,
+            });
             const mcpServer = createNexusCoreServer();
-            sseTransports.set(transport.sessionId, {
-              transport,
-              server: mcpServer,
-            });
-            res.on("close", () => {
-              const session = sseTransports.get(transport.sessionId);
-              if (session) {
-                session.server.close().catch(() => {});
-                sseTransports.delete(transport.sessionId);
-              }
-            });
             await mcpServer.connect(transport);
-            return;
-          }
-
-          if (url.pathname === "/messages" && req.method === "POST") {
-            const sessionId = url.searchParams.get("sessionId") ?? "";
-            const session = sseTransports.get(sessionId);
-            if (session) {
-              await session.transport.handlePostMessage(req, res);
-            } else {
-              res.writeHead(404);
-              res.end("Session not found");
-            }
+            await transport.handleRequest(req, res);
+            // Transport is stateless — clean up after request
+            await mcpServer.close();
             return;
           }
 
@@ -1312,7 +1292,7 @@ async function main(): Promise<void> {
                 http_status: 200,
                 status: "ok",
                 version: NEXUS_CORE_VERSION,
-                transport: "sse",
+                transport: "streamable-http",
               }),
             );
             return;
@@ -1346,7 +1326,7 @@ async function main(): Promise<void> {
                 http_status: 200,
                 status: "ok",
                 version: NEXUS_CORE_VERSION,
-                transport: "sse",
+                transport: "streamable-http",
                 services: {
                   chain_watcher: watcher ? "running" : "disabled",
                   timeout_handler: timeoutHandler ? "running" : "disabled",
@@ -1437,7 +1417,7 @@ async function main(): Promise<void> {
     const healthChecker = new HealthChecker(merchantRepo, 300_000);
 
     httpServer.listen(config.port, () => {
-      serverLog.info("SSE server listening", { port: config.port });
+      serverLog.info("HTTP server listening", { port: config.port });
 
       // Start background services AFTER HTTP is listening (so health check passes)
       healthChecker.start();

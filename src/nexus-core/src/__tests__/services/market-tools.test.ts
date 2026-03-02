@@ -20,7 +20,7 @@ function makeMerchant(overrides?: Partial<MerchantRecord>): MerchantRecord {
     category: "travel.flights",
     skill_md_url: "https://example.com/skill.md",
     health_url: "https://example.com/health",
-    mcp_endpoint: "https://example.com/sse",
+    mcp_endpoint: "https://example.com/mcp",
     skill_name: "FlightSearch",
     skill_version: "0.1.0",
     skill_protocol: "MCP",
@@ -72,8 +72,16 @@ describe("market-tools", () => {
 
     it("filters by category", async () => {
       merchantRepo.seed([
-        makeMerchant({ merchant_did: "did:a", name: "Flight", category: "travel.flights" }),
-        makeMerchant({ merchant_did: "did:b", name: "Food", category: "food.delivery" }),
+        makeMerchant({
+          merchant_did: "did:a",
+          name: "Flight",
+          category: "travel.flights",
+        }),
+        makeMerchant({
+          merchant_did: "did:b",
+          name: "Food",
+          category: "food.delivery",
+        }),
       ]);
 
       const result = await handleDiscoverAgents(merchantRepo, starRepo, {
@@ -86,8 +94,16 @@ describe("market-tools", () => {
 
     it("filters by query keyword", async () => {
       merchantRepo.seed([
-        makeMerchant({ merchant_did: "did:a", name: "FlightBot", description: "Booking flights" }),
-        makeMerchant({ merchant_did: "did:b", name: "HotelBot", description: "Booking hotels" }),
+        makeMerchant({
+          merchant_did: "did:a",
+          name: "FlightBot",
+          description: "Booking flights",
+        }),
+        makeMerchant({
+          merchant_did: "did:b",
+          name: "HotelBot",
+          description: "Booking hotels",
+        }),
       ]);
 
       const result = await handleDiscoverAgents(merchantRepo, starRepo, {

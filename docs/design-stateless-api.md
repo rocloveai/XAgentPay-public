@@ -453,7 +453,7 @@ Response (HTTP 200):
       "name": "Demo Flight Agent",
       "description": "Book flights with USDC",
       "category": "travel.flights",
-      "mcp_url": "https://nexus-flight-agent-nr8m.onrender.com/sse",
+      "mcp_url": "https://nexus-flight-agent-nr8m.onrender.com/mcp",
       "skill_url": "https://nexus-flight-agent-nr8m.onrender.com/skill.md",
       "stars": 42
     }

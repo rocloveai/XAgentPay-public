@@ -1,7 +1,7 @@
 ---
 name: nexus-flight-agent
 version: "0.1.0"
-description: Flight booking with Nexus Payment — search flights, generate NUPS quotes, verify on-chain payments
+description: Flight booking MCP agent — search flights, generate NUPS quotes, verify on-chain payments
 merchant_did: "did:nexus:20250407:demo_flight"
 protocol: NUPS/1.5
 category: travel.flights
@@ -16,9 +16,11 @@ tools:
     role: status
 ---
 
-# Nexus Flight Agent
+# Nexus Flight Agent — MCP Skill
 
 Flight booking merchant agent powered by Nexus Protocol. Searches flights across popular Asia-Pacific routes (PVG, NRT, SIN, HKG, BKK), generates NUPS payment quotes, and verifies on-chain payments.
+
+> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://nexus-flight-agent-nr8m.onrender.com/skill-user.md).
 
 ## MCP Connection
 
@@ -26,39 +28,13 @@ Flight booking merchant agent powered by Nexus Protocol. Searches flights across
 {
   "mcpServers": {
     "flight-agent": {
-      "url": "https://nexus-flight-agent-nr8m.onrender.com/sse"
+      "url": "https://nexus-flight-agent-nr8m.onrender.com/mcp"
     }
   }
 }
 ```
 
-## Stateless REST API
-
-For environments where MCP/SSE is not supported, tools can be called directly via HTTP POST.
-
-**Endpoint:** `POST /api/v1/call-tool`
-
-**Request Body:**
-```json
-{
-  "tool": "tool_name",
-  "arguments": { ... }
-}
-```
-
-**Example (search):**
-```bash
-curl -X POST https://nexus-flight-agent-nr8m.onrender.com/api/v1/call-tool \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tool": "search_flights",
-    "arguments": {
-      "origin": "SIN",
-      "destination": "PVG",
-      "date": "2026-04-01"
-    }
-  }'
-```
+Transport: **Streamable HTTP** (stateless, single `POST /mcp` per request).
 
 ## Available Tools
 
@@ -116,5 +92,5 @@ Checks the payment status of a flight order.
 1. **Discover** — Ask the user for departure city, destination, and travel date.
 2. **Search** — Call `search_flights` with IATA codes and date. Present results to the user.
 3. **Quote** — When the user selects a flight, collect their EVM wallet address, then call `nexus_generate_quote` with the `offer_id` and `payer_wallet`. Display the NUPS payment payload.
-4. **Pay** — The UCP response contains a `nexus_core` object with `mcp_endpoint` (`https://api.nexus-mvp.topos.one/sse`). Connect to Nexus Core MCP server and call `nexus_orchestrate_payment` with the quote's `config` object as one element of the `quotes` array, along with the user's `payer_wallet`. Multiple `nexus_v1` quotes from different merchants can be combined into a single call for aggregated payment — the user signs once for the total amount.
+4. **Pay** — The UCP response contains a `nexus_core` object with `mcp_endpoint` (`https://api.nexus-mvp.topos.one/mcp`). Connect to Nexus Core MCP server and call `nexus_orchestrate_payment` with the quote's `config` object as one element of the `quotes` array, along with the user's `payer_wallet`. Multiple `nexus_v1` quotes from different merchants can be combined into a single call for aggregated payment — the user signs once for the total amount.
 5. **Verify** — After user confirms payment, call `nexus_check_status` to verify. Only confirm booking when status is `PAID`.

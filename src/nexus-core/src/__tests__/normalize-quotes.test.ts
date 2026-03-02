@@ -39,7 +39,7 @@ describe("normalizeQuotes", () => {
               config: MOCK_QUOTE,
               nexus_core: {
                 skill_url: "https://example.com/skill.md",
-                mcp_endpoint: "https://example.com/sse",
+                mcp_endpoint: "https://example.com/mcp",
               },
             },
           ],
@@ -60,7 +60,7 @@ describe("normalizeQuotes", () => {
       id: "nexus_handler_1",
       version: "v1",
       config: MOCK_QUOTE,
-      nexus_core: { mcp_endpoint: "https://example.com/sse" },
+      nexus_core: { mcp_endpoint: "https://example.com/mcp" },
     };
 
     const result = normalizeQuotes([handler]);

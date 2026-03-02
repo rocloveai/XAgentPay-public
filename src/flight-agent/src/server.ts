@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { loadConfig } from "./config.js";
 import { searchFlights } from "./services/flight-search.js";
@@ -11,7 +11,7 @@ import { initPool, closePool } from "./services/db/pool.js";
 import { startReconciler, stopReconciler } from "./services/reconciler.js";
 import {
   startPortal,
-  registerSseHandler,
+  registerMcpHandler,
   registerStatelessHandler,
   readBody,
   sendJson,
@@ -134,7 +134,7 @@ async function handleGenerateQuote(
             config: quote,
             nexus_core: {
               skill_url: `${config.nexusCoreUrl}/skill-user.md`,
-              mcp_endpoint: `${config.nexusCoreUrl}/sse`,
+              mcp_endpoint: `${config.nexusCoreUrl}/mcp`,
               orchestrate_url: `${config.nexusCoreUrl}/api/orchestrate`,
               orchestrate_body: {
                 quotes: [quote],
@@ -175,7 +175,7 @@ async function handleGenerateQuote(
       `Amount: ${(Number(quote.amount) / 1e6).toFixed(2)} USDC\n` +
       `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
       `⚠️ NEXT STEP (REQUIRED): You MUST call the Nexus Core orchestrator to get a checkout URL.\n` +
-      `Do NOT show the raw quote JSON or any SSE URL to the user.\n\n` +
+      `Do NOT show the raw quote JSON or any MCP URL to the user.\n\n` +
       `Option A — HTTP POST (no MCP required):\n` +
       `POST ${orchestrateUrl}\n` +
       `Content-Type: application/json\n` +
@@ -424,68 +424,28 @@ async function handleStatelessCall(
 }
 
 async function startHttpMode() {
-  const sessions = new Map<
-    string,
-    { transport: SSEServerTransport; server: McpServer }
-  >();
-
   registerStatelessHandler(handleStatelessCall);
 
-  registerSseHandler(
-    async (
-      req: IncomingMessage,
-      res: ServerResponse,
-      url: URL,
-    ): Promise<boolean> => {
-      const path = url.pathname;
-
-      if (path === "/sse" && req.method === "GET") {
-        const transport = new SSEServerTransport("/messages", res);
-        const server = createMcpServer();
-        sessions.set(transport.sessionId, { transport, server });
-
-        res.on("close", () => {
-          const session = sessions.get(transport.sessionId);
-          if (session) {
-            session.server.close().catch(() => {});
-            sessions.delete(transport.sessionId);
-          }
-        });
-
-        await server.connect(transport);
-        return true;
-      }
-
-      if (path === "/messages" && req.method === "POST") {
-        const sessionId = url.searchParams.get("sessionId") ?? "";
-        const session = sessions.get(sessionId);
-
-        if (!session) {
-          res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "Invalid or missing sessionId" }));
-          return true;
-        }
-
-        await session.transport.handlePostMessage(req, res);
-        return true;
-      }
-
-      return false;
+  registerMcpHandler(
+    async (req: IncomingMessage, res: ServerResponse): Promise<boolean> => {
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+      });
+      const server = createMcpServer();
+      await server.connect(transport);
+      await transport.handleRequest(req, res);
+      await server.close();
+      return true;
     },
   );
 
   startPortal(config);
   console.error(
-    `Flight Agent MCP Server started (HTTP/SSE mode on port ${config.portalPort})`,
+    `Flight Agent MCP Server started (HTTP mode on port ${config.portalPort})`,
   );
+  console.error(`  MCP endpoint:  http://localhost:${config.portalPort}/mcp`);
   console.error(
-    `  SSE endpoint:     http://localhost:${config.portalPort}/sse`,
-  );
-  console.error(
-    `  Messages endpoint: http://localhost:${config.portalPort}/messages`,
-  );
-  console.error(
-    `  Skill:            http://localhost:${config.portalPort}/skill.md`,
+    `  Skill:         http://localhost:${config.portalPort}/skill.md`,
   );
 }
 

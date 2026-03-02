@@ -30,8 +30,8 @@ function makeConfig(overrides: Partial<NexusCoreConfig> = {}): NexusCoreConfig {
 }
 
 describe("validateConfig", () => {
-  it("returns empty array when config is fully valid (sse mode)", () => {
-    const errors = validateConfig(makeConfig(), "sse");
+  it("returns empty array when config is fully valid (http mode)", () => {
+    const errors = validateConfig(makeConfig(), "http");
     expect(errors).toEqual([]);
   });
 
@@ -43,35 +43,35 @@ describe("validateConfig", () => {
     expect(errors).toEqual([]);
   });
 
-  it("reports missing DATABASE_URL in sse mode", () => {
-    const errors = validateConfig(makeConfig({ databaseUrl: "" }), "sse");
+  it("reports missing DATABASE_URL in http mode", () => {
+    const errors = validateConfig(makeConfig({ databaseUrl: "" }), "http");
     expect(errors).toContainEqual({
       field: "DATABASE_URL",
-      message: "Required in SSE mode",
+      message: "Required in HTTP mode",
     });
   });
 
-  it("reports missing RELAYER_PRIVATE_KEY in sse mode", () => {
+  it("reports missing RELAYER_PRIVATE_KEY in http mode", () => {
     const errors = validateConfig(
       makeConfig({ relayerPrivateKey: "" }),
-      "sse",
+      "http",
     );
     expect(errors).toContainEqual({
       field: "RELAYER_PRIVATE_KEY",
-      message: "Required in SSE mode",
+      message: "Required in HTTP mode",
     });
   });
 
-  it("reports zero-address ESCROW_CONTRACT in sse mode", () => {
+  it("reports zero-address ESCROW_CONTRACT in http mode", () => {
     const errors = validateConfig(
       makeConfig({
         escrowContract: "0x0000000000000000000000000000000000000000",
       }),
-      "sse",
+      "http",
     );
     expect(errors).toContainEqual({
       field: "ESCROW_CONTRACT",
-      message: "Must not be zero address in SSE mode",
+      message: "Must not be zero address in HTTP mode",
     });
   });
 
@@ -87,10 +87,7 @@ describe("validateConfig", () => {
   });
 
   it("reports protocolFeeBps < 0", () => {
-    const errors = validateConfig(
-      makeConfig({ protocolFeeBps: -1 }),
-      "sse",
-    );
+    const errors = validateConfig(makeConfig({ protocolFeeBps: -1 }), "http");
     expect(errors).toContainEqual({
       field: "PROTOCOL_FEE_BPS",
       message: "Must be between 0 and 10000",
@@ -104,7 +101,7 @@ describe("validateConfig", () => {
         relayerPrivateKey: "",
         protocolFeeBps: 99999,
       }),
-      "sse",
+      "http",
     );
     expect(errors.length).toBeGreaterThanOrEqual(3);
   });

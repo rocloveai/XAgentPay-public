@@ -94,7 +94,7 @@ function makeMerchant(overrides?: Partial<MerchantRecord>): MerchantRecord {
     category: "travel.hotels",
     skill_md_url: "https://example.com/skill.md",
     health_url: "https://example.com/health",
-    mcp_endpoint: "https://example.com/sse",
+    mcp_endpoint: "https://example.com/mcp",
     skill_name: "Test",
     skill_version: "0.1.0",
     skill_protocol: "MCP",

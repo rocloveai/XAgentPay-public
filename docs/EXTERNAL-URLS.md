@@ -18,13 +18,17 @@ All public-facing URLs, endpoints, and skill.md files for the NexusPay platform.
 
 ## Skill.md Files
 
+Each service provides two skill files: **skill.md** (MCP connection + tool definitions) and **skill-user.md** (HTTP REST API docs).
+
 | Skill | URL | Description |
 |-------|-----|-------------|
-| Nexus Core | `https://api.nexus-mvp.topos.one/skill.md` | Full developer MCP skill (8 tools) |
-| Nexus Core (User) | `https://api.nexus-mvp.topos.one/skill-user.md` | Simplified user-agent guide |
+| Nexus Core (MCP) | `https://api.nexus-mvp.topos.one/skill.md` | MCP connection + 9 tool definitions |
+| Nexus Core (HTTP) | `https://api.nexus-mvp.topos.one/skill-user.md` | HTTP REST API with curl examples |
+| Flight Agent (MCP) | `https://nexus-flight-agent-nr8m.onrender.com/skill.md` | MCP connection + 3 tool definitions |
+| Flight Agent (HTTP) | `https://nexus-flight-agent-nr8m.onrender.com/skill-user.md` | HTTP REST API with curl examples |
+| Hotel Agent (MCP) | `https://nexus-hotel-agent-nr8m.onrender.com/skill.md` | MCP connection + 3 tool definitions |
+| Hotel Agent (HTTP) | `https://nexus-hotel-agent-nr8m.onrender.com/skill-user.md` | HTTP REST API with curl examples |
 | LINE Messaging | `https://api.nexus-mvp.topos.one/skills/nexus-line-skill.md` | LINE Flex Message skill |
-| Flight Agent | `https://nexus-flight-agent-nr8m.onrender.com/skill.md` | Flight booking skill |
-| Hotel Agent | `https://nexus-hotel-agent-nr8m.onrender.com/skill.md` | Hotel booking skill |
 | Telegram Bot | `https://nexus-telegram-bot-nr8m.onrender.com/skill.md` | Telegram bot skill |
 
 ---
@@ -47,12 +51,11 @@ All public-facing URLs, endpoints, and skill.md files for the NexusPay platform.
 | GET | `/health` | None | Quick health check (no I/O) |
 | GET | `/api/health` | None | Detailed health with relayer balance |
 
-### MCP Transport (SSE)
+### MCP Transport (Streamable HTTP)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/sse` | None | SSE transport for MCP client connections |
-| POST | `/messages?sessionId=...` | None | MCP message handler for SSE sessions |
+| POST | `/mcp` | None | Stateless Streamable HTTP transport for MCP |
 
 ### Payment Orchestration
 
@@ -120,10 +123,10 @@ Both agents expose identical endpoint patterns:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/sse` | None | SSE transport for MCP connections |
-| POST | `/messages?sessionId=...` | None | MCP message handler |
+| POST | `/mcp` | None | Stateless Streamable HTTP transport for MCP |
 | POST | `/api/v1/call-tool` | None | Stateless tool invocation (`{ tool, arguments }`) |
-| GET | `/skill.md` | None | Agent skill documentation |
+| GET | `/skill.md` | None | MCP skill (connection + tool definitions) |
+| GET | `/skill-user.md` | None | HTTP REST API skill (curl examples) |
 | GET | `/health` | None | Health check |
 | POST | `/webhook` | HMAC | Payment event webhook receiver |
 

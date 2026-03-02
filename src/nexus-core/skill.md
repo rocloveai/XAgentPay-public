@@ -1,7 +1,7 @@
 ---
 name: nexus-core
 version: "0.5.0"
-description: NexusPay Core — payment orchestration for multi-merchant aggregated checkout
+description: NexusPay Core — payment orchestration MCP server for multi-merchant aggregated checkout
 protocol: NUPS/1.5
 category: finance.payment
 currencies: [USDC]
@@ -30,11 +30,27 @@ tools:
     description: Fetch full skill.md content for a specific merchant agent
 ---
 
-# Nexus Core
+# Nexus Core — MCP Skill
 
 Payment orchestration MCP server. **When a user wants to pay for orders from merchant agents (flights, hotels, etc.), submit all quotes here for a single aggregated payment.**
 
-## Quick Start for User Agents
+> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://api.nexus-mvp.topos.one/skill-user.md).
+
+## MCP Connection
+
+```json
+{
+  "mcpServers": {
+    "nexus-core": {
+      "url": "https://api.nexus-mvp.topos.one/mcp"
+    }
+  }
+}
+```
+
+Transport: **Streamable HTTP** (stateless, single `POST /mcp` per request).
+
+## Quick Start
 
 > You received one or more NUPS quotes from merchant agents (e.g. `nexus_generate_quote`).
 > Now call **`nexus_orchestrate_payment`** with all quotes + the user's wallet to create a payment group and get signing instructions.
@@ -75,242 +91,6 @@ nexus_orchestrate_payment({
 ```
 
 Both options accept raw `config` objects, full UCP envelopes, or handler objects — the orchestrator auto-extracts the quote from wrapped formats.
-
-## Connection
-
-### MCP (SSE)
-
-```json
-{
-  "mcpServers": {
-    "nexus-core": {
-      "url": "https://api.nexus-mvp.topos.one/sse"
-    }
-  }
-}
-```
-
-### HTTP REST (curl)
-
-All core functionality is also available via plain HTTP. No MCP client required.
-
-**Base URL:** `https://api.nexus-mvp.topos.one`
-
-#### `POST /api/orchestrate` — Create Payment (HTTP 402)
-
-Submit quotes and receive payment instructions. Returns **HTTP 402 Payment Required** with a `BatchDepositInstruction` containing EIP-3009 signing data, precomputed on-chain hashes, and a Nexus Core group signature.
-
-```bash
-curl -X POST https://api.nexus-mvp.topos.one/api/orchestrate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "quotes": [
-      {
-        "merchant_did": "did:nexus:20250407:demo_flight",
-        "merchant_order_ref": "FLT-001",
-        "amount": "100000",
-        "currency": "USDC",
-        "chain_id": 20250407,
-        "expiry": 9999999999,
-        "context": {"summary": "Flight SFO-LAX", "line_items": []},
-        "signature": "0x..."
-      }
-    ],
-    "payer_wallet": "0xYourWalletAddress"
-  }'
-```
-
-Response (HTTP 402):
-```json
-{
-  "http_status": 402,
-  "nexus_version": "0.5.0",
-  "group_id": "grp_...",
-  "status": "PAYMENT_REQUIRED",
-  "checkout_url": "https://api.nexus-mvp.topos.one/checkout/tok_...",
-  "instruction": {
-    "group_id": "grp_...",
-    "chain_id": 20250407,
-    "chain_name": "PlatON Devnet",
-    "rpc_url": "https://devnet3openapi.platon.network/rpc",
-    "payment_method": "ESCROW_CONTRACT",
-    "escrow_contract": "0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236",
-    "token_address": "0xFF8dEe9983768D0399673014cf77826896F97e4d",
-    "token_symbol": "USDC",
-    "token_decimals": 6,
-    "total_amount_uint256": "100000",
-    "total_amount_display": "0.10",
-    "payments": [
-      {
-        "nexus_payment_id": "PAY-...",
-        "merchant_did": "did:nexus:20250407:demo_flight",
-        "merchant_order_ref": "FLT-001",
-        "merchant_address": "0x...",
-        "amount_uint256": "100000",
-        "amount_display": "0.10",
-        "summary": "Flight SFO-LAX",
-        "payment_id_bytes32": "0x...",
-        "order_ref_bytes32": "0x...",
-        "merchant_did_bytes32": "0x...",
-        "context_hash": "0x..."
-      }
-    ],
-    "eip3009_sign_data": { "...EIP-3009 typed data for eth_signTypedData_v4..." },
-    "deposit_tx": { "to": "0x...", "abi": "function batchDepositWithAuthorization(...)", "value": "0", "gas_limit": "350000" },
-    "user_action": "SIGN_AND_SEND",
-    "gas_paid_by": "USER",
-    "nexus_group_sig": "0x...EIP-712 signature...",
-    "core_operator_address": "0x..."
-  },
-  "nexus_group_sig": "0x...EIP-712 signature...",
-  "core_operator_address": "0x..."
-}
-```
-
-**Key fields:**
-
-| Field | Description |
-|-------|-------------|
-| `http_status` | HTTP status code mirrored in response body (e.g. `402`). Present in **all** JSON responses. |
-| `checkout_url` | Token-protected URL (valid 1 hour). Open in browser for MetaMask checkout. |
-| `instruction.eip3009_sign_data` | EIP-3009 typed data — user signs via `eth_signTypedData_v4` |
-| `instruction.deposit_tx` | ABI and target for `batchDepositWithAuthorization` — user submits tx (pays gas) |
-| `instruction.payments[].payment_id_bytes32` | Precomputed `keccak256(nexus_payment_id)` for on-chain `BatchEntry` |
-| `instruction.payments[].context_hash` | Precomputed `keccak256(JSON.stringify(context))` — matches on-chain exactly |
-| `instruction.nexus_group_sig` | EIP-712 signature over `(groupId, entriesHash, totalAmount)` by Nexus Core operator |
-| `instruction.core_operator_address` | Address of the signing operator — verify before submitting |
-
-#### `GET /api/checkout/:token` — Payment Group Details
-
-Retrieve group, payments, and instruction for a checkout token. The `:token` can be a `tok_...` token (from `checkout_url`) or a direct `grp_...` / `GRP-...` group ID.
-
-```bash
-curl https://api.nexus-mvp.topos.one/api/checkout/tok_abc123...
-```
-
-#### `POST /api/checkout/:token/confirm` — Confirm Transaction
-
-After the user signs and submits the on-chain transaction:
-
-```bash
-curl -X POST https://api.nexus-mvp.topos.one/api/checkout/tok_abc123.../confirm \
-  -H "Content-Type: application/json" \
-  -d '{"tx_hash": "0xabcdef..."}'
-```
-
-#### `GET /checkout/:token` — Browser Checkout Page
-
-Open in browser for MetaMask-powered interactive checkout. The checkout page handles wallet connection, chain switching, EIP-3009 signing, and transaction submission.
-
-```
-https://api.nexus-mvp.topos.one/checkout/tok_abc123...
-```
-
-> **Note:** Checkout URLs expire after 1 hour. If expired, the user must re-orchestrate to get a new URL.
-
-#### `GET /api/payments/:id` — Payment Status
-
-Query payment status by Nexus payment ID. No authentication required.
-
-```bash
-curl https://api.nexus-mvp.topos.one/api/payments/PAY-xxx
-```
-
-Or query by group ID or merchant order reference:
-
-```bash
-curl "https://api.nexus-mvp.topos.one/api/payments?group_id=grp_xxx"
-curl "https://api.nexus-mvp.topos.one/api/payments?merchant_order_ref=FLT-123"
-```
-
-Response (HTTP 200):
-```json
-{
-  "http_status": 200,
-  "payment": {
-    "nexus_payment_id": "PAY-xxx",
-    "status": "ESCROWED",
-    "amount_display": "0.10",
-    "currency": "USDC",
-    "merchant_did": "did:nexus:...",
-    "merchant_order_ref": "FLT-123",
-    "tx_hash": "0x..."
-  },
-  "group": {
-    "group_id": "grp_xxx",
-    "status": "GROUP_ESCROWED",
-    "total_amount_display": "0.10",
-    "payment_count": 1
-  },
-  "group_payments": [
-    { "nexus_payment_id": "PAY-xxx", "status": "ESCROWED", "amount_display": "0.10" }
-  ]
-}
-```
-
-#### `GET /api/agents` — Discover Merchant Agents
-
-Search and discover merchant agents. No authentication required.
-
-```bash
-curl "https://api.nexus-mvp.topos.one/api/agents"
-curl "https://api.nexus-mvp.topos.one/api/agents?query=flight&category=travel&limit=10"
-```
-
-Response (HTTP 200):
-```json
-{
-  "http_status": 200,
-  "agents": [
-    {
-      "merchant_did": "did:nexus:20250407:demo_flight",
-      "name": "Demo Flight Agent",
-      "description": "Book flights with USDC",
-      "category": "travel.flights",
-      "mcp_endpoint": "https://nexus-flight-agent-nr8m.onrender.com/sse",
-      "skill_md_url": "https://nexus-flight-agent-nr8m.onrender.com/skill.md",
-      "currencies": ["USDC"],
-      "health_status": "ONLINE",
-      "stars": 5,
-      "tools": [{ "name": "nexus_generate_quote", "role": "quote" }]
-    }
-  ],
-  "total": 1,
-  "limit": 20
-}
-```
-
-#### `GET /api/agents/:did/skill` — Agent Skill File
-
-Fetch the full skill.md content for a specific merchant agent. Returns `text/markdown`.
-
-```bash
-curl https://api.nexus-mvp.topos.one/api/agents/did:nexus:20250407:demo_flight/skill
-```
-
-#### Rate Limits
-
-All stateless HTTP endpoints are rate-limited per IP address (30 requests/minute burst, ~0.5/sec sustained). Rate limit headers are included in every response:
-
-```
-X-RateLimit-Limit: 30
-X-RateLimit-Remaining: 28
-X-RateLimit-Reset: 1709712460
-```
-
-#### `GET /health` — Health Check
-
-```bash
-curl https://api.nexus-mvp.topos.one/health
-```
-
-#### `GET /api/health` — Detailed Health
-
-Returns service status including relayer balance and background service states.
-
-```bash
-curl https://api.nexus-mvp.topos.one/api/health
-```
 
 ## MCP Tools
 
@@ -442,9 +222,9 @@ Fetch the full skill.md content for a specific merchant agent.
 
 1. **Discover** (optional) — Call `discover_agents` to find merchant agents, then `get_agent_skill` to read their capabilities.
 2. **Collect Quotes** — Call merchant agents' `nexus_generate_quote` tools. Each returns a UCP checkout response containing a `config` (NexusQuotePayload) inside `urn:ucp:payment:nexus_v1`.
-3. **Orchestrate** — Call `nexus_orchestrate_payment` with all `config` objects as the `quotes` array, plus the user's `payer_wallet`. Nexus Core validates each quote, creates a payment group, and returns a `BatchDepositInstruction` with EIP-3009 signing data and a group signature. Also available via `POST /api/orchestrate` (HTTP 402).
+3. **Orchestrate** — Call `nexus_orchestrate_payment` with all `config` objects as the `quotes` array, plus the user's `payer_wallet`. Nexus Core validates each quote, creates a payment group, and returns a `BatchDepositInstruction` with EIP-3009 signing data and a group signature.
 4. **Sign & Submit** — User signs the EIP-3009 typed data via `eth_signTypedData_v4`, then submits `batchDepositWithAuthorization` on-chain (user pays gas). The checkout page at `checkout_url` handles this automatically via MetaMask.
-5. **Confirm** — Call `nexus_confirm_deposit` with `group_id` + `tx_hash`, or `POST /api/checkout/:token/confirm`.
+5. **Confirm** — Call `nexus_confirm_deposit` with `group_id` + `tx_hash`.
 6. **Track** — Call `nexus_get_payment_status` with `group_id` to monitor progress (CREATED -> ESCROWED -> SETTLED -> COMPLETED).
 7. **Fulfill** — Each merchant confirms delivery via `nexus_confirm_fulfillment`.
 

@@ -2,7 +2,7 @@
  * NexusPay Core — environment configuration.
  */
 
-export type TransportMode = "stdio" | "sse";
+export type TransportMode = "stdio" | "http";
 
 export interface NexusCoreConfig {
   readonly databaseUrl: string;
@@ -38,20 +38,20 @@ export function validateConfig(
 ): readonly ConfigValidationError[] {
   const errors: ConfigValidationError[] = [];
 
-  if (mode === "sse") {
+  if (mode === "http") {
     if (!config.databaseUrl) {
-      errors.push({ field: "DATABASE_URL", message: "Required in SSE mode" });
+      errors.push({ field: "DATABASE_URL", message: "Required in HTTP mode" });
     }
     if (!config.relayerPrivateKey) {
       errors.push({
         field: "RELAYER_PRIVATE_KEY",
-        message: "Required in SSE mode",
+        message: "Required in HTTP mode",
       });
     }
     if (config.escrowContract === ZERO_ADDRESS) {
       errors.push({
         field: "ESCROW_CONTRACT",
-        message: "Must not be zero address in SSE mode",
+        message: "Must not be zero address in HTTP mode",
       });
     }
   }

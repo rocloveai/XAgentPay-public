@@ -267,36 +267,36 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 **Type:** Integration
 
 **Steps:**
-1. Connect to `https://nexus-flight-agent-nr8m.onrender.com/sse`
+1. POST to `https://nexus-flight-agent-nr8m.onrender.com/mcp` with JSON-RPC initialize request
 
 **Expected:**
-- SSE connection established
+- HTTP 200 with JSON-RPC response
 - Tool list received: search_flights, nexus_generate_quote, nexus_check_status
 
 ---
 
-### TC-009-17: MCP SSE Connect (Hotel)
+### TC-009-17: MCP Connect (Hotel)
 
 **Priority:** P0
 **Type:** Integration
 
 **Steps:**
-1. Connect to `https://nexus-hotel-agent-nr8m.onrender.com/sse`
+1. POST to `https://nexus-hotel-agent-nr8m.onrender.com/mcp` with JSON-RPC initialize request
 
 **Expected:**
-- SSE connection established
+- HTTP 200 with JSON-RPC response
 - Tool list received: search_hotels, nexus_generate_quote, nexus_check_status
 
 ---
 
-### TC-009-18: MCP SSE Connect (Nexus Core)
+### TC-009-18: MCP Connect (Nexus Core)
 
 **Priority:** P0
 **Type:** Integration
 
 **Steps:**
-1. Connect to `https://api.nexus-mvp.topos.one/sse`
+1. POST to `https://api.nexus-mvp.topos.one/mcp` with JSON-RPC initialize request
 
 **Expected:**
-- SSE connection established
+- HTTP 200 with JSON-RPC response
 - Tool list received: nexus_orchestrate_payment, nexus_get_payment_status, nexus_confirm_deposit, nexus_release_payment, nexus_dispute_payment, nexus_resolve_dispute, nexus_confirm_fulfillment, discover_agents, get_agent_skill

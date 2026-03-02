@@ -33,7 +33,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: TRANSPORT
-        value: sse
+        value: http
       - key: PORT
         value: "10000"
       - key: DATABASE_URL
