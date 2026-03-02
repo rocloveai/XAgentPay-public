@@ -71,6 +71,7 @@ export class ChainWatcher {
   private lastProcessedBlock: bigint;
   private timer: ReturnType<typeof setInterval> | null = null;
   private polling = false;
+  private inflightPoll: Promise<void> | null = null;
 
   constructor(
     private readonly config: NexusCoreConfig,
@@ -112,18 +113,26 @@ export class ChainWatcher {
       resumeBlock: this.lastProcessedBlock.toString(),
     });
     this.timer = setInterval(() => {
-      this.pollOnce().catch((err) =>
+      const poll = this.pollOnce().catch((err) =>
         cwLog.error("poll error", {
           error: err instanceof Error ? err.message : String(err),
         }),
       );
+      this.inflightPoll = poll;
+      poll.finally(() => {
+        if (this.inflightPoll === poll) this.inflightPoll = null;
+      });
     }, this.intervalMs);
   }
 
-  stop(): void {
+  /** Stop the watcher and wait for any in-flight poll to complete. */
+  async stop(): Promise<void> {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
+    }
+    if (this.inflightPoll) {
+      await this.inflightPoll;
     }
   }
 

@@ -1461,11 +1461,15 @@ async function main(): Promise<void> {
 
 process.on("SIGTERM", () => {
   serverLog.info("SIGTERM received, shutting down");
-  // Stop background services before closing the DB pool
-  if (watcher) watcher.stop();
+  // Stop background services and wait for in-flight operations before closing pool
+  const stops: Promise<unknown>[] = [];
+  if (watcher) stops.push(watcher.stop());
   if (timeoutHandler) timeoutHandler.stop();
   webhookNotifier.stopRetryLoop();
-  closePool().catch(() => {});
+  Promise.all(stops)
+    .then(() => closePool())
+    .catch(() => {})
+    .finally(() => process.exit(0));
 });
 
 main().catch((err) => {
