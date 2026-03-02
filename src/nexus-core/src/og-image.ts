@@ -2,62 +2,43 @@
  * NexusPay OG Image — Programmatic PNG generator.
  *
  * Generates a branded 400×400 PNG logo for Telegram link preview cards.
+ * Dark background with cyan 4-pointed sparkle star (Nexus brand).
  * Pure Node.js — no external image libraries required.
  */
 import { deflateSync } from "node:zlib";
 
 // ---------------------------------------------------------------------------
-// Brand palette
+// Brand palette (matches Nexus logo: dark bg + cyan sparkle)
 // ---------------------------------------------------------------------------
 
-const BG_R = 0x63; // indigo-500 #6366f1
-const BG_G = 0x66;
-const BG_B = 0xf1;
+// Background: very dark navy
+const BG_R = 0x0c;
+const BG_G = 0x12;
+const BG_B = 0x22;
 
-const FG_R = 0xff; // white
-const FG_G = 0xff;
-const FG_B = 0xff;
+// Star: bright cyan (#22d3ee → cyan-400)
+const STAR_R = 0x22;
+const STAR_G = 0xd3;
+const STAR_B = 0xee;
+
+// Glow: softer cyan for glow halo
+const GLOW_R = 0x06;
+const GLOW_G = 0xb6;
+const GLOW_B = 0xd4;
 
 const WIDTH = 400;
 const HEIGHT = 400;
+const CX = WIDTH / 2;
+const CY = HEIGHT / 2;
 
-// ---------------------------------------------------------------------------
-// Bitmap font — "N" letter (20×24 grid, scaled 8× to 160×192)
-// ---------------------------------------------------------------------------
+// Rounded corner radius (for icon-style appearance)
+const CORNER_R = 64;
 
-// prettier-ignore
-const N_BITMAP: readonly number[] = [
-  0b11000000000000000011,
-  0b11100000000000000011,
-  0b11110000000000000011,
-  0b11111000000000000011,
-  0b11011100000000000011,
-  0b11001110000000000011,
-  0b11000111000000000011,
-  0b11000011100000000011,
-  0b11000001110000000011,
-  0b11000000111000000011,
-  0b11000000011100000011,
-  0b11000000001110000011,
-  0b11000000000111000011,
-  0b11000000000011100011,
-  0b11000000000001110011,
-  0b11000000000000111011,
-  0b11000000000000011111,
-  0b11000000000000001111,
-  0b11000000000000000111,
-  0b11000000000000000011,
-];
-
-const CHAR_W = 20;
-const CHAR_H = N_BITMAP.length;
-const SCALE = 8;
-const GLYPH_W = CHAR_W * SCALE; // 160px
-const GLYPH_H = CHAR_H * SCALE; // 160px
-
-// Center the glyph
-const OFFSET_X = Math.floor((WIDTH - GLYPH_W) / 2);
-const OFFSET_Y = Math.floor((HEIGHT - GLYPH_H) / 2);
+// Star geometry
+const STAR_MAX_R = 120; // length of main points
+const STAR_MIN_R = 18; // width at narrowest
+const STAR_SHARP = 3; // exponent — higher = sharper points
+const GLOW_RADIUS = 160; // outer glow reach
 
 // ---------------------------------------------------------------------------
 // PNG primitives
@@ -90,7 +71,6 @@ function makeChunk(type: string, data: Uint8Array): Uint8Array {
   chunk[7] = type.charCodeAt(3);
   chunk.set(data, 8);
 
-  // CRC covers type + data
   const crcData = new Uint8Array(4 + data.length);
   crcData[0] = chunk[4];
   crcData[1] = chunk[5];
@@ -103,11 +83,60 @@ function makeChunk(type: string, data: Uint8Array): Uint8Array {
 }
 
 // ---------------------------------------------------------------------------
+// Shape helpers
+// ---------------------------------------------------------------------------
+
+/** Is (x,y) inside the rounded rectangle? */
+function insideRoundedRect(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): boolean {
+  // Inner cross (no rounding needed)
+  if (x >= r && x <= w - r) return y >= 0 && y < h;
+  if (y >= r && y <= h - r) return x >= 0 && x < w;
+  // Corners
+  const corners = [
+    [r, r],
+    [w - r, r],
+    [r, h - r],
+    [w - r, h - r],
+  ];
+  for (const [cx, cy] of corners) {
+    const dx = x - cx;
+    const dy = y - cy;
+    if (dx * dx + dy * dy <= r * r) return true;
+  }
+  return false;
+}
+
+/**
+ * 4-pointed star radius at angle theta.
+ * r(θ) = min + (max - min) * |cos(2θ)|^n
+ */
+function starRadius(theta: number): number {
+  const cos2t = Math.cos(2 * theta);
+  const factor = Math.pow(Math.abs(cos2t), STAR_SHARP);
+  return STAR_MIN_R + (STAR_MAX_R - STAR_MIN_R) * factor;
+}
+
+/** Clamp to [0, 255] */
+function clamp(v: number): number {
+  return v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
+}
+
+/** Linear interpolation */
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+// ---------------------------------------------------------------------------
 // Generate the PNG
 // ---------------------------------------------------------------------------
 
 function generateOgPng(): Buffer {
-  // Build raw scanlines: each row = filter byte (0) + WIDTH * 3 bytes (RGB)
   const rowBytes = 1 + WIDTH * 3;
   const raw = new Uint8Array(HEIGHT * rowBytes);
 
@@ -118,30 +147,49 @@ function generateOgPng(): Buffer {
     for (let x = 0; x < WIDTH; x++) {
       const px = rowStart + 1 + x * 3;
 
-      // Check if this pixel is within the glyph bounds
-      const gx = x - OFFSET_X;
-      const gy = y - OFFSET_Y;
-      let isForeground = false;
-
-      if (gx >= 0 && gx < GLYPH_W && gy >= 0 && gy < GLYPH_H) {
-        const charX = Math.floor(gx / SCALE);
-        const charY = Math.floor(gy / SCALE);
-        if (charY < CHAR_H) {
-          // Read bit from bitmap (MSB = left)
-          const bit = (N_BITMAP[charY] >>> (CHAR_W - 1 - charX)) & 1;
-          isForeground = bit === 1;
-        }
+      // Outside rounded rect → pure black
+      if (!insideRoundedRect(x, y, WIDTH, HEIGHT, CORNER_R)) {
+        raw[px] = 0;
+        raw[px + 1] = 0;
+        raw[px + 2] = 0;
+        continue;
       }
 
-      if (isForeground) {
-        raw[px] = FG_R;
-        raw[px + 1] = FG_G;
-        raw[px + 2] = FG_B;
+      // Distance from center
+      const dx = x - CX;
+      const dy = y - CY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const theta = Math.atan2(dy, dx);
+      const sr = starRadius(theta);
+
+      let r: number;
+      let g: number;
+      let b: number;
+
+      if (dist <= sr) {
+        // Inside star — solid cyan with bright center
+        const centerFade = 1 - dist / sr;
+        const brightness = 0.85 + 0.15 * centerFade;
+        r = clamp(STAR_R * brightness + 255 * centerFade * 0.3);
+        g = clamp(STAR_G * brightness + 255 * centerFade * 0.15);
+        b = clamp(STAR_B * brightness + 255 * centerFade * 0.08);
+      } else if (dist <= GLOW_RADIUS) {
+        // Glow zone — fade from cyan glow to background
+        const t = (dist - sr) / (GLOW_RADIUS - sr);
+        const fade = Math.pow(1 - t, 2.5); // smooth falloff
+        r = clamp(lerp(BG_R, GLOW_R, fade));
+        g = clamp(lerp(BG_G, GLOW_G, fade));
+        b = clamp(lerp(BG_B, GLOW_B, fade));
       } else {
-        raw[px] = BG_R;
-        raw[px + 1] = BG_G;
-        raw[px + 2] = BG_B;
+        // Background
+        r = BG_R;
+        g = BG_G;
+        b = BG_B;
       }
+
+      raw[px] = r;
+      raw[px + 1] = g;
+      raw[px + 2] = b;
     }
   }
 
@@ -158,14 +206,11 @@ function generateOgPng(): Buffer {
   ihdr[11] = 0; // filter
   ihdr[12] = 0; // interlace
 
-  // PNG signature
   const signature = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-
   const ihdrChunk = makeChunk("IHDR", ihdr);
   const idatChunk = makeChunk("IDAT", new Uint8Array(compressed));
   const iendChunk = makeChunk("IEND", new Uint8Array(0));
 
-  // Concatenate all parts
   const total =
     signature.length +
     ihdrChunk.length +
