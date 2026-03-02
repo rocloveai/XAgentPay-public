@@ -3,4 +3,4 @@ export { NeonEventRepository } from "./event-repo.js";
 export { NeonMerchantRepository } from "./merchant-repo.js";
 export { NeonWebhookRepository } from "./webhook-repo.js";
 export { NeonStarRepository } from "./star-repo.js";
-export { initPool, getPool, isPoolInitialized } from "./pool.js";
+export { initPool, getPool, isPoolInitialized, closePool } from "./pool.js";

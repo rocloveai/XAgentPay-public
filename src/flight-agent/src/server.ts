@@ -7,7 +7,7 @@ import { loadConfig } from "./config.js";
 import { searchFlights } from "./services/flight-search.js";
 import { buildQuote } from "./services/quote-builder.js";
 import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
-import { initPool } from "./services/db/pool.js";
+import { initPool, closePool } from "./services/db/pool.js";
 import {
   startPortal,
   registerSseHandler,
@@ -481,6 +481,10 @@ async function startHttpMode() {
     `  Skill:            http://localhost:${config.portalPort}/skill.md`,
   );
 }
+
+process.on("SIGTERM", () => {
+  closePool().catch(() => {});
+});
 
 main().catch((err) => {
   console.error("Failed to start Flight Agent:", err);

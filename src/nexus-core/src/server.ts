@@ -22,7 +22,7 @@ import {
   validateConfig,
   type TransportMode,
 } from "./config.js";
-import { initPool } from "./db/pool.js";
+import { initPool, closePool } from "./db/pool.js";
 import { NeonPaymentRepository } from "./db/payment-repo.js";
 import { NeonMerchantRepository } from "./db/merchant-repo.js";
 import { NeonEventRepository } from "./db/event-repo.js";
@@ -1426,6 +1426,11 @@ async function main(): Promise<void> {
     serverLog.info("Connected via stdio transport");
   }
 }
+
+process.on("SIGTERM", () => {
+  serverLog.info("SIGTERM received, shutting down");
+  closePool().catch(() => {});
+});
 
 main().catch((err) => {
   serverLog.error("Fatal error", {
