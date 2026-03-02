@@ -29,7 +29,6 @@ import { NeonEventRepository } from "./db/event-repo.js";
 import { NeonGroupRepository } from "./db/group-repo.js";
 import { NeonWebhookRepository } from "./db/webhook-repo.js";
 import { NeonKVRepository } from "./db/kv-repo.js";
-import { HealthChecker } from "./services/health-checker.js";
 import { NexusOrchestrator } from "./services/orchestrator.js";
 import { PaymentStateMachine } from "./services/state-machine.js";
 import { GroupManager } from "./services/group-manager.js";
@@ -1450,13 +1449,10 @@ async function main(): Promise<void> {
       },
     );
 
-    const healthChecker = new HealthChecker(merchantRepo, 300_000);
-
     httpServer.listen(config.port, () => {
       serverLog.info("HTTP server listening", { port: config.port });
 
-      // Start background services AFTER HTTP is listening (so health check passes)
-      healthChecker.start();
+      // Start background services AFTER HTTP is listening
       if (watcher) {
         watcher.start().catch((err) =>
           serverLog.error("ChainWatcher start failed", {
