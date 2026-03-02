@@ -13,7 +13,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=builder /app/build/ ./build/
 COPY skill.md skill-user.md ./
 COPY skills/ ./skills/
-ENV TRANSPORT=sse
+ENV TRANSPORT=http
 ENV PORT=10000
 ENV NODE_OPTIONS="--max-old-space-size=384"
 EXPOSE 10000
