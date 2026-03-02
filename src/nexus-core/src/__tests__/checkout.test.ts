@@ -439,9 +439,10 @@ describe("Checkout", () => {
       const payment = await paymentRepo.findById("PAY-checkout-1");
       expect(payment?.status).toBe("CREATED");
 
-      // Group should be AWAITING_TX
+      // Group should stay GROUP_CREATED (not transition to AWAITING_TX)
+      // so user can retry if the tx gets dropped
       const group = await groupRepo.findById(GROUP_ID);
-      expect(group?.status).toBe("GROUP_AWAITING_TX");
+      expect(group?.status).toBe("GROUP_CREATED");
     });
 
     it("returns 409 when group already paid", async () => {

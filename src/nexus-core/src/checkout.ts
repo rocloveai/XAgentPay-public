@@ -223,12 +223,9 @@ async function handleCheckoutConfirm(
     return;
   }
 
-  if (
-    group.status !== "GROUP_CREATED" &&
-    group.status !== "GROUP_AWAITING_TX"
-  ) {
+  if (group.status !== "GROUP_CREATED") {
     sendJson(res, 409, {
-      error: `Payment group status is ${group.status}, expected GROUP_CREATED or GROUP_AWAITING_TX`,
+      error: `Payment group status is ${group.status}, expected GROUP_CREATED`,
     });
     return;
   }
@@ -250,12 +247,11 @@ async function handleCheckoutConfirm(
     const receipt = await client.getTransactionReceipt({ hash: txHash });
     receiptStatus = receipt.status;
   } catch {
-    // Transaction not yet mined — mark group as awaiting tx
-    checkoutLog.info("Receipt not available yet, marking AWAITING_TX", {
+    // Transaction not yet mined — keep group as GROUP_CREATED so user can
+    // retry if the tx gets dropped. ChainWatcher will handle the actual
+    // state transition when the deposit is confirmed on-chain.
+    checkoutLog.info("Receipt not available yet, staying in current status", {
       group_id: groupId,
-      tx_hash: txHash,
-    });
-    await deps.groupRepo.updateStatus(groupId, "GROUP_AWAITING_TX", {
       tx_hash: txHash,
     });
     sendJson(res, 202, {
@@ -632,14 +628,16 @@ async function loadCheckout() {
 
     // Check if already paid
     var gs = checkoutData.group.status;
-    if (gs !== "GROUP_CREATED") {
+    if (gs === "GROUP_ESCROWED" || gs === "GROUP_SETTLED" || gs === "GROUP_COMPLETED" || gs === "GROUP_DEPOSITED") {
       renderGroupInfo();
       renderOrderSummary();
-      if (gs === "GROUP_ESCROWED" || gs === "GROUP_SETTLED" || gs === "GROUP_COMPLETED") {
-        showOnly(["group-info","order-summary","state-already-paid"]);
-      } else {
-        showOnly(["group-info","order-summary","state-already-paid"]);
-      }
+      showOnly(["group-info","order-summary","state-already-paid"]);
+      return;
+    }
+    if (gs !== "GROUP_CREATED" && gs !== "GROUP_AWAITING_TX") {
+      renderGroupInfo();
+      renderOrderSummary();
+      showOnly(["group-info","order-summary","state-already-paid"]);
       return;
     }
 
@@ -941,7 +939,7 @@ async function signAndPay() {
     // 202 or other — poll for on-chain confirmation
     console.log("[NexusPay] Awaiting on-chain confirmation, polling...");
     var pollAttempts = 0;
-    var maxPollAttempts = 40; // 40 * 3s = 120s max
+    var maxPollAttempts = 24; // 24 * 5s = 120s max
 
     pollTimer = setInterval(async function() {
       pollAttempts++;
@@ -968,19 +966,8 @@ async function signAndPay() {
           return;
         }
 
-        // Also check group status directly
-        var pollRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID));
-        if (pollRes.ok) {
-          var data = await pollRes.json();
-          var gs = data.group.status;
-          if (gs === "GROUP_ESCROWED" || gs === "GROUP_SETTLED" || gs === "GROUP_COMPLETED") {
-            clearInterval(pollTimer);
-            pollTimer = null;
-            document.getElementById("success-tx-hash").textContent = "TX: " + txHash;
-            showOnly(["group-info","order-summary","state-success"]);
-            return;
-          }
-        }
+        // 202 means receipt not available yet — the confirm endpoint already
+        // checks group status internally, no need for a second API call
       } catch (e) { /* ignore poll errors */ }
 
       if (pollAttempts >= maxPollAttempts) {
@@ -988,7 +975,7 @@ async function signAndPay() {
         pollTimer = null;
         showError("Transaction sent but confirmation timed out. TX: " + txHash + ". Check your wallet for status.");
       }
-    }, 3000);
+    }, 5000);
 
   } catch (e) {
     if (e.code === 4001) {

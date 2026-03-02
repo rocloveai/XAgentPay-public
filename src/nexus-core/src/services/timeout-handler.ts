@@ -43,6 +43,10 @@ export class TimeoutHandler {
   }
 
   async sweepOnce(): Promise<void> {
+    // Quick check: skip all scans if no active payments exist
+    const hasActive = await this.paymentRepo.hasNonTerminalPayments();
+    if (!hasActive) return;
+
     // 1. Handle AWAITING_TX timeouts (state machine only, no chain tx)
     const expiredPayments = await this.stateMachine.runTimeoutSweep();
 

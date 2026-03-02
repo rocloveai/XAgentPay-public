@@ -688,7 +688,16 @@ async function refresh() {
 }
 
 refresh();
-setInterval(refresh, 5000);
+var refreshTimer = setInterval(refresh, 15000);
+document.addEventListener("visibilitychange", function() {
+  if (document.hidden) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  } else {
+    refresh();
+    refreshTimer = setInterval(refresh, 15000);
+  }
+});
 </script>
 </body>
 </html>`;
@@ -751,7 +760,9 @@ export async function handlePortalRequest(
     return true;
   }
 
-  const groupMatch = path.match(/^\/api\/groups\/((?:GRP-|grp_)[a-zA-Z0-9_-]+)$/i);
+  const groupMatch = path.match(
+    /^\/api\/groups\/((?:GRP-|grp_)[a-zA-Z0-9_-]+)$/i,
+  );
   if (groupMatch && req.method === "GET") {
     await handleApiGroupDetail(deps, decodeURIComponent(groupMatch[1]), res);
     return true;

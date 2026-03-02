@@ -216,4 +216,19 @@ export class MockPaymentRepository implements PaymentRepository {
     }
     return total.toString();
   }
+
+  async hasNonTerminalPayments(): Promise<boolean> {
+    const terminal = new Set([
+      "COMPLETED",
+      "EXPIRED",
+      "TX_FAILED",
+      "RISK_REJECTED",
+      "REFUNDED",
+      "DISPUTE_RESOLVED",
+    ]);
+    for (const r of this.store.values()) {
+      if (!terminal.has(r.status)) return true;
+    }
+    return false;
+  }
 }

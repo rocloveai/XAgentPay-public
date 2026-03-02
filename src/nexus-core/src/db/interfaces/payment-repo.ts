@@ -73,4 +73,7 @@ export interface PaymentRepository {
 
   /** Sum total amount across all payments (returns string of raw amount). */
   sumTotalAmount(): Promise<string>;
+
+  /** Quick check: are there any non-terminal payments? (for idle skip optimization) */
+  hasNonTerminalPayments(): Promise<boolean>;
 }

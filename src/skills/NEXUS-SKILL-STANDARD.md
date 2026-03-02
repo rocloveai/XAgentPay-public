@@ -204,6 +204,15 @@ Checks the payment status of an order.
 4. **Pay** — User pays via Nexus Protocol (on-chain USDC)
 5. **Verify** — Call `nexus_check_status`, confirm when `PAID`
 
+## Platform-Specific Rich Messaging
+
+Agents SHOULD adapt payment information to the platform's native rich messaging format when available.
+
+### LINE Platform
+- **Format**: Flex Message (JSON)
+- **Pattern**: Send a new card on state change. DO NOT assume message updates are possible.
+- **Components**: Summary Box, Itemized List, Action Button (URI to Checkout).
+
 ## Portal Dashboard
 
 \```
@@ -236,3 +245,4 @@ Before publishing a merchant skill:
 - [ ] `package.json` has `bin`, `files`, and `prepublishOnly`
 - [ ] `#!/usr/bin/env node` shebang is present in server entry point
 - [ ] Build succeeds (`npm run build`)
+- [ ] Platform-specific rich messaging (e.g., LINE Flex) handles state changes by sending new cards

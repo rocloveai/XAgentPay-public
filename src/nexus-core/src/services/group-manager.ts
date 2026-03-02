@@ -201,7 +201,12 @@ function aggregateGroupStatus(
   if (statuses.every((s) => s === "ESCROWED")) return "GROUP_ESCROWED";
   if (statuses.every((s) => s === "EXPIRED")) return "GROUP_EXPIRED";
 
-  if (statuses.every((s) => s === "CREATED" || s === "AWAITING_TX")) {
+  if (statuses.every((s) => s === "CREATED")) return "GROUP_CREATED";
+
+  if (
+    statuses.some((s) => s === "AWAITING_TX") &&
+    statuses.every((s) => s === "CREATED" || s === "AWAITING_TX")
+  ) {
     return "GROUP_AWAITING_TX";
   }
 

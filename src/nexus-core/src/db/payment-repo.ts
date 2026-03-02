@@ -307,4 +307,14 @@ export class NeonPaymentRepository implements PaymentRepository {
     );
     return rows[0].total as string;
   }
+
+  async hasNonTerminalPayments(): Promise<boolean> {
+    const sql = getPool();
+    const rows = await sql(
+      `SELECT 1 FROM payments
+       WHERE status NOT IN ('COMPLETED','EXPIRED','TX_FAILED','RISK_REJECTED','REFUNDED','DISPUTE_RESOLVED')
+       LIMIT 1`,
+    );
+    return rows.length > 0;
+  }
 }
