@@ -10,6 +10,7 @@ import { type NexusRelayer, OnChainEscrowStatus } from "./relayer.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
 import type { PaymentStateMachine } from "./state-machine.js";
 import type { GroupManager } from "./group-manager.js";
+import type { WebhookNotifier } from "./webhook-notifier.js";
 import type { PaymentRecord } from "../types.js";
 
 export class TimeoutHandler {
@@ -21,6 +22,7 @@ export class TimeoutHandler {
     private readonly paymentRepo: PaymentRepository,
     private readonly stateMachine: PaymentStateMachine,
     private readonly groupManager: GroupManager,
+    private readonly webhookNotifier: WebhookNotifier | null,
     intervalMs: number,
   ) {
     this.intervalMs = intervalMs;
@@ -51,7 +53,21 @@ export class TimeoutHandler {
     // 1. Handle AWAITING_TX timeouts (state machine only, no chain tx)
     const expiredPayments = await this.stateMachine.runTimeoutSweep();
 
-    // 1b. Sync group status for any groups with newly-expired payments
+    // 1b. Notify merchants of expired payments
+    if (this.webhookNotifier && expiredPayments.length > 0) {
+      for (const payment of expiredPayments) {
+        this.webhookNotifier
+          .notify(payment, "payment.expired")
+          .catch((err) =>
+            console.error(
+              `[TimeoutHandler] Webhook failed for ${payment.nexus_payment_id}:`,
+              err instanceof Error ? err.message : err,
+            ),
+          );
+      }
+    }
+
+    // 1c. Sync group status for any groups with newly-expired payments
     const affectedGroupIds = new Set(
       expiredPayments
         .map((p) => p.group_id)

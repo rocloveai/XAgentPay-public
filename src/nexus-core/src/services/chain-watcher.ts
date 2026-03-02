@@ -50,6 +50,7 @@ const STATUS_TO_WEBHOOK: Readonly<Record<string, string>> = {
   ESCROWED: "payment.escrowed",
   SETTLED: "payment.settled",
   REFUNDED: "payment.refunded",
+  EXPIRED: "payment.expired",
   DISPUTE_OPEN: "dispute.opened",
   DISPUTE_RESOLVED: "dispute.resolved",
   COMPLETED: "payment.completed",

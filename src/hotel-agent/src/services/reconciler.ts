@@ -130,6 +130,11 @@ async function runReconciliation(
           ),
         );
       }
+    } else if (coreStatus === "EXPIRED" || coreStatus === "REFUNDED") {
+      console.error(
+        `[Reconciler] ${order.order_ref}: UNPAID → EXPIRED (core status: ${coreStatus})`,
+      );
+      await updateStatus(order.order_ref, "EXPIRED");
     }
   }
 }

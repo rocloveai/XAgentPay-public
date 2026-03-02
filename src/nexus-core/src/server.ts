@@ -129,6 +129,7 @@ if (config.relayerPrivateKey) {
     paymentRepo,
     stateMachine,
     groupManager,
+    webhookNotifier,
     config.timeoutSweepIntervalMs,
   );
 }

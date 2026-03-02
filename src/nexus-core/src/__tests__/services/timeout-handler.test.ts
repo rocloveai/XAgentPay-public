@@ -47,6 +47,7 @@ describe("TimeoutHandler", () => {
       paymentRepo,
       stateMachine,
       groupManager,
+      null, // webhookNotifier
       60000,
     );
   });
