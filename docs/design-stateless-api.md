@@ -453,8 +453,8 @@ Response (HTTP 200):
       "name": "Demo Flight Agent",
       "description": "Book flights with USDC",
       "category": "travel.flights",
-      "mcp_url": "https://demo-flight.onrender.com/sse",
-      "skill_url": "https://demo-flight.onrender.com/skill.md",
+      "mcp_url": "https://nexus-flight-agent-nr8m.onrender.com/sse",
+      "skill_url": "https://nexus-flight-agent-nr8m.onrender.com/skill.md",
       "stars": 42
     }
   ],
@@ -742,7 +742,7 @@ if (restHandled) return;
 
 **For LLM tools without SSE support**, all core functionality is available via stateless REST API with Bearer token authentication.
 
-**Base URL:** `https://nexus-core-361y.onrender.com`
+**Base URL:** `https://nexus-mvp.topos.one`
 
 #### Authentication
 
@@ -786,7 +786,7 @@ X-RateLimit-Reset: 1709712400
 #### Example: Release Payment (Merchant)
 
 ```bash
-curl -X POST https://nexus-core-361y.onrender.com/api/payments/PAY-xxx/release \
+curl -X POST https://nexus-mvp.topos.one/api/payments/PAY-xxx/release \
   -H "Authorization: Bearer $NEXUS_API_KEY" \
   -H "Idempotency-Key: rel_$(uuidgen)" \
   -H "Content-Type: application/json" \
@@ -796,11 +796,11 @@ curl -X POST https://nexus-core-361y.onrender.com/api/payments/PAY-xxx/release \
 #### Example: Get Payment Status (Public)
 
 ```bash
-curl https://nexus-core-361y.onrender.com/api/payments/PAY-xxx
+curl https://nexus-mvp.topos.one/api/payments/PAY-xxx
 ```
 
 **For complete API reference, see:**
-- 📖 REST API Docs: `https://nexus-core-361y.onrender.com/docs` (OpenAPI)
+- 📖 REST API Docs: `https://nexus-mvp.topos.one/docs` (OpenAPI)
 - 🔐 Security: All endpoints use HTTPS + Bearer token auth
 ```
 
