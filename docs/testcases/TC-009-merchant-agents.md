@@ -6,7 +6,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 ## Prerequisites
 - Flight agent and hotel agent services running
 - Database accessible
-- MCP SSE endpoints available
+- MCP endpoints available (Streamable HTTP at `/mcp`)
 
 ---
 
@@ -153,21 +153,22 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 1. `GET /health` on flight agent
 
 **Expected:**
-- HTTP 200: `{ "status": "ok", "sseHandler": true }`
+- HTTP 200: `{ "status": "ok", "transport": "streamable-http" }`
 
 ---
 
-### TC-009-10: Flight Agent Skill.md
+### TC-009-10: Flight Agent Skill Files
 
 **Priority:** P1
 **Type:** Functional
 
 **Steps:**
 1. `GET /skill.md` on flight agent
+2. `GET /skill-user.md` on flight agent
 
 **Expected:**
-- Returns skill.md markdown with YAML frontmatter
-- Contains: name, version, protocol, tools, MCP connection info
+- `/skill.md`: MCP-focused — YAML frontmatter, MCP connection config, tool definitions
+- `/skill-user.md`: HTTP-focused — REST API endpoint, curl examples, no MCP references
 
 ---
 
@@ -244,7 +245,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 ---
 
-### TC-009-15: Hotel Agent Health & Skill
+### TC-009-15: Hotel Agent Health & Skill Files
 
 **Priority:** P1
 **Type:** Functional
@@ -252,16 +253,18 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 **Steps:**
 1. `GET /health` on hotel agent
 2. `GET /skill.md` on hotel agent
+3. `GET /skill-user.md` on hotel agent
 
 **Expected:**
-- Health: `{ "status": "ok", "sseHandler": true }`
-- Skill: markdown with hotel-specific tools and workflow
+- Health: `{ "status": "ok", "transport": "streamable-http" }`
+- `/skill.md`: MCP-focused — YAML frontmatter, MCP connection config, tool definitions
+- `/skill-user.md`: HTTP-focused — REST API endpoint, curl examples, no MCP references
 
 ---
 
-## C. MCP SSE Connection
+## C. MCP Connection (Streamable HTTP)
 
-### TC-009-16: MCP SSE Connect (Flight)
+### TC-009-16: MCP Connect (Flight)
 
 **Priority:** P0
 **Type:** Integration
