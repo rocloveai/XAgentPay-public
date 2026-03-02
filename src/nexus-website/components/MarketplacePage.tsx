@@ -90,6 +90,7 @@ const MarketplacePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<MarketTab>("discover");
   const [agents, setAgents] = useState<MarketAgent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [starredAgents, setStarredAgents] =
@@ -122,7 +123,10 @@ const MarketplacePage: React.FC = () => {
 
   useEffect(() => {
     fetch(`${API_URL}/api/market/agents`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
         const agentList: MarketAgent[] = data.agents ?? [];
         setAgents(agentList);
@@ -133,7 +137,13 @@ const MarketplacePage: React.FC = () => {
         setLocalStarCounts(counts);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error("[Marketplace] fetch failed:", err);
+        setFetchError(
+          `${err instanceof Error ? err.message : String(err)} (API: ${API_URL})`,
+        );
+        setLoading(false);
+      });
   }, []);
 
   const toggleStar = useCallback(
@@ -401,8 +411,17 @@ const MarketplacePage: React.FC = () => {
               </div>
             )}
 
+            {/* Fetch error */}
+            {fetchError && (
+              <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 mb-6">
+                <p className="text-sm text-red-400">
+                  Failed to load agents: {fetchError}
+                </p>
+              </div>
+            )}
+
             {/* Empty state */}
-            {!loading && filtered.length === 0 && (
+            {!loading && filtered.length === 0 && !fetchError && (
               <div className="text-center py-20 text-gray-500">
                 <span className="material-icons-round text-5xl mb-3 block">
                   search_off
