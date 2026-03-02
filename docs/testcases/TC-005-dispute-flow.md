@@ -3,6 +3,8 @@
 ## Module
 `nexus_dispute_payment` / `nexus_resolve_dispute` (MCP) / Escrow Contract
 
+> **Note:** Dispute and resolve are MCP-only tools — no HTTP REST endpoints exist for these operations.
+
 ## Prerequisites
 - Payment in ESCROWED state
 - Within dispute window (72 hours from escrow)

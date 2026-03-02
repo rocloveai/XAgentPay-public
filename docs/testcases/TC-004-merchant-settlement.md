@@ -110,6 +110,40 @@
 
 ---
 
+### TC-004-06a: MCP Tool - nexus_confirm_fulfillment (ESCROWED)
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. Payment in ESCROWED state
+2. Call `nexus_confirm_fulfillment` via MCP with:
+   - `payment_id`: "PAY-xxx"
+   - `fulfillment_proof`: "https://example.com/proof"
+
+**Expected:**
+- Relayer submits `release()` tx on-chain (same as HTTP confirm-fulfillment)
+- Returns formatted text with release status and tx_hash
+- Payment remains ESCROWED until on-chain confirmation
+
+---
+
+### TC-004-06b: MCP Tool - nexus_confirm_fulfillment (SETTLED -> COMPLETED)
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. Payment in SETTLED state
+2. Call `nexus_confirm_fulfillment` via MCP with `payment_id: "PAY-xxx"`
+
+**Expected:**
+- Payment transitions SETTLED -> COMPLETED
+- Returns formatted text confirming completion
+- Webhook `payment.completed` sent
+
+---
+
 ### TC-004-07: MCP Tool - nexus_release_payment
 
 **Priority:** P1

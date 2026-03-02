@@ -18,16 +18,16 @@
 
 | ID | Module | Test Cases | Priority Coverage |
 |----|--------|-----------|-------------------|
-| [TC-001](TC-001-payment-orchestration.md) | Payment Orchestration | 14 | 4x P0, 6x P1, 4x P2 |
-| [TC-002](TC-002-checkout-flow.md) | Checkout Flow | 16 | 6x P0, 8x P1, 2x P2 |
-| [TC-003](TC-003-payment-status.md) | Payment Status & State Machine | 13 | 6x P0, 5x P1, 2x P2 |
-| [TC-004](TC-004-merchant-settlement.md) | Merchant Settlement | 10 | 4x P0, 5x P1, 1x P2 |
-| [TC-005](TC-005-dispute-flow.md) | Dispute Flow | 12 | 4x P0, 5x P1, 3x P2 |
-| [TC-006](TC-006-marketplace.md) | Marketplace & Discovery | 17 | 5x P0, 7x P1, 5x P2 |
-| [TC-007](TC-007-webhooks.md) | Webhooks | 12 | 4x P0, 4x P1, 0x P2 |
-| [TC-008](TC-008-telegram-bot.md) | Telegram Bot | 12 | 3x P0, 5x P1, 4x P2 |
-| [TC-009](TC-009-merchant-agents.md) | Merchant Agents | 18 | 7x P0, 9x P1, 2x P2 |
-| **Total** | | **124** | **43x P0, 54x P1, 23x P2** |
+| [TC-001](TC-001-payment-orchestration.md) | Payment Orchestration | 14 | 5x P0, 7x P1, 2x P2 |
+| [TC-002](TC-002-checkout-flow.md) | Checkout Flow | 18 | 8x P0, 9x P1, 1x P2 |
+| [TC-003](TC-003-payment-status.md) | Payment Status & State Machine | 13 | 8x P0, 4x P1, 1x P2 |
+| [TC-004](TC-004-merchant-settlement.md) | Merchant Settlement | 12 | 5x P0, 7x P1, 0x P2 |
+| [TC-005](TC-005-dispute-flow.md) | Dispute Flow | 12 | 5x P0, 6x P1, 1x P2 |
+| [TC-006](TC-006-marketplace.md) | Marketplace & Discovery | 17 | 8x P0, 6x P1, 3x P2 |
+| [TC-007](TC-007-webhooks.md) | Webhooks | 12 | 7x P0, 5x P1, 0x P2 |
+| [TC-008](TC-008-telegram-bot.md) | Telegram Bot | 12 | 4x P0, 5x P1, 3x P2 |
+| [TC-009](TC-009-merchant-agents.md) | Merchant Agents | 21 | 9x P0, 12x P1, 0x P2 |
+| **Total** | | **131** | **59x P0, 61x P1, 11x P2** |
 
 ## Priority Definitions
 

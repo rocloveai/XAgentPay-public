@@ -229,6 +229,37 @@
 
 ---
 
+### TC-002-14a: Confirm Deposit via MCP Tool
+
+**Priority:** P0
+**Type:** Functional
+
+**Steps:**
+1. Call `nexus_confirm_deposit` via MCP with:
+   - `group_id`: "grp_xxx"
+   - `tx_hash`: "0xabc..."
+
+**Expected:**
+- Returns formatted text with confirmation status
+- Same state transitions as HTTP confirm (ESCROWED)
+- Webhook `payment.escrowed` sent
+
+---
+
+### TC-002-14b: Confirm Deposit via MCP - Invalid tx_hash
+
+**Priority:** P1
+**Type:** Negative
+
+**Steps:**
+1. Call `nexus_confirm_deposit` with `tx_hash: "not_a_hash"`
+
+**Expected:**
+- Error: invalid tx_hash format
+- No state change
+
+---
+
 ### TC-002-15: GROUP_PARTIAL Status Handling
 
 **Priority:** P1

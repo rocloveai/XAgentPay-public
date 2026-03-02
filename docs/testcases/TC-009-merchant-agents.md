@@ -245,6 +245,58 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 ---
 
+### TC-009-15a: Hotel Agent REST API
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. `POST /api/v1/call-tool` on hotel agent:
+   ```json
+   { "tool": "search_hotels", "arguments": { "city": "Tokyo", "check_in": "2026-04-01", "check_out": "2026-04-03" } }
+   ```
+
+**Expected:**
+- Same results as MCP call
+- HTTP 200 with tool response
+
+---
+
+### TC-009-15b: Hotel Agent REST API - Quote
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. Search hotels via REST, get `offer_id`
+2. `POST /api/v1/call-tool` on hotel agent:
+   ```json
+   { "tool": "nexus_generate_quote", "arguments": { "hotel_offer_id": "offer_xxx", "payer_wallet": "0x..." } }
+   ```
+
+**Expected:**
+- Returns UCP Checkout Response with NUPS quote (same as MCP)
+- HTTP 200
+
+---
+
+### TC-009-15c: Hotel Agent REST API - Check Status
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. `POST /api/v1/call-tool` on hotel agent:
+   ```json
+   { "tool": "nexus_check_status", "arguments": { "order_ref": "HTL-001" } }
+   ```
+
+**Expected:**
+- Returns order status (same as MCP)
+- HTTP 200
+
+---
+
 ### TC-009-15: Hotel Agent Health & Skill Files
 
 **Priority:** P1
