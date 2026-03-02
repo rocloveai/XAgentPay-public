@@ -50,6 +50,7 @@ import { NeonStarRepository } from "./db/star-repo.js";
 import { normalizeQuotes } from "./normalize-quotes.js";
 import { createLogger } from "./logger.js";
 import { handleRestApiRequest, type RestApiDeps } from "./rest-api.js";
+import { NEXUSPAY_OG_PNG } from "./og-image.js";
 
 const serverLog = createLogger("NexusCore");
 
@@ -1014,6 +1015,16 @@ async function main(): Promise<void> {
       async (req: IncomingMessage, res: ServerResponse) => {
         const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
         try {
+          // Serve NexusPay OG logo (for Telegram link preview cards)
+          if (url.pathname === "/nexuspay-og.png" && req.method === "GET") {
+            res.writeHead(200, {
+              "Content-Type": "image/png",
+              "Cache-Control": "public, max-age=86400",
+            });
+            res.end(NEXUSPAY_OG_PNG);
+            return;
+          }
+
           // Serve skill.md (full developer docs)
           if (url.pathname === "/skill.md" && req.method === "GET") {
             res.writeHead(200, {

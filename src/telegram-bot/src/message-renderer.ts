@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import type {
   InlineKeyboardMarkup,
   InlineKeyboardButton,
+  LinkPreviewOptions,
 } from "@grammyjs/types";
 import type {
   RenderOrderRequest,
@@ -19,12 +20,13 @@ import type {
 // Public types
 // ---------------------------------------------------------------------------
 
-export type { InlineKeyboardMarkup, InlineKeyboardButton };
+export type { InlineKeyboardMarkup, InlineKeyboardButton, LinkPreviewOptions };
 
 export interface RenderedMessage {
   readonly text: string;
   readonly replyMarkup: InlineKeyboardMarkup;
   readonly contentHash: string;
+  readonly linkPreview?: LinkPreviewOptions;
 }
 
 // ---------------------------------------------------------------------------
@@ -207,32 +209,19 @@ function renderItemBlock(
 
 export function renderOrderMessage(order: RenderOrderRequest): RenderedMessage {
   const groupStatus = inferGroupStatus(order.payments);
-  const s = statusDisplay(groupStatus);
 
-  const items = order.payments.map((p, i) =>
-    renderItemBlock(
-      i,
-      p.summary ?? p.merchant_order_ref,
-      p.amount_display,
-      order.currency,
-      p.status,
-    ),
-  );
+  // Compact card-style: let Telegram link preview handle the visual card.
+  // Message text is minimal — the OG tags on the checkout URL provide
+  // title ("Checkout — 0.30 USDC"), description (item summaries), and logo.
+  const itemLines = order.payments.map((p, i) => {
+    const label = p.summary ?? p.merchant_order_ref;
+    return `${numEmoji(i)}  ${escapeHtml(label)}  \u00B7  ${escapeHtml(p.amount_display)} ${escapeHtml(order.currency)}`;
+  });
 
   const lines: string[] = [
-    `\u{1F3AB} <b>NexusPay Order</b>`,
+    ...itemLines,
     ``,
-    `<blockquote>${s.emoji} <b>${escapeHtml(s.label)}</b>`,
-    ``,
-    SEPARATOR,
-    ``,
-    items.join("\n\n"),
-    ``,
-    SEPARATOR,
-    ``,
-    `\u{1F4B0} <b>Total: ${escapeHtml(order.total_amount_display)} ${escapeHtml(order.currency)}</b></blockquote>`,
-    ``,
-    `\u{1F194} <code>${escapeHtml(order.group_id)}</code>`,
+    `\u{1F4B0} <b>${escapeHtml(order.total_amount_display)} ${escapeHtml(order.currency)}</b>`,
   ];
 
   const text = lines.join("\n");
@@ -240,6 +229,11 @@ export function renderOrderMessage(order: RenderOrderRequest): RenderedMessage {
     text,
     replyMarkup: buildKeyboard(groupStatus, order.checkout_url),
     contentHash: computeHash(text),
+    linkPreview: {
+      url: order.checkout_url,
+      prefer_small_media: true,
+      show_above_text: true,
+    },
   };
 }
 
@@ -254,30 +248,18 @@ export function renderStatusUpdate(
 ): RenderedMessage {
   const s = statusDisplay(group.status);
 
-  const items = payments.map((p, i) =>
-    renderItemBlock(
-      i,
-      p.merchant_order_ref,
-      p.amount_display,
-      p.currency,
-      p.status,
-    ),
-  );
+  // Status update uses a slightly richer format (no link preview on edits)
+  const itemLines = payments.map((p, i) => {
+    const badge = statusBadge(p.status);
+    return `${numEmoji(i)}  ${escapeHtml(p.merchant_order_ref)}  \u00B7  ${badge}`;
+  });
 
   const lines: string[] = [
-    `\u{1F3AB} <b>NexusPay Order</b>`,
+    `${s.emoji} <b>${escapeHtml(s.label)}</b>`,
     ``,
-    `<blockquote>${s.emoji} <b>${escapeHtml(s.label)}</b>`,
+    ...itemLines,
     ``,
-    SEPARATOR,
-    ``,
-    items.join("\n\n"),
-    ``,
-    SEPARATOR,
-    ``,
-    `\u{1F4B0} <b>Total: ${escapeHtml(group.total_amount_display)} ${escapeHtml(group.currency)}</b></blockquote>`,
-    ``,
-    `\u{1F194} <code>${escapeHtml(group.group_id)}</code>`,
+    `\u{1F4B0} <b>${escapeHtml(group.total_amount_display)} ${escapeHtml(group.currency)}</b>`,
   ];
 
   if (group.tx_hash) {
@@ -289,6 +271,11 @@ export function renderStatusUpdate(
     text,
     replyMarkup: buildKeyboard(group.status, checkoutUrl),
     contentHash: computeHash(text),
+    linkPreview: {
+      url: checkoutUrl,
+      prefer_small_media: true,
+      show_above_text: true,
+    },
   };
 }
 
