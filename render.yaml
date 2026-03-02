@@ -9,7 +9,6 @@ services:
   - type: web
     runtime: static
     name: nexus-website
-    region: singapore
     buildCommand: cd src/nexus-website && npm install && npx vite build
     staticPublishPath: src/nexus-website/dist
     headers:
