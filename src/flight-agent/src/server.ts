@@ -243,7 +243,10 @@ async function handleSearchAndQuote(
     signerPrivateKey: config.signerPrivateKey,
   });
 
-  await createOrder(quote);
+  // Fire-and-forget — DB insert doesn't block the response
+  createOrder(quote).catch((err) =>
+    console.error(`createOrder failed for ${orderRef}:`, err.message),
+  );
   const quoteJson = JSON.stringify(quote);
 
   // Build compact options list + selected quote

@@ -1,5 +1,5 @@
 import type { LineItem, NexusQuotePayload } from "../types.js";
-import { createWalletClient, http, type Address, type Hex, keccak256, toHex } from "viem";
+import { type Address, type Hex, keccak256, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
 interface BuildQuoteParams {
@@ -16,9 +16,11 @@ interface BuildQuoteParams {
 const USDC_DECIMALS = 6;
 const QUOTE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const DEMO_DISCOUNT_AMOUNT = "0.10"; // 0.1 USDC for testing
+const DEMO_DISCOUNT_UINT256 = "100000"; // pre-computed toUint256("0.10")
 
 // NexusPay Core Contract Address (Demo)
-const VERIFYING_CONTRACT = "0x0000000000000000000000000000000000000000" as Address;
+const VERIFYING_CONTRACT =
+  "0x0000000000000000000000000000000000000000" as Address;
 
 const NEXUS_DOMAIN = {
   name: "NexusPay",
@@ -39,6 +41,10 @@ const NEXUS_QUOTE_TYPES = {
   ],
 } as const;
 
+// Cache the signing account — private key never changes at runtime
+let cachedAccount: ReturnType<typeof privateKeyToAccount> | null = null;
+let cachedKeyHex: string | null = null;
+
 export function toUint256(
   amount: string,
   decimals: number = USDC_DECIMALS,
@@ -55,9 +61,10 @@ export function toUint256(
   return raw.replace(/^0+/, "") || "0";
 }
 
-export async function buildQuote(params: BuildQuoteParams): Promise<NexusQuotePayload> {
+export async function buildQuote(
+  params: BuildQuoteParams,
+): Promise<NexusQuotePayload> {
   const originalUint256 = toUint256(params.amount);
-  const discountedUint256 = toUint256(DEMO_DISCOUNT_AMOUNT);
   const lineItemsUint256 = params.lineItems.map((item) => ({
     ...item,
     amount: toUint256(item.amount),
@@ -73,21 +80,21 @@ export async function buildQuote(params: BuildQuoteParams): Promise<NexusQuotePa
   const contextHash = keccak256(toHex(JSON.stringify(context)));
   const expiry = Math.floor((Date.now() + QUOTE_TTL_MS) / 1000);
 
-  // Sign quote using merchant private key
-  const account = privateKeyToAccount(params.signerPrivateKey as Hex);
-  const walletClient = createWalletClient({
-    account,
-    transport: http("https://devnet3openapi.platon.network/rpc"),
-  });
+  // Reuse cached account — avoids re-deriving secp256k1 key on every call
+  if (!cachedAccount || cachedKeyHex !== params.signerPrivateKey) {
+    cachedAccount = privateKeyToAccount(params.signerPrivateKey as Hex);
+    cachedKeyHex = params.signerPrivateKey;
+  }
 
-  const signature = await walletClient.signTypedData({
+  // Sign locally via account.signTypedData — no walletClient / RPC needed
+  const signature = await cachedAccount.signTypedData({
     domain: NEXUS_DOMAIN,
     types: NEXUS_QUOTE_TYPES,
     primaryType: "NexusQuote",
     message: {
       merchant_did: params.merchantDid,
       merchant_order_ref: params.orderRef,
-      amount: BigInt(discountedUint256),
+      amount: BigInt(DEMO_DISCOUNT_UINT256),
       currency: params.currency,
       chain_id: BigInt(20250407),
       expiry: BigInt(expiry),
@@ -98,7 +105,7 @@ export async function buildQuote(params: BuildQuoteParams): Promise<NexusQuotePa
   return {
     merchant_did: params.merchantDid,
     merchant_order_ref: params.orderRef,
-    amount: discountedUint256,
+    amount: DEMO_DISCOUNT_UINT256,
     currency: params.currency,
     chain_id: 20250407,
     expiry,
