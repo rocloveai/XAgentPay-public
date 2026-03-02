@@ -79,6 +79,20 @@ After you call `nexus_orchestrate_payment` and receive a `checkout_url` + `group
 }
 ```
 
+## CRITICAL: Output Rules
+
+**After calling `nexus_orchestrate_payment`, you MUST follow these rules:**
+
+1. **DO NOT** display the raw tool response (CHECKOUT_URL, Payment Summary, group_id, etc.) to the user in the chat.
+2. **DO NOT** repeat order details as text — the order card already shows everything the user needs.
+3. **ONLY** respond with a brief, natural-language confirmation like:
+   - "I've created your order! Please tap the Pay Now button below to complete payment."
+   - "Your flight and hotel are ready. Use the card below to pay."
+4. **IMMEDIATELY** call `POST /api/render-order` to send the rich order card — this is the only way the user should see order details.
+5. The same rule applies to `nexus_get_payment_status` — do not dump raw status JSON. Instead, summarize naturally: "Your payment has been confirmed!" or "Still waiting for on-chain confirmation."
+
+The raw tool response is **internal data for you to extract fields from**, not content to show the user.
+
 ## Integration Flow
 
 ```
@@ -87,13 +101,15 @@ After you call `nexus_orchestrate_payment` and receive a `checkout_url` + `group
 3. You call nexus_orchestrate_payment → get checkout_url, group_id, payments
 4. You POST to /api/render-order with chat_id + order details
    → User sees a rich order card with "Pay Now" button in Telegram
-5. User taps "Pay Now" → opens MetaMask checkout in browser
-6. User pays → the order card auto-updates with progressive backoff:
+5. Reply with ONLY a short confirmation message (e.g. "Order created! Tap Pay Now below.")
+   → DO NOT echo raw order data — the card already contains everything
+6. User taps "Pay Now" → opens MetaMask checkout in browser
+7. User pays → the order card auto-updates with progressive backoff:
    10s → 15s → 20s → … (adds 5s each poll, max 20 queries ≈ 19 min)
    ⏳ Pending → 🔒 Escrowed → ✅ Settled → 🎉 Completed
    If order expires: ⏳ Pending → ❌ Expired (button changes to non-clickable badge)
-7. No further action needed — the service handles all status updates
-8. Polling stops on: terminal status, or after 20 queries
+8. No further action needed — the service handles all status updates
+9. Polling stops on: terminal status, or after 20 queries
 ```
 
 ## How to Extract Data from Orchestration Response

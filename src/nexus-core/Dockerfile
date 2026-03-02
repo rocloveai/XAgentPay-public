@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=builder /app/build/ ./build/
-COPY skill.md skill-user.md ./
+COPY skill.md skill-user.md skill-market.md ./
 COPY skills/ ./skills/
 ENV TRANSPORT=http
 ENV PORT=10000

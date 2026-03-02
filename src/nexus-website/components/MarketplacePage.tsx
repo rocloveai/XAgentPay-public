@@ -104,7 +104,7 @@ const MarketplacePage: React.FC = () => {
   const copiedTimer = useRef<ReturnType<typeof setTimeout>>();
   const skillUrlTimer = useRef<ReturnType<typeof setTimeout>>();
 
-  const nexusCoreSkillUrl = `${API_URL}/skill.md`;
+  const nexusCoreSkillUrl = `${API_URL}/skill-market.md`;
 
   const copyNexusCoreSkillUrl = useCallback(() => {
     navigator.clipboard.writeText(nexusCoreSkillUrl).then(() => {

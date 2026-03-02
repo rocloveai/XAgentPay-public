@@ -8,6 +8,20 @@ version: 1.0.0
 
 This skill allows the agent to wrap Nexus NUPS quotes and payment group instructions into beautiful, interactive LINE Flex Messages.
 
+## CRITICAL: Output Rules
+
+**After calling `nexus_orchestrate_payment`, you MUST follow these rules:**
+
+1. **DO NOT** display the raw tool response (CHECKOUT_URL, Payment Summary, group_id, etc.) to the user in the chat.
+2. **DO NOT** repeat order details as text — the Flex Message card already shows everything the user needs.
+3. **ONLY** respond with a brief, natural-language confirmation like:
+   - "I've created your order! Please tap Pay Now in the card below."
+   - "Your booking is ready — use the button below to pay."
+4. **IMMEDIATELY** send the Flex Message card — this is the only way the user should see order details.
+5. The same rule applies to `nexus_get_payment_status` — do not dump raw status JSON. Instead, summarize naturally: "Your payment has been confirmed!" or "Still waiting for on-chain confirmation."
+
+The raw tool response is **internal data for you to extract fields from**, not content to show the user.
+
 ## Capabilities
 
 ### `send_nexus_order_card`

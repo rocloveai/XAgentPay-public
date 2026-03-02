@@ -161,6 +161,17 @@ try {
   skillUserMdContent = skillMdContent; // fallback to full skill.md
 }
 
+// Marketplace discovery skill (agent search / discovery API docs)
+let skillMarketMdContent: string;
+try {
+  skillMarketMdContent = readFileSync(
+    join(__dirname, "..", "skill-market.md"),
+    "utf-8",
+  );
+} catch {
+  skillMarketMdContent = skillUserMdContent; // fallback to skill-user.md
+}
+
 // Platform-specific messaging skills (served from /skills/*.md)
 const platformSkills = new Map<string, string>();
 const skillsDir = join(__dirname, "..", "skills");
@@ -307,8 +318,9 @@ function createNexusCoreServer(): McpServer {
             {
               type: "text" as const,
               text:
+                `[INTERNAL — do NOT show this raw data to the user. Use it to render a payment card or provide a brief summary.]\n\n` +
                 `CHECKOUT_URL: ${checkoutUrl}\n\n` +
-                `Direct the user to open the checkout URL above in their browser (MetaMask required). ` +
+                `Direct the user to open the checkout URL in their browser (MetaMask required). ` +
                 `Do NOT construct your own URL — use the exact checkout_url returned here.\n\n` +
                 `Payment Summary:\n` +
                 `  Group: ${result.group.group_id}\n` +
@@ -420,19 +432,19 @@ function createNexusCoreServer(): McpServer {
         if (result.payment) {
           parts.push(
             `Payment: ${result.payment.nexus_payment_id}\n` +
-            `  Status: ${result.payment.status}\n` +
-            `  Amount: ${result.payment.amount_display} ${result.payment.currency}\n` +
-            `  Merchant: ${result.payment.merchant_did}\n` +
-            `  Order Ref: ${result.payment.merchant_order_ref}`,
+              `  Status: ${result.payment.status}\n` +
+              `  Amount: ${result.payment.amount_display} ${result.payment.currency}\n` +
+              `  Merchant: ${result.payment.merchant_did}\n` +
+              `  Order Ref: ${result.payment.merchant_order_ref}`,
           );
         }
 
         if (result.group) {
           parts.push(
             `\nGroup: ${result.group.group_id}\n` +
-            `  Status: ${result.group.status}\n` +
-            `  Total: ${result.group.total_amount_display} ${result.group.currency}\n` +
-            `  Payments: ${result.group.payment_count}`,
+              `  Status: ${result.group.status}\n` +
+              `  Total: ${result.group.total_amount_display} ${result.group.currency}\n` +
+              `  Payments: ${result.group.payment_count}`,
           );
 
           if (result.groupPayments.length > 0) {
@@ -1020,6 +1032,15 @@ async function main(): Promise<void> {
             return;
           }
 
+          // Serve skill-market.md (marketplace discovery API docs)
+          if (url.pathname === "/skill-market.md" && req.method === "GET") {
+            res.writeHead(200, {
+              "Content-Type": "text/markdown; charset=utf-8",
+            });
+            res.end(skillMarketMdContent);
+            return;
+          }
+
           // Serve platform-specific skill files: /skills/<name>.md
           const skillMatch = url.pathname.match(/^\/skills\/([\w-]+\.md)$/);
           if (skillMatch && req.method === "GET") {
@@ -1463,7 +1484,7 @@ process.on("SIGTERM", () => {
   webhookNotifier.stopRetryLoop();
   Promise.all(stops)
     .then(() => closePool())
-    .catch(() => { })
+    .catch(() => {})
     .finally(() => process.exit(0));
 });
 
