@@ -84,32 +84,23 @@ export class NexusOrchestrator {
       throw new NexusError("EMPTY_QUOTES", "At least one quote is required");
     }
 
-    // Phase 1: Validate each quote
-    const merchants: MerchantRecord[] = [];
-    const quoteHashes: string[] = [];
+    // Phase 1: Validate all quotes in parallel
+    const validationResults = await Promise.all(
+      quotes.map(async (quote) => {
+        checkQuoteExpiry(quote);
+        const merchant = await resolveMerchantDid(
+          quote.merchant_did,
+          this.merchantRepo,
+        );
+        await verifyQuoteSignature(quote, merchant);
+        const quoteHash = computeQuoteHash(quote);
+        await checkNonceGuard(quoteHash, this.paymentRepo);
+        return { merchant, quoteHash };
+      }),
+    );
 
-    for (const quote of quotes) {
-      // 1a. Check expiry
-      checkQuoteExpiry(quote);
-
-      // 1b. Resolve merchant DID
-      const merchant = await resolveMerchantDid(
-        quote.merchant_did,
-        this.merchantRepo,
-      );
-
-      // 1c. Verify signature
-      await verifyQuoteSignature(quote, merchant);
-
-      // 1d. Compute quote hash for nonce guard
-      const quoteHash = computeQuoteHash(quote);
-
-      // 1e. Nonce guard (replay)
-      await checkNonceGuard(quoteHash, this.paymentRepo);
-
-      merchants.push(merchant);
-      quoteHashes.push(quoteHash);
-    }
+    const merchants = validationResults.map((r) => r.merchant);
+    const quoteHashes = validationResults.map((r) => r.quoteHash);
 
     // Phase 2: Route (MVP: all escrow)
     const route = routePayment(quotes[0]);
@@ -160,22 +151,28 @@ export class NexusOrchestrator {
       instruction as unknown as Record<string, unknown>,
     );
 
-    // Phase 6: Persist escrow fields on each payment record
-    for (const payment of payments) {
-      const paymentIdBytes32 = keccak256(toHex(payment.nexus_payment_id));
-      const now = Math.floor(Date.now() / 1000);
-      await this.paymentRepo.updateStatus(payment.nexus_payment_id, "CREATED", {
-        payment_id_bytes32: paymentIdBytes32,
-        eip3009_nonce: unsignedInstruction.eip3009_sign_data.message.nonce,
-        escrow_contract: this.config.escrowContract,
-        release_deadline: new Date(
-          (now + this.config.releaseTimeoutS) * 1000,
-        ).toISOString(),
-        dispute_deadline: new Date(
-          (now + this.config.disputeWindowS) * 1000,
-        ).toISOString(),
-      });
-    }
+    // Phase 6: Persist escrow fields on each payment record (parallel)
+    const now = Math.floor(Date.now() / 1000);
+    await Promise.all(
+      payments.map((payment) => {
+        const paymentIdBytes32 = keccak256(toHex(payment.nexus_payment_id));
+        return this.paymentRepo.updateStatus(
+          payment.nexus_payment_id,
+          "CREATED",
+          {
+            payment_id_bytes32: paymentIdBytes32,
+            eip3009_nonce: unsignedInstruction.eip3009_sign_data.message.nonce,
+            escrow_contract: this.config.escrowContract,
+            release_deadline: new Date(
+              (now + this.config.releaseTimeoutS) * 1000,
+            ).toISOString(),
+            dispute_deadline: new Date(
+              (now + this.config.disputeWindowS) * 1000,
+            ).toISOString(),
+          },
+        );
+      }),
+    );
 
     // Phase 7: Generate short-lived secure token for checkout URL
     // Token expiry = earliest payment expiry (so token can't outlive sub-payments)

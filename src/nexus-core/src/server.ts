@@ -1450,7 +1450,8 @@ async function main(): Promise<void> {
       },
     );
 
-    const healthChecker = new HealthChecker(merchantRepo, 300_000);
+    // 2 min interval keeps Render free-tier merchants warm (sleep after 15 min idle)
+    const healthChecker = new HealthChecker(merchantRepo, 120_000);
 
     httpServer.listen(config.port, () => {
       serverLog.info("HTTP server listening", { port: config.port });

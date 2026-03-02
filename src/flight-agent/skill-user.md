@@ -32,20 +32,21 @@ All agent tools are invoked via this single endpoint.
 
 ## Available Tools
 
-### `search_flights`
+### `search_and_quote` (Recommended — Fast Path)
 
-Search available flights between airports.
+Search flights AND generate a NUPS quote in ONE call. This combines `search_flights` + `nexus_generate_quote` into a single step.
 
 ```bash
 curl -X POST https://nexus-flight-agent-nr8m.onrender.com/api/v1/call-tool \
   -H "Content-Type: application/json" \
   -d '{
-    "tool": "search_flights",
+    "tool": "search_and_quote",
     "arguments": {
       "origin": "SIN",
       "destination": "PVG",
       "date": "2026-04-01",
-      "passengers": 1
+      "passengers": 1,
+      "payer_wallet": "0xYourWalletAddress"
     }
   }'
 ```
@@ -58,26 +59,31 @@ curl -X POST https://nexus-flight-agent-nr8m.onrender.com/api/v1/call-tool \
 | `destination` | string | Yes | IATA airport code for arrival (e.g. `NRT`, `PVG`) |
 | `date` | string | Yes | Departure date in `YYYY-MM-DD` format |
 | `passengers` | number | No | Number of passengers, 1-9. Default: `1` |
+| `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
+| `offer_index` | number | No | Zero-based index of flight to quote (default: `0` = first). Call again with a different index to re-quote |
 
-**Returns:** List of flight offers with `offer_id`, airline, flight number, departure/arrival times, duration, cabin class, and price (USD).
+**Returns:** All available flights + a ready-to-use NUPS quote (QUOTE_JSON) for the selected flight. The quote can be passed directly to `nexus_orchestrate_payment`.
+
+---
+
+### `search_flights`
+
+Search available flights (without quote). Use `search_and_quote` instead for faster flow.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `origin` | string | Yes | IATA airport code for departure |
+| `destination` | string | Yes | IATA airport code for arrival |
+| `date` | string | Yes | Departure date in `YYYY-MM-DD` format |
+| `passengers` | number | No | Default: `1` |
 
 ---
 
 ### `nexus_generate_quote`
 
-Generate a NUPS payment quote for a selected flight offer.
-
-```bash
-curl -X POST https://nexus-flight-agent-nr8m.onrender.com/api/v1/call-tool \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tool": "nexus_generate_quote",
-    "arguments": {
-      "flight_offer_id": "offer_abc123",
-      "payer_wallet": "0xYourWalletAddress"
-    }
-  }'
-```
+Generate a NUPS quote for a selected flight offer. Use `search_and_quote` instead for faster flow.
 
 **Parameters:**
 
@@ -86,7 +92,7 @@ curl -X POST https://nexus-flight-agent-nr8m.onrender.com/api/v1/call-tool \
 | `flight_offer_id` | string | Yes | The `offer_id` from `search_flights` results |
 | `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
 
-**Returns:** UCP Checkout Response containing a NUPS quote payload. Extract the quote from `response.ucp.payment_handlers["urn:ucp:payment:nexus_v1"][0].config` and pass it to the Nexus Core orchestrate endpoint.
+**Returns:** UCP Checkout Response containing a NUPS quote payload.
 
 ---
 
@@ -115,8 +121,8 @@ curl -X POST https://nexus-flight-agent-nr8m.onrender.com/api/v1/call-tool \
 
 ## Checkout Workflow (HTTP)
 
-1. **Search** — `POST /api/v1/call-tool` with `search_flights` tool.
-2. **Quote** — `POST /api/v1/call-tool` with `nexus_generate_quote` tool. Extract the quote config from the UCP response.
-3. **Pay** — `POST https://api.nexus-mvp.topos.one/api/orchestrate` with the quote + payer wallet. See [Nexus Core HTTP API](https://api.nexus-mvp.topos.one/skill-user.md).
-4. **Confirm** — `POST https://api.nexus-mvp.topos.one/api/checkout/:token/confirm` with `tx_hash`.
-5. **Verify** — `POST /api/v1/call-tool` with `nexus_check_status` to confirm `PAID` status.
+**Fast path (recommended):**
+1. **Search + Quote** — `POST /api/v1/call-tool` with `search_and_quote` tool (returns quote directly).
+2. **Pay** — `POST https://api.nexus-mvp.topos.one/api/orchestrate` with the quote + payer wallet.
+3. **Confirm** — `POST https://api.nexus-mvp.topos.one/api/checkout/:token/confirm` with `tx_hash`.
+4. **Verify** — `POST /api/v1/call-tool` with `nexus_check_status` to confirm `PAID` status.

@@ -86,6 +86,12 @@ export async function handleDiscoverAgents(
         m.description ? `  ${m.description}` : null,
         tools ? `  Tools: ${tools}` : null,
         currencies ? `  Currencies: ${currencies}` : null,
+        m.mcp_endpoint ? `  MCP: ${m.mcp_endpoint}` : null,
+        m.skill_user_url
+          ? `  Skill (HTTP): ${m.skill_user_url}`
+          : m.skill_md_url
+            ? `  Skill: ${m.skill_md_url}`
+            : null,
       ]
         .filter(Boolean)
         .join("\n");
@@ -95,7 +101,9 @@ export async function handleDiscoverAgents(
       content: [
         {
           type: "text",
-          text: `Found ${results.length} agent(s):\n\n${lines.join("\n\n")}`,
+          text:
+            `Found ${results.length} agent(s):\n\n${lines.join("\n\n")}\n\n` +
+            `Tip: You can connect directly to an agent's MCP endpoint above without calling get_agent_skill first.`,
         },
       ],
     };

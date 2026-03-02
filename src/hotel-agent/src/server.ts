@@ -176,30 +176,119 @@ async function handleGenerateQuote(
     ],
   };
 
-  const orchestrateUrl = `${config.nexusCoreUrl}/api/orchestrate`;
-  const orchestrateBody = {
-    quotes: [quote],
-    payer_wallet,
-  };
+  // Compact quote JSON — agent collects these and passes to orchestrate
+  const quoteJson = JSON.stringify(quote);
 
   return {
     text:
-      `Nexus Payment Quote Generated\n` +
-      `Order Ref: ${order.order_ref}\n` +
-      `Summary: ${offer.hotel_name} (${offer.city}) - ${nights} night(s)\n` +
-      `Amount: ${(Number(quote.amount) / 1e6).toFixed(2)} USDC\n` +
-      `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
-      `⚠️ NEXT STEP (REQUIRED): You MUST call the Nexus Core orchestrator to get a checkout URL.\n` +
-      `Do NOT show the raw quote JSON or any MCP URL to the user.\n\n` +
-      `Option A — HTTP POST (no MCP required):\n` +
-      `POST ${orchestrateUrl}\n` +
-      `Content-Type: application/json\n` +
-      `Body: ${JSON.stringify(orchestrateBody)}\n\n` +
-      `Option B — MCP tool (if nexus-core MCP is connected):\n` +
-      `nexus_orchestrate_payment({ quotes_json: ${JSON.stringify(JSON.stringify([quote]))}, payer_wallet: "${payer_wallet}" })\n\n` +
-      `The response will contain a checkout_url — present ONLY that URL to the user.`,
+      `[QUOTE] ${offer.hotel_name} (${offer.city}) - ${nights} night(s) | ${(Number(quote.amount) / 1e6).toFixed(2)} USDC | ref:${order.order_ref}\n` +
+      `QUOTE_JSON: ${quoteJson}\n` +
+      `PAYER: ${payer_wallet}\n\n` +
+      `Collect all QUOTE_JSON values, then call:\n` +
+      `nexus_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
     data: ucpCheckoutResponse,
     order_ref: order.order_ref,
+  };
+}
+
+async function handleSearchAndQuote(
+  cache: Map<string, HotelCacheEntry>,
+  {
+    city,
+    check_in,
+    check_out,
+    guests,
+    payer_wallet,
+    offer_index,
+  }: {
+    city: string;
+    check_in: string;
+    check_out: string;
+    guests: number;
+    payer_wallet: string;
+    offer_index?: number;
+  },
+) {
+  // Step 1: Search
+  const { offers, nights, error } = await searchHotels({
+    city,
+    check_in,
+    check_out,
+    guests,
+  });
+
+  if (offers.length === 0) {
+    throw new Error(error ?? "No hotels found for this city.");
+  }
+
+  for (const offer of offers) {
+    cache.set(offer.offer_id, { offer, nights });
+  }
+
+  // Step 2: Auto-quote the selected (or cheapest) offer
+  const idx = offer_index ?? 0;
+  const selected =
+    idx >= 0 && idx < offers.length
+      ? offers[idx]
+      : [...offers].sort(
+          (a, b) =>
+            parseFloat(a.price_per_night.amount) -
+            parseFloat(b.price_per_night.amount),
+        )[0];
+
+  const orderRef = newOrderRef();
+  const roomTotal = (
+    parseFloat(selected.price_per_night.amount) * nights
+  ).toFixed(2);
+  const taxAmount = (parseFloat(roomTotal) * 0.1).toFixed(2);
+  const serviceCharge = (parseFloat(roomTotal) * 0.05).toFixed(2);
+  const totalAmount = (
+    parseFloat(roomTotal) +
+    parseFloat(taxAmount) +
+    parseFloat(serviceCharge)
+  ).toFixed(2);
+
+  const quote = await buildQuote({
+    merchantDid: config.merchantDid,
+    orderRef,
+    amount: totalAmount,
+    currency: "USDC",
+    summary: `${selected.hotel_name} (${selected.city}) - ${nights} night(s)`,
+    lineItems: [
+      {
+        name: `${selected.room_type} x ${nights} night(s)`,
+        qty: nights,
+        amount: selected.price_per_night.amount,
+      },
+      { name: "Tax (10%)", qty: 1, amount: taxAmount },
+      { name: "Service Charge (5%)", qty: 1, amount: serviceCharge },
+    ],
+    payerWallet: payer_wallet,
+    signerPrivateKey: config.signerPrivateKey,
+  });
+
+  await createOrder(quote);
+  const quoteJson = JSON.stringify(quote);
+
+  // Build compact options list + selected quote
+  const stars = (n: number) => "\u2605".repeat(n) + "\u2606".repeat(5 - n);
+  const optionLines = offers.map(
+    (o, i) =>
+      `${i === idx ? "→" : " "} ${i + 1}. ${o.hotel_name} ${stars(o.star_rating)} ${o.price_per_night.amount} ${o.price_per_night.currency}/night`,
+  );
+
+  return {
+    text:
+      `Hotels in ${city} (${check_in} to ${check_out}, ${nights} nights):\n` +
+      optionLines.join("\n") +
+      `\n\n[QUOTE] ${selected.hotel_name} (${nights} nights) | ${(Number(quote.amount) / 1e6).toFixed(2)} USDC | ref:${orderRef}\n` +
+      `QUOTE_JSON: ${quoteJson}\n` +
+      `PAYER: ${payer_wallet}\n\n` +
+      `To select a different hotel, call search_and_quote again with offer_index=N.\n` +
+      `When all quotes are ready, call:\n` +
+      `nexus_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
+    data: { offers, nights, selectedIndex: idx, quote },
+    order_ref: orderRef,
   };
 }
 
@@ -270,11 +359,73 @@ function createMcpServer(): McpServer {
     },
   );
 
+  // ── Tool: search_and_quote (FAST PATH — search + auto-quote in one call) ──
+
+  srv.tool(
+    "search_and_quote",
+    "Search hotels AND generate a Nexus quote for the best option in ONE call. " +
+      "This is the fastest way to get a hotel quote. " +
+      "Returns all options plus a ready-to-use quote for the cheapest hotel (or specify offer_index to pick a different one).",
+    {
+      city: z
+        .string()
+        .describe("City name (e.g. Tokyo, Singapore, Bangkok, Shanghai)"),
+      check_in: z.string().describe("Check-in date in YYYY-MM-DD format"),
+      check_out: z.string().describe("Check-out date in YYYY-MM-DD format"),
+      guests: z
+        .number()
+        .int()
+        .min(1)
+        .max(10)
+        .default(1)
+        .describe("Number of guests (1-10)"),
+      payer_wallet: z
+        .string()
+        .regex(/^0x[a-fA-F0-9]{40}$/)
+        .describe("Payer's EVM wallet address (0x...)"),
+      offer_index: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe(
+          "Zero-based index of the hotel to quote (default: 0 = cheapest). Use this to pick a different hotel after seeing options.",
+        ),
+    },
+    async ({
+      city,
+      check_in,
+      check_out,
+      guests,
+      payer_wallet,
+      offer_index,
+    }) => {
+      try {
+        const result = await handleSearchAndQuote(sessionOfferCache, {
+          city,
+          check_in,
+          check_out,
+          guests,
+          payer_wallet,
+          offer_index,
+        });
+        return {
+          content: [{ type: "text" as const, text: result.text }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
   // ── Tool: nexus_generate_quote ──────────────────────────────────────────────
 
   srv.tool(
     "nexus_generate_quote",
-    "Generates a Nexus Payment (NUPS) quote for a selected hotel offer. This is a required step before payment can occur.",
+    "Generates a Nexus Payment (NUPS) quote for a selected hotel offer. Use search_and_quote instead for faster flow.",
     {
       hotel_offer_id: z
         .string()
@@ -426,6 +577,8 @@ async function handleStatelessCall(
     let result;
     if (tool === "search_hotels") {
       result = await handleSearchHotels(statelessOfferCache, args);
+    } else if (tool === "search_and_quote") {
+      result = await handleSearchAndQuote(statelessOfferCache, args);
     } else if (tool === "nexus_generate_quote") {
       result = await handleGenerateQuote(statelessOfferCache, args);
     } else if (tool === "nexus_check_status") {

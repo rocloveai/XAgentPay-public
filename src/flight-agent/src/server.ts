@@ -161,30 +161,109 @@ async function handleGenerateQuote(
     ],
   };
 
-  const orchestrateUrl = `${config.nexusCoreUrl}/api/orchestrate`;
-  const orchestrateBody = {
-    quotes: [quote],
-    payer_wallet,
-  };
+  // Compact quote JSON — agent collects these and passes to orchestrate
+  const quoteJson = JSON.stringify(quote);
 
   return {
     text:
-      `Nexus Payment Quote Generated\n` +
-      `Order Ref: ${order.order_ref}\n` +
-      `Summary: ${offer.airline} ${offer.flight_number} (${offer.origin}-${offer.destination})\n` +
-      `Amount: ${(Number(quote.amount) / 1e6).toFixed(2)} USDC\n` +
-      `Expires: ${new Date(quote.expiry * 1000).toISOString()}\n\n` +
-      `⚠️ NEXT STEP (REQUIRED): You MUST call the Nexus Core orchestrator to get a checkout URL.\n` +
-      `Do NOT show the raw quote JSON or any MCP URL to the user.\n\n` +
-      `Option A — HTTP POST (no MCP required):\n` +
-      `POST ${orchestrateUrl}\n` +
-      `Content-Type: application/json\n` +
-      `Body: ${JSON.stringify(orchestrateBody)}\n\n` +
-      `Option B — MCP tool (if nexus-core MCP is connected):\n` +
-      `nexus_orchestrate_payment({ quotes_json: ${JSON.stringify(JSON.stringify([quote]))}, payer_wallet: "${payer_wallet}" })\n\n` +
-      `The response will contain a checkout_url — present ONLY that URL to the user.`,
+      `[QUOTE] ${offer.airline} ${offer.flight_number} (${offer.origin}-${offer.destination}) | ${(Number(quote.amount) / 1e6).toFixed(2)} USDC | ref:${order.order_ref}\n` +
+      `QUOTE_JSON: ${quoteJson}\n` +
+      `PAYER: ${payer_wallet}\n\n` +
+      `Collect all QUOTE_JSON values, then call:\n` +
+      `nexus_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
     data: ucpCheckoutResponse,
     order_ref: order.order_ref,
+  };
+}
+
+async function handleSearchAndQuote(
+  cache: Map<string, FlightOffer>,
+  {
+    origin,
+    destination,
+    date,
+    passengers,
+    payer_wallet,
+    offer_index,
+  }: {
+    origin: string;
+    destination: string;
+    date: string;
+    passengers: number;
+    payer_wallet: string;
+    offer_index?: number;
+  },
+) {
+  // Step 1: Search
+  const { offers, error } = await searchFlights({
+    origin: origin.toUpperCase(),
+    destination: destination.toUpperCase(),
+    date,
+    passengers,
+  });
+
+  if (offers.length === 0) {
+    throw new Error(error ?? "No flights found for this route.");
+  }
+
+  for (const offer of offers) {
+    cache.set(offer.offer_id, offer);
+  }
+
+  // Step 2: Auto-quote the selected (or cheapest) offer
+  const idx = offer_index ?? 0;
+  const selected =
+    idx >= 0 && idx < offers.length
+      ? offers[idx]
+      : [...offers].sort(
+          (a, b) => parseFloat(a.price.amount) - parseFloat(b.price.amount),
+        )[0];
+
+  const orderRef = newOrderRef();
+  const taxAmount = (parseFloat(selected.price.amount) * 0.06).toFixed(2);
+  const totalAmount = (
+    parseFloat(selected.price.amount) + parseFloat(taxAmount)
+  ).toFixed(2);
+
+  const quote = await buildQuote({
+    merchantDid: config.merchantDid,
+    orderRef,
+    amount: totalAmount,
+    currency: "USDC",
+    summary: `${selected.airline} ${selected.flight_number} (${selected.origin}-${selected.destination})`,
+    lineItems: [
+      {
+        name: `Flight ${selected.flight_number} ${selected.origin}-${selected.destination}`,
+        qty: 1,
+        amount: selected.price.amount,
+      },
+      { name: "Tax & Fees", qty: 1, amount: taxAmount },
+    ],
+    payerWallet: payer_wallet,
+    signerPrivateKey: config.signerPrivateKey,
+  });
+
+  await createOrder(quote);
+  const quoteJson = JSON.stringify(quote);
+
+  // Build compact options list + selected quote
+  const optionLines = offers.map(
+    (o, i) =>
+      `${i === idx ? "→" : " "} ${i + 1}. ${o.airline} ${o.flight_number} ${o.origin}-${o.destination} ${o.departure_time.slice(11, 16)} ${o.price.amount} ${o.price.currency}`,
+  );
+
+  return {
+    text:
+      `Flights ${origin.toUpperCase()}-${destination.toUpperCase()} on ${date}:\n` +
+      optionLines.join("\n") +
+      `\n\n[QUOTE] ${selected.airline} ${selected.flight_number} | ${(Number(quote.amount) / 1e6).toFixed(2)} USDC | ref:${orderRef}\n` +
+      `QUOTE_JSON: ${quoteJson}\n` +
+      `PAYER: ${payer_wallet}\n\n` +
+      `To select a different flight, call search_and_quote again with offer_index=N.\n` +
+      `When all quotes are ready, call:\n` +
+      `nexus_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
+    data: { offers, selectedIndex: idx, quote },
+    order_ref: orderRef,
   };
 }
 
@@ -250,11 +329,75 @@ function createMcpServer(): McpServer {
     },
   );
 
+  // ── Tool: search_and_quote (FAST PATH — search + auto-quote in one call) ──
+
+  srv.tool(
+    "search_and_quote",
+    "Search flights AND generate a Nexus quote for the best option in ONE call. " +
+      "This is the fastest way to get a flight quote. " +
+      "Returns all options plus a ready-to-use quote for the cheapest flight (or specify offer_index to pick a different one).",
+    {
+      origin: z
+        .string()
+        .describe("IATA airport code for departure (e.g. PVG, SHA)"),
+      destination: z
+        .string()
+        .describe("IATA airport code for arrival (e.g. NRT, HND)"),
+      date: z.string().describe("Departure date in YYYY-MM-DD format"),
+      passengers: z
+        .number()
+        .int()
+        .min(1)
+        .max(9)
+        .default(1)
+        .describe("Number of passengers (1-9)"),
+      payer_wallet: z
+        .string()
+        .regex(/^0x[a-fA-F0-9]{40}$/)
+        .describe("Payer's EVM wallet address (0x...)"),
+      offer_index: z
+        .number()
+        .int()
+        .min(0)
+        .optional()
+        .describe(
+          "Zero-based index of the flight to quote (default: 0 = cheapest). Use this to pick a different flight after seeing options.",
+        ),
+    },
+    async ({
+      origin,
+      destination,
+      date,
+      passengers,
+      payer_wallet,
+      offer_index,
+    }) => {
+      try {
+        const result = await handleSearchAndQuote(sessionOfferCache, {
+          origin,
+          destination,
+          date,
+          passengers,
+          payer_wallet,
+          offer_index,
+        });
+        return {
+          content: [{ type: "text" as const, text: result.text }],
+        };
+      } catch (err: any) {
+        return {
+          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
+          isError: true,
+        };
+      }
+    },
+  );
+
   // ── Tool: nexus_generate_quote ──────────────────────────────────────────────
 
   srv.tool(
     "nexus_generate_quote",
-    "Generates a Nexus Payment (NUPS) quote for a selected flight offer. This is a required step before payment can occur.",
+    "Generates a Nexus Payment (NUPS) quote for a selected flight offer. Use search_and_quote instead for faster flow.",
     {
       flight_offer_id: z
         .string()
@@ -406,6 +549,8 @@ async function handleStatelessCall(
     let result;
     if (tool === "search_flights") {
       result = await handleSearchFlights(statelessOfferCache, args);
+    } else if (tool === "search_and_quote") {
+      result = await handleSearchAndQuote(statelessOfferCache, args);
     } else if (tool === "nexus_generate_quote") {
       result = await handleGenerateQuote(statelessOfferCache, args);
     } else if (tool === "nexus_check_status") {
