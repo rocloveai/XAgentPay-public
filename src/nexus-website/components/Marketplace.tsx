@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 
 const API_URL =
-  import.meta.env.VITE_NEXUS_CORE_URL || "https://nexus-core-361y.onrender.com";
+  import.meta.env.VITE_NEXUS_CORE_URL || "https://nexus-mvp.topos.one";
 
 const CHAIN_NAMES: Record<number, string> = {
   20250407: "PlatON Devnet",

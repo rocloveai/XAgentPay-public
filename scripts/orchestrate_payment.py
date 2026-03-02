@@ -186,7 +186,7 @@ quotes = [
 payer_wallet = "0x6c3103FFF34916Ef2df44CE952BcE610d7e23cB5"
 
 result = call_mcp_tool(
-    "https://nexus-core-361y.onrender.com/sse",
+    "https://nexus-mvp.topos.one/sse",
     "nexus_orchestrate_payment",
     {
         "quotes_json": json.dumps(quotes),

@@ -8,7 +8,7 @@ import React, {
 import { useTranslation } from "react-i18next";
 
 const API_URL =
-  import.meta.env.VITE_NEXUS_CORE_URL || "https://nexus-core-361y.onrender.com";
+  import.meta.env.VITE_NEXUS_CORE_URL || "https://nexus-mvp.topos.one";
 
 const CHAIN_NAMES: Record<number, string> = {
   20250407: "PlatON Devnet",
@@ -377,9 +377,7 @@ const MarketplacePage: React.FC = () => {
                   search_off
                 </span>
                 <p className="text-lg">{t("marketplace.noAgents")}</p>
-                <p className="text-sm mt-1">
-                  {t("marketplace.noAgentsHint")}
-                </p>
+                <p className="text-sm mt-1">{t("marketplace.noAgentsHint")}</p>
               </div>
             )}
 
@@ -771,9 +769,7 @@ const MarketplacePage: React.FC = () => {
                     <li className="flex items-start gap-1.5">
                       <span className="w-1 h-1 rounded-full bg-primary/60 mt-1.5 flex-shrink-0"></span>
                       <span>
-                        <code className="text-primary/70">
-                          payment_address
-                        </code>{" "}
+                        <code className="text-primary/70">payment_address</code>{" "}
                         &mdash; {t("marketplace.paymentDesc")}
                       </span>
                     </li>

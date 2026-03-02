@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 
-const SKILL_URL = "https://nexus-core-361y.onrender.com/skill.md";
+const SKILL_URL = "https://nexus-mvp.topos.one/skill.md";
 
 const Developers: React.FC = () => {
   const { t } = useTranslation();
@@ -131,7 +131,9 @@ const Developers: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex-1 space-y-3 min-w-0">
-                  <p className="text-gray-400">{t("developers.demoResponse")}</p>
+                  <p className="text-gray-400">
+                    {t("developers.demoResponse")}
+                  </p>
 
                   {/* Step items */}
                   <div className="space-y-2">
