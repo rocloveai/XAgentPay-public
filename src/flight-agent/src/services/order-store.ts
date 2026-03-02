@@ -5,6 +5,7 @@ import {
   selectOrder,
   updateOrderStatus,
   selectAllOrders,
+  selectUnpaidSince,
 } from "./db/order-repo.js";
 
 // In-memory fallback (used when DATABASE_URL is not set)
@@ -66,6 +67,18 @@ export async function updateStatus(
 
 export function newOrderRef(): string {
   return generateOrderRef();
+}
+
+export async function listUnpaidSince(
+  sinceISO: string,
+): Promise<readonly Order[]> {
+  if (isPoolInitialized()) {
+    return selectUnpaidSince(sinceISO);
+  }
+  const cutoff = new Date(sinceISO).getTime();
+  return Array.from(memOrders.values()).filter(
+    (o) => o.status === "UNPAID" && new Date(o.created_at).getTime() >= cutoff,
+  );
 }
 
 export async function listOrders(

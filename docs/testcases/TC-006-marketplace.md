@@ -1,0 +1,275 @@
+# TC-006: Marketplace & Agent Discovery
+
+## Module
+`discover_agents` / `get_agent_skill` (MCP) / `/api/market/*` / `/api/agents` (REST)
+
+## Prerequisites
+- merchant_registry populated with at least 2 agents
+- Health checker running
+
+---
+
+## A. Agent Discovery
+
+### TC-006-01: List All Agents (MCP)
+
+**Priority:** P0
+**Type:** Functional
+
+**Steps:**
+1. Call `discover_agents` with no filters
+
+**Expected:**
+- Returns array of agents
+- Each agent has: merchant_did, name, description, category, health_status, stars
+- Sorted by stars DESC, ONLINE first, name ASC
+
+---
+
+### TC-006-02: Search by Keyword
+
+**Priority:** P0
+**Type:** Functional
+
+**Steps:**
+1. Call `discover_agents` with `query: "flight"`
+
+**Expected:**
+- Returns agents matching "flight" in name, description, or skill_name
+- Non-matching agents excluded
+
+---
+
+### TC-006-03: Filter by Category
+
+**Priority:** P0
+**Type:** Functional
+
+**Steps:**
+1. Call `discover_agents` with `category: "travel"`
+
+**Expected:**
+- Returns agents with category starting with "travel" (e.g. travel.flights, travel.hotels)
+- Other categories excluded
+
+---
+
+### TC-006-04: Limit Results
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. Call `discover_agents` with `limit: 1`
+
+**Expected:**
+- Returns at most 1 agent
+- Total count still available
+
+---
+
+### TC-006-05: Maximum Limit (50)
+
+**Priority:** P2
+**Type:** Boundary
+
+**Steps:**
+1. Call with `limit: 100`
+
+**Expected:**
+- Capped at 50 results
+
+---
+
+### TC-006-06: REST API - GET /api/agents
+
+**Priority:** P0
+**Type:** Functional
+
+**Steps:**
+1. `GET /api/agents?query=hotel&category=travel&limit=10`
+
+**Expected:**
+- HTTP 200
+- Response: `{ agents: [...], total: N, limit: 10 }`
+- Agents include health_status, skill_tools, currencies, mcp_endpoint
+
+---
+
+## B. Agent Skill
+
+### TC-006-07: Get Agent Skill (MCP)
+
+**Priority:** P0
+**Type:** Functional
+
+**Steps:**
+1. Call `get_agent_skill` with `merchant_did: "did:nexus:20250407:demo_flight"`
+
+**Expected:**
+- Returns full skill.md markdown content
+- Contains MCP connection info, available tools, checkout workflow
+
+---
+
+### TC-006-08: Get Agent Skill (REST)
+
+**Priority:** P0
+**Type:** Functional
+
+**Steps:**
+1. `GET /api/agents/did:nexus:20250407:demo_flight/skill`
+
+**Expected:**
+- HTTP 200
+- Content-Type: text/markdown
+- Full skill.md content returned
+
+---
+
+### TC-006-09: Skill for Non-existent Agent
+
+**Priority:** P1
+**Type:** Negative
+
+**Steps:**
+1. Call `get_agent_skill` with unknown DID
+
+**Expected:**
+- Error: agent not found
+
+---
+
+## C. Marketplace Management
+
+### TC-006-10: Register New Agent
+
+**Priority:** P0
+**Type:** Functional
+
+**Steps:**
+1. `POST /api/market/register` with Bearer token and body:
+   ```json
+   {
+     "merchant_did": "did:nexus:20250407:test_agent",
+     "name": "Test Agent",
+     "description": "Test description",
+     "category": "travel.test",
+     "signer_address": "0x...",
+     "payment_address": "0x...",
+     "skill_md_url": "https://example.com/skill.md",
+     "health_url": "https://example.com/health"
+   }
+   ```
+
+**Expected:**
+- HTTP 200/201
+- Agent created in merchant_registry
+- Discoverable via `discover_agents`
+
+---
+
+### TC-006-11: Update Existing Agent
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. Register agent
+2. Register again with same DID but updated description
+
+**Expected:**
+- Agent updated (UPSERT behavior)
+- New description reflected in queries
+
+---
+
+### TC-006-12: Register Without Auth
+
+**Priority:** P0
+**Type:** Security
+
+**Steps:**
+1. `POST /api/market/register` without Bearer token
+
+**Expected:**
+- HTTP 401 Unauthorized
+- Agent not created
+
+---
+
+## D. Star System
+
+### TC-006-13: Star an Agent
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. `POST /api/market/agents/:did/star` with `{ "wallet_address": "0x..." }`
+
+**Expected:**
+- HTTP 200
+- Response: `{ star_count: N }`
+- Star count incremented
+
+---
+
+### TC-006-14: Remove Star
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. Star an agent
+2. `DELETE /api/market/agents/:did/star` with `{ "wallet_address": "0x..." }`
+
+**Expected:**
+- HTTP 200
+- Star count decremented
+
+---
+
+### TC-006-15: Double Star (Idempotent)
+
+**Priority:** P2
+**Type:** Edge Case
+
+**Steps:**
+1. Star same agent twice with same wallet
+
+**Expected:**
+- Star count only incremented once
+- Idempotent behavior
+
+---
+
+## E. Health Checking
+
+### TC-006-16: Agent Health Status
+
+**Priority:** P1
+**Type:** Functional
+
+**Steps:**
+1. Verify health checker polls agent `health_url`
+
+**Expected:**
+- ONLINE: health endpoint returns 200 within timeout
+- OFFLINE: health endpoint fails or returns error
+- DEGRADED: health endpoint returns 200 but high latency
+- `last_health_latency_ms` recorded
+
+---
+
+### TC-006-17: Agent with No Health URL
+
+**Priority:** P2
+**Type:** Edge Case
+
+**Steps:**
+1. Register agent without `health_url`
+
+**Expected:**
+- health_status: UNKNOWN
+- No polling attempted

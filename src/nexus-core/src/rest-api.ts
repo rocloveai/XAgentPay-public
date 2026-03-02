@@ -7,6 +7,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { NexusOrchestrator } from "./services/orchestrator.js";
 import type { MerchantRepository } from "./db/interfaces/merchant-repo.js";
+import type { PaymentRepository } from "./db/interfaces/payment-repo.js";
 import type { StarRepository } from "./db/interfaces/star-repo.js";
 import type { KVRepository } from "./db/interfaces/kv-repo.js";
 import type { MerchantRecord } from "./types.js";
@@ -21,6 +22,7 @@ const log = createLogger("REST-API");
 export interface RestApiDeps {
   readonly orchestrator: NexusOrchestrator;
   readonly merchantRepo: MerchantRepository;
+  readonly paymentRepo: PaymentRepository;
   readonly starRepo: StarRepository;
   readonly kvRepo: KVRepository | null;
   readonly portalToken: string;
@@ -103,7 +105,10 @@ function jsonResponse(
     "Content-Type": "application/json",
     ...CORS_HEADERS,
   });
-  res.end(JSON.stringify(body, null, 2));
+  const envelope = Array.isArray(body)
+    ? { http_status: status, data: body }
+    : { http_status: status, ...(body as object) };
+  res.end(JSON.stringify(envelope, null, 2));
 }
 
 function getClientIp(req: IncomingMessage): string {
@@ -216,6 +221,11 @@ export async function handleRestApiRequest(
   );
   if (agentSkillMatch && req.method === "GET") {
     return handleAgentSkill(deps, res, agentSkillMatch[1]);
+  }
+
+  // --- GET /api/merchant/payments?merchant_did=...&since=...&status=...&group_id=... ---
+  if (url.pathname === "/api/merchant/payments" && req.method === "GET") {
+    return handleMerchantPayments(deps, res, url);
   }
 
   return false;
@@ -452,4 +462,119 @@ async function handleAgentSkill(
     });
   }
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/merchant/payments — Merchant Payment Query (reconciliation + group sub-orders)
+// ---------------------------------------------------------------------------
+
+function parseSinceDuration(raw: string): string | null {
+  const match = raw.match(/^(\d+)(h|m|d)$/);
+  if (!match) return null;
+  const value = parseInt(match[1], 10);
+  const unit = match[2];
+  const ms =
+    unit === "h"
+      ? value * 3_600_000
+      : unit === "m"
+        ? value * 60_000
+        : value * 86_400_000;
+  return new Date(Date.now() - ms).toISOString();
+}
+
+async function handleMerchantPayments(
+  deps: RestApiDeps,
+  res: ServerResponse,
+  url: URL,
+): Promise<true> {
+  try {
+    const merchantDid = url.searchParams.get("merchant_did");
+    if (!merchantDid) {
+      jsonResponse(res, 400, {
+        error: {
+          code: "MISSING_PARAMS",
+          message: "merchant_did is required",
+        },
+      });
+      return true;
+    }
+
+    // Verify merchant exists
+    const merchant = await deps.merchantRepo.findByDid(merchantDid);
+    if (!merchant) {
+      jsonResponse(res, 404, {
+        error: { code: "MERCHANT_NOT_FOUND", message: "Merchant not found" },
+      });
+      return true;
+    }
+
+    // Parse optional filters
+    const sinceRaw = url.searchParams.get("since");
+    const since = sinceRaw
+      ? (parseSinceDuration(sinceRaw) ?? sinceRaw) // try duration (4h), fallback to ISO
+      : undefined;
+    const status = url.searchParams.get("status") ?? undefined;
+    const groupId = url.searchParams.get("group_id") ?? undefined;
+    const limit = url.searchParams.has("limit")
+      ? Math.min(Math.max(Number(url.searchParams.get("limit")), 1), 200)
+      : 100;
+
+    // If group_id is provided, query group sub-orders directly
+    if (groupId) {
+      const groupPayments = await deps.paymentRepo.findByGroupId(groupId);
+      // Filter to only this merchant's payments in the group
+      const filtered = groupPayments.filter(
+        (p) => p.merchant_did === merchantDid,
+      );
+      jsonResponse(res, 200, {
+        merchant_did: merchantDid,
+        group_id: groupId,
+        payments: filtered.map(toPaymentSummary),
+        total: filtered.length,
+      });
+      return true;
+    }
+
+    // General merchant payment query
+    const payments = await deps.paymentRepo.findByMerchant({
+      merchantDid,
+      since,
+      status: status as import("./types.js").PaymentStatus | undefined,
+      limit,
+    });
+
+    jsonResponse(res, 200, {
+      merchant_did: merchantDid,
+      payments: payments.map(toPaymentSummary),
+      total: payments.length,
+      since: since ?? null,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    log.error("GET /api/merchant/payments error", { error: message });
+    jsonResponse(res, 500, {
+      error: { code: "INTERNAL_ERROR", message },
+    });
+  }
+  return true;
+}
+
+function toPaymentSummary(p: import("./types.js").PaymentRecord) {
+  return {
+    nexus_payment_id: p.nexus_payment_id,
+    group_id: p.group_id,
+    merchant_order_ref: p.merchant_order_ref,
+    status: p.status,
+    amount: p.amount,
+    amount_display: p.amount_display,
+    currency: p.currency,
+    chain_id: p.chain_id,
+    payer_wallet: p.payer_wallet,
+    tx_hash: p.tx_hash,
+    deposit_tx_hash: p.deposit_tx_hash,
+    release_tx_hash: p.release_tx_hash,
+    settled_at: p.settled_at,
+    created_at: p.created_at,
+    updated_at: p.updated_at,
+  };
 }

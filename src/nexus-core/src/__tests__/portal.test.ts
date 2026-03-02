@@ -147,9 +147,10 @@ describe("Portal", () => {
       expect(handled).toBe(true);
       expect(res.statusCode).toBe(200);
 
-      const data = JSON.parse(res.body);
-      expect(Array.isArray(data)).toBe(true);
-      expect(data.length).toBe(2);
+      const body = JSON.parse(res.body);
+      expect(body.http_status).toBe(200);
+      expect(Array.isArray(body.data)).toBe(true);
+      expect(body.data.length).toBe(2);
     });
 
     it("filters by status", async () => {
@@ -162,9 +163,9 @@ describe("Portal", () => {
         url,
       );
 
-      const data = JSON.parse(res.body);
-      expect(data.length).toBe(1);
-      expect(data[0].status).toBe("ESCROWED");
+      const body = JSON.parse(res.body);
+      expect(body.data.length).toBe(1);
+      expect(body.data[0].status).toBe("ESCROWED");
     });
   });
 

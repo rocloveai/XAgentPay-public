@@ -8,6 +8,7 @@ import { searchHotels } from "./services/hotel-search.js";
 import { buildQuote } from "./services/quote-builder.js";
 import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
 import { initPool, closePool } from "./services/db/pool.js";
+import { startReconciler, stopReconciler } from "./services/reconciler.js";
 import {
   startPortal,
   registerSseHandler,
@@ -27,6 +28,12 @@ if (config.databaseUrl) {
 } else {
   console.error("Warning: DATABASE_URL not set. Using in-memory storage only.");
 }
+
+// Start reconciler (checks for UNPAID orders that nexus-core shows as paid)
+startReconciler({
+  nexusCoreUrl: config.nexusCoreUrl,
+  merchantDid: config.merchantDid,
+});
 
 type HotelCacheEntry = { offer: HotelOffer; nights: number };
 
@@ -503,6 +510,7 @@ async function startHttpMode() {
 }
 
 process.on("SIGTERM", () => {
+  stopReconciler();
   closePool().catch(() => {});
 });
 

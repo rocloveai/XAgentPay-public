@@ -31,7 +31,10 @@ export interface MarketDeps {
 // ---------------------------------------------------------------------------
 
 function sendJson(res: ServerResponse, status: number, data: unknown): void {
-  const body = JSON.stringify(data, null, 2);
+  const envelope = Array.isArray(data)
+    ? { http_status: status, data }
+    : { http_status: status, ...(data as object) };
+  const body = JSON.stringify(envelope, null, 2);
   res.writeHead(status, {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": "*",

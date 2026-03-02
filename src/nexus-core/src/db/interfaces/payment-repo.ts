@@ -68,6 +68,14 @@ export interface PaymentRepository {
     offset?: number;
   }): Promise<readonly PaymentRecord[]>;
 
+  /** Find payments by merchant_did with optional time and status filters. */
+  findByMerchant(params: {
+    merchantDid: string;
+    since?: string;
+    status?: PaymentStatus;
+    limit?: number;
+  }): Promise<readonly PaymentRecord[]>;
+
   /** Count payments grouped by status. */
   countByStatus(): Promise<ReadonlyMap<PaymentStatus, number>>;
 

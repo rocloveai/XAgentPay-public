@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { handleRestApiRequest, type RestApiDeps } from "../rest-api.js";
 import { MockMerchantRepository } from "./mocks/mock-merchant-repo.js";
+import { MockPaymentRepository } from "./mocks/mock-payment-repo.js";
 import { MockStarRepository } from "./mocks/mock-star-repo.js";
 import type {
   MerchantRecord,
@@ -169,12 +170,14 @@ function mockRes(): ServerResponse & {
 
 describe("rest-api", () => {
   let merchantRepo: MockMerchantRepository;
+  let paymentRepo: MockPaymentRepository;
   let starRepo: MockStarRepository;
   let orchestrator: NexusOrchestrator;
   let deps: RestApiDeps;
 
   beforeEach(() => {
     merchantRepo = new MockMerchantRepository();
+    paymentRepo = new MockPaymentRepository();
     starRepo = new MockStarRepository();
 
     // Mock orchestrator with getPaymentStatus
@@ -185,6 +188,7 @@ describe("rest-api", () => {
     deps = {
       orchestrator,
       merchantRepo,
+      paymentRepo,
       starRepo,
       kvRepo: null,
       portalToken: "test-portal-token",

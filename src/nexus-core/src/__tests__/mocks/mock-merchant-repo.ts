@@ -7,7 +7,13 @@ import type {
 
 const MARKETPLACE_DEFAULTS: Omit<
   MerchantRecord,
-  "merchant_did" | "name" | "signer_address" | "payment_address" | "is_active" | "created_at" | "updated_at"
+  | "merchant_did"
+  | "name"
+  | "signer_address"
+  | "payment_address"
+  | "is_active"
+  | "created_at"
+  | "updated_at"
 > = {
   webhook_url: null,
   webhook_secret: null,
@@ -59,9 +65,10 @@ export class MockMerchantRepository implements MerchantRepository {
       );
   }
 
-  async listForMarket(
-    filters?: { category?: string; status?: AgentHealthStatus },
-  ): Promise<readonly MerchantRecord[]> {
+  async listForMarket(filters?: {
+    category?: string;
+    status?: AgentHealthStatus;
+  }): Promise<readonly MerchantRecord[]> {
     let merchants = [...this.store.values()].filter(
       (m) => m.is_active && m.skill_md_url != null,
     );
@@ -71,9 +78,7 @@ export class MockMerchantRepository implements MerchantRepository {
       );
     }
     if (filters?.status) {
-      merchants = merchants.filter(
-        (m) => m.health_status === filters.status,
-      );
+      merchants = merchants.filter((m) => m.health_status === filters.status);
     }
     return merchants.sort((a, b) => {
       if (a.health_status === "ONLINE" && b.health_status !== "ONLINE")
@@ -86,8 +91,10 @@ export class MockMerchantRepository implements MerchantRepository {
 
   async register(params: RegisterMerchantParams): Promise<MerchantRecord> {
     const now = new Date().toISOString();
+    const existing = this.store.get(params.merchant_did);
     const record: MerchantRecord = {
       ...MARKETPLACE_DEFAULTS,
+      ...existing,
       merchant_did: params.merchant_did,
       name: params.name,
       description: params.description,
@@ -96,11 +103,11 @@ export class MockMerchantRepository implements MerchantRepository {
       payment_address: params.payment_address,
       skill_md_url: params.skill_md_url,
       health_url: params.health_url,
-      webhook_url: params.webhook_url ?? null,
-      webhook_secret: params.webhook_secret ?? null,
-      mcp_endpoint: params.mcp_endpoint ?? null,
+      webhook_url: params.webhook_url ?? existing?.webhook_url ?? null,
+      webhook_secret: params.webhook_secret ?? existing?.webhook_secret ?? null,
+      mcp_endpoint: params.mcp_endpoint ?? existing?.mcp_endpoint ?? null,
       is_active: true,
-      created_at: now,
+      created_at: existing?.created_at ?? now,
       updated_at: now,
     };
     this.store.set(params.merchant_did, record);

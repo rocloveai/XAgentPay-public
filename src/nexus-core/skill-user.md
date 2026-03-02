@@ -34,6 +34,7 @@ curl -X POST https://api.nexus-mvp.topos.one/api/orchestrate \
 **Response** (HTTP 402):
 ```json
 {
+  "http_status": 402,
   "checkout_url": "https://api.nexus-mvp.topos.one/checkout/tok_...",
   "group_id": "grp_...",
   "instruction": {
@@ -54,13 +55,22 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
 
 ## Step 2 — Pay
 
-**Option A (recommended): Open checkout URL in browser.** The checkout page handles MetaMask wallet connection, chain switching, signing, and transaction submission automatically.
+The 402 response provides **two payment paths**:
 
-**Option B (programmatic):** User signs `eip3009_sign_data` via `eth_signTypedData_v4`, then submits the `deposit_tx` on-chain (user pays gas).
+**Path A — Checkout URL (for human users):**
+Direct the user to open `checkout_url` in their browser. The checkout page handles MetaMask wallet connection, chain switching, EIP-3009 signing, and transaction submission automatically. This is the recommended path when the end user has a browser with MetaMask.
+
+**Path B — Programmatic (for capable agents):**
+Use the `instruction` object to construct the transaction directly:
+1. Present `instruction.eip3009_sign_data` to the user's wallet via `eth_signTypedData_v4`
+2. Submit `instruction.deposit_tx` on-chain (user pays gas)
+3. Verify `instruction.nexus_group_sig` against `instruction.core_operator_address` before submitting
+
+This path is suitable when the agent has direct access to wallet signing (e.g. via MPC wallet, AA wallet, or user-delegated signing).
 
 ## Step 3 — Confirm Deposit
 
-After the user submits the on-chain transaction:
+After the user submits the on-chain transaction (via either path):
 
 **MCP:**
 ```

@@ -1084,7 +1084,12 @@ async function main(): Promise<void> {
                   "Content-Type": "application/json",
                   "Access-Control-Allow-Origin": "*",
                 });
-                res.end(JSON.stringify({ error: "Invalid payer_wallet" }));
+                res.end(
+                  JSON.stringify({
+                    http_status: 400,
+                    error: "Invalid payer_wallet",
+                  }),
+                );
                 return;
               }
 
@@ -1099,7 +1104,13 @@ async function main(): Promise<void> {
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Headers": "Content-Type",
               });
-              res.end(JSON.stringify(result.paymentRequired, null, 2));
+              res.end(
+                JSON.stringify(
+                  { http_status: 402, ...result.paymentRequired },
+                  null,
+                  2,
+                ),
+              );
             } catch (err) {
               const message =
                 err instanceof Error ? err.message : "Unknown error";
@@ -1107,7 +1118,7 @@ async function main(): Promise<void> {
                 "Content-Type": "application/json",
                 "Access-Control-Allow-Origin": "*",
               });
-              res.end(JSON.stringify({ error: message }));
+              res.end(JSON.stringify({ http_status: 500, error: message }));
             }
             return;
           }
@@ -1136,6 +1147,7 @@ async function main(): Promise<void> {
                 res.writeHead(400, corsHeaders);
                 res.end(
                   JSON.stringify({
+                    http_status: 400,
                     error: "Missing nexus_payment_id or merchant_did",
                   }),
                 );
@@ -1144,7 +1156,12 @@ async function main(): Promise<void> {
 
               if (!relayer) {
                 res.writeHead(503, corsHeaders);
-                res.end(JSON.stringify({ error: "Relayer not configured" }));
+                res.end(
+                  JSON.stringify({
+                    http_status: 503,
+                    error: "Relayer not configured",
+                  }),
+                );
                 return;
               }
 
@@ -1153,6 +1170,7 @@ async function main(): Promise<void> {
                 res.writeHead(404, corsHeaders);
                 res.end(
                   JSON.stringify({
+                    http_status: 404,
                     error: "Payment not found",
                     payment_id: nexus_payment_id,
                   }),
@@ -1165,6 +1183,7 @@ async function main(): Promise<void> {
                 res.writeHead(403, corsHeaders);
                 res.end(
                   JSON.stringify({
+                    http_status: 403,
                     error: "merchant_did does not match payment",
                   }),
                 );
@@ -1179,6 +1198,7 @@ async function main(): Promise<void> {
                 res.writeHead(200, corsHeaders);
                 res.end(
                   JSON.stringify({
+                    http_status: 200,
                     status: "already_settled",
                     payment_id: nexus_payment_id,
                   }),
@@ -1191,6 +1211,7 @@ async function main(): Promise<void> {
                 res.writeHead(409, corsHeaders);
                 res.end(
                   JSON.stringify({
+                    http_status: 409,
                     error: `Payment status is ${payment.status}, expected ESCROWED`,
                     payment_id: nexus_payment_id,
                   }),
@@ -1202,6 +1223,7 @@ async function main(): Promise<void> {
                 res.writeHead(409, corsHeaders);
                 res.end(
                   JSON.stringify({
+                    http_status: 409,
                     error: "Payment has no payment_id_bytes32",
                     payment_id: nexus_payment_id,
                   }),
@@ -1225,6 +1247,7 @@ async function main(): Promise<void> {
               res.writeHead(200, corsHeaders);
               res.end(
                 JSON.stringify({
+                  http_status: 200,
                   status: "release_submitted",
                   tx_hash: result.txHash,
                   payment_id: nexus_payment_id,
@@ -1235,7 +1258,7 @@ async function main(): Promise<void> {
                 err instanceof Error ? err.message : "Unknown error";
               serverLog.error("confirm-fulfillment error", { error: message });
               res.writeHead(500, corsHeaders);
-              res.end(JSON.stringify({ error: message }));
+              res.end(JSON.stringify({ http_status: 500, error: message }));
             }
             return;
           }
@@ -1271,7 +1294,13 @@ async function main(): Promise<void> {
             req.method === "GET"
           ) {
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ errors: debugErrors }, null, 2));
+            res.end(
+              JSON.stringify(
+                { http_status: 200, errors: debugErrors },
+                null,
+                2,
+              ),
+            );
             return;
           }
 
@@ -1280,6 +1309,7 @@ async function main(): Promise<void> {
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(
               JSON.stringify({
+                http_status: 200,
                 status: "ok",
                 version: NEXUS_CORE_VERSION,
                 transport: "sse",
@@ -1313,6 +1343,7 @@ async function main(): Promise<void> {
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(
               JSON.stringify({
+                http_status: 200,
                 status: "ok",
                 version: NEXUS_CORE_VERSION,
                 transport: "sse",
@@ -1331,6 +1362,7 @@ async function main(): Promise<void> {
           const restApiDeps: RestApiDeps = {
             orchestrator,
             merchantRepo,
+            paymentRepo,
             starRepo,
             kvRepo,
             portalToken: config.portalToken,
@@ -1396,7 +1428,7 @@ async function main(): Promise<void> {
           });
           if (!res.headersSent) {
             res.writeHead(500, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: message }));
+            res.end(JSON.stringify({ http_status: 500, error: message }));
           }
         }
       },

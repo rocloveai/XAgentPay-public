@@ -201,6 +201,35 @@ export class MockPaymentRepository implements PaymentRepository {
     return results.slice(offset, offset + limit);
   }
 
+  async findByMerchant(params: {
+    merchantDid: string;
+    since?: string;
+    status?: PaymentStatus;
+    limit?: number;
+  }): Promise<readonly PaymentRecord[]> {
+    let results = [...this.store.values()].filter(
+      (r) => r.merchant_did === params.merchantDid,
+    );
+
+    if (params.since) {
+      const cutoff = new Date(params.since).getTime();
+      results = results.filter(
+        (r) => new Date(r.created_at).getTime() >= cutoff,
+      );
+    }
+
+    if (params.status) {
+      results = results.filter((r) => r.status === params.status);
+    }
+
+    results.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+
+    return results.slice(0, params.limit ?? 200);
+  }
+
   async countByStatus(): Promise<ReadonlyMap<PaymentStatus, number>> {
     const counts = new Map<PaymentStatus, number>();
     for (const r of this.store.values()) {

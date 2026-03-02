@@ -82,6 +82,28 @@ export async function updateOrderStatus(
   };
 }
 
+export async function selectUnpaidSince(
+  sinceISO: string,
+): Promise<readonly Order[]> {
+  const sql = getPool();
+  const rows = await sql(
+    `SELECT order_ref, status, quote_payload, payer_wallet, created_at, updated_at
+     FROM orders
+     WHERE agent_type = $1 AND status = 'UNPAID' AND created_at >= $2::timestamptz
+     ORDER BY created_at DESC`,
+    [AGENT_TYPE, sinceISO],
+  );
+
+  return rows.map((row) => ({
+    order_ref: row.order_ref as string,
+    status: row.status as OrderStatus,
+    quote_payload: row.quote_payload as unknown as NexusQuotePayload,
+    payer_wallet: (row.payer_wallet as string) || undefined,
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at),
+  }));
+}
+
 export async function selectAllOrders(
   payerWallet?: string,
 ): Promise<readonly Order[]> {

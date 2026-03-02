@@ -288,6 +288,42 @@ export class NeonPaymentRepository implements PaymentRepository {
     return rows.map(rowToPayment);
   }
 
+  async findByMerchant(params: {
+    merchantDid: string;
+    since?: string;
+    status?: PaymentStatus;
+    limit?: number;
+  }): Promise<readonly PaymentRecord[]> {
+    const sql = getPool();
+    const conditions: string[] = ["merchant_did = $1"];
+    const values: unknown[] = [params.merchantDid];
+    let paramIdx = 2;
+
+    if (params.since) {
+      conditions.push(`created_at >= $${paramIdx}::timestamptz`);
+      values.push(params.since);
+      paramIdx++;
+    }
+
+    if (params.status) {
+      conditions.push(`status = $${paramIdx}`);
+      values.push(params.status);
+      paramIdx++;
+    }
+
+    const limit = params.limit ?? 200;
+    values.push(limit);
+
+    const rows = await sql(
+      `SELECT * FROM payments
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY created_at DESC
+       LIMIT $${paramIdx}`,
+      values,
+    );
+    return rows.map(rowToPayment);
+  }
+
   async countByStatus(): Promise<ReadonlyMap<PaymentStatus, number>> {
     const sql = getPool();
     const rows = await sql(

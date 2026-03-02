@@ -74,9 +74,10 @@ export class NeonMerchantRepository implements MerchantRepository {
     return rows.map(rowToMerchant);
   }
 
-  async listForMarket(
-    filters?: { category?: string; status?: AgentHealthStatus },
-  ): Promise<readonly MerchantRecord[]> {
+  async listForMarket(filters?: {
+    category?: string;
+    status?: AgentHealthStatus;
+  }): Promise<readonly MerchantRecord[]> {
     const sql = getPool();
     const conditions: string[] = [
       "is_active = TRUE",
@@ -118,9 +119,9 @@ export class NeonMerchantRepository implements MerchantRepository {
          payment_address = EXCLUDED.payment_address,
          skill_md_url = EXCLUDED.skill_md_url,
          health_url = EXCLUDED.health_url,
-         webhook_url = EXCLUDED.webhook_url,
-         webhook_secret = EXCLUDED.webhook_secret,
-         mcp_endpoint = EXCLUDED.mcp_endpoint,
+         webhook_url = COALESCE(EXCLUDED.webhook_url, merchant_registry.webhook_url),
+         webhook_secret = COALESCE(EXCLUDED.webhook_secret, merchant_registry.webhook_secret),
+         mcp_endpoint = COALESCE(EXCLUDED.mcp_endpoint, merchant_registry.mcp_endpoint),
          is_active = TRUE,
          updated_at = NOW()
        RETURNING *`,

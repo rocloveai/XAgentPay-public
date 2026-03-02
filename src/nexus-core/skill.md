@@ -123,6 +123,7 @@ curl -X POST https://api.nexus-mvp.topos.one/api/orchestrate \
 Response (HTTP 402):
 ```json
 {
+  "http_status": 402,
   "nexus_version": "0.5.0",
   "group_id": "grp_...",
   "status": "PAYMENT_REQUIRED",
@@ -170,7 +171,8 @@ Response (HTTP 402):
 
 | Field | Description |
 |-------|-------------|
-| `checkout_url` | Token-protected URL (valid 15 minutes). Open in browser for MetaMask checkout. |
+| `http_status` | HTTP status code mirrored in response body (e.g. `402`). Present in **all** JSON responses. |
+| `checkout_url` | Token-protected URL (valid 1 hour). Open in browser for MetaMask checkout. |
 | `instruction.eip3009_sign_data` | EIP-3009 typed data — user signs via `eth_signTypedData_v4` |
 | `instruction.deposit_tx` | ABI and target for `batchDepositWithAuthorization` — user submits tx (pays gas) |
 | `instruction.payments[].payment_id_bytes32` | Precomputed `keccak256(nexus_payment_id)` for on-chain `BatchEntry` |
@@ -204,7 +206,7 @@ Open in browser for MetaMask-powered interactive checkout. The checkout page han
 https://api.nexus-mvp.topos.one/checkout/tok_abc123...
 ```
 
-> **Note:** Checkout URLs expire after 15 minutes. If expired, the user must re-orchestrate to get a new URL.
+> **Note:** Checkout URLs expire after 1 hour. If expired, the user must re-orchestrate to get a new URL.
 
 #### `GET /api/payments/:id` — Payment Status
 
@@ -224,6 +226,7 @@ curl "https://api.nexus-mvp.topos.one/api/payments?merchant_order_ref=FLT-123"
 Response (HTTP 200):
 ```json
 {
+  "http_status": 200,
   "payment": {
     "nexus_payment_id": "PAY-xxx",
     "status": "ESCROWED",
@@ -257,6 +260,7 @@ curl "https://api.nexus-mvp.topos.one/api/agents?query=flight&category=travel&li
 Response (HTTP 200):
 ```json
 {
+  "http_status": 200,
   "agents": [
     {
       "merchant_did": "did:nexus:20250407:demo_flight",
@@ -324,7 +328,7 @@ Orchestrate aggregated payment for one or more merchant quotes. Validates signat
 
 One of `quotes_json` or `quotes` must be provided. Both accept raw quotes, full UCP envelopes, or handler objects (auto-unwrapped).
 
-**Returns:** `PaymentRequired402` with `group_id`, `checkout_url` (token-protected, 15-min TTL), `instruction` (BatchDepositInstruction), `nexus_group_sig`, and `core_operator_address`.
+**Returns:** `PaymentRequired402` with `group_id`, `checkout_url` (token-protected, 1-hour TTL), `instruction` (BatchDepositInstruction), `nexus_group_sig`, and `core_operator_address`.
 
 ---
 
@@ -456,7 +460,7 @@ All `bytes32` fields in `GroupPaymentDetail` (`payment_id_bytes32`, `order_ref_b
 
 ### Token-Protected Checkout URLs
 
-Checkout URLs use short-lived tokens (`tok_...`) instead of raw group IDs. Tokens expire after 15 minutes and are single-use. Direct `grp_` / `GRP-` IDs are still accepted as fallback.
+Checkout URLs use short-lived tokens (`tok_...`) instead of raw group IDs. Tokens expire after 1 hour and are single-use. Direct `grp_` / `GRP-` IDs are still accepted as fallback.
 
 ## Contract
 
