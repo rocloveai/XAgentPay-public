@@ -682,9 +682,9 @@ async function refresh() {
       fetchJson("/api/groups"),
     ]);
     updateStats(stats);
-    updatePayments(payments);
+    updatePayments(payments.data || payments);
     updateRelayer(relayer);
-    updateGroups(groups);
+    updateGroups(groups.data || groups);
   } catch (e) {
     console.error("Refresh failed:", e);
   }
