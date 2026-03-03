@@ -29,7 +29,6 @@ export class TelegramClient {
     const msg = await this.bot.api.sendMessage(chatId, rendered.text, {
       parse_mode: "HTML",
       reply_markup: rendered.replyMarkup,
-      link_preview_options: rendered.linkPreview,
     });
 
     log.info("Sent order message", {
@@ -53,7 +52,6 @@ export class TelegramClient {
       await this.bot.api.editMessageText(chatId, messageId, rendered.text, {
         parse_mode: "HTML",
         reply_markup: rendered.replyMarkup,
-        link_preview_options: rendered.linkPreview,
       });
 
       log.info("Edited order message", {

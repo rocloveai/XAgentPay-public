@@ -323,38 +323,20 @@ async function handleCheckoutConfirm(
 // Checkout HTML Page
 // ---------------------------------------------------------------------------
 
-/** OG metadata for Telegram link preview cards */
-interface OgMeta {
-  readonly title: string;
-  readonly description: string;
-  readonly imageUrl: string;
-}
-
 function renderCheckoutPage(
   groupId: string,
   config: CheckoutDeps["config"],
-  og?: OgMeta,
 ): string {
   const chainId = config.chainId;
   const chainName = config.chainName;
   const rpcUrl = config.rpcUrl;
-
-  const ogTitle = esc(og?.title ?? "NexusPay Checkout");
-  const ogDesc = esc(
-    og?.description ?? "Secure crypto payment powered by NexusPay",
-  );
-  const ogImage = og?.imageUrl ?? "";
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${ogTitle}</title>
-<meta property="og:site_name" content="NexusPay" />
-<meta property="og:title" content="${ogTitle}" />
-<meta property="og:description" content="${ogDesc}" />
-<meta property="og:type" content="website" />${ogImage ? `\n<meta property="og:image" content="${esc(ogImage)}" />` : ""}
+<title>NexusPay Checkout</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
@@ -1300,21 +1282,9 @@ export async function handleCheckoutRequest(
       );
       return true;
     }
-    // Build OG meta for Telegram link preview card
-    const payments = await deps.paymentRepo.findByGroupId(groupId);
-    const itemSummaries = payments.map((p) => p.merchant_order_ref).slice(0, 3);
-    const descParts = itemSummaries.join(", ");
-    const descSuffix =
-      payments.length > 3 ? ` +${payments.length - 3} more` : "";
-    const baseUrl =
-      deps.config.baseUrl || `https://${req.headers.host ?? "localhost"}`;
-    const og: OgMeta = {
-      title: `Checkout — ${group.total_amount_display} ${group.currency}`,
-      description: descParts + descSuffix,
-      imageUrl: `${baseUrl}/nexuspay-og.png`,
-    };
-
-    sendHtml(res, renderCheckoutPage(tokenOrGroupId, deps.config, og));
+    // Continue to pass the raw token/URL down into the frontend HTML context
+    // so API callbacks from inside the HTML use the tokenized URL
+    sendHtml(res, renderCheckoutPage(tokenOrGroupId, deps.config));
     return true;
   }
 
