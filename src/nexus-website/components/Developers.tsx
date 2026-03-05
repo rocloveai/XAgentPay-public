@@ -1,7 +1,9 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 
-const SKILL_URL = "https://api.nexus-mvp.topos.one/skill.md";
+const CORE_URL =
+  import.meta.env.VITE_NEXUS_CORE_URL || "https://xnexus.onrender.com";
+const SKILL_URL = `${CORE_URL}/skill.md`;
 
 const Developers: React.FC = () => {
   const { t } = useTranslation();

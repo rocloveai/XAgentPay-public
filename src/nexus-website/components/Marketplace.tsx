@@ -4,7 +4,8 @@ const API_URL =
   import.meta.env.VITE_NEXUS_CORE_URL || "https://api.nexus-mvp.topos.one";
 
 const CHAIN_NAMES: Record<number, string> = {
-  20250407: "PlatON Devnet",
+  196: "XLayer Mainnet",
+  20250407: "Nexus Devnet",
   1: "Ethereum",
   137: "Polygon",
 };
