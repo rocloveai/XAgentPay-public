@@ -384,7 +384,7 @@ function renderMarketPage(baseUrl: string): string {
           <div class="w-8 h-8 rounded bg-gradient-to-br from-brand to-cyan-400 flex items-center justify-center">
             <span class="material-icons-round text-white text-sm">hub</span>
           </div>
-          <span class="text-lg font-bold text-white tracking-wide">NEXUS</span>
+          <span class="text-lg font-bold text-white tracking-wide">xNexus</span>
         </a>
         <span class="text-gray-600 mx-1">/</span>
         <span class="text-sm font-medium text-white">Commercial Marketplace</span>
