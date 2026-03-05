@@ -59,7 +59,7 @@ The on-chain registry contains the following fields, mapped to the DID Document:
 "service": [
 {
 "id": "#payment",
-"type": "NexusPaymentEndpoint",
+"type": "xNexusmentEndpoint",
 "serviceEndpoint": "eip155:210425:0xTreasurySafeContractAddress..."
 },
 {

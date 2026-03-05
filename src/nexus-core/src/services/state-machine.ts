@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Payment state machine.
+ * xNexus Core — Payment state machine.
  *
  * Manages individual payment lifecycle transitions.
  */

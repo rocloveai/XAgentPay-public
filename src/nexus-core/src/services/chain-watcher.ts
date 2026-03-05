@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Chain Watcher.
+ * xNexus Core — Chain Watcher.
  *
  * Polls the NexusPayEscrow contract for on-chain events and drives
  * payment state transitions via the StateMachine.

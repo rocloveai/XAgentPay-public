@@ -1,7 +1,7 @@
 ---
-name: nexus-core
+name: xnexus-core
 version: "0.5.0"
-description: NexusPay Core — payment orchestration MCP server for multi-merchant aggregated checkout
+description: xNexus Core — payment orchestration MCP server for multi-merchant aggregated checkout
 protocol: NUPS/1.5
 category: finance.payment
 currencies: [USDC]

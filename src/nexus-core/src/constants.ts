@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — constants and state machine transitions.
+ * xNexus Core — constants and state machine transitions.
  */
 import type { PaymentStatus } from "./types.js";
 

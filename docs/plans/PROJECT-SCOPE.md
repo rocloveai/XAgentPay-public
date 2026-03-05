@@ -1,4 +1,4 @@
-# NexusPay - Project Scope & Directory Structure
+# xNexus - Project Scope & Directory Structure
 
 ## Project Goal
 

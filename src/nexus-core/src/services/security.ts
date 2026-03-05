@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Security module.
+ * xNexus Core — Security module.
  *
  * - EIP-712 quote signature verification
  * - Merchant DID resolution
@@ -22,7 +22,7 @@ import { SecurityError } from "../errors.js";
 // ---------------------------------------------------------------------------
 
 const NEXUS_DOMAIN = {
-  name: "NexusPay",
+  name: "xNexus",
   version: "1",
   chainId: 20250407,
   verifyingContract: "0x0000000000000000000000000000000000000000" as Address,

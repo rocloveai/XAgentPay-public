@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Payment router.
+ * xNexus Core — Payment router.
  *
  * Decides which payment method to use for a given quote.
  * MVP: Always routes to ESCROW_CONTRACT.

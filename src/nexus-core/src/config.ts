@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — environment configuration.
+ * xNexus Core — environment configuration.
  */
 
 export type TransportMode = "stdio" | "http";

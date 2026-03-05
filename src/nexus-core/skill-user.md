@@ -1,7 +1,7 @@
 ---
-name: nexus-core
+name: xnexus-core
 version: "0.5.0"
-description: NexusPay Core — HTTP REST API for multi-merchant aggregated escrow checkout
+description: xNexus Core — HTTP REST API for multi-merchant aggregated escrow checkout
 protocol: NUPS/1.5
 category: finance.payment
 currencies: [USDC]

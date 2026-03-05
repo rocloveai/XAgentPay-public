@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Quote normalizer.
+ * xNexus Core — Quote normalizer.
  *
  * Auto-extracts NexusQuotePayload from common wrong shapes that user agents
  * may pass to nexus_orchestrate_payment.

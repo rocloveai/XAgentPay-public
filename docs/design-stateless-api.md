@@ -1,4 +1,4 @@
-# NexusPay Stateless API 设计方案
+# xNexus Stateless API 设计方案
 
 | Metadata | Value |
 | --- | --- |
@@ -239,7 +239,7 @@ Idempotency-Key: rel_1234567890abcdef  // 客户端生成的唯一标识
 
 ```typescript
 const NEXUS_DISPUTE_DOMAIN = {
-  name: "NexusPay",
+  name: "xNexus",
   version: "1",
   chainId: 20250407,
   verifyingContract: config.escrowContract as Address, // 使用 escrow 合约地址

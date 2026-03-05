@@ -1,8 +1,8 @@
-# RFC-010: NexusPay Escrow 智能合约规范
+# RFC-010: xNexus Escrow 智能合约规范
 
 | 元数据 | 内容 |
 | --- | --- |
-| **标题** | NexusPay Escrow 智能合约规范 |
+| **标题** | xNexus Escrow 智能合约规范 |
 | **版本** | 2.0.0 |
 | **状态** | Standards Track (Draft) |
 | **作者** | Cipher & Nexus Architect Team |
@@ -18,7 +18,7 @@
 
 ## 1. 摘要 (Abstract)
 
-本 RFC 定义 NexusPay Escrow 智能合约的完整规范。合约作为支付担保人，实现"用户付款 -> 资金锁定 -> 商户履约 -> 资金释放"的担保交易流程。与 RFC-005v2 的 Direct Transfer 模式互补，为高价值交易、跨链支付和纠纷仲裁提供链上安全保障。
+本 RFC 定义 xNexus Escrow 智能合约的完整规范。合约作为支付担保人，实现"用户付款 -> 资金锁定 -> 商户履约 -> 资金释放"的担保交易流程。与 RFC-005v2 的 Direct Transfer 模式互补，为高价值交易、跨链支付和纠纷仲裁提供链上安全保障。
 
 **v1.1 核心变更**：采用 EIP-3009 (`transferWithAuthorization`) 替代 EIP-2612 Permit，配合 Relayer 代付服务，实现用户完全无 Gas 的支付体验。用户只需签署 EIP-3009 授权签名，由 Relayer 代为提交链上交易，Gas 费用由 Relayer 承担并从协议手续费中覆盖。
 
@@ -96,7 +96,7 @@ User --transfer--> Merchant        User --deposit--> Contract --release--> Merch
 **结论**：不替换 Direct Transfer，而是将 Escrow 作为第二种支付模式并行运行。
 
 ```
-NexusPay Core (RFC-005v2 升级)
+xNexus Core (RFC-005v2 升级)
 ├── PaymentMethod: DIRECT_TRANSFER  (原有模式，保持不变)
 │   └── 适用：小额即时支付、高信任商户
 │
@@ -108,7 +108,7 @@ NexusPay Core (RFC-005v2 升级)
 
 ---
 
-## 4. NexusPayEscrow 合约设计
+## 4. xNexusEscrow 合约设计
 
 ### 4.1 合约状态机
 
@@ -237,8 +237,8 @@ interface IERC3009 is IERC20 {
 }
 
 /**
- * @title NexusPayEscrow
- * @notice 基于 USDC 的担保支付合约，支持 NexusPay 支付协议
+ * @title xNexusEscrow
+ * @notice 基于 USDC 的担保支付合约，支持 xNexus 支付协议
  * @dev 合约充当担保人角色：Relayer 代用户存入 -> 商户履约 -> Core 释放
  *      采用 EIP-3009 (transferWithAuthorization) 实现用户零 Gas 支付
  *      用户只需链下签名 EIP-3009 授权，Relayer 代为提交链上交易
@@ -250,7 +250,7 @@ interface IERC3009 is IERC20 {
  * - 每笔支付独立管理，通过 paymentId 索引
  * - 超时退款为公开函数，任何人均可触发（Relayer 自动执行）
  */
-contract NexusPayEscrow is ReentrancyGuard, Ownable {
+contract xNexusEscrow is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     // =========================================================================
@@ -268,7 +268,7 @@ contract NexusPayEscrow is ReentrancyGuard, Ownable {
     }
 
     struct EscrowRecord {
-        bytes32 paymentId;           // NexusPay 支付 ID (keccak256)
+        bytes32 paymentId;           // xNexus 支付 ID (keccak256)
         address payer;               // 付款人地址 (EIP-3009 签名者)
         address merchant;            // 商户收款地址
         uint256 amount;              // USDC 金额 (6 decimals)
@@ -395,7 +395,7 @@ contract NexusPayEscrow is ReentrancyGuard, Ownable {
     // =========================================================================
 
     /**
-     * @notice 部署 NexusPayEscrow 合约
+     * @notice 部署 xNexusEscrow 合约
      * @dev 构造函数自动将 _nexusOperator 设置为初始仲裁人和 Core 操作员
      *      后续可通过 setArbiter() 和 setCoreOperator() 更换
      * @param _usdc                  USDC 合约地址 (必须支持 EIP-3009)
@@ -448,7 +448,7 @@ contract NexusPayEscrow is ReentrancyGuard, Ownable {
      *
      *      流程：用户签署 EIP-3009 -> Relayer 调用本函数 -> 合约调用 USDC.transferWithAuthorization
      *
-     * @param _paymentId     NexusPay 支付 ID (bytes32, Core 生成)
+     * @param _paymentId     xNexus 支付 ID (bytes32, Core 生成)
      * @param _from          付款人地址 (EIP-3009 签名者，即用户钱包)
      * @param _merchant      商户收款地址 (从 DID 注册表解析)
      * @param _amount        USDC 金额 (6 decimals)
@@ -536,7 +536,7 @@ contract NexusPayEscrow is ReentrancyGuard, Ownable {
      * @dev 调用前需 approve USDC 给本合约
      *      适用于用户有 LAT 且愿意自行发送链上交易的场景
      *      paymentId 必须唯一 (防重放)
-     * @param _paymentId     NexusPay 支付 ID (bytes32, Core 生成)
+     * @param _paymentId     xNexus 支付 ID (bytes32, Core 生成)
      * @param _merchant      商户收款地址 (从 DID 注册表解析)
      * @param _amount        USDC 金额 (6 decimals)
      * @param _orderRef      商户订单号 hash
@@ -828,7 +828,7 @@ contract NexusPayEscrow is ReentrancyGuard, Ownable {
 ### 5.1 Escrow 模式完整支付流程时序图 (EIP-3009 + Relayer)
 
 ```
-User Agent (UA)       NexusPay Core          Relayer            NexusPayEscrow       Merchant Agent (MA)     PlatON Chain
+User Agent (UA)       xNexus Core          Relayer            xNexusEscrow       Merchant Agent (MA)     PlatON Chain
      |                     |               (Core 子模块)       (Smart Contract)            |                     |
      |  1. 搜索商品          |                    |                    |                    |                     |
      | ──────────────────────────────────────────────────────────────────────────────────►  |                     |
@@ -868,7 +868,7 @@ User Agent (UA)       NexusPay Core          Relayer            NexusPayEscrow  
      |                     |                    |                    |                    |                     |
      |                     |                    |  7. Relayer 构建交易并上链               |                     |
      |                     |                    | ──────────────────►|                    |                     |
-     |                     |                    |  NexusPayEscrow.depositWithAuthorization(...)                  |
+     |                     |                    |  xNexusEscrow.depositWithAuthorization(...)                  |
      |                     |                    |  (Relayer 支付 Gas)  |                    |                     |
      |                     |                    | ◄──────────────────| deposit tx_hash    |                     |
      |                     |                    |                    |                    |                     |
@@ -895,7 +895,7 @@ User Agent (UA)       NexusPay Core          Relayer            NexusPayEscrow  
      |                     |  12. Relayer 调用合约释放资金             |                    |                     |
      |                     | ──────────────────►|                    |                    |                     |
      |                     |                    | ──────────────────►|                    |                     |
-     |                     |                    |  NexusPayEscrow.release(paymentId)      |                     |
+     |                     |                    |  xNexusEscrow.release(paymentId)      |                     |
      |                     |                    | ◄──────────────────| PaymentReleased    |                     |
      |                     |  status: SETTLED    |                    |  event             |                     |
      |                     |                    |                    |                    |                     |
@@ -958,7 +958,7 @@ interface EscrowInstruction {
   readonly payment_method: "ESCROW";
 
   // Escrow 合约信息
-  readonly escrow_contract: Address;   // NexusPayEscrow 合约地址
+  readonly escrow_contract: Address;   // xNexusEscrow 合约地址
   readonly token_address: Address;     // USDC 合约地址 (支持 EIP-3009)
   readonly token_symbol: "USDC";
   readonly token_decimals: 6;
@@ -1024,7 +1024,7 @@ interface EscrowInstruction {
 4. UA 获得签名 (v, r, s)
 5. UA 调用 nexus_submit_eip3009_signature(payment_id, v, r, s)
 6. Core 将签名转发给 Relayer
-7. Relayer 调用 NexusPayEscrow.depositWithAuthorization(...) 上链
+7. Relayer 调用 xNexusEscrow.depositWithAuthorization(...) 上链
 8. 链上确认后 Core 更新状态为 ESCROWED
 ```
 
@@ -1152,7 +1152,7 @@ Core Timeout Handler (定时任务, 通过 Relayer 执行):
 
 1. 每 60 秒扫描 status = 'ESCROWED' 且 release_deadline 已过的订单
 2. 对每个过期订单：
-   a. 通过 Relayer 调用 NexusPayEscrow.refund(paymentId) (Relayer 承担 Gas)
+   a. 通过 Relayer 调用 xNexusEscrow.refund(paymentId) (Relayer 承担 Gas)
    b. 如果交易成功：
       - 更新 Core 状态: ESCROWED -> REFUNDED
       - 发送 Webhook: payment.refunded
@@ -1310,7 +1310,7 @@ type PaymentEventType =
 ```
 Chain Watcher 扩展 (Escrow 模式):
 
-监听事件列表 (NexusPayEscrow 合约):
+监听事件列表 (xNexusEscrow 合约):
 1. PaymentDeposited(paymentId, payer, merchant, amount, ...)
    -> Core: BROADCASTED -> ESCROWED
    -> Webhook: payment.escrowed
@@ -1332,7 +1332,7 @@ Chain Watcher 扩展 (Escrow 模式):
    -> Webhook: dispute.resolved
 
 轮询策略:
-- 每 3 秒查询 NexusPayEscrow 合约的新事件
+- 每 3 秒查询 xNexusEscrow 合约的新事件
 - 使用 getLogs 过滤 fromBlock -> latestBlock
 - 根据 paymentId 匹配 Core 中的 payment 记录
 ```
@@ -1360,13 +1360,13 @@ RFC-005v2 不做破坏性变更。以下是兼容性策略：
 ```
 src/contracts/
 ├── src/
-│   ├── NexusPayEscrow.sol        # 主合约 (含 depositWithAuthorization)
+│   ├── xNexusEscrow.sol        # 主合约 (含 depositWithAuthorization)
 │   └── interfaces/
 │       └── IERC3009.sol           # EIP-3009 接口定义
 │
 ├── test/
-│   ├── NexusPayEscrow.t.sol      # Foundry 单元测试
-│   ├── NexusPayEscrow.gas.t.sol  # Gas 消耗测试
+│   ├── xNexusEscrow.t.sol      # Foundry 单元测试
+│   ├── xNexusEscrow.gas.t.sol  # Gas 消耗测试
 │   └── mocks/
 │       └── MockUSDC.sol          # EIP-3009 mock USDC (测试用)
 │
@@ -1521,10 +1521,10 @@ PlatON 链上的 USDC 支持 EIP-3009 (`transferWithAuthorization`)，而非 EIP
 
 ### 11.2 Relayer 服务架构
 
-Relayer 作为 NexusPay Core 的一个子模块，负责代用户提交链上交易并支付 Gas。
+Relayer 作为 xNexus Core 的一个子模块，负责代用户提交链上交易并支付 Gas。
 
 ```
-                                 NexusPay Core
+                                 xNexus Core
                   ┌─────────────────────────────────────────┐
                   │                                         │
                   │  ┌──────────────┐  ┌──────────────────┐ │
@@ -1640,7 +1640,7 @@ PlatON Gas Price (当前): ~1 gwei
 
 - [ ] 初始化 Foundry 项目 (src/contracts/)
 - [ ] 实现 IERC3009 接口定义
-- [ ] 实现 NexusPayEscrow.sol 核心合约 (含 depositWithAuthorization)
+- [ ] 实现 xNexusEscrow.sol 核心合约 (含 depositWithAuthorization)
 - [ ] 编写 Foundry 单元测试 (100% 分支覆盖)
 - [ ] EIP-3009 签名验证测试 (mock USDC with EIP-3009)
 - [ ] Gas 消耗基准测试 (depositWithAuthorization vs deposit)
@@ -1807,7 +1807,7 @@ Copyright (c) 2026 Nexus Protocol. All Rights Reserved.
 
 ## Appendix A: v2.0.0 变更清单 (2026-02-26)
 
-以下记录 RFC-010 v2.0.0 与实际部署的 NexusPayEscrow v4.0.0 合约的对齐变更。
+以下记录 RFC-010 v2.0.0 与实际部署的 xNexusEscrow v4.0.0 合约的对齐变更。
 
 ### A.1 UUPS 代理模式
 

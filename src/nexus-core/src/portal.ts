@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Portal Dashboard.
+ * xNexus Core — Portal Dashboard.
  *
  * Serves an HTML dashboard and JSON API endpoints for monitoring
  * payments, relayer status, and system health.

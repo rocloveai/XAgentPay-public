@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — shared type definitions.
+ * xNexus Core — shared type definitions.
  *
  * Every subsequent phase imports from this file.
  */

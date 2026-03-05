@@ -101,7 +101,7 @@ The merchant Server must expose order resources so that the LLM can "read" the c
 ### 4.2 MCP Tools (Capability Exposure)
 The merchant Server must register the following tools:
 #### Tool: `nexus_generate_quote`
-* **Description:** "Generates a cryptographically signed NexusPay quote. Required step before payment."
+* **Description:** "Generates a cryptographically signed xNexus quote. Required step before payment."
 * **Input Schema:** (Same as 3.1 SignQuoteInput)
 #### Tool: `nexus_check_status`
 * **Description:** "Checks the blockchain settlement status of an order. Use this to confirm payment."

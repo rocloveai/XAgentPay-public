@@ -101,7 +101,7 @@ expected_order_ref: string; // Agent 记忆中的当前单号
 ### 4.2 MCP Tools (能力暴露)
 商户 Server 必须注册以下工具：
 #### Tool: `nexus_generate_quote`
-* **Description:** "Generates a cryptographically signed NexusPay quote. Required step before payment."
+* **Description:** "Generates a cryptographically signed xNexus quote. Required step before payment."
 * **Input Schema:** (同 3.1 SignQuoteInput)
 #### Tool: `nexus_check_status`
 * **Description:** "Checks the blockchain settlement status of an order. Use this to confirm payment."

@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Instruction builder.
+ * xNexus Core — Instruction builder.
  *
  * Builds payment instructions for User Agent:
  * - Direct transfer instructions
@@ -67,7 +67,7 @@ export function buildDirectTransferInstruction(
       gas_limit: "100000",
     },
     nexus_payment_id: payment.nexus_payment_id,
-    memo: `NexusPay: ${payment.merchant_order_ref}`,
+    memo: `xNexus: ${payment.merchant_order_ref}`,
   };
 }
 

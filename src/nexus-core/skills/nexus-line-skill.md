@@ -56,7 +56,7 @@ Constructs and sends a rich Flex Message card for a Nexus order or payment group
     "contents": [
       {
         "type": "text",
-        "text": "NexusPay Order",
+        "text": "xNexus Order",
         "weight": "bold",
         "size": "lg"
       }

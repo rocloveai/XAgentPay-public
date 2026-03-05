@@ -56,11 +56,11 @@ SkillsMP 当前为开源社区项目，无直接收入模式。技能由 GitHub 
 
 ---
 
-## 二、NexusPay Skill Market 定位
+## 二、xNexus Skill Market 定位
 
 ### 2.1 核心差异
 
-| 维度 | SkillsMP | NexusPay Skill Market |
+| 维度 | SkillsMP | xNexus Skill Market |
 | --- | --- | --- |
 | 定位 | 通用开发者技能市场 | **支付场景的商业技能市场** |
 | 技能类型 | 代码生成、测试、文档等开发技能 | 零售、酒旅、餐饮等**有交易闭环**的商业技能 |
@@ -73,7 +73,7 @@ SkillsMP 当前为开源社区项目，无直接收入模式。技能由 GitHub 
 
 ### 2.2 价值主张
 
-> SkillsMP 解决 "AI 怎么工作"，NexusPay Skill Market 解决 **"AI 怎么花钱"**。
+> SkillsMP 解决 "AI 怎么工作"，xNexus Skill Market 解决 **"AI 怎么花钱"**。
 
 每个上架的 Skill 都内嵌 Nexus 支付能力，不是简单的指令文件，而是一个完整的**商业交易单元**。
 
@@ -84,9 +84,9 @@ SkillsMP 当前为开源社区项目，无直接收入模式。技能由 GitHub 
 ### 3.1 供给侧（商户）
 
 - 标准化 Skill 开发模板 + 脚手架工具（`create-nexus-skill`）
-- 商户只需提供商品目录 / API，NexusPay 帮助封装成支付 Skill
+- 商户只需提供商品目录 / API，xNexus 帮助封装成支付 Skill
 - 认证体系：DID 注册 → 支付能力验证 → Webhook 测试通过 → 上架
-- 技能开发外包服务（NexusPay 团队或认证开发者）
+- 技能开发外包服务（xNexus 团队或认证开发者）
 
 ### 3.2 需求侧（User Agent）
 
@@ -94,9 +94,9 @@ SkillsMP 当前为开源社区项目，无直接收入模式。技能由 GitHub 
 - 一键获取 MCP config JSON，复制到 Claude Desktop / Cursor 即可用
 - Agent 自主发现模式：User Agent 通过 API 自动查询市场，按需连接新商户
 
-### 3.3 平台侧（NexusPay）
+### 3.3 平台侧（xNexus）
 
-- 每笔交易手续费（NexusPay Core 层收取）
+- 每笔交易手续费（xNexus Core 层收取）
 - 商户 Skill 开发外包服务费
 - Premium listing / 推荐位
 - 商户数据分析面板
@@ -155,7 +155,7 @@ User Agent 发现 & 安装
        ↓
 用户下单 → Nexus Core 处理支付
        ↓
-交易手续费 → NexusPay 收入
+交易手续费 → xNexus 收入
 ```
 
 **网络效应**：商户越多 → User Agent 越有用 → 用户越多 → 商户越想接入

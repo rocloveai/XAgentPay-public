@@ -1,14 +1,14 @@
 ---
 name: nexus-telegram-renderer
 version: "1.0.0"
-description: Render NexusPay payment orders as rich Telegram messages with auto-updating status
+description: Render xNexus payment orders as rich Telegram messages with auto-updating status
 protocol: HTTP/REST
 category: notification.telegram
 ---
 
-# NexusPay Telegram Order Renderer
+# xNexus Telegram Order Renderer
 
-A lightweight service that renders NexusPay payment orders as interactive Telegram messages using InlineKeyboardMarkup. Messages auto-update every 10 seconds to reflect payment status changes.
+A lightweight service that renders xNexus payment orders as interactive Telegram messages using InlineKeyboardMarkup. Messages auto-update every 10 seconds to reflect payment status changes.
 
 ## When to Use
 
@@ -58,7 +58,7 @@ After you call `nexus_orchestrate_payment` and receive a `checkout_url` + `group
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `chat_id` | number or string | Yes | Telegram chat ID where the message will be sent |
-| `checkout_url` | string (URL) | Yes | NexusPay checkout URL from orchestration response |
+| `checkout_url` | string (URL) | Yes | xNexus checkout URL from orchestration response |
 | `group_id` | string | Yes | Payment group ID (e.g. `grp_xxx` or `GRP-xxx`) |
 | `total_amount_display` | string | Yes | Human-readable total amount (e.g. `"0.30"`) |
 | `currency` | string | No | Currency symbol (default: `"USDC"`) |
@@ -139,7 +139,7 @@ If you have the original quotes, use `context.summary` for richer `summary` text
 The rendered Telegram message looks like:
 
 ```
-📦 NexusPay Order
+📦 xNexus Order
 
 ⏳ Status: Pending Payment
 
@@ -160,7 +160,7 @@ grp_abc123
 If the order expires before payment, the message auto-updates to:
 
 ```
-📦 NexusPay Order
+📦 xNexus Order
 
 ❌ Status: Expired
 
@@ -181,7 +181,7 @@ grp_abc123
 After payment, the message auto-updates to:
 
 ```
-📦 NexusPay Order
+📦 xNexus Order
 
 ✅ Status: Settled
 
@@ -212,7 +212,7 @@ GET /health
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `TELEGRAM_BOT_TOKEN` | Yes | — | Bot token from @BotFather |
-| `NEXUS_CORE_URL` | Yes | — | NexusPay Core URL for status polling |
+| `NEXUS_CORE_URL` | Yes | — | xNexus Core URL for status polling |
 | `PORT` | No | `4100` | HTTP server port |
 | `POLL_INTERVAL_MS` | No | `10000` | Initial poll interval in ms |
 | `POLL_BACKOFF_MS` | No | `5000` | Added to interval per successive poll |

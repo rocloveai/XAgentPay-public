@@ -1,8 +1,8 @@
 /**
- * NexusPay Core — error hierarchy.
+ * xNexus Core — error hierarchy.
  */
 
-/** Base error for all NexusPay Core errors */
+/** Base error for all xNexus Core errors */
 export class NexusError extends Error {
   readonly code: string;
   readonly context: Record<string, unknown>;

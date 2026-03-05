@@ -62,7 +62,7 @@ nexus-telegram-bot / `POST /api/render-order` / Status Polling
 
 **Expected:**
 ```
-🎫 NexusPay Order
+🎫 xNexus Order
 
 ⏳ Pending Payment
 ────────────────────

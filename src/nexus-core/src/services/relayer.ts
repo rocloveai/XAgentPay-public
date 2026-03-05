@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Relayer service.
+ * xNexus Core — Relayer service.
  *
  * Submits EIP-3009 deposit / release / refund transactions to the
  * NexusPayEscrow contract on behalf of users.

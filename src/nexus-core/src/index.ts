@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — barrel export.
+ * xNexus Core — barrel export.
  */
 
 // Types

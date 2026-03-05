@@ -15,7 +15,7 @@
 
 ## 1. Abstract
 
-This RFC defines the MVP implementation specification for NexusPay Core. Unlike v2's Direct Settlement, v3 adopts an **Escrow Settlement** model: users deposit USDC into the NexusPayEscrow contract via EIP-3009 authorization signatures, and after merchant fulfillment, the Core's Relayer triggers the release.
+This RFC defines the MVP implementation specification for xNexus Core. Unlike v2's Direct Settlement, v3 adopts an **Escrow Settlement** model: users deposit USDC into the xNexusEscrow contract via EIP-3009 authorization signatures, and after merchant fulfillment, the Core's Relayer triggers the release.
 
 Key changes (v2 -> v3):
 1. **Escrow Settlement**: Funds are first locked in a smart contract and released after merchant confirms fulfillment
@@ -36,7 +36,7 @@ Key changes (v2 -> v3):
 ## 3. Architecture
 
 ```
-UA --[MCP/REST]--> NexusPay Core --[Webhook]--> MA
+UA --[MCP/REST]--> xNexus Core --[Webhook]--> MA
                        |
                        +-- Security Module (EIP-712, DID Resolver, Group Sig)
                        +-- Order State Machine (12 states)
@@ -47,7 +47,7 @@ UA --[MCP/REST]--> NexusPay Core --[Webhook]--> MA
                        +-- PostgreSQL (payments, payment_groups, events, merchants, webhook_logs)
                        |
                   PlatON Devnet (chain_id: 20250407)
-                  USDC (ERC-20) + NexusPayEscrow (UUPS Proxy)
+                  USDC (ERC-20) + xNexusEscrow (UUPS Proxy)
 ```
 
 ## 4. Payment Flow (Escrow Settlement)
@@ -200,7 +200,7 @@ Payments are grouped into `PaymentGroup` records for batch processing:
 
 ```typescript
 const NEXUS_QUOTE_DOMAIN = {
-  name: "NexusPay",
+  name: "xNexus",
   version: "1",
   chainId: 20250407,
   verifyingContract: "0x0000000000000000000000000000000000000000",
@@ -299,7 +299,7 @@ CRITICAL: Core MUST resolve payment_address from the merchant_did registry. It M
 ### 8.1 Polling Strategy
 
 - Poll PlatON RPC every 3 seconds for new blocks
-- Filter NexusPayEscrow contract logs for:
+- Filter xNexusEscrow contract logs for:
   - `Deposited(paymentId, payer, merchant, amount, orderRef)`
   - `Released(paymentId, merchant, merchantAmount, feeAmount)`
   - `Refunded(paymentId, payer, amount)`
@@ -361,8 +361,8 @@ Core tables:
 
 | Contract | Address | Type |
 | --- | --- | --- |
-| NexusPayEscrow (Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` | UUPS Proxy |
-| NexusPayEscrow (Impl v4.0.0) | `0x2EF4dB5E0021d074286c36821Cc897d2605e542E` | Implementation |
+| xNexusEscrow (Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` | UUPS Proxy |
+| xNexusEscrow (Impl v4.0.0) | `0x2EF4dB5E0021d074286c36821Cc897d2605e542E` | Implementation |
 | USDC | `0xFF8dEe9983768D0399673014cf77826896F97e4d` | ERC-20 (FiatToken) |
 | Relayer / Core Operator | `0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920` | EOA |
 

@@ -1,6 +1,6 @@
-# NexusPay External URLs & API Reference
+# xNexus External URLs & API Reference
 
-All public-facing URLs, endpoints, and skill.md files for the NexusPay platform.
+All public-facing URLs, endpoints, and skill.md files for the xNexus platform.
 
 ---
 
@@ -150,7 +150,7 @@ Both agents expose identical endpoint patterns:
 | Contract | Address |
 |----------|---------|
 | USDC (FiatToken Proxy) | `0xFF8dEe9983768D0399673014cf77826896F97e4d` |
-| NexusPayEscrow (UUPS Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` |
+| xNexusEscrow (UUPS Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` |
 | Relayer/Owner | `0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920` |
 | RPC | `https://devnet3openapi.platon.network/rpc` |
 

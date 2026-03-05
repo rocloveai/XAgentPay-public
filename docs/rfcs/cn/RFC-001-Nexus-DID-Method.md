@@ -59,7 +59,7 @@ id-char = ALPHA / DIGIT / "_" / "-"
 "service": [
 {
 "id": "#payment",
-"type": "NexusPaymentEndpoint",
+"type": "xNexusmentEndpoint",
 "serviceEndpoint": "eip155:210425:0xTreasurySafeContractAddress..."
 },
 {

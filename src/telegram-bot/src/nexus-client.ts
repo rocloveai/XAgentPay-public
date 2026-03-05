@@ -1,5 +1,5 @@
 /**
- * Telegram Bot — NexusPay Core API client.
+ * Telegram Bot — xNexus Core API client.
  *
  * Fetches payment group status from nexus-core REST API.
  */

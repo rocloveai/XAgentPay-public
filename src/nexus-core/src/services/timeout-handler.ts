@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Timeout Handler.
+ * xNexus Core — Timeout Handler.
  *
  * Periodically scans for expired escrows and submits on-chain refunds
  * via the Relayer. Also delegates to StateMachine.runTimeoutSweep()

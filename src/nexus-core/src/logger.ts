@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Structured JSON Logger.
+ * xNexus Core — Structured JSON Logger.
  *
  * Outputs one JSON object per line to stderr.
  * LOG_LEVEL env controls minimum level (default: "info").

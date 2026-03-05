@@ -12,7 +12,7 @@
 
 ## 1. Abstract
 
-本 RFC 定义 NexusPay Core 向 Merchant Agent 发送支付结果通知的 Webhook 标准。包括事件类型、Payload 格式、HMAC 安全签名、重试策略和幂等性保障。
+本 RFC 定义 xNexus Core 向 Merchant Agent 发送支付结果通知的 Webhook 标准。包括事件类型、Payload 格式、HMAC 安全签名、重试策略和幂等性保障。
 
 ## 2. Motivation
 
@@ -21,7 +21,7 @@
 - 支付超时未完成（以便释放库存）
 - 链上交易失败（以便通知用户重试）
 
-Webhook 是连接 NexusPay Core 与 Merchant Agent 的关键桥梁。
+Webhook 是连接 xNexus Core 与 Merchant Agent 的关键桥梁。
 
 ## 3. Event Types
 
@@ -141,7 +141,7 @@ X-Nexus-Event: payment.settled
 X-Nexus-Delivery-Id: evt_01JAXYZ123
 X-Nexus-Timestamp: 1708766100
 X-Nexus-Signature: sha256=a1b2c3d4e5f6...
-User-Agent: NexusPay-Webhook/1.0
+User-Agent: xNexus-Webhook/1.0
 ```
 
 ### 5.2 Signature Computation

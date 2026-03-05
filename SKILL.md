@@ -1,12 +1,12 @@
 ---
-name: nexuspay-patterns
-description: Coding patterns extracted from the NexusPay payment orchestration monorepo
+name: xnexus-patterns
+description: Coding patterns extracted from the xNexus payment orchestration monorepo
 version: 1.0.0
 source: local-git-analysis
 analyzed_commits: 107
 ---
 
-# NexusPay Patterns
+# xNexus Patterns
 
 ## Commit Conventions
 
@@ -55,8 +55,8 @@ src/
 │   ├── skill.md         # Developer-facing capability manifest
 │   └── skill-user.md    # User-agent-facing simplified guide
 ├── contracts/           # Solidity (Foundry)
-│   ├── src/NexusPayEscrow.sol
-│   ├── test/NexusPayEscrow.t.sol
+│   ├── src/xNexusEscrow.sol
+│   ├── test/xNexusEscrow.t.sol
 │   └── script/          # Deployment scripts
 ├── flight-agent/        # Merchant agent (flights)
 │   └── src/
@@ -104,8 +104,8 @@ __tests__/mocks/mock-payment-repo.ts → MockPaymentRepository (test)
 
 ### Smart Contract Changes
 
-1. Modify `src/contracts/src/NexusPayEscrow.sol`
-2. Add/update tests in `src/contracts/test/NexusPayEscrow.t.sol`
+1. Modify `src/contracts/src/xNexusEscrow.sol`
+2. Add/update tests in `src/contracts/test/xNexusEscrow.t.sol`
 3. Run `forge test` — all tests must pass
 4. Deploy via UUPS proxy upgrade (no address change)
 5. Use `--legacy --with-gas-price 20000000000` for PlatON Devnet
@@ -191,5 +191,5 @@ Files that frequently change together:
 - `server.ts` ↔ `checkout.ts` ↔ `types.ts` (core payment flow)
 - `flight-agent/server.ts` ↔ `hotel-agent/server.ts` (mirrored agents)
 - `flight-agent/portal.ts` ↔ `hotel-agent/portal.ts` (mirrored dashboards)
-- `NexusPayEscrow.sol` ↔ `NexusPayEscrow.t.sol` (contract + tests)
+- `xNexusEscrow.sol` ↔ `xNexusEscrow.t.sol` (contract + tests)
 - `skill.md` files update when tools or endpoints change

@@ -1,7 +1,7 @@
 ---
 name: nexus-marketplace
 version: "0.5.0"
-description: NexusPay Marketplace — discover merchant agents and get their skill files
+description: xNexus Marketplace — discover merchant agents and get their skill files
 protocol: NUPS/1.5
 category: marketplace.discovery
 ---

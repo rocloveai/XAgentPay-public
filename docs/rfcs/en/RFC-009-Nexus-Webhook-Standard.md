@@ -12,7 +12,7 @@
 
 ## 1. Abstract
 
-This RFC defines the Webhook standard for NexusPay Core to send payment result notifications to Merchant Agents. It covers event types, payload format, HMAC security signatures, retry strategy, and idempotency guarantees.
+This RFC defines the Webhook standard for xNexus Core to send payment result notifications to Merchant Agents. It covers event types, payload format, HMAC security signatures, retry strategy, and idempotency guarantees.
 
 ## 2. Motivation
 
@@ -21,7 +21,7 @@ Under the Direct Settlement model, merchants need to be promptly informed of the
 - Payment timed out without completion (to release inventory)
 - On-chain transaction failed (to notify the user to retry)
 
-Webhooks are the critical bridge connecting NexusPay Core and Merchant Agents.
+Webhooks are the critical bridge connecting xNexus Core and Merchant Agents.
 
 ## 3. Event Types
 
@@ -141,7 +141,7 @@ X-Nexus-Event: payment.settled
 X-Nexus-Delivery-Id: evt_01JAXYZ123
 X-Nexus-Timestamp: 1708766100
 X-Nexus-Signature: sha256=a1b2c3d4e5f6...
-User-Agent: NexusPay-Webhook/1.0
+User-Agent: xNexus-Webhook/1.0
 ```
 
 ### 5.2 Signature Computation

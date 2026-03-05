@@ -1,4 +1,4 @@
-# NexusPay Functional Regression Test Cases
+# xNexus Functional Regression Test Cases
 
 ## Environment
 

@@ -22,7 +22,7 @@
 "payment_methods": [
 {
 "type": "urn:ucp:payment:nexus_v1",
-"display_name": "NexusPay (USDC)",
+"display_name": "xNexus (USDC)",
 "payload": {
 // --- A. 商业意图 (Business Intent) ---
 "merchant_did": "did:nexus:20250407:trip_com",

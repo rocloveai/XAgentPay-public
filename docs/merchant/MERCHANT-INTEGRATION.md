@@ -1,8 +1,8 @@
-# NexusPay Merchant Integration Guide — Phase 0
+# xNexus Merchant Integration Guide — Phase 0
 
 ## Overview
 
-Phase 0 integrates existing merchant agents (flight-agent, hotel-agent) with NexusPay Core infrastructure. This covers:
+Phase 0 integrates existing merchant agents (flight-agent, hotel-agent) with xNexus Core infrastructure. This covers:
 
 - **Type alignment** — shared types from `nexus-core` copied into each agent
 - **Quote generation** — EIP-712 signed quote via `buildQuote()`
@@ -109,7 +109,7 @@ Events are deduplicated by `event_id` using an in-memory `Set`. Duplicate delive
 
 ## Status Mapping
 
-| Agent Status | NexusPay Core Status | Trigger |
+| Agent Status | xNexus Core Status | Trigger |
 |-------------|---------------------|---------|
 | `UNPAID` | `CREATED`, `AWAITING_TX`, `BROADCASTED` | Order created |
 | `PAID` | `SETTLED`, `COMPLETED` | `payment.settled` webhook |

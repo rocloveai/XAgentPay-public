@@ -180,7 +180,7 @@ describe("group-signer", () => {
       const isValid = await verifyTypedData({
         address: signerAddress,
         domain: {
-          name: "NexusPay",
+          name: "xNexus",
           version: "1",
           chainId: TEST_CONFIG.chainId,
           verifyingContract: TEST_CONFIG.escrowContract as Address,

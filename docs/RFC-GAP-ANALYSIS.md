@@ -150,7 +150,7 @@ This is a developer experience improvement. Extract common patterns from flight-
 - `PaymentInstruction` with `method: "erc20_transfer"` and `tx_data`
 
 ### Reality
-- **Escrow contract** is used (user deposits to NexusPayEscrow, not direct to merchant)
+- **Escrow contract** is used (user deposits to xNexusEscrow, not direct to merchant)
 - Core's relayer submits release transactions
 - Chain ID: **20250407** (PlatON Devnet)
 - States: CREATED → GROUP_AWAITING_TX → ESCROWED → SETTLED → COMPLETED (+ DISPUTE_OPEN, DISPUTE_RESOLVED, etc.)
@@ -293,7 +293,7 @@ Update RFC-009 event types to include escrow-specific events (`payment.escrowed`
 
 ---
 
-## RFC-010: NexusPay Escrow Contract
+## RFC-010: xNexus Escrow Contract
 
 ### Spec Says
 - EIP-3009 `transferWithAuthorization` + Relayer

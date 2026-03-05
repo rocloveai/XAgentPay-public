@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Group Signer.
+ * xNexus Core — Group Signer.
  *
  * Signs a (groupId, entriesHash, totalAmount) tuple via EIP-712,
  * allowing downstream verification that Nexus Core approved the
@@ -26,7 +26,7 @@ const EIP712_TYPES = {
 
 function buildDomain(config: NexusCoreConfig) {
   return {
-    name: "NexusPay",
+    name: "xNexus",
     version: "1",
     chainId: config.chainId,
     verifyingContract: config.escrowContract as Address,

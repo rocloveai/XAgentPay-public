@@ -15,7 +15,7 @@
 
 ## 1. Abstract
 
-本 RFC 定义 NexusPay Core 的 MVP 实现规范。与 v2 的 Direct Settlement 不同，v3 采用 **Escrow Settlement** 模式：用户通过 EIP-3009 授权签名将 USDC 存入 NexusPayEscrow 合约，商户履约后由 Core 的 Relayer 触发释放。
+本 RFC 定义 xNexus Core 的 MVP 实现规范。与 v2 的 Direct Settlement 不同，v3 采用 **Escrow Settlement** 模式：用户通过 EIP-3009 授权签名将 USDC 存入 xNexusEscrow 合约，商户履约后由 Core 的 Relayer 触发释放。
 
 核心变更（v2 → v3）：
 1. **Escrow Settlement**: 资金先锁定在智能合约中，商户确认履约后释放
@@ -36,7 +36,7 @@
 ## 3. Architecture
 
 ```
-UA --[MCP/REST]--> NexusPay Core --[Webhook]--> MA
+UA --[MCP/REST]--> xNexus Core --[Webhook]--> MA
                        |
                        +-- Security Module (EIP-712, DID Resolver, Group Sig)
                        +-- Order State Machine (12 states)
@@ -47,7 +47,7 @@ UA --[MCP/REST]--> NexusPay Core --[Webhook]--> MA
                        +-- PostgreSQL (payments, payment_groups, events, merchants, webhook_logs)
                        |
                   PlatON Devnet (chain_id: 20250407)
-                  USDC (ERC-20) + NexusPayEscrow (UUPS Proxy)
+                  USDC (ERC-20) + xNexusEscrow (UUPS Proxy)
 ```
 
 ## 4. Payment Flow (Escrow Settlement)
@@ -200,7 +200,7 @@ Payments are grouped into `PaymentGroup` records for batch processing:
 
 ```typescript
 const NEXUS_QUOTE_DOMAIN = {
-  name: "NexusPay",
+  name: "xNexus",
   version: "1",
   chainId: 20250407,
   verifyingContract: "0x0000000000000000000000000000000000000000",
@@ -299,7 +299,7 @@ CRITICAL: Core MUST resolve payment_address from the merchant_did registry. It M
 ### 8.1 Polling Strategy
 
 - Poll PlatON RPC every 3 seconds for new blocks
-- Filter NexusPayEscrow contract logs for:
+- Filter xNexusEscrow contract logs for:
   - `Deposited(paymentId, payer, merchant, amount, orderRef)`
   - `Released(paymentId, merchant, merchantAmount, feeAmount)`
   - `Refunded(paymentId, payer, amount)`
@@ -361,8 +361,8 @@ Core tables:
 
 | Contract | Address | Type |
 | --- | --- | --- |
-| NexusPayEscrow (Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` | UUPS Proxy |
-| NexusPayEscrow (Impl v4.0.0) | `0x2EF4dB5E0021d074286c36821Cc897d2605e542E` | Implementation |
+| xNexusEscrow (Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` | UUPS Proxy |
+| xNexusEscrow (Impl v4.0.0) | `0x2EF4dB5E0021d074286c36821Cc897d2605e542E` | Implementation |
 | USDC | `0xFF8dEe9983768D0399673014cf77826896F97e4d` | ERC-20 (FiatToken) |
 | Relayer / Core Operator | `0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920` | EOA |
 

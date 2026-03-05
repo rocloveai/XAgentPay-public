@@ -26,7 +26,7 @@ coreUrl: "https://api.nexus.xyz" // Nexus Core MCP/API Endpoint
 本工具包暴露三个核心 Skill。每个 Skill 都包含标准的 `name`, `description` (Prompt), `schema` (Zod)，可直接注入 Agent 框架。
 ### 🛡️ Skill 1: `PreparePayment` (支付编排)
 **定位：** 将 UCP 的“报价”转化为“待签名的交易”。
-**LLM 认知：** "当商户返回 NexusPay 报价时，使用此工具进行预处理和风控检查。"
+**LLM 认知：** "当商户返回 xNexus 报价时，使用此工具进行预处理和风控检查。"
 * **Tool Name:** `nexus_prepare_transaction`
 * **Description:** "Analyzes a UCP payment quote, performs risk checks via Nexus Core, and generates a signable blockchain transaction manifest."
 * **Input Schema:**

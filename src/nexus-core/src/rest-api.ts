@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Stateless REST API routes.
+ * xNexus Core — Stateless REST API routes.
  *
  * Pure HTTP endpoints for LLM tools that cannot use MCP SSE transport.
  * All endpoints are stateless — no session or cookie required.

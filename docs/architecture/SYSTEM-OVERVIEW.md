@@ -1,4 +1,4 @@
-# NexusPay System Overview
+# xNexus System Overview
 
 ## RFC Summary
 
@@ -14,7 +14,7 @@
 | RFC-007 | Core Agentic Interface | Hub-Spoke 跨链托管 + Buyer/Seller Plugin | Final Spec (Future) |
 | RFC-008 | NMSS (Merchant Skill) | skill.md 标准 + 工具角色分类 | Draft |
 | RFC-009 | Webhook Standard | 支付结果回调 + HMAC + 重试策略 | **v1.1.0 (Implemented)** |
-| RFC-010 | NexusPay Escrow Contract | 智能合约担保支付 + 批量存款 + Group 签名 | **v2.0.0 (Deployed)** |
+| RFC-010 | xNexus Escrow Contract | 智能合约担保支付 + 批量存款 + Group 签名 | **v2.0.0 (Deployed)** |
 | NBSS | Buyer Skills Standard | User Agent 标准接入 SDK | Draft (Future) |
 
 ## Architecture: MVP (Escrow Settlement — Current)
@@ -27,7 +27,7 @@
 +------------------------+------------------------+
                          | MCP Protocol / HTTP 402
 +------------------------v------------------------+
-|          NexusPay Core (RFC-005v3 + RFC-010)     |
+|          xNexus Core (RFC-005v3 + RFC-010)     |
 |  +-------------+ +-----------+ +-------------+  |
 |  |  Security   | |  Order    | |  Chain      |  |
 |  |  Module     | |  State    | |  Watcher    |  |
@@ -62,7 +62,7 @@
 +------------------------v------------------------+
 |             XLayer Mainnet                      |
 |             chain_id: 196                        |
-|  USDC (ERC-20)     NexusPayEscrow (UUPS Proxy)  |
+|  USDC (ERC-20)     xNexusEscrow (UUPS Proxy)  |
 |  EIP-3009          batchDeposit / release /      |
 |                    refund / dispute / resolve     |
 +-------------------------------------------------+
@@ -128,8 +128,8 @@
 
 | Contract | Address | Type |
 |----------|---------|------|
-| NexusPayEscrow (Proxy) | `0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2` | UUPS Proxy |
-| NexusPayEscrow (Impl v4.0.0) | `0x81CF9E0d2c1ad879c24b19815Ec803015D5B2e9b` | Implementation |
+| xNexusEscrow (Proxy) | `0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2` | UUPS Proxy |
+| xNexusEscrow (Impl v4.0.0) | `0x81CF9E0d2c1ad879c24b19815Ec803015D5B2e9b` | Implementation |
 | USDC | `0x74b7F16337b8972027F6196A17a631aC6dE26d22` | ERC-20 (FiatToken) |
 | Core Operator | `0xaC9d5239b597f8903DA93b9B8D92E6CfF564e989` | EOA |
 
@@ -137,4 +137,4 @@
 
 | Document | Path | Description |
 |----------|------|-------------|
-| PRD-001 | docs/prd/PRD-001-NexusPay-Core.md | NexusPay Core 完整产品需求文档 |
+| PRD-001 | docs/prd/PRD-001-xNexus-Core.md | xNexus Core 完整产品需求文档 |

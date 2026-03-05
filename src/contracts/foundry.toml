@@ -17,3 +17,9 @@ depth = 15
 [rpc_endpoints]
 platon_mainnet = "${PLATON_RPC_URL}"
 platon_devnet = "https://devnet3openapi.platon.network/rpc"
+xlayer_mainnet = "https://rpc.xlayer.tech"
+xlayer_testnet = "https://testrpc.xlayer.tech"
+
+[etherscan]
+xlayer_mainnet = { key = "${OKLINK_API_KEY}", url = "https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER" }
+xlayer_testnet = { key = "${OKLINK_API_KEY}", url = "https://www.oklink.com/api/v5/explorer/contract/verify-source-code-plugin/XLAYER_TEST" }

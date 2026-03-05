@@ -1,4 +1,4 @@
-# NexusPay — Open Issues
+# xNexus — Open Issues
 
 ## ISSUE-001: EIP-3009 "invalid signature" on PlatON Devnet USDC
 
@@ -47,7 +47,7 @@ Thorough investigation confirmed:
 
 ---
 
-## ISSUE-002: NexusPayEscrow timeouts misconfigured for PlatON ms timestamps
+## ISSUE-002: xNexusEscrow timeouts misconfigured for PlatON ms timestamps
 
 **Status:** FIXED
 **Priority:** Medium
@@ -73,8 +73,8 @@ Implementation: `0x2EF4dB5E0021d074286c36821Cc897d2605e542E`
 
 ### Description
 
-Commit `92a787b8` accidentally reverted `NexusPayEscrow.sol` from v4.0.0 (798 lines) to v3.0.0 (605 lines), losing `batchDepositWithGroupApproval`, `requireGroupSig`, and all audit fixes. On-chain contract was unaffected (still v4.0.0).
+Commit `92a787b8` accidentally reverted `xNexusEscrow.sol` from v4.0.0 (798 lines) to v3.0.0 (605 lines), losing `batchDepositWithGroupApproval`, `requireGroupSig`, and all audit fixes. On-chain contract was unaffected (still v4.0.0).
 
 ### Resolution
 
-Restored from `git checkout 49214a1a -- src/contracts/src/NexusPayEscrow.sol` in commit `ce86cbde`. All 98 Solidity tests pass.
+Restored from `git checkout 49214a1a -- src/contracts/src/xNexusEscrow.sol` in commit `ce86cbde`. All 98 Solidity tests pass.

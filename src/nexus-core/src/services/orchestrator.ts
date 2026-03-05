@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Orchestrator.
+ * xNexus Core — Orchestrator.
  *
  * Top-level payment orchestration pipeline:
  * 1. Verify signatures + DID resolution

@@ -26,7 +26,7 @@ coreUrl: "https://api.nexus.xyz" // Nexus Core MCP/API Endpoint
 This toolkit exposes three core Skills. Each Skill includes standard `name`, `description` (Prompt), and `schema` (Zod), which can be directly injected into Agent frameworks.
 ### Skill 1: `PreparePayment` (Payment Orchestration)
 **Positioning:** Transforms a UCP "quote" into a "signable transaction".
-**LLM Cognition:** "When a merchant returns a NexusPay quote, use this tool to perform preprocessing and risk control checks."
+**LLM Cognition:** "When a merchant returns a xNexus quote, use this tool to perform preprocessing and risk control checks."
 * **Tool Name:** `nexus_prepare_transaction`
 * **Description:** "Analyzes a UCP payment quote, performs risk checks via Nexus Core, and generates a signable blockchain transaction manifest."
 * **Input Schema:**

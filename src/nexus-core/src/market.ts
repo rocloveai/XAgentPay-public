@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Agent Marketplace.
+ * xNexus Core — Agent Marketplace.
  *
  * Serves the marketplace HTML page and JSON API endpoints for
  * browsing, registering, and discovering merchant agent skills.

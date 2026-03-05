@@ -1,4 +1,4 @@
-# NexusPay Core 系统设计文档
+# xNexus Core 系统设计文档
 
 | 元数据 | 内容 |
 | --- | --- |
@@ -33,7 +33,7 @@
                │ MCP (Stdio/SSE)              │ Webhook HTTP POST
                ▼                              │
 ┌──────────────────────────────────────────────────────────────────────┐
-│                      NexusPay Core Service                           │
+│                      xNexus Core Service                           │
 │                                                                      │
 │  ┌─────────────────┐   ┌──────────────────┐   ┌──────────────────┐  │
 │  │  M1: 安全模块    │   │ M2: 支付路由模块  │   │ M3: 指令构建模块  │  │
@@ -80,7 +80,7 @@
                            │ (另行并行开发)
               ┌────────────▼────────────────────────┐
               │      PlatON 链 (chain_id: 210425)   │
-              │  NexusPayEscrow.sol (M9)             │
+              │  xNexusEscrow.sol (M9)             │
               │  USDC (ERC-20 + EIP-3009)            │
               └─────────────────────────────────────┘
 ```
@@ -336,7 +336,7 @@ COMPLETED, EXPIRED, TX_FAILED, RISK_REJECTED, REFUNDED, DISPUTE_RESOLVED
 
 ### M5: ChainWatcher (链上监听模块)
 
-**职责**：持续轮询 PlatON 链，捕获 USDC Transfer 事件和 NexusPayEscrow 合约事件，驱动订单状态更新。
+**职责**：持续轮询 PlatON 链，捕获 USDC Transfer 事件和 xNexusEscrow 合约事件，驱动订单状态更新。
 
 **对外接口**：
 
@@ -381,7 +381,7 @@ export interface ChainEventHandler {
 chain/
 ├── platon-client.ts       # createPublicClient (viem), PlatON RPC
 ├── usdc-watcher.ts        # 过滤 USDC Transfer logs
-├── escrow-watcher.ts      # 过滤 NexusPayEscrow 事件 logs
+├── escrow-watcher.ts      # 过滤 xNexusEscrow 事件 logs
 ├── tx-tracker.ts          # 单笔交易追踪 (轮询 receipt)
 └── chain-watcher.ts       # 编排以上子模块
 ```
@@ -397,7 +397,7 @@ chain/
 
 ### M6: RelayerService (Relayer 代付模块)
 
-**职责**：持有 LAT，代用户将 EIP-3009 签名提交到 NexusPayEscrow 合约，并代 Core 调用 release/refund。
+**职责**：持有 LAT，代用户将 EIP-3009 签名提交到 xNexusEscrow 合约，并代 Core 调用 release/refund。
 
 **对外接口**：
 
@@ -591,7 +591,7 @@ db/migrations/
 
 ### M9: EscrowContract (智能合约模块)
 
-**职责**：部署在 PlatON 链上的 NexusPayEscrow.sol，独立于 Core Service 开发，通过链上事件与 Core 交互。
+**职责**：部署在 PlatON 链上的 xNexusEscrow.sol，独立于 Core Service 开发，通过链上事件与 Core 交互。
 
 **合约接口（已由 RFC-010 完整定义）**：
 
@@ -616,11 +616,11 @@ function resolve(bytes32 _paymentId, bool _toMerchant, uint256 _merchantAmount)
 ```
 src/contracts/
 ├── src/
-│   └── NexusPayEscrow.sol         # 合约主体
+│   └── xNexusEscrow.sol         # 合约主体
 ├── test/
-│   ├── NexusPayEscrow.t.sol       # 单元 + 集成测试
-│   ├── NexusPayEscrow.fuzz.t.sol  # 模糊测试
-│   └── NexusPayEscrow.inv.t.sol   # 不变量测试
+│   ├── xNexusEscrow.t.sol       # 单元 + 集成测试
+│   ├── xNexusEscrow.fuzz.t.sol  # 模糊测试
+│   └── xNexusEscrow.inv.t.sol   # 不变量测试
 ├── script/
 │   ├── Deploy.s.sol               # 部署脚本
 │   └── Verify.s.sol               # 验证脚本
@@ -846,13 +846,13 @@ npm test src/modules/payment/   # 全部通过
 
 ### Phase 2: Escrow 智能合约（预估 5-7 天，与 Phase 1 可部分并行）
 
-**目标**：NexusPayEscrow.sol 在 PlatON 测试网部署完毕，通过 Foundry 全量测试。
+**目标**：xNexusEscrow.sol 在 PlatON 测试网部署完毕，通过 Foundry 全量测试。
 
 **任务**：
 
 | 编号 | 任务 | 负责模块 |
 | --- | --- | --- |
-| P2-1 | 实现 NexusPayEscrow.sol 核心逻辑（depositWithAuthorization, release, refund, dispute, resolve） | M9 |
+| P2-1 | 实现 xNexusEscrow.sol 核心逻辑（depositWithAuthorization, release, refund, dispute, resolve） | M9 |
 | P2-2 | 编写 Foundry 单元测试（每个函数的正常路径 + 权限校验 + 状态机非法转换） | M9 |
 | P2-3 | 编写 fuzz 测试（金额边界、任意地址、任意 nonce） | M9 |
 | P2-4 | 编写 invariant 测试（合约余额 = sum(DEPOSITED.amount)） | M9 |
@@ -865,7 +865,7 @@ npm test src/modules/payment/   # 全部通过
 cd src/contracts
 forge test -vvv              # 全部通过
 forge coverage              # 覆盖率 > 90%
-slither src/NexusPayEscrow.sol  # 无 HIGH 告警
+slither src/xNexusEscrow.sol  # 无 HIGH 告警
 # PlatON 测试网合约地址: 0x...（记录在配置文件中）
 ```
 
@@ -1016,7 +1016,7 @@ Phase 5 ────────────────────────
 
 ### ADR-003: Relayer 作为 Core 子模块而非独立服务
 
-**决策**：Relayer 以模块形式嵌入 NexusPay Core 进程，不作为独立微服务部署。
+**决策**：Relayer 以模块形式嵌入 xNexus Core 进程，不作为独立微服务部署。
 
 **理由**：
 - MVP 阶段复杂度控制：避免引入服务间通信、认证等新问题

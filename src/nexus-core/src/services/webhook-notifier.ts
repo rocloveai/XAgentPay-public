@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Webhook Notifier.
+ * xNexus Core — Webhook Notifier.
  *
  * Sends HMAC-SHA256 signed webhook notifications to merchants on
  * payment state changes. Implements exponential backoff retry.

@@ -1,5 +1,5 @@
 /**
- * NexusPay Core — Group manager.
+ * xNexus Core — Group manager.
  *
  * Manages PaymentGroup lifecycle: creation, status aggregation.
  */

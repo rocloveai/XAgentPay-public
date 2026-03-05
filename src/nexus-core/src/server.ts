@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * NexusPay Core — MCP Server.
+ * xNexus Core — MCP Server.
  *
  * Exposes payment orchestration as MCP tools.
  * Dual transport: stdio (default) + Streamable HTTP (stateless).
