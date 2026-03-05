@@ -22,7 +22,7 @@ import {
   validateConfig,
   type TransportMode,
 } from "./config.js";
-import { initPool, closePool } from "./db/pool.js";
+import { initPool, closePool, runStartupMigrations } from "./db/pool.js";
 import { NeonPaymentRepository } from "./db/payment-repo.js";
 import { NeonMerchantRepository } from "./db/merchant-repo.js";
 import { NeonEventRepository } from "./db/event-repo.js";
@@ -82,6 +82,9 @@ if (configErrors.length > 0) {
 // Initialize DB pool if DATABASE_URL is set
 if (config.databaseUrl) {
   initPool(config.databaseUrl);
+  runStartupMigrations().catch((err) =>
+    console.error("[DB] runStartupMigrations error:", err),
+  );
 }
 
 // Repositories

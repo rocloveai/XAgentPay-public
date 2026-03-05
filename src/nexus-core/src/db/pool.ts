@@ -34,3 +34,23 @@ export async function closePool(): Promise<void> {
     pool = null;
   }
 }
+
+/**
+ * Idempotent schema migrations run on every startup.
+ * Safe to run repeatedly — all statements use IF NOT EXISTS / IF EXISTS guards.
+ */
+export async function runStartupMigrations(): Promise<void> {
+  if (!pool) return;
+  const migrations = [
+    // 012: skill_user_url column for HTTP REST API docs link
+    `ALTER TABLE merchant_registry ADD COLUMN IF NOT EXISTS skill_user_url TEXT`,
+  ];
+  for (const sql of migrations) {
+    try {
+      await pool.query(sql);
+    } catch (err) {
+      console.error("[DB] Startup migration failed:", sql, err);
+    }
+  }
+  console.error("[DB] Startup migrations complete");
+}
