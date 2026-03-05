@@ -5,8 +5,8 @@ description: NexusPay Core — payment orchestration MCP server for multi-mercha
 protocol: NUPS/1.5
 category: finance.payment
 currencies: [USDC]
-chain_id: 20250407
-escrow_proxy: "0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236"
+chain_id: 196
+escrow_proxy: "0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2"
 tools:
   - name: nexus_orchestrate_payment
     role: orchestrate
@@ -76,7 +76,7 @@ The `config` object is a `NexusQuotePayload` with these required fields:
 
 ```
 nexus_orchestrate_payment({
-  quotes_json: "[{\"merchant_did\":\"did:nexus:20250407:demo_flight\",\"merchant_order_ref\":\"FLT-001\",\"amount\":\"100000\",\"currency\":\"USDC\",\"chain_id\":20250407,\"expiry\":9999999999,\"context\":{\"summary\":\"Flight\",\"line_items\":[]},\"signature\":\"0x...\"}]",
+  quotes_json: "[{\"merchant_did\":\"did:nexus:196:demo_flight\",\"merchant_order_ref\":\"FLT-001\",\"amount\":\"100000\",\"currency\":\"USDC\",\"chain_id\":196,\"expiry\":9999999999,\"context\":{\"summary\":\"Flight\",\"line_items\":[]},\"signature\":\"0x...\"}]",
   payer_wallet: "0xUserWalletAddress"
 })
 ```
@@ -214,7 +214,7 @@ Fetch the full skill.md content for a specific merchant agent.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `merchant_did` | string | Yes | Merchant DID (e.g. `did:nexus:20250407:demo_flight`) |
+| `merchant_did` | string | Yes | Merchant DID (e.g. `did:nexus:196:demo_flight`) |
 
 ---
 
@@ -244,7 +244,8 @@ Checkout URLs use short-lived tokens (`tok_...`) instead of raw group IDs. Token
 
 ## Contract
 
-- **Escrow Proxy (UUPS):** `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` (stable address, upgradeable)
-- **USDC:** `0xFF8dEe9983768D0399673014cf77826896F97e4d`
-- **Chain:** PlatON Devnet (chainId `20250407`)
-- **RPC:** `https://devnet3openapi.platon.network/rpc`
+- **Escrow Proxy (UUPS):** `0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2` (stable address, upgradeable)
+- **USDC:** `0x74b7F16337b8972027F6196A17a631aC6dE26d22`
+- **Chain:** XLayer Mainnet (chainId `196`)
+- **RPC:** `https://rpc.xlayer.tech`
+- **Explorer:** `https://www.oklink.com/xlayer`

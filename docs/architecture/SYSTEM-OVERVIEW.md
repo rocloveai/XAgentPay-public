@@ -9,7 +9,7 @@
 | RFC-003 | NAIS (Agent Interface) | Agent 技能定义 + MCP 适配规范 | Draft |
 | RFC-004 | NCS (Client Standard) | 商户 SDK 三种接入模式 | Draft |
 | RFC-005 | Payment Core Spec | 编排引擎 + 状态机 + MCP Server (Full Vision) | Draft |
-| RFC-005v3 | Payment Core MVP | **Escrow Settlement on PlatON + Group Payments** | **Draft (CURRENT)** |
+| RFC-005v3 | Payment Core MVP | **Escrow Settlement on XLayer + Group Payments** | **Draft (CURRENT)** |
 | RFC-006 | Risk Gatekeeper | 混合风控 (链下AI + 链上Permit) | Draft (Future) |
 | RFC-007 | Core Agentic Interface | Hub-Spoke 跨链托管 + Buyer/Seller Plugin | Final Spec (Future) |
 | RFC-008 | NMSS (Merchant Skill) | skill.md 标准 + 工具角色分类 | Draft |
@@ -60,8 +60,8 @@
 +------------------------+------------------------+
                          |
 +------------------------v------------------------+
-|             PlatON Blockchain                    |
-|             chain_id: 20250407                   |
+|             XLayer Mainnet                      |
+|             chain_id: 196                        |
 |  USDC (ERC-20)     NexusPayEscrow (UUPS Proxy)  |
 |  EIP-3009          batchDeposit / release /      |
 |                    refund / dispute / resolve     |
@@ -99,7 +99,7 @@
 |  NexusMerchantRegistry (RFC-001 DID)             |
 |  NexusRouter + Escrow (Settlement)               |
 |  NexusRiskController (Permit Verification)       |
-|  Hub: PlatON | Spokes: Base, Ethereum            |
+|  Hub: XLayer Mainnet | Spokes: Base, Ethereum            |
 +-------------------------------------------------+
 ```
 
@@ -107,7 +107,7 @@
 
 ### MVP Phase (Current - RFC-005v3 + RFC-010 v2.0)
 1. **Escrow Settlement**: 用户通过 EIP-3009 签名存入 Escrow 合约，商户履约后释放
-2. **PlatON Devnet**: 仅支持 PlatON 链 (chain_id: 20250407)
+2. **XLayer Mainnet**: 支持 XLayer 链 (chain_id: 196)
 3. **MCP + REST + Checkout**: MCP 协议为主，同时提供 REST API 和浏览器 Checkout 页面
 4. **Group/Batch Payments**: 多笔支付聚合为一组，一次链上交易
 5. **Group Signature (Anti-MITM)**: EIP-712 签名验证防止交易参数篡改
@@ -124,14 +124,14 @@
 5. **Draft-then-Finalize**: 用户先选链再生成 MPC 托管地址 (RFC-007)
 6. **Buyer SDK**: `@nexus/buyer-skills` 标准化 User Agent 接入
 
-## Deployed Addresses (PlatON Devnet, chain_id: 20250407)
+## Deployed Addresses (XLayer Mainnet, chain_id: 196)
 
 | Contract | Address | Type |
 |----------|---------|------|
-| NexusPayEscrow (Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` | UUPS Proxy |
-| NexusPayEscrow (Impl v4.0.0) | `0x2EF4dB5E0021d074286c36821Cc897d2605e542E` | Implementation |
-| USDC | `0xFF8dEe9983768D0399673014cf77826896F97e4d` | ERC-20 (FiatToken) |
-| Relayer / Core Operator | `0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920` | EOA |
+| NexusPayEscrow (Proxy) | `0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2` | UUPS Proxy |
+| NexusPayEscrow (Impl v4.0.0) | `0x81CF9E0d2c1ad879c24b19815Ec803015D5B2e9b` | Implementation |
+| USDC | `0x74b7F16337b8972027F6196A17a631aC6dE26d22` | ERC-20 (FiatToken) |
+| Core Operator | `0xaC9d5239b597f8903DA93b9B8D92E6CfF564e989` | EOA |
 
 ## PRD Reference
 

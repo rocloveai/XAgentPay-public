@@ -5,7 +5,7 @@ description: NexusPay Core — HTTP REST API for multi-merchant aggregated escro
 protocol: NUPS/1.5
 category: finance.payment
 currencies: [USDC]
-chain_id: 20250407
+chain_id: 196
 ---
 
 # Nexus Core — HTTP REST API
@@ -26,11 +26,11 @@ curl -X POST https://api.nexus-mvp.topos.one/api/orchestrate \
   -d '{
     "quotes": [
       {
-        "merchant_did": "did:nexus:20250407:demo_flight",
+        "merchant_did": "did:nexus:196:demo_flight",
         "merchant_order_ref": "FLT-001",
         "amount": "100000",
         "currency": "USDC",
-        "chain_id": 20250407,
+        "chain_id": 196,
         "expiry": 9999999999,
         "context": {"summary": "Flight SFO-LAX", "line_items": []},
         "signature": "0x..."
@@ -58,12 +58,12 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
   "checkout_url": "https://api.nexus-mvp.topos.one/checkout/tok_...",
   "instruction": {
     "group_id": "grp_...",
-    "chain_id": 20250407,
-    "chain_name": "PlatON Devnet",
-    "rpc_url": "https://devnet3openapi.platon.network/rpc",
+    "chain_id": 196,
+    "chain_name": "XLayer Mainnet",
+    "rpc_url": "https://rpc.xlayer.tech",
     "payment_method": "ESCROW_CONTRACT",
-    "escrow_contract": "0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236",
-    "token_address": "0xFF8dEe9983768D0399673014cf77826896F97e4d",
+    "escrow_contract": "0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2",
+    "token_address": "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
     "token_symbol": "USDC",
     "token_decimals": 6,
     "total_amount_uint256": "100000",
@@ -71,7 +71,7 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
     "payments": [
       {
         "nexus_payment_id": "PAY-...",
-        "merchant_did": "did:nexus:20250407:demo_flight",
+        "merchant_did": "did:nexus:196:demo_flight",
         "merchant_order_ref": "FLT-001",
         "merchant_address": "0x...",
         "amount_uint256": "100000",
@@ -224,7 +224,7 @@ Response (HTTP 200):
   "http_status": 200,
   "agents": [
     {
-      "merchant_did": "did:nexus:20250407:demo_flight",
+      "merchant_did": "did:nexus:196:demo_flight",
       "name": "Demo Flight Agent",
       "description": "Book flights with USDC",
       "category": "travel.flights",
@@ -246,7 +246,7 @@ Response (HTTP 200):
 Fetch the full skill.md content for a specific merchant agent. Returns `text/markdown`.
 
 ```bash
-curl https://api.nexus-mvp.topos.one/api/agents/did:nexus:20250407:demo_flight/skill
+curl https://api.nexus-mvp.topos.one/api/agents/did:nexus:196:demo_flight/skill
 ```
 
 ### Rate Limits
@@ -275,7 +275,8 @@ Checkout URLs use short-lived tokens (`tok_...`) instead of raw group IDs. Token
 
 ## Contract
 
-- **Escrow Proxy (UUPS):** `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` (stable address, upgradeable)
-- **USDC:** `0xFF8dEe9983768D0399673014cf77826896F97e4d`
-- **Chain:** PlatON Devnet (chainId `20250407`)
-- **RPC:** `https://devnet3openapi.platon.network/rpc`
+- **Escrow Proxy (UUPS):** `0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2` (stable address, upgradeable)
+- **USDC:** `0x74b7F16337b8972027F6196A17a631aC6dE26d22`
+- **Chain:** XLayer Mainnet (chainId `196`)
+- **RPC:** `https://rpc.xlayer.tech`
+- **Explorer:** `https://www.oklink.com/xlayer`

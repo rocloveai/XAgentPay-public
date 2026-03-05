@@ -175,13 +175,15 @@ describe("handleRestApiRequest", () => {
 - **Portal auth** — Bearer token for admin dashboard
 - **Webhook HMAC** — signed webhook payloads to merchant agents
 
-## PlatON Devnet Specifics
+## XLayer Mainnet Specifics
 
-- `block.timestamp` in **milliseconds** inside EVM (not seconds)
-- All on-chain timestamp comparisons must use milliseconds
-- Requires `--legacy` flag for Foundry deployments
-- Gas price minimum ~10 gwei, recommended 20 gwei
-- No EIP-1559 support, no tx replacement without `--legacy`
+- Chain ID: `196`
+- RPC: `https://rpc.xlayer.tech`
+- Explorer: `https://www.oklink.com/xlayer`
+- Native gas token: OKB
+- `block.timestamp` in **seconds** (standard EVM)
+- Supports EIP-1559 transactions
+- USDC (native): `0x74b7F16337b8972027F6196A17a631aC6dE26d22`
 
 ## File Co-Change Patterns
 
