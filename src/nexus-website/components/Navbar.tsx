@@ -24,11 +24,11 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center gap-2">
             <a href="#/" className="flex items-center gap-2 cursor-pointer">
-              <div className="w-8 h-8 rounded bg-gradient-to-br from-primary to-accent-cyan flex items-center justify-center shadow-lg shadow-primary/20">
-                <span className="material-icons-round text-white text-sm">
-                  hub
-                </span>
-              </div>
+              <img
+                src="/logo.png"
+                alt="XAgent Pay"
+                className="w-8 h-8 object-contain invert"
+              />
               <span className="text-2xl font-bold tracking-wider text-white">
                 XAgent Pay
               </span>

@@ -14,11 +14,11 @@ const Footer: React.FC = () => {
           {/* Brand */}
           <div className="max-w-xs">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
-                <span className="material-icons-round text-white text-[10px]">
-                  hub
-                </span>
-              </div>
+              <img
+                src="/logo.png"
+                alt="XAgent Pay"
+                className="w-6 h-6 object-contain invert"
+              />
               <span className="text-xl font-bold text-white">XAgent Pay</span>
             </div>
             <p className="text-gray-500 text-sm mb-4">{t("footer.tagline")}</p>
