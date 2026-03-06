@@ -42,7 +42,7 @@ Show full order summary and ask for explicit payment confirmation:
 
 ### Checkpoint 3 — After payment (NOTIFY)
 After payment transactions are submitted:
-1. Call `POST https://nexus-telegram-bot-8fzu.onrender.com/start-order-panel` with chatId `REDACTED_CHAT_ID`
+1. Call `POST https://nexus-telegram-bot-8fzu.onrender.com/start-order-panel` with chatId `REDACTED_GROUP_CHAT_ID` (群组「Roc,E」)
 2. Tell user: "订单卡片已发到你的 Telegram（@xagentpay_orders_bot），请查看实时状态"
 3. Report tx hashes
 

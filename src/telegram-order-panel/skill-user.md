@@ -95,7 +95,8 @@ After payment:
 
 ## Important Notes
 
-- **Roc's Telegram chat_id is `REDACTED_CHAT_ID`** — use this by default when booking for Roc
+- **Default chat_id is `REDACTED_GROUP_CHAT_ID`** (群组「Roc,E」) — use this by default for ALL order panels
+- Roc's personal chat_id is `REDACTED_CHAT_ID` (fallback)
 - **Base URL**: `https://nexus-telegram-bot-8fzu.onrender.com`
 - After calling `/start-order-panel`, tell the user: "订单卡片已发送到你的 Telegram，请查看并点击支付按钮完成支付"
 - Do NOT also send a manual text summary — the card replaces that

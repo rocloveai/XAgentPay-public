@@ -10,7 +10,8 @@ category: notification.telegram
 
 **Base URL:** `https://nexus-telegram-bot-8fzu.onrender.com`
 
-**Roc's Telegram chat_id: `REDACTED_CHAT_ID`** — use this by default when booking for Roc.
+**Default chat_id: `REDACTED_GROUP_CHAT_ID`** (群组「Roc,E」) — use this by default for ALL order panels.
+> Roc's personal chat_id is `REDACTED_CHAT_ID` (fallback if not in group context).
 
 > This service uses **@xagentpay_orders_bot** (dedicated notification bot, separate from Eva).
 > Eva's conversation bot is unaffected.
@@ -25,7 +26,7 @@ Use this after completing a flight+hotel booking. It sends a live card that poll
 
 ```json
 {
-  "chatId": "REDACTED_CHAT_ID",
+  "chatId": "REDACTED_GROUP_CHAT_ID",
   "groupId": "GRP-xxxx",
   "checkoutUrl": "https://nexus-core-r0xf.onrender.com/checkout/tok_xxx",
   "outRef": "FLT-20260307-001",
