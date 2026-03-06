@@ -246,7 +246,7 @@ describe("Checkout", () => {
       expect(handled).toBe(true);
       expect(res.statusCode).toBe(200);
       expect(res.headers["Content-Type"]).toContain("text/html");
-      expect(res.body).toContain("xNexus Checkout");
+      expect(res.body).toContain("XAgent Checkout");
       expect(res.body).toContain("tailwind");
     });
 
@@ -577,7 +577,7 @@ describe("Checkout", () => {
       expect(handled).toBe(true);
       expect(res.statusCode).toBe(200);
       expect(res.headers["Content-Type"]).toContain("text/html");
-      expect(res.body).toContain("xNexus Checkout");
+      expect(res.body).toContain("XAgent Checkout");
     });
 
     it("GET /api/checkout/:token resolves token and returns JSON", async () => {
