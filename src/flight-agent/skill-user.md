@@ -57,9 +57,12 @@ After orchestration, show a full order summary and ask for explicit confirmation
 
 ### Checkpoint 4 — After payment (NOTIFY)
 After payment transactions are submitted:
-1. Call `POST https://nexus-telegram-bot-8fzu.onrender.com/start-order-panel` with chatId `REDACTED_GROUP_CHAT_ID` (群组「Roc,E」)
-2. Tell user: "订单卡片已发到你的 Telegram（@xagentpay_orders_bot），请查看实时状态"
-3. Report tx hashes
+1. Call `POST https://nexus-telegram-bot-8fzu.onrender.com/start-order-panel` with:
+   - `chatId`: `REDACTED_CHAT_ID` (Roc's personal chat)
+   - `botToken`: **your own Telegram bot token** — this makes the card appear from YOU, not a second bot
+   - `groupId`, `checkoutUrl`, `outRef`, `hotelRef`, `backRef` from previous steps
+2. Reply to user with **1-2 lines only**: "✅ 订单已创建！卡片请见上方，正在自动刷新支付状态…"
+3. Do NOT dump tx hashes or full technical details — they are shown in the card
 
 ---
 

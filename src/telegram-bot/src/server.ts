@@ -36,6 +36,8 @@ interface OrderPanelState {
   hotelRef: string | null;
   backRef: string | null;
   messageId: number | null;
+  /** When Eva passes her own bot token, we use it instead of the Orders bot. */
+  customTgClient: TelegramClient | null;
 }
 
 interface OrderPanelJob {
@@ -95,6 +97,15 @@ function buildPanelKeyboard(state: OrderPanelState, allPaid: boolean) {
   if (allPaid) {
     return { inline_keyboard: [[{ text: "✅ 支付完成", callback_data: "noop" }]] };
   }
+  // When a custom token is used (Eva's own bot), omit the manual-refresh button
+  // because callback_query would be routed to Eva's bot (OpenClaw), not our webhook.
+  if (state.customTgClient) {
+    return {
+      inline_keyboard: [
+        [{ text: "💳 去收银台支付", url: state.checkoutUrl }],
+      ],
+    };
+  }
   return {
     inline_keyboard: [
       [{ text: "💳 去收银台支付", url: state.checkoutUrl }],
@@ -103,7 +114,9 @@ function buildPanelKeyboard(state: OrderPanelState, allPaid: boolean) {
   };
 }
 
-async function updatePanelMessage(state: OrderPanelState, tgClient: TelegramClient): Promise<boolean> {
+async function updatePanelMessage(state: OrderPanelState, tgClient: TelegramClient, _unused?: unknown): Promise<boolean> {
+  // Always prefer state.customTgClient so the card is edited by the same bot that sent it.
+  tgClient = state.customTgClient ?? tgClient;
   const [out, hotel, back] = await Promise.all([
     checkMerchantStatus(state.outRef,   "flight"),
     checkMerchantStatus(state.hotelRef, "hotel"),
@@ -331,6 +344,14 @@ const StartOrderPanelSchema = z.object({
   hotelRef: z.string().optional().nullable(),
   backRef: z.string().optional().nullable(),
   intervalSec: z.number().optional(),
+  /**
+   * Optional: Eva (OpenClaw) can pass her own Telegram bot token here.
+   * When provided, the order card is sent by Eva's bot instead of the Orders bot,
+   * making the whole booking conversation appear as a single bot — no second bot needed.
+   * Auto-refresh still works (every ~10 s); manual-refresh button is omitted to avoid
+   * callback_query routing issues.
+   */
+  botToken: z.string().optional(),
 });
 
 async function handleStartOrderPanel(
@@ -349,11 +370,14 @@ async function handleStartOrderPanel(
     return;
   }
 
-  const { chatId, groupId, checkoutUrl, outRef, hotelRef, backRef, intervalSec } = result.data;
+  const { chatId, groupId, checkoutUrl, outRef, hotelRef, backRef, intervalSec, botToken } = result.data;
 
   // Cancel previous job for this group (idempotent)
   const prev = panelJobs.get(groupId);
   if (prev) { clearInterval(prev.timer); panelJobs.delete(groupId); }
+
+  // If Eva passes her own bot token, use a dedicated client for this job
+  const customTgClient = botToken ? new TelegramClient(botToken) : null;
 
   const state: OrderPanelState = {
     chatId, groupId, checkoutUrl,
@@ -361,30 +385,37 @@ async function handleStartOrderPanel(
     hotelRef: hotelRef ?? null,
     backRef:  backRef  ?? null,
     messageId: null,
+    customTgClient,
   };
+
+  // Which client actually sends/edits this card
+  const activeClient = customTgClient ?? telegramClient;
 
   try {
     // Send placeholder
-    const msgId = await telegramClient.sendHtmlMessage(
+    const msgId = await activeClient.sendHtmlMessage(
       chatId,
       "🧾 <b>XAgent Pay 订单</b> — 正在初始化…",
       buildPanelKeyboard(state, false),
     );
     state.messageId = msgId;
 
-    // First update
-    await updatePanelMessage(state, telegramClient);
+    // First update (uses activeClient via state.customTgClient)
+    await updatePanelMessage(state, activeClient);
 
     const ms = Math.max(5, (intervalSec ?? 10)) * 1000;
     const timer = setInterval(() => {
-      updatePanelMessage(state, telegramClient).catch((e: unknown) =>
+      updatePanelMessage(state, activeClient).catch((e: unknown) =>
         panelLog.error("Panel update failed", { groupId, error: e instanceof Error ? e.message : String(e) }),
       );
     }, ms);
 
     panelJobs.set(groupId, { state, timer });
 
-    jsonResponse(res, 200, { ok: true, groupId, messageId: msgId, pollEverySec: ms / 1000 });
+    jsonResponse(res, 200, {
+      ok: true, groupId, messageId: msgId, pollEverySec: ms / 1000,
+      mode: customTgClient ? "custom_bot" : "orders_bot",
+    });
   } catch (err) {
     panelLog.error("Failed to start order panel", {
       groupId,

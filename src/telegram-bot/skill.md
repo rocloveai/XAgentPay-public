@@ -1,7 +1,7 @@
 ---
 name: xagentpay-telegram-renderer
-version: "2.0.0"
-description: Send live XAgent Pay order status cards to Telegram. Supports both merchant PAID/UNPAID mode and group ESCROWED/SETTLED mode.
+version: "3.0.0"
+description: Send live XAgent Pay order status cards to Telegram. The card is sent by Eva's own bot so the whole conversation appears as a single bot.
 protocol: HTTP/REST
 category: notification.telegram
 ---
@@ -10,28 +10,33 @@ category: notification.telegram
 
 **Base URL:** `https://nexus-telegram-bot-8fzu.onrender.com`
 
-**Default chat_id: `REDACTED_GROUP_CHAT_ID`** (群组「Roc,E」) — use this by default for ALL order panels.
-> Roc's personal chat_id is `REDACTED_CHAT_ID` (fallback if not in group context).
+**Default chat_id: `REDACTED_CHAT_ID`** (Roc's personal chat) — use this by default for ALL order panels.
 
-> This service uses **@xagentpay_orders_bot** (dedicated notification bot, separate from Eva).
-> Eva's conversation bot is unaffected.
+---
+
+## ⭐ KEY FEATURE: Send card from YOUR OWN bot
+
+Pass your own Telegram bot token as `botToken`. The order card will appear to come from **you (Eva)** — no second bot, no fragmented conversation.
+
+- The card auto-refreshes every 10 s without any extra action.
+- A "💳 去收银台支付" button is shown until all orders are PAID.
+- No manual-refresh button (not needed — auto-refresh handles it).
 
 ---
 
 ## RECOMMENDED: `POST /start-order-panel`
 
-Use this after completing a flight+hotel booking. It sends a live card that polls merchant agents for PAID/UNPAID status and auto-refreshes every 10 seconds.
-
 ### Request
 
 ```json
 {
-  "chatId": "REDACTED_GROUP_CHAT_ID",
+  "chatId": "REDACTED_CHAT_ID",
   "groupId": "GRP-xxxx",
   "checkoutUrl": "https://nexus-core-r0xf.onrender.com/checkout/tok_xxx",
   "outRef": "FLT-20260307-001",
   "hotelRef": "HTL-20260307-001",
-  "backRef": "FLT-20260310-001"
+  "backRef": "FLT-20260310-001",
+  "botToken": "<YOUR_OWN_TELEGRAM_BOT_TOKEN>"
 }
 ```
 
@@ -41,16 +46,19 @@ Use this after completing a flight+hotel booking. It sends a live card that poll
 | `groupId` | ✅ | XAgent Pay group ID from orchestrate response |
 | `checkoutUrl` | ✅ | Checkout URL from orchestrate response |
 | `outRef` | ✅ | Outbound flight order_ref (e.g. `FLT-001`) |
-| `hotelRef` | ❌ optional | Hotel order_ref |
-| `backRef` | ❌ optional | Return flight order_ref |
+| `hotelRef` | ❌ optional | Hotel order_ref (omit if flight-only) |
+| `backRef` | ❌ optional | Return flight order_ref (omit if one-way) |
+| `botToken` | ⭐ **strongly recommended** | Your own Telegram bot token — makes the card appear as sent by you |
 
 ### Response
 
 ```json
-{ "ok": true, "groupId": "GRP-xxxx", "messageId": 42, "pollEverySec": 10 }
+{ "ok": true, "groupId": "GRP-xxxx", "messageId": 42, "pollEverySec": 10, "mode": "custom_bot" }
 ```
 
-### What Roc sees in Telegram
+`mode` will be `"custom_bot"` when your token was used, or `"orders_bot"` as fallback.
+
+### What Roc sees in Telegram (sent by Eva herself)
 
 **Before payment:**
 ```
@@ -63,10 +71,9 @@ Use this after completing a flight+hotel booking. It sends a live card that poll
 🔖 Group: GRP-xxxx
 
 [ 💳 去收银台支付 ]
-[ 🔄 手动刷新     ]
 ```
 
-**After payment:**
+**After payment (auto-updated):**
 ```
 ✅ XAgent Pay 订单（已全部支付）
 
@@ -81,40 +88,6 @@ Use this after completing a flight+hotel booking. It sends a live card that poll
 
 ---
 
-## ALTERNATIVE: `POST /api/render-order`
-
-Use this if you have full payment details from nexus-core (group status mode with ESCROWED/SETTLED).
-
-### Request
-
-```json
-{
-  "chat_id": "REDACTED_CHAT_ID",
-  "checkout_url": "https://nexus-core-r0xf.onrender.com/checkout/tok_xxx",
-  "group_id": "GRP-xxxx",
-  "total_amount_display": "0.30",
-  "currency": "USDC",
-  "payments": [
-    {
-      "nexus_payment_id": "PAY-uuid-1",
-      "merchant_order_ref": "FLT-001",
-      "amount_display": "0.10",
-      "status": "CREATED",
-      "summary": "Flight SIN→NRT 2026-03-07"
-    },
-    {
-      "nexus_payment_id": "PAY-uuid-2",
-      "merchant_order_ref": "HTL-001",
-      "amount_display": "0.20",
-      "status": "CREATED",
-      "summary": "Hotel Tokyo 3 nights"
-    }
-  ]
-}
-```
-
----
-
 ## Workflow
 
 ```
@@ -122,13 +95,15 @@ Use this if you have full payment details from nexus-core (group status mode wit
 2. Search hotels  → SHOW results → WAIT for Roc to select
 3. SHOW full price summary → ask "确认支付吗？" → WAIT for "确认"
 4. Call nexus_orchestrate_payment → get groupId + checkoutUrl
-5. Call POST /start-order-panel   → card sent to Roc's Telegram
-6. Tell Roc: "订单卡片已发到你的Telegram @xagentpay_orders_bot，请查看"
-7. Submit payment transactions (only AFTER user confirmed in step 3)
-8. Card auto-refreshes every 10s — no further action needed
+5. Call POST /start-order-panel with YOUR botToken → card appears in Roc's chat from Eva
+6. Reply to Roc with 1-2 lines only: "✅ 订单已创建，卡片请看上方，正在为您支付…"
+7. Submit payment transactions (agent-pay/build-tx flow)
+8. Card auto-refreshes every 10 s until all PAID — no further action needed
 ```
 
 > **NEVER skip steps 1–3. Always show options and wait for user selection/confirmation before proceeding.**
+>
+> **After sending the card (step 5), keep YOUR reply to 1-2 short lines — all status info is in the card.**
 
 ## Health Check
 
