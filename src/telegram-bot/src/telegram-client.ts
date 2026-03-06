@@ -69,8 +69,27 @@ export class TelegramClient {
   }
 
   /**
+   * Register a webhook that only receives callback_query updates.
+   * Regular message updates continue flowing to getUpdates (OpenClaw).
+   */
+  async setCallbackWebhook(webhookUrl: string): Promise<void> {
+    try {
+      await this.bot.api.setWebhook(webhookUrl, {
+        allowed_updates: ["callback_query"],
+      });
+      log.info("Registered callback webhook", { url: webhookUrl });
+    } catch (err) {
+      log.warn("Failed to set callback webhook", {
+        url: webhookUrl,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
    * Ensure no webhook is set on this bot, so updates flow to
    * whoever is polling (e.g. OpenClaw).
+   * Only called when BASE_URL is not configured.
    */
   async deleteWebhookIfSet(): Promise<void> {
     try {
@@ -81,6 +100,46 @@ export class TelegramClient {
       }
     } catch {
       // Ignore errors
+    }
+  }
+
+  /** Send a plain HTML message, returns message_id. */
+  async sendHtmlMessage(
+    chatId: number | string,
+    text: string,
+    replyMarkup?: object,
+  ): Promise<number> {
+    const msg = await this.bot.api.sendMessage(chatId, text, {
+      parse_mode: "HTML",
+      reply_markup: replyMarkup as never,
+    });
+    return msg.message_id;
+  }
+
+  /** Edit an existing message by ID with plain HTML text. */
+  async editHtmlMessage(
+    chatId: number | string,
+    messageId: number,
+    text: string,
+    replyMarkup?: object,
+  ): Promise<void> {
+    try {
+      await this.bot.api.editMessageText(chatId, messageId, text, {
+        parse_mode: "HTML",
+        reply_markup: replyMarkup as never,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.message.includes("not modified")) return;
+      throw err;
+    }
+  }
+
+  /** Answer a callback query (dismisses the loading spinner on buttons). */
+  async answerCallback(callbackQueryId: string, text?: string): Promise<void> {
+    try {
+      await this.bot.api.answerCallbackQuery(callbackQueryId, { text: text ?? "" });
+    } catch {
+      // Ignore
     }
   }
 

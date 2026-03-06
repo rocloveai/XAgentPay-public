@@ -2,8 +2,10 @@
 /**
  * Telegram Bot — HTTP server + entry point.
  *
- * POST /api/render-order — Send an order message to a Telegram chat.
- * GET  /health           — Health check.
+ * POST /api/render-order    — Send an XAgent Pay order card (group-status mode).
+ * POST /start-order-panel   — Send a live PAID/UNPAID panel (merchant-status mode).
+ * POST /telegram/webhook    — Receive callback_query from inline keyboard buttons.
+ * GET  /health              — Health check.
  */
 import {
   createServer,
@@ -21,6 +23,114 @@ import { TelegramClient } from "./telegram-client.js";
 import { StatusPoller } from "./status-poller.js";
 import { renderOrderMessage } from "./message-renderer.js";
 import type { RenderOrderRequest } from "./types.js";
+
+// ---------------------------------------------------------------------------
+// Order Panel — live PAID/UNPAID tracking per merchant order ref
+// ---------------------------------------------------------------------------
+
+interface OrderPanelState {
+  chatId: number | string;
+  groupId: string;
+  checkoutUrl: string;
+  outRef: string;
+  hotelRef: string | null;
+  backRef: string | null;
+  messageId: number | null;
+}
+
+interface OrderPanelJob {
+  state: OrderPanelState;
+  timer: ReturnType<typeof setInterval>;
+}
+
+const panelJobs = new Map<string, OrderPanelJob>();
+const panelLog = createLogger("OrderPanel");
+
+const FLIGHT_API_URL = process.env.FLIGHT_API || "https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool";
+const HOTEL_API_URL  = process.env.HOTEL_API  || "https://nexus-hotel-agent-d2lj.onrender.com/api/v1/call-tool";
+
+async function checkMerchantStatus(orderRef: string | null, kind: "flight" | "hotel"): Promise<string> {
+  if (!orderRef) return "N/A";
+  try {
+    const api = kind === "hotel" ? HOTEL_API_URL : FLIGHT_API_URL;
+    const res = await fetch(api, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tool: "nexus_check_status", arguments: { order_ref: orderRef } }),
+      signal: AbortSignal.timeout(12_000),
+    });
+    const data = (await res.json()) as { data?: { status?: string } };
+    return data?.data?.status || "UNKNOWN";
+  } catch {
+    return "UNKNOWN";
+  }
+}
+
+function fmtMerchantStatus(s: string): string {
+  if (s === "PAID")    return "✅ PAID";
+  if (s === "UNPAID")  return "⏳ UNPAID";
+  if (s === "EXPIRED") return "⌛ EXPIRED";
+  if (s === "N/A")     return "—";
+  return `❔ ${s}`;
+}
+
+function buildPanelText(state: OrderPanelState, statuses: Record<string, string>): string {
+  const vals = Object.values(statuses).filter((s) => s !== "N/A");
+  const allPaid = vals.length > 0 && vals.every((s) => s === "PAID");
+
+  const header = allPaid
+    ? "✅ <b>XAgent Pay 订单（已全部支付）</b>"
+    : "🧾 <b>XAgent Pay 订单</b>  <i>自动刷新中</i>";
+
+  const lines: string[] = [header, ""];
+  if (state.outRef)   lines.push(`✈️ 去程  <code>${state.outRef}</code>：${fmtMerchantStatus(statuses.out ?? "UNKNOWN")}`);
+  if (state.hotelRef) lines.push(`🏨 酒店  <code>${state.hotelRef}</code>：${fmtMerchantStatus(statuses.hotel ?? "UNKNOWN")}`);
+  if (state.backRef)  lines.push(`✈️ 返程  <code>${state.backRef}</code>：${fmtMerchantStatus(statuses.back ?? "UNKNOWN")}`);
+  lines.push("", `🔖 Group: <code>${state.groupId}</code>`);
+
+  return lines.join("\n");
+}
+
+function buildPanelKeyboard(state: OrderPanelState, allPaid: boolean) {
+  if (allPaid) {
+    return { inline_keyboard: [[{ text: "✅ 支付完成", callback_data: "noop" }]] };
+  }
+  return {
+    inline_keyboard: [
+      [{ text: "💳 去收银台支付", url: state.checkoutUrl }],
+      [{ text: "🔄 手动刷新", callback_data: `refresh:${state.groupId}` }],
+    ],
+  };
+}
+
+async function updatePanelMessage(state: OrderPanelState, tgClient: TelegramClient): Promise<boolean> {
+  const [out, hotel, back] = await Promise.all([
+    checkMerchantStatus(state.outRef,   "flight"),
+    checkMerchantStatus(state.hotelRef, "hotel"),
+    checkMerchantStatus(state.backRef,  "flight"),
+  ]);
+  const statuses = { out, hotel, back };
+
+  const vals = Object.values(statuses).filter((s) => s !== "N/A");
+  const allPaid = vals.length > 0 && vals.every((s) => s === "PAID");
+
+  const text = buildPanelText(state, statuses);
+  const markup = buildPanelKeyboard(state, allPaid);
+
+  if (state.messageId !== null) {
+    await tgClient.editHtmlMessage(state.chatId, state.messageId, text, markup);
+  }
+
+  if (allPaid) {
+    const job = panelJobs.get(state.groupId);
+    if (job) {
+      clearInterval(job.timer);
+      panelJobs.delete(state.groupId);
+      panelLog.info("All paid — stopped polling", { groupId: state.groupId });
+    }
+  }
+  return allPaid;
+}
 
 const log = createLogger("Server");
 
@@ -121,9 +231,21 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Render order
+  // Render order (group-status mode)
   if (method === "POST" && url === "/api/render-order") {
     await handleRenderOrder(req, res);
+    return;
+  }
+
+  // Start order panel (merchant PAID/UNPAID mode)
+  if (method === "POST" && url === "/start-order-panel") {
+    await handleStartOrderPanel(req, res);
+    return;
+  }
+
+  // Telegram webhook — callback_query from inline buttons
+  if (method === "POST" && url === "/telegram/webhook") {
+    await handleTelegramWebhook(req, res);
     return;
   }
 
@@ -198,6 +320,125 @@ async function handleRenderOrder(
 }
 
 // ---------------------------------------------------------------------------
+// POST /start-order-panel
+// ---------------------------------------------------------------------------
+
+const StartOrderPanelSchema = z.object({
+  chatId: z.union([z.number(), z.string()]),
+  groupId: z.string(),
+  checkoutUrl: z.string().url(),
+  outRef: z.string(),
+  hotelRef: z.string().optional().nullable(),
+  backRef: z.string().optional().nullable(),
+  intervalSec: z.number().optional(),
+});
+
+async function handleStartOrderPanel(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  let body: string;
+  try { body = await readBody(req); } catch { jsonResponse(res, 400, { error: "Failed to read body" }); return; }
+
+  let parsed: unknown;
+  try { parsed = JSON.parse(body); } catch { jsonResponse(res, 400, { error: "Invalid JSON" }); return; }
+
+  const result = StartOrderPanelSchema.safeParse(parsed);
+  if (!result.success) {
+    jsonResponse(res, 400, { error: "Validation failed", details: result.error.issues });
+    return;
+  }
+
+  const { chatId, groupId, checkoutUrl, outRef, hotelRef, backRef, intervalSec } = result.data;
+
+  // Cancel previous job for this group (idempotent)
+  const prev = panelJobs.get(groupId);
+  if (prev) { clearInterval(prev.timer); panelJobs.delete(groupId); }
+
+  const state: OrderPanelState = {
+    chatId, groupId, checkoutUrl,
+    outRef,
+    hotelRef: hotelRef ?? null,
+    backRef:  backRef  ?? null,
+    messageId: null,
+  };
+
+  try {
+    // Send placeholder
+    const msgId = await telegramClient.sendHtmlMessage(
+      chatId,
+      "🧾 <b>XAgent Pay 订单</b> — 正在初始化…",
+      buildPanelKeyboard(state, false),
+    );
+    state.messageId = msgId;
+
+    // First update
+    await updatePanelMessage(state, telegramClient);
+
+    const ms = Math.max(5, (intervalSec ?? 10)) * 1000;
+    const timer = setInterval(() => {
+      updatePanelMessage(state, telegramClient).catch((e: unknown) =>
+        panelLog.error("Panel update failed", { groupId, error: e instanceof Error ? e.message : String(e) }),
+      );
+    }, ms);
+
+    panelJobs.set(groupId, { state, timer });
+
+    jsonResponse(res, 200, { ok: true, groupId, messageId: msgId, pollEverySec: ms / 1000 });
+  } catch (err) {
+    panelLog.error("Failed to start order panel", {
+      groupId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    jsonResponse(res, 500, { ok: false, error: err instanceof Error ? err.message : "Unknown error" });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// POST /telegram/webhook  — handles callback_query from inline buttons
+// ---------------------------------------------------------------------------
+
+async function handleTelegramWebhook(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  let body: string;
+  try { body = await readBody(req); } catch { res.writeHead(200); res.end(); return; }
+
+  let update: { callback_query?: { id: string; data?: string } };
+  try { update = JSON.parse(body); } catch { res.writeHead(200); res.end(); return; }
+
+  const cb = update.callback_query;
+  if (!cb) { res.writeHead(200); res.end(); return; }
+
+  // noop button — just dismiss the spinner
+  if (!cb.data || cb.data === "noop") {
+    await telegramClient.answerCallback(cb.id);
+    res.writeHead(200); res.end();
+    return;
+  }
+
+  if (cb.data.startsWith("refresh:")) {
+    const groupId = cb.data.slice("refresh:".length);
+    const job = panelJobs.get(groupId);
+
+    if (!job) {
+      await telegramClient.answerCallback(cb.id, "找不到任务（已完成或服务重启）");
+      res.writeHead(200); res.end();
+      return;
+    }
+
+    await telegramClient.answerCallback(cb.id, "正在刷新…");
+    await new Promise((r) => setTimeout(r, 200));
+    await updatePanelMessage(job.state, telegramClient).catch((e: unknown) =>
+      panelLog.error("Refresh failed", { groupId, error: e instanceof Error ? e.message : String(e) }),
+    );
+  }
+
+  res.writeHead(200); res.end();
+}
+
+// ---------------------------------------------------------------------------
 // Startup & shutdown
 // ---------------------------------------------------------------------------
 
@@ -207,9 +448,15 @@ server.listen(config.port, async () => {
     nexus_core_url: config.nexusCoreUrl,
   });
 
-  // Clean up any stale webhook from previous deploys
-  // so updates flow back to OpenClaw's polling
-  await telegramClient.deleteWebhookIfSet();
+  // If BASE_URL is set, register webhook for callback_query only.
+  // message updates keep flowing to OpenClaw via getUpdates.
+  if (config.baseUrl) {
+    const webhookUrl = `${config.baseUrl}/telegram/webhook`;
+    await telegramClient.setCallbackWebhook(webhookUrl);
+  } else {
+    // No BASE_URL — clear any stale webhook
+    await telegramClient.deleteWebhookIfSet();
+  }
 });
 
 async function shutdown(): Promise<void> {
