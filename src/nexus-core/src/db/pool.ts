@@ -3,10 +3,14 @@ import pg from "pg";
 let pool: pg.Pool | null = null;
 
 export function initPool(databaseUrl: string): void {
+  const isLocal =
+    databaseUrl.includes("localhost") ||
+    databaseUrl.includes("127.0.0.1") ||
+    databaseUrl.includes("sslmode=disable");
   pool = new pg.Pool({
     connectionString: databaseUrl,
     max: 5,
-    ssl: { rejectUnauthorized: false },
+    ssl: isLocal ? false : { rejectUnauthorized: false },
   });
   // pg returns int4 as string by default — parse as JS number
   pg.types.setTypeParser(23, parseInt);
