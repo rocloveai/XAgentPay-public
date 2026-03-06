@@ -95,6 +95,8 @@ After payment:
 
 ## Important Notes
 
-- You still need to know the user's Telegram `chatId`. Ask the user: "请告诉我你的 Telegram chat ID（可以发 /start 给 @userinfobot 获取）"
+- **Roc's Telegram chat_id is `REDACTED_CHAT_ID`** — use this by default when booking for Roc
+- **Base URL**: `https://nexus-telegram-bot-8fzu.onrender.com`
 - After calling `/start-order-panel`, tell the user: "订单卡片已发送到你的 Telegram，请查看并点击支付按钮完成支付"
 - Do NOT also send a manual text summary — the card replaces that
+- The card auto-refreshes every 10 seconds — no further action needed
