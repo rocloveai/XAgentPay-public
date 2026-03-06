@@ -220,7 +220,7 @@ export function renderOrderMessage(order: RenderOrderRequest): RenderedMessage {
   );
 
   const lines: string[] = [
-    `\u{1F3AB} <b>xNexus Order</b>`,
+    `\u{1F3AB} <b>XAgent Pay Order</b>`,
     ``,
     `<blockquote>${s.emoji} <b>${escapeHtml(s.label)}</b>`,
     ``,
@@ -265,7 +265,7 @@ export function renderStatusUpdate(
   );
 
   const lines: string[] = [
-    `\u{1F3AB} <b>xNexus Order</b>`,
+    `\u{1F3AB} <b>XAgent Pay Order</b>`,
     ``,
     `<blockquote>${s.emoji} <b>${escapeHtml(s.label)}</b>`,
     ``,

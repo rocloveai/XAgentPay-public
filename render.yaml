@@ -136,3 +136,22 @@ services:
         value: "10000"
       - key: BASE_URL
         sync: false
+
+  - type: web
+    name: telegram-order-panel
+    region: singapore
+    runtime: node
+    rootDir: src/telegram-order-panel
+    buildCommand: npm ci
+    startCommand: node server.js
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TG_BOT_TOKEN
+        sync: false
+      - key: FLIGHT_API
+        value: "https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool"
+      - key: HOTEL_API
+        value: "https://nexus-hotel-agent-d2lj.onrender.com/api/v1/call-tool"
