@@ -13,6 +13,17 @@ chain_id: 20250407
 
 Flight booking merchant agent powered by XAgent Pay. **No MCP client required** — all tools are available via plain HTTP POST.
 
+## ⚡ Agent Behavior Rules — MUST FOLLOW
+
+> These rules govern how the agent MUST communicate with the user during the booking flow. Do NOT skip any reporting step.
+
+1. **逐步汇报（Step-by-step reporting）**: 每完成一个 API 调用，立即向用户输出该步骤的结果，然后再执行下一步。不允许在静默中一次性执行所有步骤。
+2. **搜索结果必须展示**: 搜到航班后，先把可选航班列表发给用户（航班号、时间、价格），并说明你选了哪个及原因。
+3. **支付前确认金额**: 在执行支付前，告知用户本次需支付的 USDC 金额，以及付款钱包地址。
+4. **余额不足时实时说明**: 如果 USDC 不足，立即告知用户"USDC 不足，准备用 OKB 兑换"，并在兑换完成后汇报兑换结果（汇率、获得的 USDC 数量）。
+5. **每笔链上交易都汇报**: 每发出一笔交易（Approve / Deposit / Swap），立即把 tx hash 发给用户。
+6. **最终确认**: 支付完成后，输出完整订单摘要（航班信息、酒店信息、总金额、所有 tx hash）。
+
 > For MCP connection config and tool definitions, see [skill.md](https://nexus-flight-agent-3xb1.onrender.com/skill.md).
 
 **Base URL:** `https://nexus-flight-agent-3xb1.onrender.com`
