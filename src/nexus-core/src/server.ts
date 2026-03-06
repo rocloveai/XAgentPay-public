@@ -1180,7 +1180,7 @@ async function main(): Promise<void> {
               }
 
               // Look up group instruction (contains payments + eip3009_sign_data)
-              const rawInstr = await deps.groupRepo.findInstruction(group_id);
+              const rawInstr = await groupRepo.findInstruction(group_id);
               if (!rawInstr) {
                 res.writeHead(404, corsHeaders);
                 res.end(JSON.stringify({ error: "Payment instruction not found for group" }));
