@@ -12,6 +12,9 @@ category: notification.telegram
 
 **Roc's Telegram chat_id: `REDACTED_CHAT_ID`** — use this by default when booking for Roc.
 
+> This service uses **@xagentpay_orders_bot** (dedicated notification bot, separate from Eva).
+> Eva's conversation bot is unaffected.
+
 ---
 
 ## RECOMMENDED: `POST /start-order-panel`
