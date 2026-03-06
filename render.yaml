@@ -1,5 +1,6 @@
 databases:
-  - name: nexuspay-db    region: singapore
+  - name: nexuspay-db
+    region: singapore
     plan: free
     databaseName: nexuspay
     user: nexuspay
@@ -7,7 +8,8 @@ databases:
 services:
   - type: web
     runtime: static
-    name: nexus-website    buildCommand: cd src/nexus-website && npm install && npx vite build
+    name: nexus-website
+    buildCommand: cd src/nexus-website && npm install && npx vite build
     staticPublishPath: src/nexus-website/dist
     headers:
       - path: /*
@@ -22,7 +24,8 @@ services:
         sync: false
 
   - type: web
-    name: nexus-core    region: singapore
+    name: nexus-core
+    region: singapore
     runtime: docker
     dockerfilePath: src/nexus-core/Dockerfile
     dockerContext: src/nexus-core
@@ -35,24 +38,33 @@ services:
         value: "10000"
       - key: DATABASE_URL
         fromDatabase:
-          name: nexuspay-db          property: connectionString
+          name: nexuspay-db
+          property: connectionString
       - key: RELAYER_PRIVATE_KEY
         sync: false
       - key: ESCROW_CONTRACT
-        sync: false
+        value: "0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2"
       - key: RPC_URL
-        sync: false
+        value: "https://rpc.xlayer.tech"
+      - key: CHAIN_ID
+        value: "196"
+      - key: CHAIN_NAME
+        value: "XLayer Mainnet"
+      - key: USDC_ADDRESS
+        value: "0x74b7F16337b8972027F6196A17a631aC6dE26d22"
       - key: PORTAL_TOKEN
         sync: false
       - key: BASE_URL
         sync: false
 
   - type: web
-    name: nexus-hotel-agent    region: singapore
+    name: nexus-hotel-agent
+    region: singapore
     runtime: docker
     dockerfilePath: src/hotel-agent/Dockerfile
     dockerContext: src/hotel-agent
     plan: free
+    healthCheckPath: /health
     envVars:
       - key: TRANSPORT
         value: http
@@ -62,7 +74,8 @@ services:
         value: "0.0.0.0"
       - key: DATABASE_URL
         fromDatabase:
-          name: nexuspay-db          property: connectionString
+          name: nexuspay-db
+          property: connectionString
       - key: AMADEUS_API_KEY
         sync: false
       - key: AMADEUS_API_SECRET
@@ -77,11 +90,13 @@ services:
         sync: false
 
   - type: web
-    name: nexus-flight-agent    region: singapore
+    name: nexus-flight-agent
+    region: singapore
     runtime: docker
     dockerfilePath: src/flight-agent/Dockerfile
     dockerContext: src/flight-agent
     plan: free
+    healthCheckPath: /health
     envVars:
       - key: TRANSPORT
         value: http
@@ -91,7 +106,8 @@ services:
         value: "0.0.0.0"
       - key: DATABASE_URL
         fromDatabase:
-          name: nexuspay-db          property: connectionString
+          name: nexuspay-db
+          property: connectionString
       - key: DUFFEL_API_TOKEN
         sync: false
       - key: MERCHANT_SIGNER_PRIVATE_KEY
@@ -104,7 +120,8 @@ services:
         sync: false
 
   - type: web
-    name: nexus-telegram-bot    region: singapore
+    name: nexus-telegram-bot
+    region: singapore
     runtime: docker
     dockerfilePath: src/telegram-bot/Dockerfile
     dockerContext: src/telegram-bot
