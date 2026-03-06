@@ -13,9 +13,9 @@ chain_id: 20250407
 
 Hotel booking merchant agent powered by XAgent Pay. **No MCP client required** — all tools are available via HTTP POST.
 
-> For MCP connection config and tool definitions, see [skill.md](https://nexus-hotel-agent-nr8m.onrender.com/skill.md).
+> For MCP connection config and tool definitions, see [skill.md](https://nexus-hotel-agent-d2lj.onrender.com/skill.md).
 
-**Base URL:** `https://nexus-hotel-agent-nr8m.onrender.com`
+**Base URL:** `https://nexus-hotel-agent-d2lj.onrender.com`
 
 ## Call Tool Endpoint
 
@@ -37,7 +37,7 @@ All agent tools are invoked via this single endpoint.
 Search hotels AND generate a NUPS quote in ONE call. This combines `search_hotels` + `nexus_generate_quote` into a single step.
 
 ```bash
-curl -X POST https://nexus-hotel-agent-nr8m.onrender.com/api/v1/call-tool \
+curl -X POST https://nexus-hotel-agent-d2lj.onrender.com/api/v1/call-tool \
   -H "Content-Type: application/json" \
   -d '{
     "tool": "search_and_quote",
@@ -101,7 +101,7 @@ Generate a NUPS quote for a selected hotel offer. Use `search_and_quote` instead
 Check the payment status of a hotel order.
 
 ```bash
-curl -X POST https://nexus-hotel-agent-nr8m.onrender.com/api/v1/call-tool \
+curl -X POST https://nexus-hotel-agent-d2lj.onrender.com/api/v1/call-tool \
   -H "Content-Type: application/json" \
   -d '{
     "tool": "nexus_check_status",
@@ -123,6 +123,6 @@ curl -X POST https://nexus-hotel-agent-nr8m.onrender.com/api/v1/call-tool \
 
 **Fast path (recommended):**
 1. **Search + Quote** — `POST /api/v1/call-tool` with `search_and_quote` tool (returns quote directly).
-2. **Pay** — `POST https://api.xagentpay.com/api/orchestrate` with the quote + payer wallet.
-3. **Confirm** — `POST https://api.xagentpay.com/api/checkout/:token/confirm` with `tx_hash`.
+2. **Orchestrate** — `POST https://nexus-core-r0xf.onrender.com/mcp` calling `nexus_orchestrate_payment` with all quotes + payer wallet. Returns a `checkout_url`.
+3. **Pay** — Direct the user to open the `checkout_url` in their browser (MetaMask required).
 4. **Verify** — `POST /api/v1/call-tool` with `nexus_check_status` to confirm `PAID` status.
