@@ -126,6 +126,7 @@ if (config.relayerPrivateKey) {
     groupManager,
     webhookNotifier,
     kvRepo,
+    relayer, // enables auto-release after all-ESCROWED group
   );
   timeoutHandler = new TimeoutHandler(
     relayer,

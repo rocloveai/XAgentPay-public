@@ -85,7 +85,7 @@ export function loadNexusCoreConfig(): NexusCoreConfig {
     port: Number(process.env.PORT ?? "4000"),
     rpcUrl: process.env.RPC_URL ?? "https://devnet3openapi.platon.network/rpc",
     relayerPrivateKey: process.env.RELAYER_PRIVATE_KEY ?? "",
-    watcherIntervalMs: Number(process.env.WATCHER_INTERVAL_MS ?? "15000"),
+    watcherIntervalMs: Number(process.env.WATCHER_INTERVAL_MS ?? "8000"),
     timeoutSweepIntervalMs: Number(
       process.env.TIMEOUT_SWEEP_INTERVAL_MS ?? "60000",
     ),
