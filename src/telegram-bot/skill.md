@@ -117,13 +117,17 @@ Use this if you have full payment details from nexus-core (group status mode wit
 ## Workflow
 
 ```
-1. Call flight-agent search_and_quote → get outRef (e.g. FLT-001)
-2. Call hotel-agent search_and_quote  → get hotelRef (e.g. HTL-001)
-3. Call nexus_orchestrate_payment     → get groupId + checkoutUrl
-4. Call POST /start-order-panel       → card appears in Roc's Telegram
-5. Tell Roc: "订单卡片已发到你的Telegram，请点击支付按钮"
-6. Card auto-refreshes until PAID — no further action needed
+1. Search flights → SHOW results → WAIT for Roc to select
+2. Search hotels  → SHOW results → WAIT for Roc to select
+3. SHOW full price summary → ask "确认支付吗？" → WAIT for "确认"
+4. Call nexus_orchestrate_payment → get groupId + checkoutUrl
+5. Call POST /start-order-panel   → card sent to Roc's Telegram
+6. Tell Roc: "订单卡片已发到你的Telegram @xagentpay_orders_bot，请查看"
+7. Submit payment transactions (only AFTER user confirmed in step 3)
+8. Card auto-refreshes every 10s — no further action needed
 ```
+
+> **NEVER skip steps 1–3. Always show options and wait for user selection/confirmation before proceeding.**
 
 ## Health Check
 
