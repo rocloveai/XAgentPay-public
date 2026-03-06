@@ -1142,6 +1142,157 @@ async function main(): Promise<void> {
             return;
           }
 
+          // POST /api/agent-pay/build-tx — build fully-encoded deposit tx for AI agent wallets
+          // The AI agent (e.g. OKX wallet) signs the EIP-3009 typed data, then POSTs
+          // the signature here. The server returns the ABI-encoded calldata so the agent
+          // can submit eth_sendTransaction without needing to know the ABI.
+          if (
+            url.pathname === "/api/agent-pay/build-tx" &&
+            req.method === "POST"
+          ) {
+            const corsHeaders = {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Headers": "Content-Type",
+            } as const;
+            try {
+              const chunks: Buffer[] = [];
+              await new Promise<void>((resolve, reject) => {
+                req.on("data", (chunk: Buffer) => chunks.push(chunk));
+                req.on("end", resolve);
+                req.on("error", reject);
+              });
+              const body = JSON.parse(Buffer.concat(chunks).toString());
+              const { group_id, eip3009_signature } = body as {
+                group_id?: string;
+                eip3009_signature?: string;
+              };
+
+              if (!group_id || typeof group_id !== "string") {
+                res.writeHead(400, corsHeaders);
+                res.end(JSON.stringify({ error: "Missing group_id" }));
+                return;
+              }
+              if (!eip3009_signature || typeof eip3009_signature !== "string" || !eip3009_signature.startsWith("0x")) {
+                res.writeHead(400, corsHeaders);
+                res.end(JSON.stringify({ error: "Missing or invalid eip3009_signature (must be 0x hex string)" }));
+                return;
+              }
+
+              // Look up group instruction (contains payments + eip3009_sign_data)
+              const rawInstr = await deps.groupRepo.findInstruction(group_id);
+              if (!rawInstr) {
+                res.writeHead(404, corsHeaders);
+                res.end(JSON.stringify({ error: "Payment instruction not found for group" }));
+                return;
+              }
+              // Type the instruction
+              type InstrType = {
+                nexus_group_sig: string;
+                escrow_contract: string;
+                chain_id: number;
+                rpc_url: string;
+                payments: Array<{
+                  payment_id_bytes32: string;
+                  merchant_address: string;
+                  amount_uint256: string;
+                  order_ref_bytes32: string;
+                  merchant_did_bytes32: string;
+                  context_hash: string;
+                }>;
+                eip3009_sign_data: {
+                  message: {
+                    value: string | number;
+                    validAfter: string | number;
+                    validBefore: string | number;
+                    nonce: string;
+                  };
+                };
+              };
+              const instr = rawInstr as unknown as InstrType;
+
+              // Decompose EIP-3009 signature: 65-byte hex = r(32) + s(32) + v(1)
+              const sig = eip3009_signature as import("viem").Hex;
+              const r = ("0x" + sig.slice(2, 66)) as import("viem").Hex;
+              const s = ("0x" + sig.slice(66, 130)) as import("viem").Hex;
+              const v = parseInt(sig.slice(130, 132), 16);
+
+              // Decompose nexus group signature
+              const groupSig = instr.nexus_group_sig as import("viem").Hex;
+              const groupR = ("0x" + groupSig.slice(2, 66)) as import("viem").Hex;
+              const groupS = ("0x" + groupSig.slice(66, 130)) as import("viem").Hex;
+              const groupV = parseInt(groupSig.slice(130, 132), 16);
+
+              // keccak256 of group_id string → bytes32
+              const { keccak256, toHex, encodeFunctionData } = await import("viem");
+              const groupIdBytes32 = keccak256(toHex(group_id)) as import("viem").Hex;
+
+              // Build entries from stored instruction.payments
+              const entries = instr.payments.map((p) => ({
+                paymentId: p.payment_id_bytes32 as import("viem").Hex,
+                merchant: p.merchant_address as import("viem").Address,
+                amount: BigInt(p.amount_uint256),
+                orderRef: p.order_ref_bytes32 as import("viem").Hex,
+                merchantDid: p.merchant_did_bytes32 as import("viem").Hex,
+                contextHash: p.context_hash as import("viem").Hex,
+              }));
+
+              const eip = instr.eip3009_sign_data.message;
+              const totalAmount = BigInt(eip.value);
+              const validAfter = BigInt(eip.validAfter);
+              const validBefore = BigInt(eip.validBefore);
+              const nonce = eip.nonce as import("viem").Hex;
+
+              // ABI-encode the batchDepositWithGroupApproval call
+              const { NEXUS_PAY_ESCROW_ABI } = await import("./abi/nexus-pay-escrow.js");
+              const data = encodeFunctionData({
+                abi: NEXUS_PAY_ESCROW_ABI,
+                functionName: "batchDepositWithGroupApproval",
+                args: [
+                  entries,
+                  totalAmount,
+                  groupIdBytes32,
+                  groupV,
+                  groupR,
+                  groupS,
+                  validAfter,
+                  validBefore,
+                  nonce,
+                  v,
+                  r,
+                  s,
+                ],
+              });
+
+              res.writeHead(200, corsHeaders);
+              res.end(JSON.stringify({
+                to: instr.escrow_contract,
+                data,
+                value: "0x0",
+                gas_limit: "500000",
+                chain_id: instr.chain_id,
+                rpc_url: instr.rpc_url,
+                note: "Send this transaction from the payer wallet (msg.sender must equal the EIP-3009 signer / payer_wallet). After mining, POST the tx_hash to /api/checkout/<group_id>/confirm",
+              }));
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              res.writeHead(500, corsHeaders);
+              res.end(JSON.stringify({ error: message }));
+            }
+            return;
+          }
+
+          // OPTIONS preflight for /api/agent-pay/build-tx
+          if (url.pathname === "/api/agent-pay/build-tx" && req.method === "OPTIONS") {
+            res.writeHead(204, {
+              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Methods": "POST, OPTIONS",
+              "Access-Control-Allow-Headers": "Content-Type",
+            });
+            res.end();
+            return;
+          }
+
           // POST /api/merchant/confirm-fulfillment — merchant triggers escrow release
           if (
             url.pathname === "/api/merchant/confirm-fulfillment" &&

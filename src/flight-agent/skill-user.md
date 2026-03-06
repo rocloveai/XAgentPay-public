@@ -156,15 +156,81 @@ Content-Type: application/json
 
 Save `group_id` and `checkout_url`.
 
-### Step 4 — Execute Payment
+### Step 4A — Execute Payment (Browser / MetaMask)
 
-**Option A — Browser (MetaMask):** Direct the user to open `checkout_url` in a browser with MetaMask installed. The user approves the USDC transfer. The page auto-confirms on success.
+Direct the user to open `checkout_url` in a browser with MetaMask installed on XLayer network. The user approves the USDC transfer. The page auto-confirms on success — skip Steps 5 and 6.
 
-**Option B — Programmatic:** Sign the `eip3009_sign_data` from the instruction using the payer's private key, then call the `batchDepositWithAuthorization` function on `escrow_contract`. After the transaction is mined, proceed to Step 5.
+### Step 4B — Execute Payment (Programmatic / OKX wallet)
 
-### Step 5 — Confirm Transaction (programmatic path only)
+This path allows an AI agent wallet (e.g. OKX wallet) to pay on-chain without opening a browser.
 
-After obtaining the on-chain `tx_hash` from Step 4 Option B:
+**4B-1: Sign EIP-3009 typed data**
+
+Use the `eip3009_sign_data` from the orchestrate response. Sign it with `eth_signTypedData_v4` using the payer wallet:
+
+```json
+// eip3009_sign_data from the orchestrate response
+{
+  "domain": { "name": "USD Coin", "version": "2", "chainId": 196, "verifyingContract": "0x74b7F16337b8972027F6196A17a631aC6dE26d22" },
+  "types": { "TransferWithAuthorization": [...] },
+  "message": {
+    "from": "0x<PAYER_WALLET>",
+    "to": "0x<ESCROW_CONTRACT>",
+    "value": "<TOTAL_USDC_AMOUNT_WEI>",
+    "validAfter": 0,
+    "validBefore": <TIMESTAMP>,
+    "nonce": "0x..."
+  }
+}
+```
+
+This produces a 65-byte hex signature (`0x` + r[32] + s[32] + v[1]).
+
+**4B-2: Build the encoded transaction**
+
+POST the signature to nexus-core to get the fully ABI-encoded transaction calldata:
+
+```bash
+POST https://nexus-core-r0xf.onrender.com/api/agent-pay/build-tx
+Content-Type: application/json
+
+{
+  "group_id": "GRP-...",
+  "eip3009_signature": "0x<65-byte-hex-signature>"
+}
+```
+
+**Response (HTTP 200):**
+
+```json
+{
+  "to": "0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2",
+  "data": "0x<ABI-encoded calldata>",
+  "value": "0x0",
+  "gas_limit": "500000",
+  "chain_id": 196,
+  "rpc_url": "https://rpc.xlayer.tech"
+}
+```
+
+**4B-3: Send the transaction**
+
+Use the payer wallet to call `eth_sendTransaction` on XLayer (chain_id: 196):
+
+```json
+{
+  "from": "0x<PAYER_WALLET>",
+  "to": "<to from above>",
+  "data": "<data from above>",
+  "value": "0x0"
+}
+```
+
+> **Important:** `msg.sender` of this transaction MUST be the payer wallet address that was used in `payer_wallet` when generating the quote. The payer must have OKX (or other native token) on XLayer for gas.
+
+### Step 5 — Confirm Transaction (4B path only)
+
+After the transaction is mined, submit the `tx_hash` to nexus-core:
 
 ```bash
 POST https://nexus-core-r0xf.onrender.com/api/checkout/<group_id>/confirm
