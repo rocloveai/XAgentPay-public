@@ -74,12 +74,15 @@ export class TelegramClient {
    */
   async setCallbackWebhook(webhookUrl: string): Promise<void> {
     try {
+      // Listen for callback_query (inline buttons) AND message (/chatid command).
+      // Regular message polling by OpenClaw (getUpdates) is NOT affected because
+      // allowed_updates filters what the webhook receives, not what getUpdates sees.
       await this.bot.api.setWebhook(webhookUrl, {
-        allowed_updates: ["callback_query"],
+        allowed_updates: ["callback_query", "message"],
       });
-      log.info("Registered callback webhook", { url: webhookUrl });
+      log.info("Registered webhook", { url: webhookUrl });
     } catch (err) {
-      log.warn("Failed to set callback webhook", {
+      log.warn("Failed to set webhook", {
         url: webhookUrl,
         error: err instanceof Error ? err.message : String(err),
       });

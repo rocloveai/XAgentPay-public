@@ -395,7 +395,7 @@ async function handleStartOrderPanel(
 }
 
 // ---------------------------------------------------------------------------
-// POST /telegram/webhook  — handles callback_query from inline buttons
+// POST /telegram/webhook  — handles callback_query + /chatid command
 // ---------------------------------------------------------------------------
 
 async function handleTelegramWebhook(
@@ -405,8 +405,27 @@ async function handleTelegramWebhook(
   let body: string;
   try { body = await readBody(req); } catch { res.writeHead(200); res.end(); return; }
 
-  let update: { callback_query?: { id: string; data?: string } };
+  let update: {
+    callback_query?: { id: string; data?: string };
+    message?: { chat: { id: number; title?: string; type: string }; text?: string; message_id: number };
+  };
   try { update = JSON.parse(body); } catch { res.writeHead(200); res.end(); return; }
+
+  // /chatid command — reply with the current chat ID (works in private & groups)
+  const msg = update.message;
+  if (msg?.text && (msg.text === "/chatid" || msg.text.startsWith("/chatid@"))) {
+    const chat = msg.chat;
+    const label = chat.title ? `「${chat.title}」` : "这个对话";
+    const typeLabel = chat.type === "private" ? "私聊" : chat.type === "group" ? "群组" : "频道/超级群";
+    const replyText =
+      `📋 <b>${label}</b> 的 Chat ID：\n` +
+      `<code>${chat.id}</code>\n\n` +
+      `类型：${typeLabel}\n` +
+      `把这个 ID 告诉 OpenClaw，下次订单卡片就会发到这里。`;
+    await telegramClient.sendHtmlMessage(chat.id, replyText);
+    res.writeHead(200); res.end();
+    return;
+  }
 
   const cb = update.callback_query;
   if (!cb) { res.writeHead(200); res.end(); return; }
