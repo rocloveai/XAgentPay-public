@@ -22,7 +22,7 @@ import { SecurityError } from "../errors.js";
 // ---------------------------------------------------------------------------
 
 const NEXUS_DOMAIN = {
-  name: "xNexus",
+  name: "NexusPay",
   version: "1",
   chainId: 20250407,
   verifyingContract: "0x0000000000000000000000000000000000000000" as Address,
