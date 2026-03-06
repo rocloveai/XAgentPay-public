@@ -425,37 +425,37 @@ tailwind.config = {
   <div id="action-area" class="hidden fade-in">
     <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center space-y-4">
 
-      <!-- No MetaMask (desktop) -->
+      <!-- No OKX Wallet (desktop) -->
       <div id="no-metamask" class="hidden">
-        <p class="text-red-400 text-sm mb-2">MetaMask not detected</p>
-        <a href="https://metamask.io/download/" target="_blank" rel="noopener"
-           class="inline-block bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors">
-          Install MetaMask
-        </a>
+        <p class="text-red-400 text-sm mb-2">OKX Wallet not detected</p>
+        <div class="space-y-2">
+          <a href="https://www.okx.com/web3" target="_blank" rel="noopener"
+             class="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors">
+            <svg class="w-5 h-5" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#000"/><rect x="4" y="4" width="10" height="10" rx="1" fill="white"/><rect x="18" y="4" width="10" height="10" rx="1" fill="white"/><rect x="4" y="18" width="10" height="10" rx="1" fill="white"/><rect x="18" y="18" width="10" height="10" rx="1" fill="white"/></svg>
+            Install OKX Wallet
+          </a>
+          <p class="text-slate-500 text-xs">OKX Wallet supports X Layer natively</p>
+        </div>
       </div>
 
-      <!-- No MetaMask (mobile) — deep link to MetaMask app -->
+      <!-- No OKX Wallet (mobile) -->
       <div id="no-metamask-mobile" class="hidden">
-        <p class="text-slate-400 text-sm mb-3">Open in MetaMask to complete payment</p>
+        <p class="text-slate-400 text-sm mb-3">Open in OKX Wallet to complete payment</p>
         <a id="metamask-deeplink" href="#"
-           class="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-8 rounded-lg transition-colors text-lg">
-          <svg class="w-6 h-6" viewBox="0 0 35 33" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M32.96 1L19.59 10.89l2.49-5.88L32.96 1z" fill="#E2761B" stroke="#E2761B" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2.03 1l13.24 9.99-2.36-5.98L2.03 1zM28.15 23.53l-3.55 5.44 7.6 2.09 2.18-7.39-6.23-.14zM.62 23.67l2.17 7.39 7.6-2.09-3.55-5.44-6.22.14z" fill="#E4761B" stroke="#E4761B" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M9.96 14.53l-2.12 3.21 7.55.34-.26-8.12-5.17 4.57zM25.03 14.53l-5.24-4.67-.17 8.22 7.54-.34-2.13-3.21zM10.39 28.97l4.53-2.21-3.91-3.05-.62 5.26zM20.07 26.76l4.55 2.21-.63-5.26-3.92 3.05z" fill="#E4761B" stroke="#E4761B" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          Open in MetaMask
+           class="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg transition-colors text-lg">
+          <svg class="w-6 h-6" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="white" fill-opacity="0.15"/><rect x="4" y="4" width="10" height="10" rx="1" fill="white"/><rect x="18" y="4" width="10" height="10" rx="1" fill="white"/><rect x="4" y="18" width="10" height="10" rx="1" fill="white"/><rect x="18" y="18" width="10" height="10" rx="1" fill="white"/></svg>
+          Open in OKX Wallet
         </a>
-        <p class="text-slate-500 text-xs mt-3">Don't have MetaMask?
-          <a href="https://metamask.io/download/" target="_blank" rel="noopener" class="text-indigo-400 hover:underline">Download here</a>
+        <p class="text-slate-500 text-xs mt-3">Don't have OKX Wallet?
+          <a href="https://www.okx.com/web3" target="_blank" rel="noopener" class="text-blue-400 hover:underline">Download here</a>
         </p>
       </div>
 
       <!-- Connect Wallet -->
       <div id="connect-wallet" class="hidden">
         <button id="btn-connect" onclick="connectWallet()"
-                class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2.5 px-8 rounded-lg transition-colors cursor-pointer">
-          Connect MetaMask
+                class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2.5 px-8 rounded-lg transition-colors cursor-pointer">
+          Connect OKX Wallet
         </button>
       </div>
 
@@ -477,7 +477,7 @@ tailwind.config = {
           <p class="text-slate-400 text-xs mt-2">Currently connected:</p>
           <p id="current-wallet" class="font-mono text-xs text-slate-300 mt-1 break-all"></p>
         </div>
-        <p class="text-slate-500 text-xs">Please switch to the correct account in MetaMask.</p>
+        <p class="text-slate-500 text-xs">Please switch to the correct account in OKX Wallet.</p>
       </div>
 
       <!-- Ready to Sign -->
@@ -494,7 +494,7 @@ tailwind.config = {
       <div id="signing" class="hidden">
         <div class="flex items-center justify-center gap-3">
           <div class="spinner"></div>
-          <span class="text-slate-300 text-sm">Waiting for MetaMask signature...</span>
+          <span class="text-slate-300 text-sm">Waiting for OKX Wallet signature...</span>
         </div>
       </div>
 
@@ -502,7 +502,7 @@ tailwind.config = {
       <div id="submitting" class="hidden">
         <div class="flex items-center justify-center gap-3">
           <div class="spinner"></div>
-          <span class="text-slate-300 text-sm">Sending transaction via MetaMask...</span>
+          <span class="text-slate-300 text-sm">Sending transaction via OKX Wallet...</span>
         </div>
         <div class="mt-3 w-full bg-slate-700 rounded-full h-2">
           <div class="bg-indigo-500 h-2 rounded-full" style="width: 50%; transition: width 2s;"></div>
@@ -587,11 +587,10 @@ function isMobile() {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 
-function getMetaMaskDeepLink() {
-  // metamask.app.link opens MetaMask's in-app browser with window.ethereum available
+function getOKXDeepLink() {
   var currentUrl = window.location.href;
-  var dappUrl = currentUrl.replace(/^https?:\\/\\//, "");
-  return "https://metamask.app.link/dapp/" + dappUrl;
+  var dappUrl = encodeURIComponent(currentUrl);
+  return "okx://wallet/dapp/details?dappUrl=" + dappUrl;
 }
 
 function truncAddr(addr) {
@@ -648,14 +647,16 @@ async function loadCheckout() {
     renderOrderSummary();
     renderPaymentDetails();
 
-    // Check MetaMask
+    // Prefer OKX Wallet; fall back to window.ethereum (MetaMask / other wallets)
+    if (typeof window.okxwallet !== "undefined") {
+      window.ethereum = window.okxwallet;
+    }
+
     if (typeof window.ethereum === "undefined") {
       if (isMobile()) {
-        // Mobile: show deep link to open MetaMask app
-        document.getElementById("metamask-deeplink").href = getMetaMaskDeepLink();
+        document.getElementById("metamask-deeplink").href = getOKXDeepLink();
         showOnly(["group-info","order-summary","payment-details","action-area","no-metamask-mobile"]);
       } else {
-        // Desktop: show install MetaMask
         showOnly(["group-info","order-summary","payment-details","action-area","no-metamask"]);
       }
       return;
@@ -1207,6 +1208,9 @@ function padAddress(addr) {
   var clean = String(addr).replace(/^0x/, "").toLowerCase();
   return clean.padStart(64, "0");
 }
+
+// Prefer OKX Wallet for event listeners too
+if (typeof window.okxwallet !== "undefined") { window.ethereum = window.okxwallet; }
 
 // Listen for chain/account changes
 if (typeof window.ethereum !== "undefined") {
