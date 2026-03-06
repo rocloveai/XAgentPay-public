@@ -1,15 +1,15 @@
-# RFC-010: xNexus Escrow Smart Contract Specification
+# RFC-010: xXAgent Pay Escrow Smart Contract Specification
 
 | Metadata | Value |
 | --- | --- |
-| **Title** | xNexus Escrow Smart Contract Specification |
+| **Title** | xXAgent Pay Escrow Smart Contract Specification |
 | **Version** | 2.0.0 |
 | **Status** | Standards Track (Draft) |
-| **Authors** | Cipher & Nexus Architect Team |
+| **Authors** | Cipher & XAgent Pay Architect Team |
 | **Created** | 2026-02-24 |
 | **Updated** | 2026-02-26 |
 | **Dependencies** | RFC-005v3 (Payment Core MVP), RFC-009 (Webhook Standard), RFC-001 (DID) |
-| **Target Chain** | PlatON Devnet (chain_id: 20250407) |
+| **Target Chain** | XLayer Devnet (chain_id: 20250407) |
 | **Payment Currency** | USDC (ERC-20, 6 decimals) |
 | **Contract Standards** | ERC-20 (IERC20), EIP-3009 (transferWithAuthorization), OpenZeppelin v5 |
 | **Gas Model** | Relayer-sponsored (zero Gas for users) |
@@ -18,7 +18,7 @@
 
 ## 1. Abstract
 
-This RFC defines the complete specification for the xNexus Escrow smart contract. The contract acts as a payment guarantor, implementing a guaranteed transaction flow of "user payment -> fund locking -> merchant fulfillment -> fund release". Complementing the Direct Transfer mode from RFC-005v2, it provides on-chain security guarantees for high-value transactions, cross-chain payments, and dispute arbitration.
+This RFC defines the complete specification for the xXAgent Pay Escrow smart contract. The contract acts as a payment guarantor, implementing a guaranteed transaction flow of "user payment -> fund locking -> merchant fulfillment -> fund release". Complementing the Direct Transfer mode from RFC-005v2, it provides on-chain security guarantees for high-value transactions, cross-chain payments, and dispute arbitration.
 
 **v1.1 Core Changes**: Adopts EIP-3009 (`transferWithAuthorization`) to replace EIP-2612 Permit, combined with a Relayer-sponsored service, achieving a completely gas-free payment experience for users. Users only need to sign an EIP-3009 authorization signature, and the Relayer submits the on-chain transaction on their behalf, with Gas fees covered by the Relayer from protocol fees.
 
@@ -77,7 +77,7 @@ User --transfer--> Merchant        User --deposit--> Contract --release--> Merch
 | **Deployment Complexity** | No contract deployment needed | Requires contract deployment and security audit | Direct better |
 | **Applicable Scenarios** | Small instant payments, high-trust transactions | High-value transactions, cross-border payments, service transactions requiring guarantees | Complementary |
 
-### 3.2 Detailed Gas Cost Estimates (PlatON Mainnet)
+### 3.2 Detailed Gas Cost Estimates (XLayer Mainnet)
 
 | Operation | Gas Consumption | User Bears | Relayer Bears | Description |
 | --- | --- | --- | --- | --- |
@@ -89,14 +89,14 @@ User --transfer--> Merchant        User --deposit--> Contract --release--> Merch
 | **Direct Transfer User Cost** | **~65,000** | **65,000** | **0** | User sends on-chain transaction themselves |
 | **Escrow User Cost** | **0** | **0** | **~220,000** | User only signs, Relayer bears all Gas |
 
-> Note: In Escrow mode, users do not need to hold any LAT (PlatON native token). All on-chain transaction fees are borne by the Relayer, with costs covered from the protocol fee (0.3%).
+> Note: In Escrow mode, users do not need to hold any LAT (XLayer native token). All on-chain transaction fees are borne by the Relayer, with costs covered from the protocol fee (0.3%).
 
 ### 3.3 Strategic Decision: Progressive Dual-mode Architecture
 
 **Conclusion**: Do not replace Direct Transfer; instead run Escrow as a second payment mode in parallel.
 
 ```
-xNexus Core (RFC-005v2 upgrade)
+xXAgent Pay Core (RFC-005v2 upgrade)
 ├── PaymentMethod: DIRECT_TRANSFER  (existing mode, unchanged)
 │   └── Suitable for: small instant payments, high-trust merchants
 │
@@ -108,7 +108,7 @@ Merchants select supported payment modes during registration, and Core routes to
 
 ---
 
-## 4. xNexusEscrow Contract Design
+## 4. xXAgent PayEscrow Contract Design
 
 ### 4.1 Contract State Machine
 
@@ -160,7 +160,7 @@ Merchants select supported payment modes during registration, and Core routes to
 
 ### 4.4 EIP-3009 Interface Definition
 
-USDC on the PlatON chain supports EIP-3009 (`transferWithAuthorization`), with the following interface:
+USDC on the XLayer chain supports EIP-3009 (`transferWithAuthorization`), with the following interface:
 
 ```solidity
 /**
@@ -239,8 +239,8 @@ interface IERC3009 is IERC20 {
 }
 
 /**
- * @title xNexusEscrow
- * @notice USDC-based guaranteed payment contract, supporting the xNexus payment protocol
+ * @title xXAgent PayEscrow
+ * @notice USDC-based guaranteed payment contract, supporting the xXAgent Pay payment protocol
  * @dev The contract acts as a guarantor: Relayer deposits on behalf of user -> merchant fulfills -> Core releases
  *      Uses EIP-3009 (transferWithAuthorization) to achieve zero Gas payments for users
  *      Users only need to sign an off-chain EIP-3009 authorization, Relayer submits the on-chain transaction on their behalf
@@ -248,11 +248,11 @@ interface IERC3009 is IERC20 {
  * Key design decisions:
  * - EIP-3009 replaces approve/permit: users don't need to hold LAT, zero on-chain transactions
  * - Relayer-sponsored mode: all on-chain Gas is borne by the Relayer
- * - Initial arbiter = Nexus operator: automatically set at deployment, can be changed later
+ * - Initial arbiter = XAgent Pay operator: automatically set at deployment, can be changed later
  * - Each payment is independently managed, indexed by paymentId
  * - Timeout refund is a public function, anyone can trigger it (Relayer auto-executes)
  */
-contract xNexusEscrow is ReentrancyGuard, Ownable {
+contract xXAgent PayEscrow is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     // =========================================================================
@@ -270,7 +270,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
     }
 
     struct EscrowRecord {
-        bytes32 paymentId;           // xNexus payment ID (keccak256)
+        bytes32 paymentId;           // xXAgent Pay payment ID (keccak256)
         address payer;               // Payer address (EIP-3009 signer)
         address merchant;            // Merchant receiving address
         uint256 amount;              // USDC amount (6 decimals)
@@ -371,7 +371,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
     // =========================================================================
 
     modifier onlyArbiter() {
-        require(arbiters[msg.sender], "NexusEscrow: not arbiter");
+        require(arbiters[msg.sender], "XAgent PayEscrow: not arbiter");
         _;
     }
 
@@ -379,7 +379,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
         EscrowRecord storage record = escrows[_paymentId];
         require(
             msg.sender == record.merchant || coreOperators[msg.sender],
-            "NexusEscrow: not authorized"
+            "XAgent PayEscrow: not authorized"
         );
         _;
     }
@@ -387,7 +387,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
     modifier onlyPayer(bytes32 _paymentId) {
         require(
             msg.sender == escrows[_paymentId].payer,
-            "NexusEscrow: not payer"
+            "XAgent PayEscrow: not payer"
         );
         _;
     }
@@ -397,7 +397,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
     // =========================================================================
 
     /**
-     * @notice Deploy the xNexusEscrow contract
+     * @notice Deploy the xXAgent PayEscrow contract
      * @dev Constructor automatically sets _nexusOperator as the initial arbiter and Core operator
      *      Can be changed later via setArbiter() and setCoreOperator()
      * @param _usdc                  USDC contract address (must support EIP-3009)
@@ -405,7 +405,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
      * @param _defaultDisputeWindow  Default dispute window (seconds)
      * @param _protocolFeeBps        Protocol fee (basis points, max 500 = 5%)
      * @param _protocolFeeRecipient  Fee recipient address
-     * @param _nexusOperator         Nexus admin wallet (initial arbiter + operator)
+     * @param _nexusOperator         XAgent Pay admin wallet (initial arbiter + operator)
      */
     constructor(
         address _usdc,
@@ -415,14 +415,14 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
         address _protocolFeeRecipient,
         address _nexusOperator
     ) Ownable(msg.sender) {
-        require(_usdc != address(0), "NexusEscrow: zero USDC address");
-        require(_defaultReleaseTimeout > 0, "NexusEscrow: zero timeout");
-        require(_protocolFeeBps <= 500, "NexusEscrow: fee too high"); // max 5%
+        require(_usdc != address(0), "XAgent PayEscrow: zero USDC address");
+        require(_defaultReleaseTimeout > 0, "XAgent PayEscrow: zero timeout");
+        require(_protocolFeeBps <= 500, "XAgent PayEscrow: fee too high"); // max 5%
         require(
             _protocolFeeRecipient != address(0),
-            "NexusEscrow: zero fee recipient"
+            "XAgent PayEscrow: zero fee recipient"
         );
-        require(_nexusOperator != address(0), "NexusEscrow: zero operator");
+        require(_nexusOperator != address(0), "XAgent PayEscrow: zero operator");
 
         usdc = IERC3009(_usdc);
         defaultReleaseTimeout = _defaultReleaseTimeout;
@@ -430,7 +430,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
         protocolFeeBps = _protocolFeeBps;
         protocolFeeRecipient = _protocolFeeRecipient;
 
-        // Initial setup: Nexus operator serves as both arbiter and Core operator
+        // Initial setup: XAgent Pay operator serves as both arbiter and Core operator
         arbiters[_nexusOperator] = true;
         coreOperators[_nexusOperator] = true;
 
@@ -450,7 +450,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
      *
      *      Flow: User signs EIP-3009 -> Relayer calls this function -> Contract calls USDC.transferWithAuthorization
      *
-     * @param _paymentId     xNexus payment ID (bytes32, generated by Core)
+     * @param _paymentId     xXAgent Pay payment ID (bytes32, generated by Core)
      * @param _from          Payer address (EIP-3009 signer, i.e. user wallet)
      * @param _merchant      Merchant receiving address (resolved from DID registry)
      * @param _amount        USDC amount (6 decimals)
@@ -482,12 +482,12 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
     ) external nonReentrant {
         require(
             escrows[_paymentId].status == EscrowStatus.NONE,
-            "NexusEscrow: payment exists"
+            "XAgent PayEscrow: payment exists"
         );
-        require(_from != address(0), "NexusEscrow: zero payer");
-        require(_merchant != address(0), "NexusEscrow: zero merchant");
-        require(_amount > 0, "NexusEscrow: zero amount");
-        require(_merchant != _from, "NexusEscrow: self-payment");
+        require(_from != address(0), "XAgent PayEscrow: zero payer");
+        require(_merchant != address(0), "XAgent PayEscrow: zero merchant");
+        require(_amount > 0, "XAgent PayEscrow: zero amount");
+        require(_merchant != _from, "XAgent PayEscrow: self-payment");
 
         uint64 releaseDeadline = uint64(block.timestamp) + defaultReleaseTimeout;
         uint64 disputeDeadline = uint64(block.timestamp) + defaultDisputeWindow;
@@ -538,7 +538,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
      * @dev Requires USDC approval to this contract before calling
      *      Suitable for scenarios where the user has LAT and is willing to send on-chain transactions themselves
      *      paymentId must be unique (anti-replay)
-     * @param _paymentId     xNexus payment ID (bytes32, generated by Core)
+     * @param _paymentId     xXAgent Pay payment ID (bytes32, generated by Core)
      * @param _merchant      Merchant receiving address (resolved from DID registry)
      * @param _amount        USDC amount (6 decimals)
      * @param _orderRef      Merchant order number hash
@@ -555,11 +555,11 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
     ) external nonReentrant {
         require(
             escrows[_paymentId].status == EscrowStatus.NONE,
-            "NexusEscrow: payment exists"
+            "XAgent PayEscrow: payment exists"
         );
-        require(_merchant != address(0), "NexusEscrow: zero merchant");
-        require(_amount > 0, "NexusEscrow: zero amount");
-        require(_merchant != msg.sender, "NexusEscrow: self-payment");
+        require(_merchant != address(0), "XAgent PayEscrow: zero merchant");
+        require(_amount > 0, "XAgent PayEscrow: zero amount");
+        require(_merchant != msg.sender, "XAgent PayEscrow: self-payment");
 
         uint64 releaseDeadline = uint64(block.timestamp) + defaultReleaseTimeout;
         uint64 disputeDeadline = uint64(block.timestamp) + defaultDisputeWindow;
@@ -606,7 +606,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
         EscrowRecord storage record = escrows[_paymentId];
         require(
             record.status == EscrowStatus.DEPOSITED,
-            "NexusEscrow: invalid status"
+            "XAgent PayEscrow: invalid status"
         );
 
         record.status = EscrowStatus.RELEASED;
@@ -638,11 +638,11 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
         EscrowRecord storage record = escrows[_paymentId];
         require(
             record.status == EscrowStatus.DEPOSITED,
-            "NexusEscrow: invalid status"
+            "XAgent PayEscrow: invalid status"
         );
         require(
             block.timestamp > record.releaseDeadline,
-            "NexusEscrow: not expired"
+            "XAgent PayEscrow: not expired"
         );
 
         record.status = EscrowStatus.REFUNDED;
@@ -672,11 +672,11 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
         EscrowRecord storage record = escrows[_paymentId];
         require(
             record.status == EscrowStatus.DEPOSITED,
-            "NexusEscrow: invalid status"
+            "XAgent PayEscrow: invalid status"
         );
         require(
             block.timestamp <= record.disputeDeadline,
-            "NexusEscrow: dispute window closed"
+            "XAgent PayEscrow: dispute window closed"
         );
 
         record.status = EscrowStatus.DISPUTED;
@@ -686,7 +686,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
 
     /**
      * @notice Arbiter resolves a dispute
-     * @dev Only arbiters can call (initially the Nexus admin wallet)
+     * @dev Only arbiters can call (initially the XAgent Pay admin wallet)
      *      Supports proportional allocation: merchantBps represents the merchant's share (basis points)
      *      Example: merchantBps = 10000 all to merchant, 0 all to user, 5000 split evenly
      * @param _paymentId   Payment ID
@@ -699,9 +699,9 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
         EscrowRecord storage record = escrows[_paymentId];
         require(
             record.status == EscrowStatus.DISPUTED,
-            "NexusEscrow: not disputed"
+            "XAgent PayEscrow: not disputed"
         );
-        require(_merchantBps <= 10000, "NexusEscrow: invalid bps");
+        require(_merchantBps <= 10000, "XAgent PayEscrow: invalid bps");
 
         uint256 merchantAmount = (record.amount * _merchantBps) / 10000;
         uint256 payerAmount = record.amount - merchantAmount;
@@ -777,7 +777,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
      * @param _active  Whether to enable
      */
     function setArbiter(address _arbiter, bool _active) external onlyOwner {
-        require(_arbiter != address(0), "NexusEscrow: zero address");
+        require(_arbiter != address(0), "XAgent PayEscrow: zero address");
         arbiters[_arbiter] = _active;
         emit ArbiterUpdated(_arbiter, _active);
     }
@@ -786,13 +786,13 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
         address _operator,
         bool _active
     ) external onlyOwner {
-        require(_operator != address(0), "NexusEscrow: zero address");
+        require(_operator != address(0), "XAgent PayEscrow: zero address");
         coreOperators[_operator] = _active;
         emit CoreOperatorUpdated(_operator, _active);
     }
 
     function setDefaultReleaseTimeout(uint64 _timeout) external onlyOwner {
-        require(_timeout > 0, "NexusEscrow: zero timeout");
+        require(_timeout > 0, "XAgent PayEscrow: zero timeout");
         defaultReleaseTimeout = _timeout;
     }
 
@@ -804,24 +804,24 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
         uint16 _feeBps,
         address _recipient
     ) external onlyOwner {
-        require(_feeBps <= 500, "NexusEscrow: fee too high");
-        require(_recipient != address(0), "NexusEscrow: zero recipient");
+        require(_feeBps <= 500, "XAgent PayEscrow: fee too high");
+        require(_recipient != address(0), "XAgent PayEscrow: zero recipient");
         protocolFeeBps = _feeBps;
         protocolFeeRecipient = _recipient;
     }
 }
 ```
 
-### 4.6 Contract Deployment Parameters (PlatON Mainnet)
+### 4.6 Contract Deployment Parameters (XLayer Mainnet)
 
 | Parameter | Suggested Value | Description |
 | --- | --- | --- |
-| `_usdc` | PlatON USDC contract address | Must support EIP-3009 (transferWithAuthorization) |
+| `_usdc` | XLayer USDC contract address | Must support EIP-3009 (transferWithAuthorization) |
 | `_defaultReleaseTimeout` | 86400 (24 hours) | Merchant must confirm fulfillment within 24 hours |
 | `_defaultDisputeWindow` | 259200 (72 hours) | User can initiate dispute within 72 hours |
 | `_protocolFeeBps` | 30 (0.3%) | Protocol fee (must cover Relayer Gas costs) |
-| `_protocolFeeRecipient` | Nexus multisig wallet | Fee recipient address |
-| `_nexusOperator` | Nexus admin wallet | Initial arbiter + Core operator + Relayer address |
+| `_protocolFeeRecipient` | XAgent Pay multisig wallet | Fee recipient address |
+| `_nexusOperator` | XAgent Pay admin wallet | Initial arbiter + Core operator + Relayer address |
 
 ---
 
@@ -830,7 +830,7 @@ contract xNexusEscrow is ReentrancyGuard, Ownable {
 ### 5.1 Escrow Mode Complete Payment Flow Sequence Diagram (EIP-3009 + Relayer)
 
 ```
-User Agent (UA)       xNexus Core          Relayer            xNexusEscrow       Merchant Agent (MA)     PlatON Chain
+User Agent (UA)       xXAgent Pay Core          Relayer            xXAgent PayEscrow       Merchant Agent (MA)     XLayer Chain
      |                     |               (Core submodule)    (Smart Contract)            |                     |
      |  1. Search products  |                    |                    |                    |                     |
      | ──────────────────────────────────────────────────────────────────────────────────►  |                     |
@@ -871,7 +871,7 @@ User Agent (UA)       xNexus Core          Relayer            xNexusEscrow      
      |                     |                    |                    |                    |                     |
      |                     |                    |  7. Relayer builds tx and submits on-chain |                     |
      |                     |                    | ──────────────────►|                    |                     |
-     |                     |                    |  xNexusEscrow.depositWithAuthorization(...)                  |
+     |                     |                    |  xXAgent PayEscrow.depositWithAuthorization(...)                  |
      |                     |                    |  (Relayer pays Gas)  |                    |                     |
      |                     |                    | ◄──────────────────| deposit tx_hash    |                     |
      |                     |                    |                    |                    |                     |
@@ -900,7 +900,7 @@ User Agent (UA)       xNexus Core          Relayer            xNexusEscrow      
      |                     |  12. Relayer calls contract to release funds |                    |                     |
      |                     | ──────────────────►|                    |                    |                     |
      |                     |                    | ──────────────────►|                    |                     |
-     |                     |                    |  xNexusEscrow.release(paymentId)      |                     |
+     |                     |                    |  xXAgent PayEscrow.release(paymentId)      |                     |
      |                     |                    | ◄──────────────────| PaymentReleased    |                     |
      |                     |  status: SETTLED    |                    |  event             |                     |
      |                     |                    |                    |                    |                     |
@@ -962,11 +962,11 @@ v1.1 changes: Removed `approve_tx` + `deposit_tx`, replaced with EIP-3009 signin
 interface EscrowInstruction {
   // Chain info
   readonly chain_id: 210425;
-  readonly chain_name: "PlatON";
+  readonly chain_name: "XLayer";
   readonly payment_method: "ESCROW";
 
   // Escrow contract info
-  readonly escrow_contract: Address;   // xNexusEscrow contract address
+  readonly escrow_contract: Address;   // xXAgent PayEscrow contract address
   readonly token_address: Address;     // USDC contract address (supports EIP-3009)
   readonly token_symbol: "USDC";
   readonly token_decimals: 6;
@@ -1032,7 +1032,7 @@ interface EscrowInstruction {
 4. UA obtains signature (v, r, s)
 5. UA calls nexus_submit_eip3009_signature(payment_id, v, r, s)
 6. Core forwards signature to Relayer
-7. Relayer calls xNexusEscrow.depositWithAuthorization(...) on-chain
+7. Relayer calls xXAgent PayEscrow.depositWithAuthorization(...) on-chain
 8. After on-chain confirmation, Core updates status to ESCROWED
 ```
 
@@ -1169,7 +1169,7 @@ Core Timeout Handler (scheduled task, executed via Relayer):
 
 1. Every 60 seconds, scan orders with status = 'ESCROWED' where release_deadline has passed
 2. For each expired order:
-   a. Call xNexusEscrow.refund(paymentId) via Relayer (Relayer bears Gas)
+   a. Call xXAgent PayEscrow.refund(paymentId) via Relayer (Relayer bears Gas)
    b. If transaction succeeds:
       - Update Core status: ESCROWED -> REFUNDED
       - Send Webhook: payment.refunded
@@ -1181,13 +1181,13 @@ Core Timeout Handler (scheduled task, executed via Relayer):
 
 ### 6.4 Arbiter Mechanism
 
-**v1.1 Decision: Initial arbiter = Nexus admin wallet (nexusOperator)**
+**v1.1 Decision: Initial arbiter = XAgent Pay admin wallet (nexusOperator)**
 
-In the initial phase, the Nexus admin wallet serves both the operator role (release permission) and the arbiter role (dispute resolve permission). This simplifies deployment and operations; the arbiter can later be changed to an independent address via `setArbiter()`.
+In the initial phase, the XAgent Pay admin wallet serves both the operator role (release permission) and the arbiter role (dispute resolve permission). This simplifies deployment and operations; the arbiter can later be changed to an independent address via `setArbiter()`.
 
 | Rule | Description |
 | --- | --- |
-| **Initial arbiter** | Contract constructor automatically sets `arbiter = nexusOperator` (Nexus admin wallet) |
+| **Initial arbiter** | Contract constructor automatically sets `arbiter = nexusOperator` (XAgent Pay admin wallet) |
 | **Appointment method** | Contract owner appoints or revokes via `setArbiter(address, bool)` |
 | **Subsequent changes** | Can be changed to an independent arbiter or multisig wallet at any time after deployment via `setArbiter()` |
 | **Number of arbiters** | MVP phase: 1 (= nexusOperator), can later be expanded to DAO voting |
@@ -1327,7 +1327,7 @@ type PaymentEventType =
 ```
 Chain Watcher Extension (Escrow mode):
 
-Event listener list (xNexusEscrow contract):
+Event listener list (xXAgent PayEscrow contract):
 1. PaymentDeposited(paymentId, payer, merchant, amount, ...)
    -> Core: BROADCASTED -> ESCROWED
    -> Webhook: payment.escrowed
@@ -1349,7 +1349,7 @@ Event listener list (xNexusEscrow contract):
    -> Webhook: dispute.resolved
 
 Polling strategy:
-- Query xNexusEscrow contract for new events every 3 seconds
+- Query xXAgent PayEscrow contract for new events every 3 seconds
 - Use getLogs to filter from fromBlock -> latestBlock
 - Match Core payment records by paymentId
 ```
@@ -1377,13 +1377,13 @@ No breaking changes to RFC-005v2. The following is the compatibility strategy:
 ```
 src/contracts/
 ├── src/
-│   ├── xNexusEscrow.sol        # Main contract (includes depositWithAuthorization)
+│   ├── xXAgent PayEscrow.sol        # Main contract (includes depositWithAuthorization)
 │   └── interfaces/
 │       └── IERC3009.sol           # EIP-3009 interface definition
 │
 ├── test/
-│   ├── xNexusEscrow.t.sol      # Foundry unit tests
-│   ├── xNexusEscrow.gas.t.sol  # Gas consumption tests
+│   ├── xXAgent PayEscrow.t.sol      # Foundry unit tests
+│   ├── xXAgent PayEscrow.gas.t.sol  # Gas consumption tests
 │   └── mocks/
 │       └── MockUSDC.sol          # EIP-3009 mock USDC (for testing)
 │
@@ -1427,7 +1427,7 @@ src/nexus-core/
 
 Escrow mode introduces a richer payment lifecycle, requiring expanded ISO 20022 mapping:
 
-| Nexus Field | ISO 20022 Element | Description |
+| XAgent Pay Field | ISO 20022 Element | Description |
 | --- | --- | --- |
 | `payment_method: "ESCROW"` | `PmtMtd` | Payment method identifier |
 | `escrow_contract` | `IntrmyAgt` | Intermediary agent (Escrow contract) |
@@ -1489,7 +1489,7 @@ When arbitration proportional ruling:
 | **Core operator private key leak** | Attacker can call release to extract all Escrow funds | Use multisig wallet as Core operator; restrict release to only transfer to record.merchant |
 | **Arbiter collusion** | Arbiter colludes with one party to make unfair ruling | Multi-arbiter mechanism; rulings are publicly transparent and auditable |
 | **Reentrancy attack** | Malicious ERC-20 reenters during transfer callback | ReentrancyGuard + SafeERC20 |
-| **Time manipulation** | Miner/validator manipulates block.timestamp | PlatON has stable block time (~1s); timeout windows set at hour-level |
+| **Time manipulation** | Miner/validator manipulates block.timestamp | XLayer has stable block time (~1s); timeout windows set at hour-level |
 | **Frontend spoofing** | Forge merchant address in deposit calldata | Core resolves merchant address from DID registry, does not trust frontend |
 | **Griefing Attack** | Malicious user repeatedly deposits + disputes to consume arbitration resources | Future versions will introduce dispute deposit |
 | **Relayer private key leak** | Attacker can drain Relayer's LAT balance (but cannot steal USDC) | Relayer wallet holds only a small amount of LAT; KMS for private key storage; balance monitoring alerts |
@@ -1524,7 +1524,7 @@ The contract uses OpenZeppelin `UUPSUpgradeable` + `Initializable` for upgradeab
 
 ### 11.1 Design Decision Background
 
-USDC on the PlatON chain supports EIP-3009 (`transferWithAuthorization`), not EIP-2612 (Permit). The core advantages of EIP-3009 are:
+USDC on the XLayer chain supports EIP-3009 (`transferWithAuthorization`), not EIP-2612 (Permit). The core advantages of EIP-3009 are:
 
 | Feature | EIP-2612 (Permit) | EIP-3009 (TransferWithAuthorization) |
 | --- | --- | --- |
@@ -1532,16 +1532,16 @@ USDC on the PlatON chain supports EIP-3009 (`transferWithAuthorization`), not EI
 | **User operations** | Sign + send transaction (or spender calls permit + transferFrom in same transaction) | Sign only, anyone (Relayer) can submit on their behalf |
 | **Nonce management** | Incrementing nonce, serialized with other permits | Random bytes32 nonce, fully parallel |
 | **Gas responsibility** | Caller pays | Anyone (Relayer) who submits pays Gas |
-| **PlatON USDC support** | Not supported | Supported |
+| **XLayer USDC support** | Not supported | Supported |
 
 Therefore, we adopt the EIP-3009 + Relayer-sponsored approach to achieve a completely zero Gas payment experience for users.
 
 ### 11.2 Relayer Service Architecture
 
-The Relayer operates as a submodule of xNexus Core, responsible for submitting on-chain transactions on behalf of users and paying Gas.
+The Relayer operates as a submodule of xXAgent Pay Core, responsible for submitting on-chain transactions on behalf of users and paying Gas.
 
 ```
-                                 xNexus Core
+                                 xXAgent Pay Core
                   ┌─────────────────────────────────────────┐
                   │                                         │
                   │  ┌──────────────┐  ┌──────────────────┐ │
@@ -1602,7 +1602,7 @@ Relayer Balance Monitor (scheduled task, every 5 minutes):
    b. Log: "Relayer LAT balance below warning threshold"
 4. If balance < CRITICAL_THRESHOLD:
    a. Send urgent alert
-   b. Trigger auto top-up process (transfer LAT from Nexus operations wallet)
+   b. Trigger auto top-up process (transfer LAT from XAgent Pay operations wallet)
    c. Pause non-critical transactions (only keep refund)
 5. Record balance to monitoring database (for trend analysis)
 ```
@@ -1617,7 +1617,7 @@ release:                    ~80,000 gas
 -----------------------------------
 Total:                      ~220,000 gas / transaction
 
-PlatON Gas Price (current): ~1 gwei
+XLayer Gas Price (current): ~1 gwei
 Cost per transaction: 220,000 * 1 gwei = 0.00022 LAT
 
 Protocol fee (0.3%):
@@ -1660,11 +1660,11 @@ Conclusion: Protocol fee can fully cover Relayer Gas costs with ample margin
 
 - [ ] Initialize Foundry project (src/contracts/)
 - [ ] Implement IERC3009 interface definition
-- [ ] Implement xNexusEscrow.sol core contract (includes depositWithAuthorization)
+- [ ] Implement xXAgent PayEscrow.sol core contract (includes depositWithAuthorization)
 - [ ] Write Foundry unit tests (100% branch coverage)
 - [ ] EIP-3009 signature verification tests (mock USDC with EIP-3009)
 - [ ] Gas consumption benchmark tests (depositWithAuthorization vs deposit)
-- [ ] PlatON Devnet deployment verification
+- [ ] XLayer Devnet deployment verification
 - [ ] AI security audit + Slither static analysis
 
 #### Phase 1: Core Extension - Escrow Routing + Relayer (1-2 weeks)
@@ -1697,10 +1697,10 @@ Conclusion: Protocol fee can fully cover Relayer Gas costs with ample margin
 - [ ] Implement arbiter management interface
 - [ ] End-to-end testing (EIP-3009 signing -> Relayer on-chain submission -> complete Escrow flow)
 
-#### Phase 4: PlatON Mainnet Deployment (1 week)
+#### Phase 4: XLayer Mainnet Deployment (1 week)
 
 - [ ] AI security audit final round + Foundry fuzz/invariant testing
-- [ ] PlatON mainnet deployment (set nexusOperator as initial arbiter + operator)
+- [ ] XLayer mainnet deployment (set nexusOperator as initial arbiter + operator)
 - [ ] Relayer wallet LAT top-up + balance monitoring configuration
 - [ ] Core configuration update (contract address, operator settings, Relayer wallet address)
 - [ ] Merchant onboarding (Escrow mode integration documentation)
@@ -1783,22 +1783,22 @@ Protocol fee rate ──► Merchant acceptance ──► Escrow adoption rate �
 3. **Cross-chain Escrow**: Integrate with RFC-007 Hub-Spoke architecture
 4. **DAO Arbitration**: Decentralized arbiter election and voting mechanism
 5. **Split Payment**: Native contract support for multi-party payment splitting
-6. **On-chain DID Registry**: NexusMerchantRegistry contract integration
+6. **On-chain DID Registry**: XAgent PayMerchantRegistry contract integration
 7. **Multi-Relayer Support**: Relayer competition mechanism for improved availability and decentralization
 
 ### 14.3 Decided Items (v1.1 Update)
 
 | # | Topic | Decision | Impact |
 | --- | --- | --- | --- |
-| 1 | Does PlatON USDC support EIP-2612 Permit | **Does not support Permit, supports EIP-3009 (transferWithAuthorization)** | Contract switched to depositWithAuthorization, removed depositWithPermit |
+| 1 | Does XLayer USDC support EIP-2612 Permit | **Does not support Permit, supports EIP-3009 (transferWithAuthorization)** | Contract switched to depositWithAuthorization, removed depositWithPermit |
 | 2 | Who bears Gas fees | **Relayer-sponsored, Gas costs covered from protocol fee (0.3%)** | Added Relayer service module; users don't need to hold LAT |
-| 3 | Arbiter selection criteria | **Initial phase: arbiter = nexusOperator (Nexus admin wallet), can later be changed via setArbiter()** | Contract constructor auto-sets; simplified deployment |
+| 3 | Arbiter selection criteria | **Initial phase: arbiter = nexusOperator (XAgent Pay admin wallet), can later be changed via setArbiter()** | Contract constructor auto-sets; simplified deployment |
 | 4 | Contract security audit | **No external audit; use AI audit + Slither + Foundry fuzz/invariant testing after contract completion** | Reduced cost and time; one round each in Phase 0 and Phase 4 |
 
 ### 14.4 Items Still Under Discussion
 
 1. **Dispute deposit amount**: What amount is appropriate? Suggested 1-5% of Escrow amount
-2. **Cross-chain Escrow architecture**: Deposit on source chain and release on target chain, or unified on PlatON Hub?
+2. **Cross-chain Escrow architecture**: Deposit on source chain and release on target chain, or unified on XLayer Hub?
 3. **Contract insurance**: Is it necessary to introduce a DeFi insurance protocol to cover contract risk?
 4. **Privacy protection**: Do on-chain events expose too much business information? Is zero-knowledge proof needed?
 5. **Relayer multi-wallet strategy**: Are multiple Relayer wallets needed for rotation to improve throughput?
@@ -1808,7 +1808,7 @@ Protocol fee rate ──► Merchant acceptance ──► Escrow adoption rate �
 
 ## 15. Copyright Notice
 
-Copyright (c) 2026 Nexus Protocol. All Rights Reserved.
+Copyright (c) 2026 XAgent Pay. All Rights Reserved.
 
 ---
 
@@ -1827,7 +1827,7 @@ Copyright (c) 2026 Nexus Protocol. All Rights Reserved.
 
 ## Appendix A: v2.0.0 Changelog (2026-02-26)
 
-The following documents the alignment changes between RFC-010 v2.0.0 and the deployed xNexusEscrow v4.0.0 contract.
+The following documents the alignment changes between RFC-010 v2.0.0 and the deployed xXAgent PayEscrow v4.0.0 contract.
 
 ### A.1 UUPS Proxy Pattern
 
@@ -1882,7 +1882,7 @@ function batchDepositWithGroupApproval(
 
 EIP-712 TypeHash:
 ```
-NexusGroupApproval(bytes32 groupId, bytes32 entriesHash, uint256 totalAmount)
+XAgent PayGroupApproval(bytes32 groupId, bytes32 entriesHash, uint256 totalAmount)
 ```
 
 - `entriesHash = keccak256(abi.encode(entries))`
@@ -1916,9 +1916,9 @@ function refundUnresolvedDispute(bytes32 paymentId) external nonReentrant
 - Must be past `arbitrationTimeout` (7 days, default 604800000 ms)
 - Full refund to payer (H-01 audit fix)
 
-### A.7 PlatON Millisecond Timestamps
+### A.7 XLayer Millisecond Timestamps
 
-**Key discovery**: PlatON Devnet EVM's `block.timestamp` uses **milliseconds** instead of seconds.
+**Key discovery**: XLayer Devnet EVM's `block.timestamp` uses **milliseconds** instead of seconds.
 
 All time parameters (timeouts, windows) must be in milliseconds:
 - `defaultReleaseTimeout`: 86400000 (24h in ms)
@@ -1930,8 +1930,8 @@ All time parameters (timeouts, windows) must be in milliseconds:
 
 | Parameter | Value | Description |
 | --- | --- | --- |
-| USDC | `0xFF8dEe9983768D0399673014cf77826896F97e4d` | PlatON Devnet USDC (FiatToken) |
-| chain_id | 20250407 | PlatON Devnet |
+| USDC | `0xFF8dEe9983768D0399673014cf77826896F97e4d` | XLayer Devnet USDC (FiatToken) |
+| chain_id | 20250407 | XLayer Devnet |
 | defaultReleaseTimeout | 86400000 (24h ms) | Merchant fulfillment timeout |
 | defaultDisputeWindow | 259200000 (72h ms) | Dispute window |
 | arbitrationTimeout | 604800000 (7d ms) | Arbitration timeout |
@@ -1941,8 +1941,8 @@ All time parameters (timeouts, windows) must be in milliseconds:
 | arbiter | Same as coreOperator | Initial arbiter |
 | requireGroupSig | true | Enforces Group signature verification |
 
-### A.9 PlatON Deployment Notes
+### A.9 XLayer Deployment Notes
 
-- Must use `--legacy` flag (EIP-1559 transactions on PlatON get gas price of 1 wei, too low)
+- Must use `--legacy` flag (EIP-1559 transactions on XLayer get gas price of 1 wei, too low)
 - Use `--with-gas-price 20000000000` (20 gwei, network minimum ~10 gwei)
-- PlatON does not support transaction replacement; use `--legacy` to avoid pending transaction issues
+- XLayer does not support transaction replacement; use `--legacy` to avoid pending transaction issues

@@ -1,8 +1,8 @@
-# RFC-004: Nexus Client Standard (NCS)
+# RFC-004: XAgent Pay Client Standard (NCS)
 
 | Metadata | Value |
 | --- | --- |
-| **Title** | Nexus Client Standard |
+| **Title** | XAgent Pay Client Standard |
 | **Version** | 1.5.0 |
 | **Status** | Standards Track (Draft) |
 | **Dependencies** | RFC-002 (NUPS), RFC-003 (NAIS) |
@@ -16,7 +16,7 @@ npm install @nexus/seller-sdk
 ```
 This package includes:
 * **Signer:** Handles EIP-712 offline signing.
-* **Client:** Handles communication with Nexus Core (MCP).
+* **Client:** Handles communication with XAgent Pay Core (MCP).
 * **Adapters:** Adapters for LangChain, Genkit, and MCP.
 ---
 ### Approach 1: AI Native Mode (For Google Genkit/LangChain)
@@ -28,7 +28,7 @@ import { genkit } from 'genkit';
 import { nexusSellerPlugin } from '@nexus/seller-sdk/genkit';
 const ai = genkit({
 plugins: [
-// --- 1. Import Nexus Plugin ---
+// --- 1. Import XAgent Pay Plugin ---
 nexusSellerPlugin({
 merchantDid: process.env.MERCHANT_DID, // e.g. "did:nexus:trip_com"
 privateKey: process.env.MERCHANT_KEY, // Your private key
@@ -46,8 +46,8 @@ inputSchema: z.string(),
 // The LLM will automatically, based on context, call the `nexus_create_quote` tool from the plugin,
 // and generate a UCP-compliant JSON response to return to the user.
 const response = await ai.generate({
-prompt: `User wants to book flight ${input}. Price is 530 USDC. Generate a Nexus payment quote.`,
-tools: ['nexus_create_quote'] // Explicitly allow the LLM to use the Nexus tool
+prompt: `User wants to book flight ${input}. Price is 530 USDC. Generate a XAgent Pay payment quote.`,
+tools: ['nexus_create_quote'] // Explicitly allow the LLM to use the XAgent Pay tool
 });
 return response.output;
 });
@@ -59,9 +59,9 @@ If a merchant wants to expose their service to Claude Desktop, Cursor, or other 
 #### Code Implementation
 ```typescript
 // src/mcp-server.ts
-import { NexusMcpServer } from '@nexus/seller-sdk/mcp';
+import { XAgent PayMcpServer } from '@nexus/seller-sdk/mcp';
 // --- 1. Start the Server ---
-const server = new NexusMcpServer({
+const server = new XAgent PayMcpServer({
 name: "Trip.com Payment Service",
 version: "1.0.0",
 identity: {
@@ -74,7 +74,7 @@ key: process.env.MERCHANT_KEY
 // - nexus_verify_settlement
 // - nexus_confirm_fulfillment
 server.start();
-console.log("Nexus MCP Server running...");
+console.log("XAgent Pay MCP Server running...");
 ```
 **Result:** Any MCP-compatible client (such as Claude) can now directly connect to this service and perform ordering and payment interactions on behalf of the user.
 ---
@@ -83,8 +83,8 @@ For existing Web2 systems (such as Express/NestJS-based UCP adapter layers), we 
 #### Code Implementation
 ```typescript
 // src/controllers/booking.controller.ts
-import { NexusClient } from '@nexus/seller-sdk';
-const nexus = new NexusClient({
+import { XAgent PayClient } from '@nexus/seller-sdk';
+const nexus = new XAgent PayClient({
 privateKey: process.env.KEY,
 merchantDid: "did:nexus:trip_com"
 });
@@ -112,7 +112,7 @@ payload: quote // <--- Inject the generated JSON
 // Scenario: Handle fulfillment (after receiving Core Webhook or user request)
 app.post('/fulfill', async (req, res) => {
 const { orderRef } = req.body;
-// --- 3. Proactively query Nexus Core for settlement (Risk control & fund verification) ---
+// --- 3. Proactively query XAgent Pay Core for settlement (Risk control & fund verification) ---
 const result = await nexus.verifySettlement(orderRef);
 if (result.status === 'SETTLED' && result.risk === 'LOW') {
 // Safe! Proceed with fulfillment
@@ -139,5 +139,5 @@ The `verifySettlement` method has a built-in exponential backoff strategy. If a 
 ### Summary
 For MA developers:
 * **If you're an AI team:** Use `nexusSellerPlugin` -- just add one line to your `genkit` configuration.
-* **If you're an API team:** Use `NexusClient` -- just add two lines to your Controller (`signQuote` and `verifySettlement`).
+* **If you're an API team:** Use `XAgent PayClient` -- just add two lines to your Controller (`signQuote` and `verifySettlement`).
 This design minimizes the cognitive barrier to Web3, turning payments into simple function calls.

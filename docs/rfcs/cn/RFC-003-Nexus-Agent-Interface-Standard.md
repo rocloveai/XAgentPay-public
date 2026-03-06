@@ -1,21 +1,21 @@
-# RFC-003: Nexus Agent Interface Standard (NAIS)
+# RFC-003: XAgent Pay Agent Interface Standard (NAIS)
 | Metadata | Value |
 | --- | --- |
-| **Title** | Nexus Agent Interface Standard (NAIS) |
+| **Title** | XAgent Pay Agent Interface Standard (NAIS) |
 | **Version** | 1.0.0 |
 | **Status** | Standards Track (Draft) |
-| **Author** | Cipher & Nexus Architect Team |
+| **Author** | Cipher & XAgent Pay Architect Team |
 | **Created** | 2026-01-20 |
 | **Dependencies** | RFC-002 (NUPS v1.5), Model Context Protocol (MCP) |
 ## Abstract (摘要)
-本 RFC 定义了 Nexus Agent Interface Standard (NAIS)，这是一套面向 AI Agent 和 MCP (Model Context Protocol) 服务的支付集成规范。本标准旨在将支付能力封装为 Agent 可认知的“技能 (Skills)”和 MCP 可调用的“资源 (Resources)”与“工具 (Tools)”。通过 NAIS，Merchant Agent 能够在多轮对话中自主完成从意图识别、报价生成到链上闭环验证的完整交易流程。
+本 RFC 定义了 XAgent Pay Agent Interface Standard (NAIS)，这是一套面向 AI Agent 和 MCP (Model Context Protocol) 服务的支付集成规范。本标准旨在将支付能力封装为 Agent 可认知的“技能 (Skills)”和 MCP 可调用的“资源 (Resources)”与“工具 (Tools)”。通过 NAIS，Merchant Agent 能够在多轮对话中自主完成从意图识别、报价生成到链上闭环验证的完整交易流程。
 ---
 ## 1. Introduction (引言)
 RFC-002 (NUPS) 定义了支付数据的格式。然而，在 Agent-to-Agent 的商业网络中，仅仅交换 JSON 数据是不够的。Agent 需要具备处理交易状态的**认知模型**。
 NAIS 解决以下核心问题：
 1. **认知映射：** 如何将“用户想买东西”的自然语言意图转化为 NUPS 报价？
 2. **闭环验证：** Agent 如何在不依赖外部 Webhook 的情况下，在对话流中主动验证付款结果？
-3. **MCP 互操作性：** 如何让 Claude、Cursor 等通用 MCP 客户端“开箱即用”地调用 Nexus 支付能力？
+3. **MCP 互操作性：** 如何让 Claude、Cursor 等通用 MCP 客户端“开箱即用”地调用 XAgent Pay 支付能力？
 ---
 ## 2. Terminology (术语)
 * **Agent Skill (技能):** 高级能力的抽象，通常对应一个或多个具体的函数调用，供 Agent 框架（如 LangChain）调度。
@@ -23,7 +23,7 @@ NAIS 解决以下核心问题：
 * **MCP Tool (工具):** Agent 可以执行的操作（如生成报价），通常是主动的。
 * **In-Loop Verification (闭环验证):** Agent 在对话上下文中主动查询链上状态的行为模式，区别于传统的异步 Webhook 回调。
 ---
-## 3. Nexus Agent Interface Standard (NAIS)
+## 3. XAgent Pay Agent Interface Standard (NAIS)
 本节定义了 Merchant Agent 必须具备的两大核心技能。
 ### 3.1 Skill A: `SignQuote` (签署报价)
 * **认知触发:** 当 Agent 识别到确定的购买意图，且商品库存检查通过时。
@@ -78,7 +78,7 @@ expected_order_ref: string; // Agent 记忆中的当前单号
 };
 ```
 * **执行逻辑:**
-1. Agent 连接 Nexus Cloud Gateway 或区块链节点。
+1. Agent 连接 XAgent Pay Cloud Gateway 或区块链节点。
 2. 查询合约事件 `PaymentProcessed`。
 3. 比对 `amount`, `merchant_did`, `merchant_order_ref`。
 * **输出状态:** `VERIFIED` | `PENDING` | `FAILED`。
@@ -101,7 +101,7 @@ expected_order_ref: string; // Agent 记忆中的当前单号
 ### 4.2 MCP Tools (能力暴露)
 商户 Server 必须注册以下工具：
 #### Tool: `nexus_generate_quote`
-* **Description:** "Generates a cryptographically signed xNexus quote. Required step before payment."
+* **Description:** "Generates a cryptographically signed xXAgent Pay quote. Required step before payment."
 * **Input Schema:** (同 3.1 SignQuoteInput)
 #### Tool: `nexus_check_status`
 * **Description:** "Checks the blockchain settlement status of an order. Use this to confirm payment."
@@ -111,7 +111,7 @@ expected_order_ref: string; // Agent 记忆中的当前单号
 * **Prompt Name:** `nexus_checkout_flow`
 * **Content:**
 ```text
-You are facilitating a transaction using Nexus Protocol.
+You are facilitating a transaction using XAgent Pay.
 1. First, confirm the item details with the user.
 2. Call 'nexus_generate_quote' to create the payment payload.
 3. Display the payload to the user.
@@ -120,12 +120,12 @@ You are facilitating a transaction using Nexus Protocol.
 ```
 ---
 ## 5. Implementation Guidelines: `@nexus/agent-kit`
-为了简化接入，Nexus 官方提供标准实现库。
+为了简化接入，XAgent Pay 官方提供标准实现库。
 ### 5.1 Package Architecture
 `@nexus/agent-kit` 是一个多态库，同时支持 Node.js SDK、Agent Frameworks 和 MCP。
 ```typescript
-import { NexusAgentToolkit } from '@nexus/agent-kit';
-const toolkit = new NexusAgentToolkit({
+import { XAgent PayAgentToolkit } from '@nexus/agent-kit';
+const toolkit = new XAgent PayAgentToolkit({
 did: process.env.MERCHANT_DID,
 privateKey: process.env.MERCHANT_KEY
 });
@@ -148,7 +148,7 @@ mcpServer.start();
 | **User Agent** | Ask | "I want to buy the ticket to SG." |
 | **Merchant Agent** | **Think** | *Intent detected. Inventory check passed. Need payment.* |
 | **Merchant Agent** | **Call Tool** | `nexus_generate_quote({ ref: "TRIP-888", amount: 530 })` |
-| **Merchant Agent** | Reply | "Here is the Nexus Payment Card. Please confirm." + **[UCP Checkout JSON]** |
+| **Merchant Agent** | Reply | "Here is the XAgent Payment Card. Please confirm." + **[UCP Checkout JSON]** |
 | **User Agent** | **Action** | *User signs & broadcasts on-chain.* |
 | **User Agent** | Reply | "Payment sent. ID is NEX-001." |
 | **Merchant Agent** | **Think** | *User claims payment. I must verify integrity.* |
@@ -162,4 +162,4 @@ mcpServer.start();
 3. **Idempotency:** `SignQuote` 应对同一 `order_ref` 生成相同的签名（除非过期），防止重复生成不同的报价单造成混淆。
 ---
 ## 8. Copyright
-Copyright (c) 2026 Nexus Protocol. All Rights Reserved.
+Copyright (c) 2026 XAgent Pay. All Rights Reserved.

@@ -1,18 +1,18 @@
 ---
 name: nexus-marketplace
 version: "0.5.0"
-description: xNexus Marketplace — discover merchant agents and get their skill files
+description: xXAgent Pay Marketplace — discover merchant agents and get their skill files
 protocol: NUPS/1.5
 category: marketplace.discovery
 ---
 
-# Nexus Marketplace — Agent Discovery API
+# XAgent Pay Marketplace — Agent Discovery API
 
 **Find merchant agents, read their capabilities, then follow their skill to place orders.**
 
-> This skill covers **discovery only**. Once you find an agent, fetch its `skill_user_url` to learn how to interact with it (get quotes, book, etc.). For payment orchestration, see [skill-user.md](https://api.nexus-mvp.topos.one/skill-user.md).
+> This skill covers **discovery only**. Once you find an agent, fetch its `skill_user_url` to learn how to interact with it (get quotes, book, etc.). For payment orchestration, see [skill-user.md](https://api.xagentpay.com/skill-user.md).
 
-**Base URL:** `https://api.nexus-mvp.topos.one`
+**Base URL:** `https://api.xagentpay.com`
 
 ## Quick Start
 
@@ -28,16 +28,16 @@ category: marketplace.discovery
 
 ```bash
 # List all agents
-curl "https://api.nexus-mvp.topos.one/api/agents"
+curl "https://api.xagentpay.com/api/agents"
 
 # Search by keyword
-curl "https://api.nexus-mvp.topos.one/api/agents?query=flight"
+curl "https://api.xagentpay.com/api/agents?query=flight"
 
 # Filter by category
-curl "https://api.nexus-mvp.topos.one/api/agents?category=travel"
+curl "https://api.xagentpay.com/api/agents?category=travel"
 
 # Combine filters
-curl "https://api.nexus-mvp.topos.one/api/agents?query=hotel&category=travel&limit=10"
+curl "https://api.xagentpay.com/api/agents?query=hotel&category=travel&limit=10"
 ```
 
 ### Response (HTTP 200)
@@ -91,7 +91,7 @@ curl "https://api.nexus-mvp.topos.one/api/agents?query=hotel&category=travel&lim
 ## Step 2 — Get Agent Detail
 
 ```bash
-curl "https://api.nexus-mvp.topos.one/api/agents/did:nexus:20250407:demo_flight"
+curl "https://api.xagentpay.com/api/agents/did:nexus:20250407:demo_flight"
 ```
 
 Returns the same agent object as the list endpoint, for a single merchant.
@@ -107,10 +107,10 @@ Use the `skill_user_url` from the agent response:
 curl "https://nexus-flight-agent-nr8m.onrender.com/skill-user.md"
 ```
 
-**Option B — Via Nexus proxy:**
+**Option B — Via XAgent Pay proxy:**
 
 ```bash
-curl "https://api.nexus-mvp.topos.one/api/agents/did:nexus:20250407:demo_flight/skill"
+curl "https://api.xagentpay.com/api/agents/did:nexus:20250407:demo_flight/skill"
 ```
 
 The agent's skill file will tell you how to search for services, get quotes, and the response format containing UCP payment data.
@@ -129,12 +129,12 @@ curl -X POST https://nexus-flight-agent-nr8m.onrender.com/api/search \
 The merchant response includes a UCP payment block with a signed quote. Extract the quote from:
 `response.ucp.payment_handlers["urn:ucp:payment:nexus_v1"][0].config`
 
-## Step 5 — Pay with Nexus Core
+## Step 5 — Pay with XAgent Pay Core
 
-Submit the quote(s) to Nexus Core for aggregated escrow checkout. See the [payment skill](https://api.nexus-mvp.topos.one/skill-user.md) for the full orchestrate → checkout → confirm flow.
+Submit the quote(s) to XAgent Pay Core for aggregated escrow checkout. See the [payment skill](https://api.xagentpay.com/skill-user.md) for the full orchestrate → checkout → confirm flow.
 
 ```bash
-curl -X POST https://api.nexus-mvp.topos.one/api/orchestrate \
+curl -X POST https://api.xagentpay.com/api/orchestrate \
   -H "Content-Type: application/json" \
   -d '{"quotes": [<quote from merchant>], "payer_wallet": "0x..."}'
 ```

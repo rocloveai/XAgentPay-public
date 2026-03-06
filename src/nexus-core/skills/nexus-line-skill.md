@@ -1,12 +1,12 @@
 ---
 name: nexus-line-messaging
-description: Specialized skill for sending Nexus payment orders as LINE Flex Messages
+description: Specialized skill for sending XAgent Pay payment orders as LINE Flex Messages
 version: 1.0.0
 ---
 
-# Nexus LINE Messaging Skill
+# XAgent Pay LINE Messaging Skill
 
-This skill allows the agent to wrap Nexus NUPS quotes and payment group instructions into beautiful, interactive LINE Flex Messages.
+This skill allows the agent to wrap XAgent Pay NUPS quotes and payment group instructions into beautiful, interactive LINE Flex Messages.
 
 ## CRITICAL: Output Rules
 
@@ -25,7 +25,7 @@ The raw tool response is **internal data for you to extract fields from**, not c
 ## Capabilities
 
 ### `send_nexus_order_card`
-Constructs and sends a rich Flex Message card for a Nexus order or payment group.
+Constructs and sends a rich Flex Message card for a XAgent Pay order or payment group.
 
 **Input Requirements:**
 - `payment_info`: The JSON response from `nexus_orchestrate_payment` or a single NUPS quote.
@@ -56,7 +56,7 @@ Constructs and sends a rich Flex Message card for a Nexus order or payment group
     "contents": [
       {
         "type": "text",
-        "text": "xNexus Order",
+        "text": "xXAgent Pay Order",
         "weight": "bold",
         "size": "lg"
       }
@@ -107,4 +107,4 @@ Constructs and sends a rich Flex Message card for a Nexus order or payment group
 Since LINE messages cannot be edited, when a payment status changes (e.g., from `ESCROWED` to `SETTLED`):
 1. Wait for the `RELEASED` webhook event.
 2. Construct a **NEW** Flex Message card with the updated status.
-3. Include a "View History" or "Receipt Details" button linking to the Nexus Portal.
+3. Include a "View History" or "Receipt Details" button linking to the XAgent Pay Portal.

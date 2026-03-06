@@ -1,8 +1,8 @@
-# xNexus Merchant Integration Guide — Phase 0
+# xXAgent Pay Merchant Integration Guide — Phase 0
 
 ## Overview
 
-Phase 0 integrates existing merchant agents (flight-agent, hotel-agent) with xNexus Core infrastructure. This covers:
+Phase 0 integrates existing merchant agents (flight-agent, hotel-agent) with xXAgent Pay Core infrastructure. This covers:
 
 - **Type alignment** — shared types from `nexus-core` copied into each agent
 - **Quote generation** — EIP-712 signed quote via `buildQuote()`
@@ -31,14 +31,14 @@ Types provided:
 | `PaymentStatus` | 12-state machine (Core-side) |
 | `WebhookEventType` | Event types sent to merchants |
 | `LineItem` | Quote line item |
-| `NexusQuotePayload` | Full quote payload (EIP-712 signed) |
+| `XAgent PayQuotePayload` | Full quote payload (EIP-712 signed) |
 | `WebhookPayload` | Webhook event envelope |
 
 Agent-local types (`FlightOffer`, `HotelOffer`, `Order`, `OrderStatus`) remain in `src/<agent>/src/types.ts` and re-export nexus-core types for backward compatibility.
 
 ## Quote Generation
 
-The `buildQuote()` function generates an EIP-712 signed `NexusQuotePayload`. The `payment_method` field is **not** set by the merchant — it is determined by the user's interaction with Nexus Core at payment time.
+The `buildQuote()` function generates an EIP-712 signed `XAgent PayQuotePayload`. The `payment_method` field is **not** set by the merchant — it is determined by the user's interaction with XAgent Pay Core at payment time.
 
 ```typescript
 const quote = buildQuote({
@@ -68,8 +68,8 @@ Available on the portal HTTP server (same port as the dashboard).
 
 | Header | Description |
 |--------|-------------|
-| `X-Nexus-Signature` | `sha256=<hex>` — HMAC-SHA256 of `{timestamp}.{body}` |
-| `X-Nexus-Timestamp` | Unix epoch seconds (string) |
+| `X-XAgent Pay-Signature` | `sha256=<hex>` — HMAC-SHA256 of `{timestamp}.{body}` |
+| `X-XAgent Pay-Timestamp` | Unix epoch seconds (string) |
 | `Content-Type` | `application/json` |
 
 ### HMAC Verification
@@ -109,7 +109,7 @@ Events are deduplicated by `event_id` using an in-memory `Set`. Duplicate delive
 
 ## Status Mapping
 
-| Agent Status | xNexus Core Status | Trigger |
+| Agent Status | xXAgent Pay Core Status | Trigger |
 |-------------|---------------------|---------|
 | `UNPAID` | `CREATED`, `AWAITING_TX`, `BROADCASTED` | Order created |
 | `PAID` | `SETTLED`, `COMPLETED` | `payment.settled` webhook |

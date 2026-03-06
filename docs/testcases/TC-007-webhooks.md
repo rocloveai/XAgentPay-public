@@ -35,7 +35,7 @@ WebhookNotifier / Merchant Webhook Handler
     }
   }
   ```
-- Headers include `X-Nexus-Signature` and `X-Nexus-Timestamp`
+- Headers include `X-XAgent Pay-Signature` and `X-XAgent Pay-Timestamp`
 
 **Note:** `event_id` format is `WHEVT-<uuid>` (not `evt_`).
 
@@ -103,9 +103,9 @@ WebhookNotifier / Merchant Webhook Handler
 
 **Steps:**
 1. Receive webhook
-2. Extract `X-Nexus-Timestamp` header (Unix timestamp in **seconds**)
+2. Extract `X-XAgent Pay-Timestamp` header (Unix timestamp in **seconds**)
 3. Compute `HMAC-SHA256(timestamp + "." + rawBody, webhook_secret)`
-4. Compare with `X-Nexus-Signature` header (format: `sha256=<hex>`)
+4. Compare with `X-XAgent Pay-Signature` header (format: `sha256=<hex>`)
 
 **Expected:**
 - Signatures match
@@ -120,13 +120,13 @@ WebhookNotifier / Merchant Webhook Handler
 
 **Steps:**
 1. Receive webhook
-2. Check `X-Nexus-Timestamp` against current time
+2. Check `X-XAgent Pay-Timestamp` against current time
 
 **Expected:**
 - Merchant should validate timestamp within 5-minute window
 - Reject replay attacks with old timestamps
 
-**Note:** Timestamp freshness validation is the **merchant's responsibility**. Nexus-core generates the timestamp but does not enforce freshness on the sending side.
+**Note:** Timestamp freshness validation is the **merchant's responsibility**. XAgent Pay-core generates the timestamp but does not enforce freshness on the sending side.
 
 ---
 

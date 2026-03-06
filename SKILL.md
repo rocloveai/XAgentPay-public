@@ -1,12 +1,12 @@
 ---
 name: xnexus-patterns
-description: Coding patterns extracted from the xNexus payment orchestration monorepo
+description: Coding patterns extracted from the xXAgent Pay payment orchestration monorepo
 version: 1.0.0
 source: local-git-analysis
 analyzed_commits: 107
 ---
 
-# xNexus Patterns
+# xXAgent Pay Patterns
 
 ## Commit Conventions
 
@@ -55,8 +55,8 @@ src/
 │   ├── skill.md         # Developer-facing capability manifest
 │   └── skill-user.md    # User-agent-facing simplified guide
 ├── contracts/           # Solidity (Foundry)
-│   ├── src/xNexusEscrow.sol
-│   ├── test/xNexusEscrow.t.sol
+│   ├── src/xXAgent PayEscrow.sol
+│   ├── test/xXAgent PayEscrow.t.sol
 │   └── script/          # Deployment scripts
 ├── flight-agent/        # Merchant agent (flights)
 │   └── src/
@@ -104,11 +104,11 @@ __tests__/mocks/mock-payment-repo.ts → MockPaymentRepository (test)
 
 ### Smart Contract Changes
 
-1. Modify `src/contracts/src/xNexusEscrow.sol`
-2. Add/update tests in `src/contracts/test/xNexusEscrow.t.sol`
+1. Modify `src/contracts/src/xXAgent PayEscrow.sol`
+2. Add/update tests in `src/contracts/test/xXAgent PayEscrow.t.sol`
 3. Run `forge test` — all tests must pass
 4. Deploy via UUPS proxy upgrade (no address change)
-5. Use `--legacy --with-gas-price 20000000000` for PlatON Devnet
+5. Use `--legacy --with-gas-price 20000000000` for XLayer Devnet
 6. Update ABI in `src/nexus-core/src/abi/nexus-pay-escrow.ts`
 
 ### Merchant Agent Development
@@ -125,7 +125,7 @@ Flight-agent and hotel-agent mirror each other:
 
 1. Merchant agent generates EIP-712 signed quote
 2. User agent calls `nexus_orchestrate_payment` with quotes + wallet
-3. Nexus-core validates signatures, creates payment group
+3. XAgent Pay-core validates signatures, creates payment group
 4. Returns `BatchDepositInstruction` with EIP-3009 signing data
 5. User signs via `eth_signTypedData_v4` and submits on-chain tx
 6. ChainWatcher detects `Deposited` event → state: ESCROWED
@@ -191,5 +191,5 @@ Files that frequently change together:
 - `server.ts` ↔ `checkout.ts` ↔ `types.ts` (core payment flow)
 - `flight-agent/server.ts` ↔ `hotel-agent/server.ts` (mirrored agents)
 - `flight-agent/portal.ts` ↔ `hotel-agent/portal.ts` (mirrored dashboards)
-- `xNexusEscrow.sol` ↔ `xNexusEscrow.t.sol` (contract + tests)
+- `xXAgent PayEscrow.sol` ↔ `xXAgent PayEscrow.t.sol` (contract + tests)
 - `skill.md` files update when tools or endpoints change

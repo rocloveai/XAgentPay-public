@@ -1,10 +1,10 @@
-# Nexus Merchant Skill Standard (NMSS) v1.0
+# XAgent Pay Merchant Skill Standard (NMSS) v1.0
 
-This document defines the standard template for creating `skill.md` files for Nexus merchant agents. Every merchant agent MUST include a `skill.md` in its package root.
+This document defines the standard template for creating `skill.md` files for XAgent Pay merchant agents. Every merchant agent MUST include a `skill.md` in its package root.
 
 ## What is skill.md?
 
-A `skill.md` file is an AI-readable capability descriptor for a Nexus merchant agent. It enables:
+A `skill.md` file is an AI-readable capability descriptor for a XAgent Pay merchant agent. It enables:
 
 - **AI tools** (Claude, OpenClaw, MoltBot) to understand what the merchant offers
 - **User agents** to discover, install, and interact with merchant agents
@@ -22,7 +22,7 @@ YAML frontmatter (machine-parseable metadata) + Markdown body (AI-readable docum
 |-------|------|-------------|---------|
 | `name` | string | npm package name | `nexus-flight-agent` |
 | `version` | semver | Package version | `"0.1.0"` |
-| `description` | string | One-line description | `"Flight booking with Nexus Payment"` |
+| `description` | string | One-line description | `"Flight booking with XAgent Payment"` |
 | `merchant_did` | string | Nexus DID identifier | `"did:nexus:20250407:demo_flight"` |
 | `protocol` | string | NUPS protocol version | `NUPS/1.5` |
 | `category` | string | Merchant category (dot-notation) | `travel.flights` |
@@ -76,7 +76,7 @@ For each tool:
 
 ### 5. Checkout Workflow
 
-The standard 5-step Nexus checkout flow:
+The standard 5-step XAgent Pay checkout flow:
 1. **Discover** — Gather user requirements
 2. **Search** — Call search tool, present results
 3. **Quote** — Generate NUPS payment quote
@@ -93,7 +93,7 @@ HTTP management portal URL and capabilities.
 ---
 name: nexus-<category>-agent
 version: "0.1.0"
-description: <One-line description> with Nexus Payment
+description: <One-line description> with XAgent Payment
 merchant_did: "did:nexus:<chain_id>:<merchant_id>"
 protocol: NUPS/1.5
 category: <domain>.<subcategory>
@@ -108,7 +108,7 @@ tools:
     role: status
 ---
 
-# Nexus <Merchant> Agent
+# XAgent Pay <Merchant> Agent
 
 <2-3 sentence description of the merchant agent and what it does.>
 
@@ -174,7 +174,7 @@ search_<items>({ ... })
 
 ### `nexus_generate_quote` (role: quote)
 
-Generates a Nexus Payment (NUPS) quote for a selected offer.
+Generates a XAgent Payment (NUPS) quote for a selected offer.
 
 **Parameters:**
 
@@ -201,7 +201,7 @@ Checks the payment status of an order.
 1. **Discover** — <Gather user requirements>
 2. **Search** — Call `search_<items>`, present results
 3. **Quote** — Call `nexus_generate_quote` with selected offer_id
-4. **Pay** — User pays via Nexus Protocol (on-chain USDC)
+4. **Pay** — User pays via XAgent Pay (on-chain USDC)
 5. **Verify** — Call `nexus_check_status`, confirm when `PAID`
 
 ## Platform-Specific Rich Messaging

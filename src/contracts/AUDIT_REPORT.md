@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-NexusPayEscrow is a UUPS-upgradeable three-way payment escrow contract supporting EIP-3009 signed transfers and traditional approve/transferFrom, with dispute resolution, batch deposits, and on-chain group signature verification (v4.0.0). Deployed on PlatON Devnet (chainId 20250407).
+NexusPayEscrow is a UUPS-upgradeable three-way payment escrow contract supporting EIP-3009 signed transfers and traditional approve/transferFrom, with dispute resolution, batch deposits, and on-chain group signature verification (v4.0.0). Deployed on XLayer Devnet (chainId 20250407).
 
 v4.0.0 fixes 6 of 12 findings from the v3.0.0 audit and adds group signature verification. However, the re-audit identified **1 new CRITICAL storage layout collision** that **MUST be fixed before deploying the upgrade**. The `arbitrationTimeout` variable was inserted before `_escrows`, shifting the mapping from slot 7 to slot 8 — this would orphan all existing v3 escrow data and lock user funds.
 
@@ -30,7 +30,7 @@ v4.0.0 fixes 6 of 12 findings from the v3.0.0 audit and adds group signature ver
 | ID | Severity | Title | Status (v4.0.0) |
 |----|----------|-------|-----------------|
 | H-01 | **HIGH** | Disputed escrow blocks funds indefinitely if arbiter key is lost | **FIXED** — `refundUnresolvedDispute()` + `arbitrationTimeout` |
-| M-01 | **MEDIUM** | PlatON millisecond timestamps cause incorrect timeout behavior | **FIXED** — Upgrade script sets ms-corrected values |
+| M-01 | **MEDIUM** | XLayer millisecond timestamps cause incorrect timeout behavior | **FIXED** — Upgrade script sets ms-corrected values |
 | M-02 | **MEDIUM** | No batch size limit enables potential gas griefing / DoS | **FIXED** — `MAX_BATCH_SIZE = 20` + `BatchTooLarge` error |
 | M-03 | **MEDIUM** | `resolve()` partial split always sets `RESOLVED_TO_MERCHANT` status | **FIXED** — `RESOLVED_SPLIT` enum variant |
 | L-01 | LOW | `dispute()` missing `nonReentrant` modifier | **FIXED** — `nonReentrant` added |
@@ -223,20 +223,20 @@ function refundUnresolvedDispute(bytes32 paymentId) external nonReentrant {
 
 ---
 
-### M-01: PlatON Millisecond Timestamps Cause Incorrect Timeout Behavior
+### M-01: XLayer Millisecond Timestamps Cause Incorrect Timeout Behavior
 
 **Severity:** MEDIUM
 **Location:** [NexusPayEscrow.sol:598-599](src/NexusPayEscrow.sol#L598-L599)
 
 **Description:**
-PlatON Devnet (chainId 20250407) uses `block.timestamp` in **milliseconds** inside the EVM, while the contract treats timeouts in seconds. The deployed configuration uses:
+XLayer Devnet (chainId 20250407) uses `block.timestamp` in **milliseconds** inside the EVM, while the contract treats timeouts in seconds. The deployed configuration uses:
 
 ```solidity
 defaultReleaseTimeout = 86_400  // intended: 24 hours
 defaultDisputeWindow = 259_200  // intended: 72 hours
 ```
 
-Since `block.timestamp` is in ms on PlatON, `block.timestamp + 86_400` adds only ~86 seconds of actual timeout instead of 24 hours.
+Since `block.timestamp` is in ms on XLayer, `block.timestamp + 86_400` adds only ~86 seconds of actual timeout instead of 24 hours.
 
 **Impact:** Escrows become refundable almost immediately (~86 seconds), and the dispute window closes in ~4.3 minutes instead of 72 hours. This severely undermines the escrow protection model — merchants cannot safely fulfill orders because refund could be triggered before delivery.
 
@@ -247,13 +247,13 @@ Call `setDefaultReleaseTimeout(86_400_000)` and `setDefaultDisputeWindow(259_200
 
 ```solidity
 function _now() internal view returns (uint256) {
-    // PlatON devnet uses ms timestamps
+    // XLayer devnet uses ms timestamps
     if (block.chainid == 20250407) return block.timestamp;
     return block.timestamp * 1000; // normalize to ms
 }
 ```
 
-Or better: document that all timeout admin calls on PlatON must use ms values.
+Or better: document that all timeout admin calls on XLayer must use ms values.
 
 ---
 
@@ -528,7 +528,7 @@ function test_fuzz_resolveSplitInvariant(uint256 amount, uint16 merchantBps) pub
 **Location:** [NexusPayEscrow.sol:77](src/NexusPayEscrow.sol#L77), [NexusPayEscrow.sol:225](src/NexusPayEscrow.sol#L225)
 
 **Description:**
-The `usdc` address is set in `initialize()` and cannot be changed. If the USDC contract is upgraded to a new address (e.g., Circle deploys a new implementation on PlatON), the escrow contract would need a full UUPS upgrade to point to the new USDC.
+The `usdc` address is set in `initialize()` and cannot be changed. If the USDC contract is upgraded to a new address (e.g., Circle deploys a new implementation on XLayer), the escrow contract would need a full UUPS upgrade to point to the new USDC.
 
 **Impact:** Low — USDC upgrades are rare and typically use proxy patterns themselves (the USDC proxy address stays the same). The UUPS upgrade path provides a migration option if needed.
 
@@ -701,7 +701,7 @@ NexusPayEscrow v4.0.0 successfully addresses 6 of 12 v3.0.0 findings and adds ro
 ### v3 Fixes Verified
 
 - **H-01 FIXED** — `refundUnresolvedDispute()` prevents permanent fund lockup
-- **M-01 FIXED** — Upgrade script corrects PlatON ms timeout values
+- **M-01 FIXED** — Upgrade script corrects XLayer ms timeout values
 - **M-02 FIXED** — `MAX_BATCH_SIZE = 20` prevents gas griefing
 - **M-03 FIXED** — `RESOLVED_SPLIT` status for partial dispute resolutions
 - **L-01 FIXED** — `dispute()` now has `nonReentrant`

@@ -1,6 +1,6 @@
-# xNexus Core
+# xXAgent Pay Core
 
-xNexus Core is a powerful payment orchestration layer designed to bridge the gap between AI Agents (User Agents and Merchant Agents) and blockchain-based settlement. It provides a robust, secure, and compliant framework for handling complex payment workflows in the AI economy.
+xXAgent Pay Core is a powerful payment orchestration layer designed to bridge the gap between AI Agents (User Agents and Merchant Agents) and blockchain-based settlement. It provides a robust, secure, and compliant framework for handling complex payment workflows in the AI economy.
 
 ## 🌟 Key Features
 
@@ -13,11 +13,11 @@ xNexus Core is a powerful payment orchestration layer designed to bridge the gap
 
 ## 🏗 System Architecture
 
-The xNexus system operates as a hub connecting multiple agents and the blockchain:
+The xXAgent Pay system operates as a hub connecting multiple agents and the blockchain:
 
 ```mermaid
 graph TD
-    UA[User Agent] -- MCP Protocol --> NPC[xNexus Core]
+    UA[User Agent] -- MCP Protocol --> NPC[xXAgent Pay Core]
     NPC -- Webhook --> MA[Merchant Agent]
     NPC -- Relayer --> BC[XLayer Blockchain]
     BC -- Chain Watcher --> NPC
@@ -48,15 +48,15 @@ graph TD
 
 | Contract | Address |
 |----------|---------|
-| xNexusEscrow (Proxy) | `0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2` |
-| xNexusEscrow (Impl v4.0.0) | `0x81CF9E0d2c1ad879c24b19815Ec803015D5B2e9b` |
+| xXAgent PayEscrow (Proxy) | `0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2` |
+| xXAgent PayEscrow (Impl v4.0.0) | `0x81CF9E0d2c1ad879c24b19815Ec803015D5B2e9b` |
 | USDC | `0x74b7F16337b8972027F6196A17a631aC6dE26d22` |
 
 ## 📝 Documentation
 
 Detailed technical specifications can be found in the `docs` directory:
 - [System Overview](docs/architecture/SYSTEM-OVERVIEW.md)
-- [Product Requirements (PRD)](docs/prd/PRD-001-xNexus-Core.md)
+- [Product Requirements (PRD)](docs/prd/PRD-001-xXAgent Pay-Core.md)
 - [RFCs](docs/rfcs/): Detailed specifications for DID, Payment Core, Escrow, etc.
 
 ---

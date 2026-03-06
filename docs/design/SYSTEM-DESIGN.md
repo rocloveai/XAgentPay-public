@@ -1,4 +1,4 @@
-# xNexus Core 系统设计文档
+# xXAgent Pay Core 系统设计文档
 
 | 元数据 | 内容 |
 | --- | --- |
@@ -33,7 +33,7 @@
                │ MCP (Stdio/SSE)              │ Webhook HTTP POST
                ▼                              │
 ┌──────────────────────────────────────────────────────────────────────┐
-│                      xNexus Core Service                           │
+│                      xXAgent Pay Core Service                           │
 │                                                                      │
 │  ┌─────────────────┐   ┌──────────────────┐   ┌──────────────────┐  │
 │  │  M1: 安全模块    │   │ M2: 支付路由模块  │   │ M3: 指令构建模块  │  │
@@ -79,8 +79,8 @@
 
                            │ (另行并行开发)
               ┌────────────▼────────────────────────┐
-              │      PlatON 链 (chain_id: 210425)   │
-              │  xNexusEscrow.sol (M9)             │
+              │      XLayer 链 (chain_id: 210425)   │
+              │  xXAgent PayEscrow.sol (M9)             │
               │  USDC (ERC-20 + EIP-3009)            │
               └─────────────────────────────────────┘
 ```
@@ -93,7 +93,7 @@
 | M2 | PaymentRouter | 支付模式决策（MVP 阶段固定路由到 Escrow，预留 Direct 扩展） | 是 (纯函数) | M8 (MerchantRepo) |
 | M3 | InstructionBuilder | 生成 PaymentInstruction / EscrowInstruction | 是 (纯函数) | viem, M8 |
 | M4 | OrderStateMachine | 12 态生命周期管理、事件溯源、超时调度 | 是 (含 mock DB) | M8, M7 |
-| M5 | ChainWatcher | PlatON 链上事件轮询、交易追踪、自动退款触发 | 集成测试 | viem, M4, M6 |
+| M5 | ChainWatcher | XLayer 链上事件轮询、交易追踪、自动退款触发 | 集成测试 | viem, M4, M6 |
 | M6 | RelayerService | EIP-3009 转发上链、Gas 代付、nonce 管理 | 集成测试 | viem, M5 |
 | M7 | WebhookNotifier | HMAC 签名、HTTP 投递、指数退避重试 | 是 (mock server) | M8 |
 | M8 | Repository | DB CRUD 封装，Repository Pattern | 是 (mock DB) | PostgreSQL |
@@ -126,7 +126,7 @@ export interface SecurityModule {
    * @returns VerifyQuoteResult, valid=false 时附带 error 原因
    */
   verifyQuote(
-    quotePayload: NexusQuotePayload,
+    quotePayload: XAgent PayQuotePayload,
     existingQuoteHash?: string,    // 已存在则直接幂等返回
   ): Promise<VerifyQuoteResult>;
 
@@ -142,7 +142,7 @@ export interface SecurityModule {
   /**
    * 计算 EIP-712 structHash (用于防重放索引)
    */
-  computeQuoteHash(quotePayload: NexusQuotePayload): Hex;
+  computeQuoteHash(quotePayload: XAgent PayQuotePayload): Hex;
 }
 ```
 
@@ -188,7 +188,7 @@ export interface PaymentRouter {
    * 优先级: Quote 显式指定 > 商户默认 > 金额阈值
    */
   decide(
-    quotePayload: NexusQuotePayload,
+    quotePayload: XAgent PayQuotePayload,
     merchant: MerchantRecord,
     config: RouterConfig,
   ): RouterDecision;
@@ -336,7 +336,7 @@ COMPLETED, EXPIRED, TX_FAILED, RISK_REJECTED, REFUNDED, DISPUTE_RESOLVED
 
 ### M5: ChainWatcher (链上监听模块)
 
-**职责**：持续轮询 PlatON 链，捕获 USDC Transfer 事件和 xNexusEscrow 合约事件，驱动订单状态更新。
+**职责**：持续轮询 XLayer 链，捕获 USDC Transfer 事件和 xXAgent PayEscrow 合约事件，驱动订单状态更新。
 
 **对外接口**：
 
@@ -379,9 +379,9 @@ export interface ChainEventHandler {
 
 ```
 chain/
-├── platon-client.ts       # createPublicClient (viem), PlatON RPC
+├── platon-client.ts       # createPublicClient (viem), XLayer RPC
 ├── usdc-watcher.ts        # 过滤 USDC Transfer logs
-├── escrow-watcher.ts      # 过滤 xNexusEscrow 事件 logs
+├── escrow-watcher.ts      # 过滤 xXAgent PayEscrow 事件 logs
 ├── tx-tracker.ts          # 单笔交易追踪 (轮询 receipt)
 └── chain-watcher.ts       # 编排以上子模块
 ```
@@ -397,7 +397,7 @@ chain/
 
 ### M6: RelayerService (Relayer 代付模块)
 
-**职责**：持有 LAT，代用户将 EIP-3009 签名提交到 xNexusEscrow 合约，并代 Core 调用 release/refund。
+**职责**：持有 LAT，代用户将 EIP-3009 签名提交到 xXAgent PayEscrow 合约，并代 Core 调用 release/refund。
 
 **对外接口**：
 
@@ -519,7 +519,7 @@ export type WebhookEventType =
 **HMAC 签名计算**：
 ```
 signature = HMAC-SHA256(merchant.webhook_secret, unix_timestamp + "." + json_body)
-Header: X-Nexus-Signature: sha256=<hex>
+Header: X-XAgent Pay-Signature: sha256=<hex>
 ```
 
 **数据所有权**：拥有 `webhook_delivery_logs` 表。
@@ -591,7 +591,7 @@ db/migrations/
 
 ### M9: EscrowContract (智能合约模块)
 
-**职责**：部署在 PlatON 链上的 xNexusEscrow.sol，独立于 Core Service 开发，通过链上事件与 Core 交互。
+**职责**：部署在 XLayer 链上的 xXAgent PayEscrow.sol，独立于 Core Service 开发，通过链上事件与 Core 交互。
 
 **合约接口（已由 RFC-010 完整定义）**：
 
@@ -616,11 +616,11 @@ function resolve(bytes32 _paymentId, bool _toMerchant, uint256 _merchantAmount)
 ```
 src/contracts/
 ├── src/
-│   └── xNexusEscrow.sol         # 合约主体
+│   └── xXAgent PayEscrow.sol         # 合约主体
 ├── test/
-│   ├── xNexusEscrow.t.sol       # 单元 + 集成测试
-│   ├── xNexusEscrow.fuzz.t.sol  # 模糊测试
-│   └── xNexusEscrow.inv.t.sol   # 不变量测试
+│   ├── xXAgent PayEscrow.t.sol       # 单元 + 集成测试
+│   ├── xXAgent PayEscrow.fuzz.t.sol  # 模糊测试
+│   └── xXAgent PayEscrow.inv.t.sol   # 不变量测试
 ├── script/
 │   ├── Deploy.s.sol               # 部署脚本
 │   └── Verify.s.sol               # 验证脚本
@@ -708,8 +708,8 @@ M7.WebhookNotifier.notify(payment, 'payment.settled')
 **错误处理约定**：
 
 ```typescript
-// 所有模块抛出的错误必须继承自 NexusError
-export class NexusError extends Error {
+// 所有模块抛出的错误必须继承自 XAgent PayError
+export class XAgent PayError extends Error {
   constructor(
     public readonly code: string,   // 机器可读，如 "SIGNATURE_MISMATCH"
     message: string,                // 人类可读
@@ -718,10 +718,10 @@ export class NexusError extends Error {
 }
 
 // 具体错误类型
-export class SecurityError extends NexusError {}
-export class InvalidTransitionError extends NexusError {}
-export class RelayerError extends NexusError {}
-export class ChainError extends NexusError {}
+export class SecurityError extends XAgent PayError {}
+export class InvalidTransitionError extends XAgent PayError {}
+export class RelayerError extends XAgent PayError {}
+export class ChainError extends XAgent PayError {}
 ```
 
 **不可变数据约定**：
@@ -846,18 +846,18 @@ npm test src/modules/payment/   # 全部通过
 
 ### Phase 2: Escrow 智能合约（预估 5-7 天，与 Phase 1 可部分并行）
 
-**目标**：xNexusEscrow.sol 在 PlatON 测试网部署完毕，通过 Foundry 全量测试。
+**目标**：xXAgent PayEscrow.sol 在 XLayer 测试网部署完毕，通过 Foundry 全量测试。
 
 **任务**：
 
 | 编号 | 任务 | 负责模块 |
 | --- | --- | --- |
-| P2-1 | 实现 xNexusEscrow.sol 核心逻辑（depositWithAuthorization, release, refund, dispute, resolve） | M9 |
+| P2-1 | 实现 xXAgent PayEscrow.sol 核心逻辑（depositWithAuthorization, release, refund, dispute, resolve） | M9 |
 | P2-2 | 编写 Foundry 单元测试（每个函数的正常路径 + 权限校验 + 状态机非法转换） | M9 |
 | P2-3 | 编写 fuzz 测试（金额边界、任意地址、任意 nonce） | M9 |
 | P2-4 | 编写 invariant 测试（合约余额 = sum(DEPOSITED.amount)） | M9 |
 | P2-5 | Slither 静态分析，修复所有 HIGH/MEDIUM 告警 | M9 |
-| P2-6 | PlatON 测试网部署 + 验证合约功能 | M9 |
+| P2-6 | XLayer 测试网部署 + 验证合约功能 | M9 |
 | P2-7 | 输出合约 ABI 文件，供 Core 服务使用 | M9 |
 
 **阶段验证标准**：
@@ -865,8 +865,8 @@ npm test src/modules/payment/   # 全部通过
 cd src/contracts
 forge test -vvv              # 全部通过
 forge coverage              # 覆盖率 > 90%
-slither src/xNexusEscrow.sol  # 无 HIGH 告警
-# PlatON 测试网合约地址: 0x...（记录在配置文件中）
+slither src/xXAgent PayEscrow.sol  # 无 HIGH 告警
+# XLayer 测试网合约地址: 0x...（记录在配置文件中）
 ```
 
 ---
@@ -883,7 +883,7 @@ slither src/xNexusEscrow.sol  # 无 HIGH 告警
 | --- | --- | --- |
 | P3-1 | 实现 M3 EscrowInstruction Builder（EIP-3009 签名参数生成，nonce 唯一性） | M3 |
 | P3-2 | 为 M3 编写单元测试 | M3 |
-| P3-3 | 实现 M5 PlatON 客户端 + Escrow 合约事件监听（PaymentDeposited/Released/Refunded/Disputed/Resolved） | M5 |
+| P3-3 | 实现 M5 XLayer 客户端 + Escrow 合约事件监听（PaymentDeposited/Released/Refunded/Disputed/Resolved） | M5 |
 | P3-4 | 实现 M5 交易追踪（trackTransaction for Escrow deposit/release tx） | M5 |
 | P3-5 | 实现 M6 RelayerService（submitDeposit + submitRelease + submitRefund） | M6 |
 | P3-6 | 实现 M6 Transaction Queue（串行队列 + nonce 管理 + 3 次重试） | M6 |
@@ -932,7 +932,7 @@ slither src/xNexusEscrow.sol  # 无 HIGH 告警
 ```
 1. 完成 Escrow 支付流程
 2. 观察 flight-agent/hotel-agent 日志，收到 payment.escrowed / payment.settled Webhook
-3. 验证 X-Nexus-Signature Header 签名正确
+3. 验证 X-XAgent Pay-Signature Header 签名正确
 4. 模拟 Webhook 接收方返回 500 → 确认 next_retry_at 被写入
 5. 等待重试 → 确认最终成功投递
 ```
@@ -941,7 +941,7 @@ slither src/xNexusEscrow.sol  # 无 HIGH 告警
 
 ### Phase 5: 质量收尾（预估 3-4 天）
 
-**目标**：系统达到生产可用标准，PlatON 主网合约部署就绪。
+**目标**：系统达到生产可用标准，XLayer 主网合约部署就绪。
 
 **任务**：
 
@@ -952,14 +952,14 @@ slither src/xNexusEscrow.sol  # 无 HIGH 告警
 | P5-3 | 端到端全流程测试（Escrow 正常 + Escrow 超时退款 + Escrow 争议裁决 三条完整路径） |
 | P5-4 | ISO 20022 数据映射验证（所有字段正确填充） |
 | P5-5 | 安全清单最终复查（PRD-001 §十 安全清单逐项确认） |
-| P5-6 | PlatON 主网合约部署（基于 Phase 2 已验证代码） |
+| P5-6 | XLayer 主网合约部署（基于 Phase 2 已验证代码） |
 | P5-7 | 性能验证（验签 < 50ms，状态机转换 < 100ms） |
 | P5-8 | 更新 flight-agent / hotel-agent 的 webhook_url 到商户注册表 |
 
 **阶段验证标准（最终上线标准）**：
 - 所有单元测试通过，覆盖率 > 80%
 - 三条端到端流程无报错：Escrow 正常、Escrow 超时退款、Escrow 争议裁决
-- PlatON 主网合约已部署，地址记录在配置文件
+- XLayer 主网合约已部署，地址记录在配置文件
 - Portal Dashboard 可显示实时数据
 - Relayer 钱包已充值足量 LAT（≥ 10 LAT 初始量）
 
@@ -1006,7 +1006,7 @@ Phase 5 ────────────────────────
 **背景**：由 PRD-001 v1.1 §11.2 第 1 项决策记录，用户已确认。
 
 **理由**：
-- PlatON 链上 USDC 已支持 EIP-3009
+- XLayer 链上 USDC 已支持 EIP-3009
 - EIP-3009 的 `validAfter/validBefore` 时间窗口比 EIP-2612 更灵活
 - `nonce` 为 bytes32 随机值，比 EIP-2612 的顺序 nonce 更安全（无顺序推断问题）
 
@@ -1016,7 +1016,7 @@ Phase 5 ────────────────────────
 
 ### ADR-003: Relayer 作为 Core 子模块而非独立服务
 
-**决策**：Relayer 以模块形式嵌入 xNexus Core 进程，不作为独立微服务部署。
+**决策**：Relayer 以模块形式嵌入 xXAgent Pay Core 进程，不作为独立微服务部署。
 
 **理由**：
 - MVP 阶段复杂度控制：避免引入服务间通信、认证等新问题
@@ -1045,9 +1045,9 @@ Phase 5 ────────────────────────
 **决策**：使用 3 秒定时轮询 (`getLogs`) 而非 WebSocket `eth_subscribe`。
 
 **理由**：
-- PlatON RPC 的 WebSocket 稳定性在生产环境下不如 HTTP 可靠
+- XLayer RPC 的 WebSocket 稳定性在生产环境下不如 HTTP 可靠
 - 轮询可精确控制 `fromBlock/toBlock`，避免漏块
-- 3 秒间隔已足够（PlatON 出块约 1 秒，对于支付确认 3 秒可接受）
+- 3 秒间隔已足够（XLayer 出块约 1 秒，对于支付确认 3 秒可接受）
 - 轮询实现更简单，断点续传（记录 `lastProcessedBlock`）天然支持
 
 **风险**：轮询产生更多 RPC 调用。缓解：使用批量 `getLogs` 而非逐块查询。
@@ -1069,7 +1069,7 @@ Phase 5 ────────────────────────
 
 ### ADR-007: Merchant Registry MVP 使用本地数据库而非链上合约
 
-**决策**：MVP 阶段使用 PostgreSQL `merchant_registry` 表存储商户信息，而非 PlatON 链上的 NexusMerchantRegistry 合约。
+**决策**：MVP 阶段使用 PostgreSQL `merchant_registry` 表存储商户信息，而非 XLayer 链上的 XAgent PayMerchantRegistry 合约。
 
 **理由**：
 - 链上合约部署增加 MVP 复杂度

@@ -18,9 +18,9 @@ tools:
     role: status
 ---
 
-# Nexus Hotel Agent — MCP Skill
+# XAgent Pay Hotel Agent — MCP Skill
 
-Hotel booking merchant agent powered by Nexus Protocol. Searches hotels across popular cities (Tokyo, Singapore, Shanghai, Bangkok, Hong Kong), generates NUPS payment quotes, and verifies on-chain payments.
+Hotel booking merchant agent powered by XAgent Pay. Searches hotels across popular cities (Tokyo, Singapore, Shanghai, Bangkok, Hong Kong), generates NUPS payment quotes, and verifies on-chain payments.
 
 > For HTTP REST API docs (no MCP client required), see [skill-user.md](https://nexus-hotel-agent-nr8m.onrender.com/skill-user.md).
 
@@ -108,5 +108,5 @@ Checks the payment status of a hotel order.
 
 **Fast path (recommended):**
 1. **Search + Quote** — Call `search_and_quote` with city, dates, and payer wallet. Returns hotels + ready-to-use quote.
-2. **Pay** — Call `nexus_orchestrate_payment` on Nexus Core with the `QUOTE_JSON` from step 1. Multiple quotes from different merchants can be combined into a single call.
+2. **Pay** — Call `nexus_orchestrate_payment` on XAgent Pay Core with the `QUOTE_JSON` from step 1. Multiple quotes from different merchants can be combined into a single call.
 3. **Verify** — Call `nexus_check_status` to verify. Only confirm booking when status is `PAID`.

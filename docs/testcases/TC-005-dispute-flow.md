@@ -9,7 +9,7 @@
 - Payment in ESCROWED state
 - Within dispute window (72 hours from escrow)
 - Escrow contract v4.0.0 deployed
-- **Note:** PlatON Devnet uses millisecond `block.timestamp` — all on-chain timeouts are in milliseconds
+- **Note:** XLayer Devnet uses millisecond `block.timestamp` — all on-chain timeouts are in milliseconds
 
 ---
 
@@ -76,7 +76,7 @@
 - On-chain: `DisputeWindowExpired` error
 - No state change
 
-**Note:** Dispute window = 259,200,000 ms on PlatON (72 hours in milliseconds, since `block.timestamp` is ms)
+**Note:** Dispute window = 259,200,000 ms on XLayer (72 hours in milliseconds, since `block.timestamp` is ms)
 
 ---
 
@@ -179,7 +179,7 @@
 - H-01 audit fix verified
 - `DisputeAutoResolved` event emitted
 
-**Note:** Arbitration timeout = 604,800,000 ms on PlatON (7 days in milliseconds)
+**Note:** Arbitration timeout = 604,800,000 ms on XLayer (7 days in milliseconds)
 
 ---
 

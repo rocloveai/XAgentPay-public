@@ -7,7 +7,7 @@
 - Valid payment group created via orchestration
 - Checkout token (`tok_`) available
 - MetaMask installed (for browser tests)
-- PlatON Devnet configured in wallet
+- XLayer Devnet configured in wallet
 
 ---
 
@@ -17,14 +17,14 @@
 **Type:** Functional
 
 **Steps:**
-1. Navigate to `https://api.nexus-mvp.topos.one/checkout/tok_xxx`
+1. Navigate to `https://api.xagentpay.com/checkout/tok_xxx`
 
 **Expected:**
 - Page renders with order summary
 - Shows all payment line items with amounts
 - Shows total amount in USDC
 - "Pay Now" / "Connect Wallet" button visible
-- Chain info displayed (PlatON Devnet)
+- Chain info displayed (XLayer Devnet)
 
 ---
 
@@ -99,7 +99,7 @@
 
 **Expected:**
 - Wallet connected, address displayed
-- If wrong chain: auto-switch prompt to PlatON Devnet (chainId 20250407)
+- If wrong chain: auto-switch prompt to XLayer Devnet (chainId 20250407)
 - "Pay Now" button becomes active
 
 ---
@@ -131,7 +131,7 @@
 
 **Expected:**
 - Typed data displays correct token, amount, sender, receiver (escrow contract)
-- `validAfter` and `validBefore` are in milliseconds (PlatON requirement)
+- `validAfter` and `validBefore` are in milliseconds (XLayer requirement)
 - Domain separator matches USDC contract
 
 ---
@@ -147,7 +147,7 @@
 3. Wait for transaction to be mined
 
 **Expected:**
-- Transaction submitted to PlatON Devnet
+- Transaction submitted to XLayer Devnet
 - Frontend polls for receipt (every 5s, max 24 attempts = 120s)
 - On receipt: `POST /api/checkout/:token/confirm` called with tx_hash
 - Server returns `{ "http_status": 200, ... }` (receipt verified) -> status ESCROWED

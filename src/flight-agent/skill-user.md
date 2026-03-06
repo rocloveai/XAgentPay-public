@@ -9,9 +9,9 @@ currencies: [USDC]
 chain_id: 20250407
 ---
 
-# Nexus Flight Agent — HTTP REST API
+# XAgent Pay Flight Agent — HTTP REST API
 
-Flight booking merchant agent powered by Nexus Protocol. **No MCP client required** — all tools are available via HTTP POST.
+Flight booking merchant agent powered by XAgent Pay. **No MCP client required** — all tools are available via HTTP POST.
 
 > For MCP connection config and tool definitions, see [skill.md](https://nexus-flight-agent-nr8m.onrender.com/skill.md).
 
@@ -123,6 +123,6 @@ curl -X POST https://nexus-flight-agent-nr8m.onrender.com/api/v1/call-tool \
 
 **Fast path (recommended):**
 1. **Search + Quote** — `POST /api/v1/call-tool` with `search_and_quote` tool (returns quote directly).
-2. **Pay** — `POST https://api.nexus-mvp.topos.one/api/orchestrate` with the quote + payer wallet.
-3. **Confirm** — `POST https://api.nexus-mvp.topos.one/api/checkout/:token/confirm` with `tx_hash`.
+2. **Pay** — `POST https://api.xagentpay.com/api/orchestrate` with the quote + payer wallet.
+3. **Confirm** — `POST https://api.xagentpay.com/api/checkout/:token/confirm` with `tx_hash`.
 4. **Verify** — `POST /api/v1/call-tool` with `nexus_check_status` to confirm `PAID` status.

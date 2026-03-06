@@ -1,27 +1,27 @@
 ---
 name: xnexus-core
 version: "0.5.0"
-description: xNexus Core — HTTP REST API for multi-merchant aggregated escrow checkout
+description: xXAgent Pay Core — HTTP REST API for multi-merchant aggregated escrow checkout
 protocol: NUPS/1.5
 category: finance.payment
 currencies: [USDC]
 chain_id: 196
 ---
 
-# Nexus Core — HTTP REST API
+# XAgent Pay Core — HTTP REST API
 
 **Pay for merchant orders in a single aggregated transaction via HTTP.** No MCP client required — all functionality is available as standard REST endpoints.
 
-> For MCP tool definitions and connection config, see [skill.md](https://api.nexus-mvp.topos.one/skill.md).
+> For MCP tool definitions and connection config, see [skill.md](https://api.xagentpay.com/skill.md).
 
-**Base URL:** `https://api.nexus-mvp.topos.one`
+**Base URL:** `https://api.xagentpay.com`
 
 ## Step 1 — Orchestrate Payment
 
 Submit all merchant quotes + user wallet to create a payment group.
 
 ```bash
-curl -X POST https://api.nexus-mvp.topos.one/api/orchestrate \
+curl -X POST https://api.xagentpay.com/api/orchestrate \
   -H "Content-Type: application/json" \
   -d '{
     "quotes": [
@@ -55,7 +55,7 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
   "nexus_version": "0.5.0",
   "group_id": "grp_...",
   "status": "PAYMENT_REQUIRED",
-  "checkout_url": "https://api.nexus-mvp.topos.one/checkout/tok_...",
+  "checkout_url": "https://api.xagentpay.com/checkout/tok_...",
   "instruction": {
     "group_id": "grp_...",
     "chain_id": 196,
@@ -105,7 +105,7 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
 | `instruction.deposit_tx` | ABI and target for `batchDepositWithAuthorization` — user submits tx (pays gas) |
 | `instruction.payments[].payment_id_bytes32` | Precomputed `keccak256(nexus_payment_id)` for on-chain `BatchEntry` |
 | `instruction.payments[].context_hash` | Precomputed `keccak256(JSON.stringify(context))` — matches on-chain exactly |
-| `instruction.nexus_group_sig` | EIP-712 signature over `(groupId, entriesHash, totalAmount)` by Nexus Core operator |
+| `instruction.nexus_group_sig` | EIP-712 signature over `(groupId, entriesHash, totalAmount)` by XAgent Pay Core operator |
 | `instruction.core_operator_address` | Address of the signing operator — verify before submitting |
 
 ## Step 2 — Pay
@@ -128,7 +128,7 @@ This path is suitable when the agent has direct access to wallet signing (e.g. v
 After the user submits the on-chain transaction (via either path):
 
 ```bash
-curl -X POST https://api.nexus-mvp.topos.one/api/checkout/tok_.../confirm \
+curl -X POST https://api.xagentpay.com/api/checkout/tok_.../confirm \
   -H "Content-Type: application/json" \
   -d '{"tx_hash": "0x..."}'
 ```
@@ -136,7 +136,7 @@ curl -X POST https://api.nexus-mvp.topos.one/api/checkout/tok_.../confirm \
 ## Step 4 — Track Status
 
 ```bash
-curl "https://api.nexus-mvp.topos.one/api/payments?group_id=grp_..."
+curl "https://api.xagentpay.com/api/payments?group_id=grp_..."
 ```
 
 Status lifecycle: `CREATED` -> `ESCROWED` -> `SETTLED` -> `COMPLETED`
@@ -148,7 +148,7 @@ Status lifecycle: `CREATED` -> `ESCROWED` -> `SETTLED` -> `COMPLETED`
 | `/api/orchestrate` | POST | Create payment group (returns HTTP 402) |
 | `/api/checkout/:token` | GET | Get payment group details |
 | `/api/checkout/:token/confirm` | POST | Confirm on-chain transaction |
-| `/api/payments/:id` | GET | Payment status by Nexus payment ID |
+| `/api/payments/:id` | GET | Payment status by XAgent Pay payment ID |
 | `/api/payments?group_id=...` | GET | Payment status by group ID |
 | `/api/payments?merchant_order_ref=...` | GET | Payment status by merchant order ref |
 | `/api/agents` | GET | Discover merchant agents |
@@ -163,7 +163,7 @@ Status lifecycle: `CREATED` -> `ESCROWED` -> `SETTLED` -> `COMPLETED`
 Retrieve group, payments, and instruction for a checkout token. The `:token` can be a `tok_...` token (from `checkout_url`) or a direct `grp_...` / `GRP-...` group ID.
 
 ```bash
-curl https://api.nexus-mvp.topos.one/api/checkout/tok_abc123...
+curl https://api.xagentpay.com/api/checkout/tok_abc123...
 ```
 
 ### `GET /checkout/:token` — Browser Checkout Page
@@ -171,17 +171,17 @@ curl https://api.nexus-mvp.topos.one/api/checkout/tok_abc123...
 Open in browser for MetaMask-powered interactive checkout. The checkout page handles wallet connection, chain switching, EIP-3009 signing, and transaction submission.
 
 ```
-https://api.nexus-mvp.topos.one/checkout/tok_abc123...
+https://api.xagentpay.com/checkout/tok_abc123...
 ```
 
 > **Note:** Checkout URLs expire after 1 hour. If expired, the user must re-orchestrate to get a new URL.
 
 ### `GET /api/payments/:id` — Payment Status
 
-Query payment status by Nexus payment ID:
+Query payment status by XAgent Pay payment ID:
 
 ```bash
-curl https://api.nexus-mvp.topos.one/api/payments/PAY-xxx
+curl https://api.xagentpay.com/api/payments/PAY-xxx
 ```
 
 Response (HTTP 200):
@@ -214,8 +214,8 @@ Response (HTTP 200):
 Search and discover merchant agents. No authentication required.
 
 ```bash
-curl "https://api.nexus-mvp.topos.one/api/agents"
-curl "https://api.nexus-mvp.topos.one/api/agents?query=flight&category=travel&limit=10"
+curl "https://api.xagentpay.com/api/agents"
+curl "https://api.xagentpay.com/api/agents?query=flight&category=travel&limit=10"
 ```
 
 Response (HTTP 200):
@@ -246,7 +246,7 @@ Response (HTTP 200):
 Fetch the full skill.md content for a specific merchant agent. Returns `text/markdown`.
 
 ```bash
-curl https://api.nexus-mvp.topos.one/api/agents/did:nexus:196:demo_flight/skill
+curl https://api.xagentpay.com/api/agents/did:nexus:196:demo_flight/skill
 ```
 
 ### Rate Limits
@@ -263,7 +263,7 @@ X-RateLimit-Reset: 1709712460
 
 ### Group Signature (`nexus_group_sig`)
 
-Every `BatchDepositInstruction` includes an EIP-712 signature from the Nexus Core operator over `NexusGroupApproval(groupId, entriesHash, totalAmount)`. This prevents MITM tampering of the payments array (merchant addresses and amounts). Clients should verify `nexus_group_sig` and `core_operator_address` before submitting transactions.
+Every `BatchDepositInstruction` includes an EIP-712 signature from the XAgent Pay Core operator over `XAgent PayGroupApproval(groupId, entriesHash, totalAmount)`. This prevents MITM tampering of the payments array (merchant addresses and amounts). Clients should verify `nexus_group_sig` and `core_operator_address` before submitting transactions.
 
 ### Precomputed Hashes
 

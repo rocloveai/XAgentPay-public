@@ -1,18 +1,18 @@
-# RFC-009: Nexus Webhook Standard (NWS)
+# RFC-009: XAgent Pay Webhook Standard (NWS)
 
 | Metadata | Value |
 | --- | --- |
-| **Title** | Nexus Webhook Standard |
+| **Title** | XAgent Pay Webhook Standard |
 | **Version** | 1.1.0 |
 | **Status** | Standards Track (Draft) |
-| **Author** | Cipher & Nexus Architect Team |
+| **Author** | Cipher & XAgent Pay Architect Team |
 | **Created** | 2026-02-24 |
 | **Updated** | 2026-02-26 |
 | **Depends On** | RFC-005v3 (Payment Core MVP) |
 
 ## 1. Abstract
 
-This RFC defines the Webhook standard for xNexus Core to send payment result notifications to Merchant Agents. It covers event types, payload format, HMAC security signatures, retry strategy, and idempotency guarantees.
+This RFC defines the Webhook standard for xXAgent Pay Core to send payment result notifications to Merchant Agents. It covers event types, payload format, HMAC security signatures, retry strategy, and idempotency guarantees.
 
 ## 2. Motivation
 
@@ -21,7 +21,7 @@ Under the Direct Settlement model, merchants need to be promptly informed of the
 - Payment timed out without completion (to release inventory)
 - On-chain transaction failed (to notify the user to retry)
 
-Webhooks are the critical bridge connecting xNexus Core and Merchant Agents.
+Webhooks are the critical bridge connecting xXAgent Pay Core and Merchant Agents.
 
 ## 3. Event Types
 
@@ -125,7 +125,7 @@ For escrow-related events (`payment.escrowed`, `payment.refunded`, `dispute.open
 ### 4.4 Implementation Status (v1.1.0 Notes)
 
 The following RFC-009 features have been implemented in `src/nexus-core/src/services/webhook-notifier.ts`:
-- HMAC-SHA256 signature: `X-Nexus-Signature` + `X-Nexus-Timestamp` headers
+- HMAC-SHA256 signature: `X-XAgent Pay-Signature` + `X-XAgent Pay-Timestamp` headers
 - 6 retries (exponential backoff: 10s, 30s, 2min, 10min, 30min)
 - `webhook_delivery_logs` table records delivery history
 - Timing-safe signature comparison
@@ -137,11 +137,11 @@ The following RFC-009 features have been implemented in `src/nexus-core/src/serv
 ```
 POST {merchant_webhook_url}
 Content-Type: application/json
-X-Nexus-Event: payment.settled
-X-Nexus-Delivery-Id: evt_01JAXYZ123
-X-Nexus-Timestamp: 1708766100
-X-Nexus-Signature: sha256=a1b2c3d4e5f6...
-User-Agent: xNexus-Webhook/1.0
+X-XAgent Pay-Event: payment.settled
+X-XAgent Pay-Delivery-Id: evt_01JAXYZ123
+X-XAgent Pay-Timestamp: 1708766100
+X-XAgent Pay-Signature: sha256=a1b2c3d4e5f6...
+User-Agent: xXAgent Pay-Webhook/1.0
 ```
 
 ### 5.2 Signature Computation
@@ -153,7 +153,7 @@ header = "sha256=" + hex(signature)
 ```
 
 Where:
-- timestamp = value of X-Nexus-Timestamp header (Unix epoch seconds)
+- timestamp = value of X-XAgent Pay-Timestamp header (Unix epoch seconds)
 - raw_request_body = exact JSON string sent as POST body
 - webhook_secret = shared secret from merchant_registry
 
@@ -165,9 +165,9 @@ Merchants MUST verify incoming webhooks:
 
 ```
 Verification Steps:
-1. Extract X-Nexus-Timestamp and X-Nexus-Signature headers
+1. Extract X-XAgent Pay-Timestamp and X-XAgent Pay-Signature headers
 2. Compute expected = HMAC-SHA256(my_secret, timestamp + "." + raw_body)
-3. Compare: "sha256=" + hex(expected) === X-Nexus-Signature
+3. Compare: "sha256=" + hex(expected) === X-XAgent Pay-Signature
 4. Reject if timestamp is older than 5 minutes (replay protection)
 5. Reject if signature does not match
 ```
@@ -325,4 +325,4 @@ Merchants can inspect webhook delivery history via:
 
 ## 12. Copyright
 
-Copyright (c) 2026 Nexus Protocol. All Rights Reserved.
+Copyright (c) 2026 XAgent Pay. All Rights Reserved.

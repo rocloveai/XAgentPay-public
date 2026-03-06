@@ -4,11 +4,11 @@
 | **Title** | The `did:nexus` Method Specification |
 | **Version** | 1.0.0 |
 | **Status** | Draft |
-| **Author** | Cipher & Nexus Architect Team |
+| **Author** | Cipher & XAgent Pay Architect Team |
 | **Created** | 2026-01-20 |
 | **Target Layer** | Google UCP Payment Extension / EVM Chains |
 ## Abstract
-The Nexus DID method (`did:nexus`) is a decentralized identifier scheme based on EVM blockchains (such as PlatON, Ethereum). It is designed to provide verifiable identity, payment routing, and signature verification capabilities for merchant entities in the AI Agent commerce network (UCP). This method supports Account Abstraction, allowing merchants to separate their "custody account" (e.g., Gnosis Safe) from their "high-frequency signing account" (e.g., hot wallet).
+The Nexus DID method (`did:nexus`) is a decentralized identifier scheme based on EVM blockchains (such as XLayer, Ethereum). It is designed to provide verifiable identity, payment routing, and signature verification capabilities for merchant entities in the AI Agent commerce network (UCP). This method supports Account Abstraction, allowing merchants to separate their "custody account" (e.g., Gnosis Safe) from their "high-frequency signing account" (e.g., hot wallet).
 ## 1. Method Name
 The name of this DID method is `nexus`.
 DID strings must begin with the prefix: `did:nexus:`.
@@ -22,11 +22,11 @@ unique-id = 1*id-char ; Merchant's unique registered name
 id-char = ALPHA / DIGIT / "_" / "-"
 ```
 ### 2.2 Examples
-* **Trip.com (PlatON Mainnet):** `did:nexus:210425:trip_com`
-* **Nexus OTC (Local Devnet):** `did:nexus:31337:nexus_otc_01`
+* **Trip.com (XLayer Mainnet):** `did:nexus:210425:trip_com`
+* **XAgent Pay OTC (Local Devnet):** `did:nexus:31337:nexus_otc_01`
 ---
 ## 3. DID Document
-When a User Agent resolves a `did:nexus`, it should return a standard DID Document JSON. This document is dynamically generated from data in the on-chain `NexusMerchantRegistry` contract.
+When a User Agent resolves a `did:nexus`, it should return a standard DID Document JSON. This document is dynamically generated from data in the on-chain `XAgent PayMerchantRegistry` contract.
 ### 3.1 Data Model Mapping
 The on-chain registry contains the following fields, mapped to the DID Document:
 | Registry Field | DID Document Section | Description |
@@ -59,7 +59,7 @@ The on-chain registry contains the following fields, mapped to the DID Document:
 "service": [
 {
 "id": "#payment",
-"type": "xNexusmentEndpoint",
+"type": "xXAgent PaymentEndpoint",
 "serviceEndpoint": "eip155:210425:0xTreasurySafeContractAddress..."
 },
 {
@@ -72,7 +72,7 @@ The on-chain registry contains the following fields, mapped to the DID Document:
 ```
 ---
 ## 4. CRUD Operations
-All operations are executed by calling the `NexusMerchantRegistry` smart contract.
+All operations are executed by calling the `XAgent PayMerchantRegistry` smart contract.
 ### 4.1 Create (Register)
 The merchant calls the contract method:
 ```solidity
@@ -86,7 +86,7 @@ string calldata metadata
 * **Constraint:** `name` must not already be taken under the current `chain-id`.
 * **Cost:** A small amount of gas is required.
 ### 4.2 Read (Resolve)
-The resolver is the User Agent or Nexus Explorer.
+The resolver is the User Agent or XAgent Pay Explorer.
 1. Parse the DID string, extracting `chain-id` and `name`.
 2. Connect to the corresponding chain's RPC node.
 3. Call the contract's `getMerchant(name)` to retrieve the struct.
@@ -123,6 +123,6 @@ When the User Agent verifies a signature, it must follow this logic:
 ## 6. Implementation Notes
 ### 6.1 Antigravity Task List
 Based on this RFC, the following development tasks must be executed:
-1. **Contract:** Write `NexusMerchantRegistry.sol`, implementing `register` / `update` logic and `MerchantProfile` storage.
-2. **SDK:** Implement the `NexusResolver` class in `@nexus/ucp-adapter`, taking a DID as input and outputting the JSON Document described above.
+1. **Contract:** Write `XAgent PayMerchantRegistry.sol`, implementing `register` / `update` logic and `MerchantProfile` storage.
+2. **SDK:** Implement the `XAgent PayResolver` class in `@nexus/ucp-adapter`, taking a DID as input and outputting the JSON Document described above.
 3. **Validation:** Integrate a universal signature verification method using `viem` or `ethers` in the SDK's verification function, with automatic EIP-1271 handling.

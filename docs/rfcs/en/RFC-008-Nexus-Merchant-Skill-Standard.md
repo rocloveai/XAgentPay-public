@@ -1,15 +1,15 @@
-# RFC-008: Nexus Merchant Skill Standard (NMSS) v1.0
+# RFC-008: XAgent Pay Merchant Skill Standard (NMSS) v1.0
 
 | Field | Value |
 |-------|-------|
 | **Status** | Draft |
 | **Created** | 2026-02-23 |
-| **Authors** | Nexus Core Team |
+| **Authors** | XAgent Pay Core Team |
 | **Depends On** | RFC-002 (NUPS), RFC-003 (NAIS), RFC-005 (Payment Core) |
 
 ## 1. Abstract
 
-This RFC defines the **Nexus Merchant Skill Standard (NMSS)** — a specification for how merchant agents describe their capabilities to user agents and AI development tools. The core deliverable is a `skill.md` file: an AI-readable document that combines structured metadata (YAML frontmatter) with human-readable documentation (Markdown body).
+This RFC defines the **XAgent Pay Merchant Skill Standard (NMSS)** — a specification for how merchant agents describe their capabilities to user agents and AI development tools. The core deliverable is a `skill.md` file: an AI-readable document that combines structured metadata (YAML frontmatter) with human-readable documentation (Markdown body).
 
 NMSS enables a decentralized merchant ecosystem where:
 - Merchants independently publish their agent capabilities
@@ -20,7 +20,7 @@ NMSS enables a decentralized merchant ecosystem where:
 
 ### Problem
 
-In the current Nexus architecture, user agents must have pre-configured knowledge of each merchant agent's tools, parameters, and checkout flow. This creates a tight coupling between user agents and merchant agents, limiting ecosystem growth.
+In the current XAgent Pay architecture, user agents must have pre-configured knowledge of each merchant agent's tools, parameters, and checkout flow. This creates a tight coupling between user agents and merchant agents, limiting ecosystem growth.
 
 ### Solution
 
@@ -269,7 +269,7 @@ A `skill.md` file is valid if:
 ---
 name: nexus-coffee-agent
 version: "0.1.0"
-description: Coffee ordering with Nexus Payment
+description: Coffee ordering with XAgent Payment
 merchant_did: "did:nexus:210425:demo_coffee"
 protocol: NUPS/1.5
 category: food.delivery
@@ -284,9 +284,9 @@ tools:
     role: status
 ---
 
-# Nexus Coffee Agent
+# XAgent Pay Coffee Agent
 
-Order coffee from local cafes with Nexus Protocol payments.
+Order coffee from local cafes with XAgent Pay payments.
 
 ## Quick Setup
 ...
@@ -308,8 +308,8 @@ Order coffee from local cafes with Nexus Protocol payments.
 ## 9. References
 
 - [RFC-001] Nexus DID Method Specification
-- [RFC-002] Nexus Unified Payment Standard (NUPS)
-- [RFC-003] Nexus Agent Interface Standard (NAIS)
-- [RFC-005] Nexus Payment Core Specification
+- [RFC-002] XAgent Pay Unified Payment Standard (NUPS)
+- [RFC-003] XAgent Pay Agent Interface Standard (NAIS)
+- [RFC-005] XAgent Payment Core Specification
 - [MCP Specification](https://modelcontextprotocol.io)
 - [Claude Code Skills](https://docs.anthropic.com/en/docs/claude-code)

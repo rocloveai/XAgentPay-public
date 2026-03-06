@@ -1,4 +1,4 @@
-# Nexus Skill Market 调研报告
+# XAgent Pay Skill Market 调研报告
 
 | 元数据 | 内容 |
 | --- | --- |
@@ -56,11 +56,11 @@ SkillsMP 当前为开源社区项目，无直接收入模式。技能由 GitHub 
 
 ---
 
-## 二、xNexus Skill Market 定位
+## 二、xXAgent Pay Skill Market 定位
 
 ### 2.1 核心差异
 
-| 维度 | SkillsMP | xNexus Skill Market |
+| 维度 | SkillsMP | xXAgent Pay Skill Market |
 | --- | --- | --- |
 | 定位 | 通用开发者技能市场 | **支付场景的商业技能市场** |
 | 技能类型 | 代码生成、测试、文档等开发技能 | 零售、酒旅、餐饮等**有交易闭环**的商业技能 |
@@ -73,9 +73,9 @@ SkillsMP 当前为开源社区项目，无直接收入模式。技能由 GitHub 
 
 ### 2.2 价值主张
 
-> SkillsMP 解决 "AI 怎么工作"，xNexus Skill Market 解决 **"AI 怎么花钱"**。
+> SkillsMP 解决 "AI 怎么工作"，xXAgent Pay Skill Market 解决 **"AI 怎么花钱"**。
 
-每个上架的 Skill 都内嵌 Nexus 支付能力，不是简单的指令文件，而是一个完整的**商业交易单元**。
+每个上架的 Skill 都内嵌 XAgent Pay 支付能力，不是简单的指令文件，而是一个完整的**商业交易单元**。
 
 ---
 
@@ -84,9 +84,9 @@ SkillsMP 当前为开源社区项目，无直接收入模式。技能由 GitHub 
 ### 3.1 供给侧（商户）
 
 - 标准化 Skill 开发模板 + 脚手架工具（`create-nexus-skill`）
-- 商户只需提供商品目录 / API，xNexus 帮助封装成支付 Skill
+- 商户只需提供商品目录 / API，xXAgent Pay 帮助封装成支付 Skill
 - 认证体系：DID 注册 → 支付能力验证 → Webhook 测试通过 → 上架
-- 技能开发外包服务（xNexus 团队或认证开发者）
+- 技能开发外包服务（xXAgent Pay 团队或认证开发者）
 
 ### 3.2 需求侧（User Agent）
 
@@ -94,9 +94,9 @@ SkillsMP 当前为开源社区项目，无直接收入模式。技能由 GitHub 
 - 一键获取 MCP config JSON，复制到 Claude Desktop / Cursor 即可用
 - Agent 自主发现模式：User Agent 通过 API 自动查询市场，按需连接新商户
 
-### 3.3 平台侧（xNexus）
+### 3.3 平台侧（xXAgent Pay）
 
-- 每笔交易手续费（xNexus Core 层收取）
+- 每笔交易手续费（xXAgent Pay Core 层收取）
 - 商户 Skill 开发外包服务费
 - Premium listing / 推荐位
 - 商户数据分析面板
@@ -123,17 +123,17 @@ SkillsMP 当前为开源社区项目，无直接收入模式。技能由 GitHub 
 
 ### Phase 1 — 静态 Registry（Core 完成后可立即启动）
 
-- Nexus 官网上的一个页面，展示已注册的 merchant skill
+- XAgent Pay 官网上的一个页面，展示已注册的 merchant skill
 - Skill 卡片：名称、描述、分类、支持币种、交易量
 - 一键复制 MCP config JSON
 - 数据源：各 merchant 的 `/skill.md` 端点，定期抓取
 
 ### Phase 2 — 动态 Discovery
 
-- 商户自助注册（提交 SSE endpoint，Nexus 自动拉取 skill.md 验证）
+- 商户自助注册（提交 SSE endpoint，XAgent Pay 自动拉取 skill.md 验证）
 - 搜索 API：User Agent 可通过 API 发现新技能
 - 安装量、评分、交易量等排名
-- Nexus Core 验证商户身份（DID 绑定）
+- XAgent Pay Core 验证商户身份（DID 绑定）
 
 ### Phase 3 — Autonomous Agent Discovery
 
@@ -153,9 +153,9 @@ Merchant 开发 Skill
        ↓
 User Agent 发现 & 安装
        ↓
-用户下单 → Nexus Core 处理支付
+用户下单 → XAgent Pay Core 处理支付
        ↓
-交易手续费 → xNexus 收入
+交易手续费 → xXAgent Pay 收入
 ```
 
 **网络效应**：商户越多 → User Agent 越有用 → 用户越多 → 商户越想接入
@@ -169,4 +169,4 @@ User Agent 发现 & 安装
 - [SkillsMP Complete Guide 2026](https://smartscope.blog/en/blog/skillsmp-marketplace-guide/)
 - [SkillsMP: The Open Marketplace](https://www.vibesparking.com/en/blog/ai/skillsmp/2025-12-24-skillsmp-agent-skills-marketplace/)
 - [Anthropic Skills Repository](https://github.com/anthropics/skills)
-- [RFC-008: NMSS - Nexus Merchant Skill Standard](../rfcs/RFC-008-NMSS.md)
+- [RFC-008: NMSS - XAgent Pay Merchant Skill Standard](../rfcs/RFC-008-NMSS.md)

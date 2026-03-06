@@ -6,7 +6,7 @@
 ## Prerequisites
 - Payment in ESCROWED state
 - Relayer configured with private key and sufficient gas balance
-- Escrow contract deployed on PlatON Devnet
+- Escrow contract deployed on XLayer Devnet
 
 ---
 

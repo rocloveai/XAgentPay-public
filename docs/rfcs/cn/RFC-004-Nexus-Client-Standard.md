@@ -1,8 +1,8 @@
-# RFC-004: Nexus Client Standard (NCS)
+# RFC-004: XAgent Pay Client Standard (NCS)
 
 | Metadata | Value |
 | --- | --- |
-| **Title** | Nexus Client Standard |
+| **Title** | XAgent Pay Client Standard |
 | **Version** | 1.5.0 |
 | **Status** | Standards Track (Draft) |
 | **Dependencies** | RFC-002 (NUPS), RFC-003 (NAIS) |
@@ -16,7 +16,7 @@ npm install @nexus/seller-sdk
 ```
 该包内置了：
 * **Signer:** 负责 EIP-712 离线签名。
-* **Client:** 负责与 Nexus Core (MCP) 通信。
+* **Client:** 负责与 XAgent Pay Core (MCP) 通信。
 * **Adapters:** 针对 LangChain, Genkit, MCP 的适配器。
 ---
 ### 方式一：AI Native 模式 (针对 Google Genkit/LangChain)
@@ -28,7 +28,7 @@ import { genkit } from 'genkit';
 import { nexusSellerPlugin } from '@nexus/seller-sdk/genkit';
 const ai = genkit({
 plugins: [
-// --- 1. 引入 Nexus 插件 ---
+// --- 1. 引入 XAgent Pay 插件 ---
 nexusSellerPlugin({
 merchantDid: process.env.MERCHANT_DID, // e.g. "did:nexus:trip_com"
 privateKey: process.env.MERCHANT_KEY, // 你的私钥
@@ -46,8 +46,8 @@ inputSchema: z.string(),
 // LLM 会自动根据上下文，调用插件中的 `nexus_create_quote` 工具，
 // 并生成符合 UCP 标准的 JSON 返回给用户。
 const response = await ai.generate({
-prompt: `User wants to book flight ${input}. Price is 530 USDC. Generate a Nexus payment quote.`,
-tools: ['nexus_create_quote'] // 显式允许 LLM 使用 Nexus 工具
+prompt: `User wants to book flight ${input}. Price is 530 USDC. Generate a XAgent Pay payment quote.`,
+tools: ['nexus_create_quote'] // 显式允许 LLM 使用 XAgent Pay 工具
 });
 return response.output;
 });
@@ -59,9 +59,9 @@ return response.output;
 #### 代码实现
 ```typescript
 // src/mcp-server.ts
-import { NexusMcpServer } from '@nexus/seller-sdk/mcp';
+import { XAgent PayMcpServer } from '@nexus/seller-sdk/mcp';
 // --- 1. 启动服务器 ---
-const server = new NexusMcpServer({
+const server = new XAgent PayMcpServer({
 name: "Trip.com Payment Service",
 version: "1.0.0",
 identity: {
@@ -74,7 +74,7 @@ key: process.env.MERCHANT_KEY
 // - nexus_verify_settlement
 // - nexus_confirm_fulfillment
 server.start();
-console.log("Nexus MCP Server running...");
+console.log("XAgent Pay MCP Server running...");
 ```
 **效果：** 任何支持 MCP 的客户端（如 Claude）现在都可以直接连接这个服务，并代表用户进行下单和支付交互。
 ---
@@ -83,8 +83,8 @@ console.log("Nexus MCP Server running...");
 #### 代码实现
 ```typescript
 // src/controllers/booking.controller.ts
-import { NexusClient } from '@nexus/seller-sdk';
-const nexus = new NexusClient({
+import { XAgent PayClient } from '@nexus/seller-sdk';
+const nexus = new XAgent PayClient({
 privateKey: process.env.KEY,
 merchantDid: "did:nexus:trip_com"
 });
@@ -112,7 +112,7 @@ payload: quote // <--- 注入生成的 JSON
 // 场景：处理发货 (在收到 Core Webhook 或用户请求后)
 app.post('/fulfill', async (req, res) => {
 const { orderRef } = req.body;
-// --- 3. 主动去 Nexus Core 查账 (风控与验资) ---
+// --- 3. 主动去 XAgent Pay Core 查账 (风控与验资) ---
 const result = await nexus.verifySettlement(orderRef);
 if (result.status === 'SETTLED' && result.risk === 'LOW') {
 // 安全！发货
@@ -139,5 +139,5 @@ res.status(400).json({ error: "Payment verification failed" });
 ### 总结
 对于 MA 开发者：
 * **如果是 AI 团队：** 使用 `nexusSellerPlugin`，只需在 `genkit` 配置里加一行。
-* **如果是 API 团队：** 使用 `NexusClient`，只需在 Controller 里加两行 (`signQuote` 和 `verifySettlement`)。
+* **如果是 API 团队：** 使用 `XAgent PayClient`，只需在 Controller 里加两行 (`signQuote` 和 `verifySettlement`)。
 这种设计最大程度地降低了 Web3 的认知门槛，让支付变成了简单的函数调用。

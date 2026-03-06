@@ -1,14 +1,14 @@
 ---
 name: nexus-telegram-renderer
 version: "1.0.0"
-description: Render xNexus payment orders as rich Telegram messages with auto-updating status
+description: Render xXAgent Pay payment orders as rich Telegram messages with auto-updating status
 protocol: HTTP/REST
 category: notification.telegram
 ---
 
-# xNexus Telegram Order Renderer
+# xXAgent Pay Telegram Order Renderer
 
-A lightweight service that renders xNexus payment orders as interactive Telegram messages using InlineKeyboardMarkup. Messages auto-update every 10 seconds to reflect payment status changes.
+A lightweight service that renders xXAgent Pay payment orders as interactive Telegram messages using InlineKeyboardMarkup. Messages auto-update every 10 seconds to reflect payment status changes.
 
 ## When to Use
 
@@ -30,7 +30,7 @@ After you call `nexus_orchestrate_payment` and receive a `checkout_url` + `group
 ```json
 {
   "chat_id": 123456789,
-  "checkout_url": "https://api.nexus-mvp.topos.one/checkout/tok_xxx",
+  "checkout_url": "https://api.xagentpay.com/checkout/tok_xxx",
   "group_id": "grp_abc123",
   "total_amount_display": "0.30",
   "currency": "USDC",
@@ -58,12 +58,12 @@ After you call `nexus_orchestrate_payment` and receive a `checkout_url` + `group
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `chat_id` | number or string | Yes | Telegram chat ID where the message will be sent |
-| `checkout_url` | string (URL) | Yes | xNexus checkout URL from orchestration response |
+| `checkout_url` | string (URL) | Yes | xXAgent Pay checkout URL from orchestration response |
 | `group_id` | string | Yes | Payment group ID (e.g. `grp_xxx` or `GRP-xxx`) |
 | `total_amount_display` | string | Yes | Human-readable total amount (e.g. `"0.30"`) |
 | `currency` | string | No | Currency symbol (default: `"USDC"`) |
 | `payments` | array | Yes | Array of payment items (min 1) |
-| `payments[].nexus_payment_id` | string | Yes | Nexus payment ID (e.g. `PAY-xxx`) |
+| `payments[].nexus_payment_id` | string | Yes | XAgent Pay payment ID (e.g. `PAY-xxx`) |
 | `payments[].merchant_order_ref` | string | Yes | Merchant's order reference |
 | `payments[].amount_display` | string | Yes | Human-readable amount for this item |
 | `payments[].status` | string | Yes | Current status (e.g. `CREATED`, `ESCROWED`, `SETTLED`) |
@@ -117,7 +117,7 @@ The raw tool response is **internal data for you to extract fields from**, not c
 After calling `nexus_orchestrate_payment`, you get back a response like:
 
 ```
-CHECKOUT_URL: https://api.nexus-mvp.topos.one/checkout/tok_xxx
+CHECKOUT_URL: https://api.xagentpay.com/checkout/tok_xxx
 
 Payment Summary:
   Group: grp_abc123
@@ -139,7 +139,7 @@ If you have the original quotes, use `context.summary` for richer `summary` text
 The rendered Telegram message looks like:
 
 ```
-📦 xNexus Order
+📦 xXAgent Pay Order
 
 ⏳ Status: Pending Payment
 
@@ -160,7 +160,7 @@ grp_abc123
 If the order expires before payment, the message auto-updates to:
 
 ```
-📦 xNexus Order
+📦 xXAgent Pay Order
 
 ❌ Status: Expired
 
@@ -181,7 +181,7 @@ grp_abc123
 After payment, the message auto-updates to:
 
 ```
-📦 xNexus Order
+📦 xXAgent Pay Order
 
 ✅ Status: Settled
 
@@ -212,7 +212,7 @@ GET /health
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `TELEGRAM_BOT_TOKEN` | Yes | — | Bot token from @BotFather |
-| `NEXUS_CORE_URL` | Yes | — | xNexus Core URL for status polling |
+| `NEXUS_CORE_URL` | Yes | — | xXAgent Pay Core URL for status polling |
 | `PORT` | No | `4100` | HTTP server port |
 | `POLL_INTERVAL_MS` | No | `10000` | Initial poll interval in ms |
 | `POLL_BACKOFF_MS` | No | `5000` | Added to interval per successive poll |

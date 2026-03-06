@@ -13,7 +13,7 @@
 | RFC-004 | Client Standard (NCS) | 0% | `@nexus/seller-sdk` does not exist |
 | RFC-005v2 | Payment Core MVP | 50% | Escrow replaced Direct Transfer; chain_id changed |
 | RFC-006 | Risk Gatekeeper | 0% | Not implemented (future) |
-| RFC-007 | Core Agentic Interface | 5% | Hub-Spoke/MPC/KYT are future; only PlatON single-chain |
+| RFC-007 | Core Agentic Interface | 5% | Hub-Spoke/MPC/KYT are future; only XLayer single-chain |
 | RFC-008 | Merchant Skill (NMSS) | 90% | Minor body section differences (no Quick Setup section) |
 | RFC-009 | Webhook Standard | 85% | Event types differ (escrow events); no `iso_metadata` in payloads |
 | RFC-010 | Escrow Contract | 70% | Implementation exceeds spec (batch, group sig, RESOLVED_SPLIT) |
@@ -25,7 +25,7 @@
 ## RFC-001: Nexus DID Method
 
 ### Spec Says
-- On-chain `NexusMerchantRegistry` contract for CRUD operations
+- On-chain `XAgent PayMerchantRegistry` contract for CRUD operations
 - W3C DID Document resolution (`verificationMethod`, `service`, `authentication`)
 - Key separation: `signer` (hot wallet) vs `paymentAddress` (cold/multisig)
 - EIP-1271 contract wallet support for signature verification
@@ -41,7 +41,7 @@
 ### Gaps
 | Item | Status | Priority |
 |------|--------|----------|
-| On-chain NexusMerchantRegistry contract | NOT IMPLEMENTED | Low (MVP acceptable) |
+| On-chain XAgent PayMerchantRegistry contract | NOT IMPLEMENTED | Low (MVP acceptable) |
 | W3C DID Document JSON generation | NOT IMPLEMENTED | Low |
 | EIP-1271 contract wallet verification | NOT IMPLEMENTED | Medium |
 | DID format used correctly | IMPLEMENTED | - |
@@ -61,7 +61,7 @@ RFC-005v2 already acknowledges "Local DID Registry" as MVP approach. Update RFC-
 
 ### Reality
 - Quote has `context` (summary + line_items) but **no `iso_metadata`**
-- EIP-712 NexusQuote types include `context_hash` but **no `iso_hash`** field
+- EIP-712 XAgent PayQuote types include `context_hash` but **no `iso_hash`** field
 - `urn:ucp:payment:nexus_v1` is used correctly
 - Quote fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `chain_id`, `expiry`, `context`, `signature` (all match)
 
@@ -144,15 +144,15 @@ This is a developer experience improvement. Extract common patterns from flight-
 ### Spec Says
 - **Direct ERC-20 transfer** (user sends USDC directly to merchant address)
 - Core doesn't touch funds
-- Chain ID: **210425** (PlatON)
+- Chain ID: **210425** (XLayer)
 - States: CREATED → AWAITING_TX → BROADCASTED → SETTLED → COMPLETED → EXPIRED → TX_FAILED → RISK_REJECTED
 - Chain Watcher monitors ERC-20 Transfer events
 - `PaymentInstruction` with `method: "erc20_transfer"` and `tx_data`
 
 ### Reality
-- **Escrow contract** is used (user deposits to xNexusEscrow, not direct to merchant)
+- **Escrow contract** is used (user deposits to xXAgent PayEscrow, not direct to merchant)
 - Core's relayer submits release transactions
-- Chain ID: **20250407** (PlatON Devnet)
+- Chain ID: **20250407** (XLayer Devnet)
 - States: CREATED → GROUP_AWAITING_TX → ESCROWED → SETTLED → COMPLETED (+ DISPUTE_OPEN, DISPUTE_RESOLVED, etc.)
 - Chain Watcher monitors escrow Deposited/Released events
 - `BatchDepositInstruction` with EIP-3009 signing data
@@ -208,14 +208,14 @@ Keep as future RFC. No action needed for MVP. Add a note in SYSTEM-OVERVIEW mark
 ## RFC-007: Core Agentic Interface
 
 ### Spec Says
-- Hub-Spoke cross-chain (PlatON hub + Base/Ethereum spokes)
+- Hub-Spoke cross-chain (XLayer hub + Base/Ethereum spokes)
 - MPC ephemeral addresses (Fireblocks/Coinbase WaaS)
 - Draft-then-Finalize interaction model
 - KYT integration at DETECTING state
 - 8-state machine: DRAFT → AWAITING_DEPOSIT → DETECTING → SYNCING → LOCKED → RELEASE_SIGNED → CLAIMED → RISK_REJECTED
 
 ### Reality
-- **Single chain** (PlatON Devnet only)
+- **Single chain** (XLayer Devnet only)
 - No MPC, no cross-chain bridges
 - No Draft-then-Finalize (orchestrate returns ready instruction immediately)
 - No KYT integration
@@ -260,7 +260,7 @@ Add Quick Setup section with MCP connection JSON. Minor update only — frontmat
 ## RFC-009: Webhook Standard
 
 ### Spec Says
-- HMAC-SHA256 signature in `X-Nexus-Signature` header
+- HMAC-SHA256 signature in `X-XAgent Pay-Signature` header
 - Signature = `HMAC-SHA256(secret, timestamp + "." + body)`
 - 6 retry attempts with exponential backoff
 - Events: `payment.created`, `payment.settled`, `payment.expired`, `payment.failed`, `fulfillment.confirmed`
@@ -268,7 +268,7 @@ Add Quick Setup section with MCP connection JSON. Minor update only — frontmat
 - `webhook_delivery_logs` table
 
 ### Reality
-- **HMAC-SHA256 signing IS implemented** in `webhook-notifier.ts` — uses `createHmac("sha256", merchant.webhook_secret).update(\`${timestamp}.${body}\`).digest("hex")` with `X-Nexus-Signature` and `X-Nexus-Timestamp` headers
+- **HMAC-SHA256 signing IS implemented** in `webhook-notifier.ts` — uses `createHmac("sha256", merchant.webhook_secret).update(\`${timestamp}.${body}\`).digest("hex")` with `X-XAgent Pay-Signature` and `X-XAgent Pay-Timestamp` headers
 - Retry with exponential backoff: **6 attempts** (matches RFC-009 spec exactly: 10s, 30s, 2min, 10min, 30min)
 - Events sent: `payment.escrowed`, `payment.settled`, `payment.completed`, `payment.refunded`, `dispute.opened`, `dispute.resolved` (escrow-extended set)
 - **No `iso_metadata`** in webhook payloads (optional enterprise feature)
@@ -280,8 +280,8 @@ Add Quick Setup section with MCP connection JSON. Minor update only — frontmat
 |------|--------|----------|
 | Webhook HTTP POST delivery | IMPLEMENTED | - |
 | HMAC-SHA256 signature | IMPLEMENTED | - |
-| `X-Nexus-Signature` header | IMPLEMENTED | - |
-| `X-Nexus-Timestamp` header | IMPLEMENTED | - |
+| `X-XAgent Pay-Signature` header | IMPLEMENTED | - |
+| `X-XAgent Pay-Timestamp` header | IMPLEMENTED | - |
 | Retry with backoff (6 attempts) | IMPLEMENTED | - |
 | `webhook_delivery_logs` table | IMPLEMENTED | - |
 | Event types match spec | DEVIATED — spec has `payment.created/settled/expired/failed`, impl has escrow events (`payment.escrowed`, `dispute.*`) | Medium |
@@ -293,7 +293,7 @@ Update RFC-009 event types to include escrow-specific events (`payment.escrowed`
 
 ---
 
-## RFC-010: xNexus Escrow Contract
+## RFC-010: xXAgent Pay Escrow Contract
 
 ### Spec Says
 - EIP-3009 `transferWithAuthorization` + Relayer
@@ -313,7 +313,7 @@ Update RFC-009 event types to include escrow-specific events (`payment.escrowed`
 - `MAX_BATCH_SIZE = 20` (gas griefing protection)
 - `feeBps` snapshot at deposit time (L-04 audit fix)
 - `refundUnresolvedDispute()` for auto-refund after arbitration timeout (H-01 audit fix)
-- Millisecond-based timestamps (PlatON EVM quirk)
+- Millisecond-based timestamps (XLayer EVM quirk)
 
 ### Gaps
 | Item | Status | Priority |
@@ -331,7 +331,7 @@ Update RFC-009 event types to include escrow-specific events (`payment.escrowed`
 | Millisecond timestamps | IMPLEMENTED (not in spec) | Spec update needed |
 
 ### Recommendation
-Implementation significantly exceeds the spec. RFC-010 needs a v2.0.0 update covering batch deposits, group signatures, UUPS proxy, RESOLVED_SPLIT, and PlatON ms timestamps.
+Implementation significantly exceeds the spec. RFC-010 needs a v2.0.0 update covering batch deposits, group signatures, UUPS proxy, RESOLVED_SPLIT, and XLayer ms timestamps.
 
 ---
 

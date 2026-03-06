@@ -1,8 +1,8 @@
-# xNexus - Project Scope & Directory Structure
+# xXAgent Pay - Project Scope & Directory Structure
 
 ## Project Goal
 
-基于 Nexus RFC 规范，构建 Agent-to-Agent 支付系统的可运行 Demo。
+基于 XAgent Pay RFC 规范，构建 Agent-to-Agent 支付系统的可运行 Demo。
 
 ### 开发优先级
 
@@ -16,13 +16,13 @@
    - PreparePayment / ExecutePayment / TrackOrder
    - 让 UA 能发现商品并完成支付
 
-3. **Nexus Core** - 支付编排核心 (后续)
+3. **XAgent Pay Core** - 支付编排核心 (后续)
 4. **Smart Contracts** - 链上合约 (后续)
 
 ## Directory Structure
 
 ```
-Nexuspay/
+XAgent Paypay/
 ├── docs/
 │   ├── rfcs/                    # RFC 原始文档 (已完成)
 │   ├── plans/                   # 实现计划
@@ -36,7 +36,7 @@ Nexuspay/
 │   │   ├── (mcp-clients)        # 对接外部商品 MCP
 │   │   └── (tools)              # nexus_generate_quote 等工具实现
 │   │
-│   ├── nexus-core/              # Nexus Payment Core (后续)
+│   ├── nexus-core/              # XAgent Payment Core (后续)
 │   │   ├── (orchestrator)       # 编排引擎
 │   │   └── (state-machine)      # 订单状态机
 │   │
@@ -44,9 +44,9 @@ Nexuspay/
 │   │   └── (buyer-skills)       # @nexus/buyer-skills 实现
 │   │
 │   └── contracts/               # 智能合约 (后续)
-│       ├── (NexusMerchantRegistry)
-│       ├── (NexusRouter)
-│       └── (NexusRiskController)
+│       ├── (XAgent PayMerchantRegistry)
+│       ├── (XAgent PayRouter)
+│       └── (XAgent PayRiskController)
 │
 ├── .gitignore
 └── package.json                 # (待创建)

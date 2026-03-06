@@ -1,6 +1,6 @@
-# xNexus External URLs & API Reference
+# xXAgent Pay External URLs & API Reference
 
-All public-facing URLs, endpoints, and skill.md files for the xNexus platform.
+All public-facing URLs, endpoints, and skill.md files for the xXAgent Pay platform.
 
 ---
 
@@ -8,8 +8,8 @@ All public-facing URLs, endpoints, and skill.md files for the xNexus platform.
 
 | Service | URL | Type |
 |---------|-----|------|
-| Website | `https://nexus-mvp.topos.one` | Static SPA (Vite + React) |
-| Nexus Core API | `https://api.nexus-mvp.topos.one` | MCP Server + HTTP API |
+| Website | `https://xagentpay.com` | Static SPA (Vite + React) |
+| XAgent Pay Core API | `https://api.xagentpay.com` | MCP Server + HTTP API |
 | Flight Agent | `https://nexus-flight-agent-nr8m.onrender.com` | MCP Merchant Agent |
 | Hotel Agent | `https://nexus-hotel-agent-nr8m.onrender.com` | MCP Merchant Agent |
 | Telegram Bot | `https://nexus-telegram-bot-nr8m.onrender.com` | Telegram Integration |
@@ -22,13 +22,13 @@ Each service provides two skill files: **skill.md** (MCP connection + tool defin
 
 | Skill | URL | Description |
 |-------|-----|-------------|
-| Nexus Core (MCP) | `https://api.nexus-mvp.topos.one/skill.md` | MCP connection + 9 tool definitions |
-| Nexus Core (HTTP) | `https://api.nexus-mvp.topos.one/skill-user.md` | HTTP REST API with curl examples |
+| XAgent Pay Core (MCP) | `https://api.xagentpay.com/skill.md` | MCP connection + 9 tool definitions |
+| XAgent Pay Core (HTTP) | `https://api.xagentpay.com/skill-user.md` | HTTP REST API with curl examples |
 | Flight Agent (MCP) | `https://nexus-flight-agent-nr8m.onrender.com/skill.md` | MCP connection + 3 tool definitions |
 | Flight Agent (HTTP) | `https://nexus-flight-agent-nr8m.onrender.com/skill-user.md` | HTTP REST API with curl examples |
 | Hotel Agent (MCP) | `https://nexus-hotel-agent-nr8m.onrender.com/skill.md` | MCP connection + 3 tool definitions |
 | Hotel Agent (HTTP) | `https://nexus-hotel-agent-nr8m.onrender.com/skill-user.md` | HTTP REST API with curl examples |
-| LINE Messaging | `https://api.nexus-mvp.topos.one/skills/nexus-line-skill.md` | LINE Flex Message skill |
+| LINE Messaging | `https://api.xagentpay.com/skills/nexus-line-skill.md` | LINE Flex Message skill |
 | Telegram Bot | `https://nexus-telegram-bot-nr8m.onrender.com/skill.md` | Telegram bot skill |
 
 ---
@@ -37,12 +37,12 @@ Each service provides two skill files: **skill.md** (MCP connection + tool defin
 
 | Page | URL | Description |
 |------|-----|-------------|
-| Home | `https://nexus-mvp.topos.one/#/` | Landing page |
-| Marketplace | `https://nexus-mvp.topos.one/#/market` | Agent marketplace (discover & register) |
+| Home | `https://xagentpay.com/#/` | Landing page |
+| Marketplace | `https://xagentpay.com/#/market` | Agent marketplace (discover & register) |
 
 ---
 
-## Nexus Core API Endpoints
+## XAgent Pay Core API Endpoints
 
 ### Health & Status
 
@@ -145,12 +145,12 @@ Both agents expose identical endpoint patterns:
 
 ---
 
-## On-Chain Addresses (PlatON Devnet, chainId 20250407)
+## On-Chain Addresses (XLayer Devnet, chainId 20250407)
 
 | Contract | Address |
 |----------|---------|
 | USDC (FiatToken Proxy) | `0xFF8dEe9983768D0399673014cf77826896F97e4d` |
-| xNexusEscrow (UUPS Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` |
+| xXAgent PayEscrow (UUPS Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` |
 | Relayer/Owner | `0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920` |
 | RPC | `https://devnet3openapi.platon.network/rpc` |
 
@@ -160,7 +160,7 @@ Both agents expose identical endpoint patterns:
 
 - **Bearer Token:** Portal dashboard and merchant registration require `Authorization: Bearer <PORTAL_TOKEN>` header
 - **CORS:** All API endpoints support `Access-Control-Allow-Origin: *`
-- **Webhook HMAC:** Merchant webhook deliveries are signed with `X-Nexus-Signature` header
+- **Webhook HMAC:** Merchant webhook deliveries are signed with `X-XAgent Pay-Signature` header
 
 ## ID Formats
 

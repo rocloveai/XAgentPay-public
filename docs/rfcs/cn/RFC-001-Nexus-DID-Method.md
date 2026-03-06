@@ -4,11 +4,11 @@
 | **Title** | The `did:nexus` Method Specification |
 | **Version** | 1.0.0 |
 | **Status** | Draft |
-| **Author** | Cipher & Nexus Architect Team |
+| **Author** | Cipher & XAgent Pay Architect Team |
 | **Created** | 2026-01-20 |
 | **Target Layer** | Google UCP Payment Extension / EVM Chains |
 ## Abstract (摘要)
-Nexus DID 方法 (`did:nexus`) 是一种基于 EVM 区块链（如 PlatON, Ethereum）的去中心化标识符方案。它旨在为 AI Agent 商业网络（UCP）中的商户实体提供可验证的身份、支付路由和签名验证能力。本方法支持账户抽象（Account Abstraction），允许商户将“资金保管账户”（如 Gnosis Safe）与“高频签名账户”（如热钱包）分离。
+Nexus DID 方法 (`did:nexus`) 是一种基于 EVM 区块链（如 XLayer, Ethereum）的去中心化标识符方案。它旨在为 AI Agent 商业网络（UCP）中的商户实体提供可验证的身份、支付路由和签名验证能力。本方法支持账户抽象（Account Abstraction），允许商户将“资金保管账户”（如 Gnosis Safe）与“高频签名账户”（如热钱包）分离。
 ## 1. Method Name (方法名称)
 本 DID 方法的名称为 `nexus`。
 DID 字符串必须以此前缀开头：`did:nexus:`。
@@ -22,11 +22,11 @@ unique-id = 1*id-char ; Merchant's unique registered name
 id-char = ALPHA / DIGIT / "_" / "-"
 ```
 ### 2.2 示例
-* **Trip.com (PlatON 主网):** `did:nexus:210425:trip_com`
-* **Nexus OTC (本地开发网):** `did:nexus:31337:nexus_otc_01`
+* **Trip.com (XLayer 主网):** `did:nexus:210425:trip_com`
+* **XAgent Pay OTC (本地开发网):** `did:nexus:31337:nexus_otc_01`
 ---
 ## 3. DID Document (文档结构)
-当 User Agent 解析一个 `did:nexus` 时，它应当返回一个标准的 DID Document JSON。该文档由链上 `NexusMerchantRegistry` 合约中的数据动态生成。
+当 User Agent 解析一个 `did:nexus` 时，它应当返回一个标准的 DID Document JSON。该文档由链上 `XAgent PayMerchantRegistry` 合约中的数据动态生成。
 ### 3.1 数据模型映射
 链上注册表包含以下字段，映射到 DID Document：
 | Registry Field | DID Document Section | 说明 |
@@ -59,7 +59,7 @@ id-char = ALPHA / DIGIT / "_" / "-"
 "service": [
 {
 "id": "#payment",
-"type": "xNexusmentEndpoint",
+"type": "xXAgent PaymentEndpoint",
 "serviceEndpoint": "eip155:210425:0xTreasurySafeContractAddress..."
 },
 {
@@ -72,7 +72,7 @@ id-char = ALPHA / DIGIT / "_" / "-"
 ```
 ---
 ## 4. CRUD Operations (操作定义)
-所有操作均通过调用智能合约 `NexusMerchantRegistry` 执行。
+所有操作均通过调用智能合约 `XAgent PayMerchantRegistry` 执行。
 ### 4.1 Create (注册)
 商户调用合约方法：
 ```solidity
@@ -86,7 +86,7 @@ string calldata metadata
 * **约束：** `name` 必须在当前 `chain-id` 下未被占用。
 * **费用：** 需支付少量 Gas 费。
 ### 4.2 Read (解析)
-解析器（Resolver）即 User Agent 或 Nexus Explorer。
+解析器（Resolver）即 User Agent 或 XAgent Pay Explorer。
 1. 解析 DID 字符串，提取 `chain-id` 和 `name`。
 2. 连接到对应链的 RPC 节点。
 3. 调用合约 `getMerchant(name)` 获取结构体。
@@ -123,6 +123,6 @@ address newPaymentAddress
 ## 6. Implementation Notes (执行指引)
 ### 6.1 Antigravity 任务清单
 根据本 RFC，需执行以下开发任务：
-1. **Contract:** 编写 `NexusMerchantRegistry.sol`，实现 `register` / `update` 逻辑及 `MerchantProfile` 存储。
-2. **SDK:** 在 `@nexus/ucp-adapter` 中实现 `NexusResolver` 类，输入 DID，输出上述 JSON Document。
+1. **Contract:** 编写 `XAgent PayMerchantRegistry.sol`，实现 `register` / `update` 逻辑及 `MerchantProfile` 存储。
+2. **SDK:** 在 `@nexus/ucp-adapter` 中实现 `XAgent PayResolver` 类，输入 DID，输出上述 JSON Document。
 3. **Validation:** 在 SDK 的验签函数中，集成 `viem` 或 `ethers` 的通用验签方法，自动处理 EIP-1271。

@@ -1,14 +1,14 @@
-# PRD-001: xNexus Core 支付系统产品需求文档
+# PRD-001: xXAgent Pay Core 支付系统产品需求文档
 
 | 元数据 | 内容 |
 | --- | --- |
-| **产品名称** | xNexus Core |
+| **产品名称** | xXAgent Pay Core |
 | **版本** | 1.1.0 (MVP) |
 | **状态** | Draft |
-| **作者** | Cipher & Nexus Product Team |
+| **作者** | Cipher & XAgent Pay Product Team |
 | **创建日期** | 2026-02-24 |
 | **更新日期** | 2026-02-24 |
-| **目标链** | PlatON 主网 (chain_id: 210425) |
+| **目标链** | XLayer 主网 (chain_id: 210425) |
 | **支付币种** | USDC (ERC-20, 支持 EIP-3009) |
 | **依赖 RFC** | RFC-001 (DID), RFC-002 (NUPS), RFC-003 (NAIS), RFC-005 (Payment Core), RFC-006 (Risk Gatekeeper), **RFC-010 (Escrow Contract)** |
 
@@ -18,7 +18,7 @@
 
 ### 1.1 项目背景
 
-xNexus 已有 Merchant Agent Demo（flight-agent、hotel-agent），实现了基于 MCP 协议的 AI Agent 商品搜索与报价生成流程。然而，从 "商户生成报价" 到 "链上完成支付" 之间缺少核心的支付编排层。
+xXAgent Pay 已有 Merchant Agent Demo（flight-agent、hotel-agent），实现了基于 MCP 协议的 AI Agent 商品搜索与报价生成流程。然而，从 "商户生成报价" 到 "链上完成支付" 之间缺少核心的支付编排层。
 
 当前存在以下关键缺口：
 
@@ -36,7 +36,7 @@ xNexus 已有 Merchant Agent Demo（flight-agent、hotel-agent），实现了基
 
 ### 1.2 设计目标
 
-1. **构建 xNexus Core 编排服务**：连接 User Agent 和 Merchant Agent，完成支付闭环
+1. **构建 xXAgent Pay Core 编排服务**：连接 User Agent 和 Merchant Agent，完成支付闭环
 2. **双模式支付架构**：支持 Direct Transfer（小额即时）和 **Escrow 智能合约**（高价值担保）两种支付模式
 3. **零 Gas 用户体验**：通过 EIP-3009 + Relayer 代付，用户无需持有 LAT 即可完成支付
 4. **严格模块化设计**：安全、支付合约、订单逻辑、Webhook 通知、**Relayer 代付**五大模块独立解耦
@@ -67,7 +67,7 @@ xNexus 已有 Merchant Agent Demo（flight-agent、hotel-agent），实现了基
 └────────────────────────┬──────────────────────────────────────────┘
                          │ MCP Protocol (Stdio/SSE)
 ┌────────────────────────▼──────────────────────────────────────────┐
-│                     xNexus Core Service                         │
+│                     xXAgent Pay Core Service                         │
 │  ┌─────────────┐ ┌──────────────┐ ┌──────────────┐ ┌───────────┐ │
 │  │   Security   │ │  Order State │ │  Chain       │ │  Webhook  │ │
 │  │   Module     │ │  Machine     │ │  Watcher     │ │  Notifier │ │
@@ -99,11 +99,11 @@ xNexus 已有 Merchant Agent Demo（flight-agent、hotel-agent），实现了基
 └─────────┬──────────────────────────────────────┬─────────────────┘
           │ Webhook HTTP                          │ MCP Protocol
 ┌─────────▼─────────────────────┐  ┌─────────────▼─────────────────┐
-│     Merchant Agent (MA)       │  │    PlatON Blockchain           │
+│     Merchant Agent (MA)       │  │    XLayer Blockchain           │
 │  flight / hotel / 其他         │  │    chain_id: 210425            │
 │  SignQuote → Webhook → Fulfill │  │                               │
 └───────────────────────────────┘  │  ┌───────────────────────────┐ │
-                                   │  │ xNexusEscrow Contract   │ │
+                                   │  │ xXAgent PayEscrow Contract   │ │
                                    │  │ - depositWithAuthorization│ │
                                    │  │ - release / refund        │ │
                                    │  │ - dispute / resolve       │ │
@@ -119,7 +119,7 @@ xNexus 已有 Merchant Agent Demo（flight-agent、hotel-agent），实现了基
 | --- | --- | --- | --- |
 | **Security Module** | 验签、防重放、DID 解析、权限控制 | Quote + Signature | Verified/Rejected |
 | **Order State Machine** | 订单生命周期管理、12 态状态转换、超时处理 | Payment Events | State Updates |
-| **Chain Watcher** | 链上事件监听、Escrow 合约事件、USDC 转账确认 | PlatON RPC | Transfer/Escrow Events |
+| **Chain Watcher** | 链上事件监听、Escrow 合约事件、USDC 转账确认 | XLayer RPC | Transfer/Escrow Events |
 | **Webhook Notifier** | 支付结果回调、重试策略、HMAC 签名 | State Changes | HTTP POST |
 | **Relayer 代付服务** | EIP-3009 签名转发、Gas 代付、nonce 管理、余额监控 | User Signatures | On-chain Tx |
 | **Payment Router** | 根据商户偏好/金额阈值路由到 Direct 或 Escrow 模式 | Quote + Config | Payment Method |
@@ -131,7 +131,7 @@ xNexus 已有 Merchant Agent Demo（flight-agent、hotel-agent），实现了基
 ### 模块 A: 安全模块 (Security Module)
 
 #### 功能名称
-xNexus Security Module
+xXAgent Pay Security Module
 
 #### 需求描述
 提供端到端的交易安全保障，包括商户报价签名验证、防重放攻击、DID 身份解析与权限访问控制。确保每笔支付请求都经过严格的身份与数据完整性校验。
@@ -139,7 +139,7 @@ xNexus Security Module
 #### 子功能 A.1: EIP-712 签名验证
 
 **用户故事：**
-作为 xNexus Core，当收到 UA 提交的商户 Quote 时，我需要验证该 Quote 确实由合法商户签发且未被篡改，以保障支付路由到真实债权人。
+作为 xXAgent Pay Core，当收到 UA 提交的商户 Quote 时，我需要验证该 Quote 确实由合法商户签发且未被篡改，以保障支付路由到真实债权人。
 
 **实现逻辑：**
 
@@ -150,15 +150,15 @@ xNexus Security Module
 ```typescript
 // EIP-712 Domain
 const NEXUS_DOMAIN = {
-  name: "xNexus",
+  name: "xXAgent Pay",
   version: "1",
-  chainId: 210425, // PlatON mainnet
-  verifyingContract: "0xNexusCoreContractAddress..."
+  chainId: 210425, // XLayer mainnet
+  verifyingContract: "0xXAgent PayCoreContractAddress..."
 } as const;
 
 // EIP-712 Type Definition
 const NEXUS_QUOTE_TYPES = {
-  NexusQuote: [
+  XAgent PayQuote: [
     { name: "merchant_did", type: "string" },
     { name: "merchant_order_ref", type: "string" },
     { name: "amount", type: "uint256" },
@@ -186,7 +186,7 @@ const NEXUS_QUOTE_TYPES = {
 #### 子功能 A.2: 防重放保护 (Nonce Guard)
 
 **用户故事：**
-作为 xNexus Core，我需要确保同一份 Quote 不会被重复用于发起多笔支付，防止重放攻击造成资金损失。
+作为 xXAgent Pay Core，我需要确保同一份 Quote 不会被重复用于发起多笔支付，防止重放攻击造成资金损失。
 
 **实现逻辑：**
 
@@ -208,11 +208,11 @@ CREATE UNIQUE INDEX idx_payments_quote_hash
 #### 子功能 A.3: DID 解析器 (DID Resolver)
 
 **用户故事：**
-作为 xNexus Core，我需要将 `did:nexus:210425:demo_flight` 解析为链上注册的商户信息（signer 地址、payment 地址），确保资金流向经过验证的真实收款方。
+作为 xXAgent Pay Core，我需要将 `did:nexus:210425:demo_flight` 解析为链上注册的商户信息（signer 地址、payment 地址），确保资金流向经过验证的真实收款方。
 
 **实现逻辑（MVP 阶段）：**
 
-MVP 阶段尚未部署 NexusMerchantRegistry 合约，采用本地注册表：
+MVP 阶段尚未部署 XAgent PayMerchantRegistry 合约，采用本地注册表：
 
 ```typescript
 interface MerchantRecord {
@@ -225,7 +225,7 @@ interface MerchantRecord {
 }
 ```
 
-后续升级路径：连接 PlatON 链上 `NexusMerchantRegistry` 合约。
+后续升级路径：连接 XLayer 链上 `XAgent PayMerchantRegistry` 合约。
 
 #### 子功能 A.4: 权限控制 (Access Control)
 
@@ -243,15 +243,15 @@ interface MerchantRecord {
 ### 模块 B: 支付合约模块 (Payment Contract Module)
 
 #### 功能名称
-PlatON USDC Dual-Mode Payment (Direct Transfer + Escrow Contract)
+XLayer USDC Dual-Mode Payment (Direct Transfer + Escrow Contract)
 
 #### 需求描述
-在 PlatON 主网上实现两种 USDC 支付模式：**Direct Transfer**（小额即时）和 **Escrow Contract**（高价值担保）。Core 根据商户偏好和交易金额自动路由到对应模式。Escrow 模式采用 EIP-3009 + Relayer 代付，用户零 Gas。
+在 XLayer 主网上实现两种 USDC 支付模式：**Direct Transfer**（小额即时）和 **Escrow Contract**（高价值担保）。Core 根据商户偏好和交易金额自动路由到对应模式。Escrow 模式采用 EIP-3009 + Relayer 代付，用户零 Gas。
 
 #### 子功能 B.0: 支付模式路由 (Payment Router)
 
 **用户故事：**
-作为 xNexus Core，当收到 Quote 时，我需要根据商户配置和交易特征自动选择最合适的支付模式。
+作为 xXAgent Pay Core，当收到 Quote 时，我需要根据商户配置和交易特征自动选择最合适的支付模式。
 
 **路由规则：**
 
@@ -274,12 +274,12 @@ PlatON USDC Dual-Mode Payment (Direct Transfer + Escrow Contract)
 interface PaymentInstruction {
   // 链信息
   readonly chain_id: 210425;
-  readonly chain_name: "PlatON";
+  readonly chain_name: "XLayer";
   readonly payment_method: "DIRECT_TRANSFER";
 
   // 转账目标
   readonly target_address: Address;  // 商户 paymentAddress (从 DID 解析)
-  readonly token_address: Address;   // PlatON 上的 USDC 合约地址
+  readonly token_address: Address;   // XLayer 上的 USDC 合约地址
   readonly token_symbol: "USDC";
   readonly token_decimals: 6;
 
@@ -308,11 +308,11 @@ interface PaymentInstruction {
 interface EscrowInstruction {
   // 链信息
   readonly chain_id: 210425;
-  readonly chain_name: "PlatON";
+  readonly chain_name: "XLayer";
   readonly payment_method: "ESCROW_CONTRACT";
 
   // Escrow 合约信息
-  readonly escrow_contract: Address;   // xNexusEscrow 合约地址
+  readonly escrow_contract: Address;   // xXAgent PayEscrow 合约地址
   readonly token_address: Address;     // USDC 合约地址 (支持 EIP-3009)
   readonly token_symbol: "USDC";
   readonly token_decimals: 6;
@@ -376,7 +376,7 @@ interface EscrowInstruction {
 4. UA 获得签名 (v, r, s)
 5. UA 调用 nexus_submit_eip3009_signature(payment_id, v, r, s)
 6. Core 将签名转发给 Relayer
-7. Relayer 调用 xNexusEscrow.depositWithAuthorization(...) 上链
+7. Relayer 调用 xXAgent PayEscrow.depositWithAuthorization(...) 上链
 8. 链上确认后 Core 更新状态为 ESCROWED
 ```
 
@@ -384,9 +384,9 @@ interface EscrowInstruction {
 
 | 项目 | 说明 |
 | --- | --- |
-| PlatON RPC | `https://openapi2.platon.network/rpc` (主网) |
-| USDC 合约地址 | PlatON 主网 USDC (支持 EIP-3009) |
-| Escrow 合约 | xNexusEscrow (待部署) |
+| XLayer RPC | `https://openapi2.platon.network/rpc` (主网) |
+| USDC 合约地址 | XLayer 主网 USDC (支持 EIP-3009) |
+| Escrow 合约 | xXAgent PayEscrow (待部署) |
 | Gas 模型 | Direct: 用户自付 ~65,000 gas; Escrow: Relayer 代付 ~220,000 gas |
 | 金额精度 | 6 位小数 (USDC standard) |
 
@@ -397,7 +397,7 @@ interface EscrowInstruction {
 
 **架构设计：**
 
-Relayer 作为 xNexus Core 的子模块，包含三个核心组件：
+Relayer 作为 xXAgent Pay Core 的子模块，包含三个核心组件：
 
 | 组件 | 职责 |
 | --- | --- |
@@ -426,12 +426,12 @@ Relayer 作为 xNexus Core 的子模块，包含三个核心组件：
 #### 子功能 B.2: 交易追踪 (Transaction Tracker)
 
 **用户故事：**
-作为 xNexus Core，当 UA 广播了链上交易后，我需要监听该交易的确认状态，并在确认后更新订单状态。
+作为 xXAgent Pay Core，当 UA 广播了链上交易后，我需要监听该交易的确认状态，并在确认后更新订单状态。
 
 **实现逻辑：**
 
 1. UA 广播交易后，将 `tx_hash` 提交给 Core
-2. Core 通过 PlatON RPC 轮询交易 receipt
+2. Core 通过 XLayer RPC 轮询交易 receipt
 3. 确认条件：
    - `receipt.status === 1` (交易成功)
    - ERC-20 Transfer event log 存在
@@ -454,7 +454,7 @@ interface TransferEvent {
 #### 子功能 B.3: 链上事件监听 (Chain Watcher)
 
 **用户故事：**
-作为 xNexus Core，我需要持续监听 PlatON 链上的 USDC Transfer 事件和 xNexusEscrow 合约事件，确保所有支付状态变更都被及时捕获。
+作为 xXAgent Pay Core，我需要持续监听 XLayer 链上的 USDC Transfer 事件和 xXAgent PayEscrow 合约事件，确保所有支付状态变更都被及时捕获。
 
 **实现逻辑：**
 
@@ -466,7 +466,7 @@ Direct Transfer 模式：
 2. 被动模式：轮询 USDC Transfer events -> 匹配 pending payments
 
 Escrow 模式 (新增)：
-3. 监听 xNexusEscrow 合约事件：
+3. 监听 xXAgent PayEscrow 合约事件：
    - PaymentDeposited -> ESCROWED (资金已锁定)
    - PaymentReleased  -> SETTLED (资金已释放给商户)
    - PaymentRefunded  -> REFUNDED (资金已退还用户)
@@ -476,12 +476,12 @@ Escrow 模式 (新增)：
 轮询策略：
 - 每 3 秒查询最新区块
 - Direct 模式：过滤 USDC Transfer logs (to IN 商户地址集合)
-- Escrow 模式：过滤 xNexusEscrow 合约 event logs
-- PlatON 出块时间约 1 秒，3 秒间隔足够及时
+- Escrow 模式：过滤 xXAgent PayEscrow 合约 event logs
+- XLayer 出块时间约 1 秒，3 秒间隔足够及时
 
 超时退款自动触发 (Escrow 模式)：
 - 每 60 秒扫描 status = 'ESCROWED' 且 release_deadline 已过的订单
-- 通过 Relayer 调用 xNexusEscrow.refund(paymentId)
+- 通过 Relayer 调用 xXAgent PayEscrow.refund(paymentId)
 - Gas 由 Relayer 承担
 ```
 
@@ -489,7 +489,7 @@ Escrow 模式 (新增)：
 
 当检测到支付成功时，生成符合 ISO 20022 语义的事件记录：
 
-| Nexus 字段 | ISO 20022 标签 | 说明 |
+| XAgent Pay 字段 | ISO 20022 标签 | 说明 |
 | --- | --- | --- |
 | `nexus_payment_id` | `<EndToEndId>` | 端到端唯一标识 |
 | `merchant_order_ref` | `<RmtInf><Ustrd>` | 商户 ERP 销账单号 |
@@ -510,7 +510,7 @@ Payment Order Lifecycle Manager
 
 #### 子功能 C.1: 状态机定义
 
-xNexus Core 支持两种支付模式，共享前半段状态，后半段根据模式分叉。
+xXAgent Pay Core 支持两种支付模式，共享前半段状态，后半段根据模式分叉。
 
 **Direct Transfer 模式状态图：**
 
@@ -675,7 +675,7 @@ CREATE TABLE IF NOT EXISTS payments (
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   -- v1.1: Escrow 模式专用字段 (全部 nullable，仅 Escrow 模式使用)
-  escrow_contract     TEXT,                   -- xNexusEscrow 合约地址
+  escrow_contract     TEXT,                   -- xXAgent PayEscrow 合约地址
   payment_id_bytes32  TEXT,                   -- keccak256(nexus_payment_id)
   eip3009_nonce       TEXT,                   -- EIP-3009 唯一 nonce (bytes32)
   deposit_tx_hash     TEXT,                   -- Relayer deposit 交易 hash
@@ -824,10 +824,10 @@ interface WebhookPayload {
 
 ```
 HTTP Headers:
-  X-Nexus-Signature: sha256=<hmac_hex>
-  X-Nexus-Event: payment.settled
-  X-Nexus-Delivery-Id: <event_id>
-  X-Nexus-Timestamp: <unix_timestamp>
+  X-XAgent Pay-Signature: sha256=<hmac_hex>
+  X-XAgent Pay-Event: payment.settled
+  X-XAgent Pay-Delivery-Id: <event_id>
+  X-XAgent Pay-Timestamp: <unix_timestamp>
   Content-Type: application/json
 ```
 
@@ -858,7 +858,7 @@ if (now - header_timestamp > 300) reject  // 5 分钟窗口
 
 ## 四、MCP 接口设计
 
-xNexus Core 作为 MCP Server 运行，暴露以下标准接口。
+xXAgent Pay Core 作为 MCP Server 运行，暴露以下标准接口。
 
 ### 4.1 MCP Tools (给 UA 调用)
 
@@ -890,15 +890,15 @@ xNexus Core 作为 MCP Server 运行，暴露以下标准接口。
   "payment_method": "DIRECT_TRANSFER",
   "payment_instruction": {
     "chain_id": 210425,
-    "chain_name": "PlatON",
+    "chain_name": "XLayer",
     "payment_method": "DIRECT_TRANSFER",
     "target_address": "0xMerchantPaymentAddress",
-    "token_address": "0xPlatON_USDC_Address",
+    "token_address": "0xXLayer_USDC_Address",
     "amount_uint256": "530000000",
     "amount_display": "530.00",
     "method": "erc20_transfer",
     "tx_data": {
-      "to": "0xPlatON_USDC_Address",
+      "to": "0xXLayer_USDC_Address",
       "data": "0xa9059cbb000000...",
       "value": "0"
     }
@@ -915,10 +915,10 @@ xNexus Core 作为 MCP Server 运行，暴露以下标准接口。
   "payment_method": "ESCROW_CONTRACT",
   "escrow_instruction": {
     "chain_id": 210425,
-    "chain_name": "PlatON",
+    "chain_name": "XLayer",
     "payment_method": "ESCROW_CONTRACT",
-    "escrow_contract": "0xxNexusEscrowAddress",
-    "token_address": "0xPlatON_USDC_Address",
+    "escrow_contract": "0xxXAgent PayEscrowAddress",
+    "token_address": "0xXLayer_USDC_Address",
     "amount_uint256": "530000000",
     "amount_display": "530.00",
     "eip3009_sign_data": {
@@ -927,7 +927,7 @@ xNexus Core 作为 MCP Server 运行，暴露以下标准接口。
       "primaryType": "TransferWithAuthorization",
       "message": {
         "from": "0xPayerWallet",
-        "to": "0xxNexusEscrowAddress",
+        "to": "0xxXAgent PayEscrowAddress",
         "value": "530000000",
         "validAfter": "0",
         "validBefore": "1740412800",
@@ -980,7 +980,7 @@ UA 广播交易后，提交 tx_hash 给 Core 追踪。
 {
   "nexus_payment_id": {
     "type": "string",
-    "description": "Nexus 支付订单 ID",
+    "description": "XAgent Pay 支付订单 ID",
     "required": false
   },
   "merchant_order_ref": {
@@ -1172,7 +1172,7 @@ UA 代用户发起争议（通过 Relayer 代为提交 dispute 交易）。
 ### 5.1 Direct Transfer 模式支付流程
 
 ```
-User Agent (UA)          xNexus Core             Merchant Agent (MA)         PlatON Chain
+User Agent (UA)          xXAgent Pay Core             Merchant Agent (MA)         XLayer Chain
      │                        │                           │                        │
      │  1. 搜索+报价           │                           │                        │
      │ ──────────────────────────────────────────────────► │                        │
@@ -1198,7 +1198,7 @@ User Agent (UA)          xNexus Core             Merchant Agent (MA)         Pla
 ### 5.2 Escrow 模式支付流程 (EIP-3009 + Relayer 代付)
 
 ```
-User Agent (UA)       xNexus Core        Relayer         xNexusEscrow       Merchant Agent (MA)
+User Agent (UA)       xXAgent Pay Core        Relayer         xXAgent PayEscrow       Merchant Agent (MA)
      │                     │              (Core子模块)      (Smart Contract)           │
      │  1. 搜索+报价        │                   │                │                    │
      │ ─────────────────────────────────────────────────────────────────────────────► │
@@ -1263,7 +1263,7 @@ User Agent (UA)       xNexus Core        Relayer         xNexusEscrow       Merc
 
 ### 6.1 ISO 标准映射
 
-xNexus Core 严格遵循以下国际会计标准：
+xXAgent Pay Core 严格遵循以下国际会计标准：
 
 | 标准 | 映射字段 | 用途 |
 | --- | --- | --- |
@@ -1273,7 +1273,7 @@ xNexus Core 严格遵循以下国际会计标准：
 
 ### 6.2 ISO 20022 Payment Message 映射
 
-| Nexus 字段 | ISO 20022 XML Element | 业务含义 |
+| XAgent Pay 字段 | ISO 20022 XML Element | 业务含义 |
 | --- | --- | --- |
 | `nexus_payment_id` | `CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/PmtId/EndToEndId` | 端到端标识符 |
 | `merchant_order_ref` | `CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/RmtInf/Ustrd` | 汇款附言/销账单号 |
@@ -1326,11 +1326,11 @@ src/nexus-core/
 │   │   │   └── timeout-handler.ts      # 超时处理 (含 Escrow 自动退款)
 │   │   │
 │   │   ├── chain/
-│   │   │   ├── platon-client.ts     # PlatON RPC 客户端
+│   │   │   ├── platon-client.ts     # XLayer RPC 客户端
 │   │   │   ├── chain-watcher.ts     # 链上事件监听 (Transfer + Escrow)
 │   │   │   ├── tx-tracker.ts        # 交易追踪
 │   │   │   ├── usdc.ts             # USDC 合约交互
-│   │   │   └── escrow-contract.ts   # v1.1: xNexusEscrow 合约交互
+│   │   │   └── escrow-contract.ts   # v1.1: xXAgent PayEscrow 合约交互
 │   │   │
 │   │   ├── relayer/                  # v1.1: Relayer 代付服务
 │   │   │   ├── relayer-wallet.ts    # Relayer 钱包管理
@@ -1365,9 +1365,9 @@ src/nexus-core/
 
 src/contracts/                        # v1.1: 智能合约 (Foundry 项目)
 ├── src/
-│   └── xNexusEscrow.sol           # Escrow 合约
+│   └── xXAgent PayEscrow.sol           # Escrow 合约
 ├── test/
-│   └── xNexusEscrow.t.sol         # 合约测试
+│   └── xXAgent PayEscrow.t.sol         # 合约测试
 ├── script/
 │   └── Deploy.s.sol                 # 部署脚本
 └── foundry.toml
@@ -1380,7 +1380,7 @@ src/contracts/                        # v1.1: 智能合约 (Foundry 项目)
 | Runtime | Node.js + TypeScript | 与现有 agent 一致 |
 | MCP SDK | @modelcontextprotocol/sdk | MCP Server 实现 |
 | 区块链交互 | viem | EIP-712 签名、ABI 编码、RPC 调用、EIP-3009 |
-| 智能合约 | Solidity + Foundry | xNexusEscrow 合约开发与测试 |
+| 智能合约 | Solidity + Foundry | xXAgent PayEscrow 合约开发与测试 |
 | 合约依赖 | OpenZeppelin v5 | ReentrancyGuard, Ownable, SafeERC20 |
 | 数据库 | Neon PostgreSQL | 与现有 agent 共用 |
 | HTTP Client | 原生 fetch | Webhook 发送 |
@@ -1398,7 +1398,7 @@ src/contracts/                        # v1.1: 智能合约 (Foundry 项目)
 - [ ] MCP Tool: `nexus_get_payment_status`
 
 #### Phase 2: 链上集成 (1-2 周)
-- [ ] PlatON RPC 客户端
+- [ ] XLayer RPC 客户端
 - [ ] USDC 合约交互（transfer calldata 编码）
 - [ ] PaymentInstruction Builder (Direct 模式)
 - [ ] Chain Watcher（USDC Transfer 事件监听）
@@ -1407,10 +1407,10 @@ src/contracts/                        # v1.1: 智能合约 (Foundry 项目)
 
 #### Phase 3: Escrow 智能合约 (1-2 周) — v1.1 新增
 - [ ] Foundry 项目搭建 (`src/contracts/`)
-- [ ] xNexusEscrow.sol 合约实现 (EIP-3009 + 担保状态机)
+- [ ] xXAgent PayEscrow.sol 合约实现 (EIP-3009 + 担保状态机)
 - [ ] 合约测试 (Foundry test + fuzz + invariant)
 - [ ] AI 审计 (Slither 静态分析)
-- [ ] PlatON 测试网部署 + 验证
+- [ ] XLayer 测试网部署 + 验证
 - [ ] EscrowInstruction Builder (EIP-3009 签名参数生成)
 - [ ] Escrow 合约交互模块 (escrow-contract.ts)
 - [ ] Chain Watcher 扩展 (监听 Escrow 合约事件)
@@ -1434,16 +1434,16 @@ src/contracts/                        # v1.1: 智能合约 (Foundry 项目)
 
 #### Phase 6: 完善与测试 (1 周)
 - [ ] MCP Tool: `nexus_confirm_fulfillment` (Escrow 模式触发 release)
-- [ ] 端到端测试（UA -> Core -> Escrow Contract -> MA -> PlatON）
+- [ ] 端到端测试（UA -> Core -> Escrow Contract -> MA -> XLayer）
 - [ ] ISO 20022 数据映射验证 (含 IFRS 15 Escrow 会计)
 - [ ] Portal Dashboard（Core 管理界面）
-- [ ] PlatON 主网合约部署
+- [ ] XLayer 主网合约部署
 
 ---
 
 ## 八、相关页面设计
 
-### 8.1 xNexus Core Portal Dashboard
+### 8.1 xXAgent Pay Core Portal Dashboard
 
 参照现有 flight-agent portal 设计风格（暗色主题），增加以下内容：
 
@@ -1465,7 +1465,7 @@ src/contracts/                        # v1.1: 智能合约 (Foundry 项目)
 | Payer | payer_wallet (截断显示) |
 | Amount | amount_display + currency |
 | Status | 带颜色的状态标签 |
-| Tx Hash | 链上交易哈希（链接到 PlatON explorer） |
+| Tx Hash | 链上交易哈希（链接到 XLayer explorer） |
 | Created | 创建时间 |
 
 **详情面板：**
@@ -1564,7 +1564,7 @@ Webhook 送达率 ──► 商户及时感知 ──► 履约效率 ──► 
 
 ### 11.1 MVP 后续优化
 
-1. **链上 DID 注册表**：将 merchant_registry 迁移到 PlatON 链上 NexusMerchantRegistry 合约
+1. **链上 DID 注册表**：将 merchant_registry 迁移到 XLayer 链上 XAgent PayMerchantRegistry 合约
 2. **完整风控系统**：部署 RFC-006 定义的 RiskGatekeeper（链下 AI + 链上 Permit）
 3. **跨链支持**：实现 RFC-007 的 Hub-Spoke 架构，支持从 Base/Ethereum 入金；Escrow 合约地址可作为跨链 bridge 的 settlement 终点
 4. **仲裁人去中心化**：从 nexusOperator 单人仲裁升级为 DAO 多签投票仲裁
@@ -1575,15 +1575,15 @@ Webhook 送达率 ──► 商户及时感知 ──► 履约效率 ──► 
 
 | 编号 | 议题 | 决策 | 来源 |
 | --- | --- | --- | --- |
-| 1 | PlatON USDC 支持哪种签名标准 | **EIP-3009** (transferWithAuthorization) | 用户确认 |
+| 1 | XLayer USDC 支持哪种签名标准 | **EIP-3009** (transferWithAuthorization) | 用户确认 |
 | 2 | Gas 费由谁承担 | **Relayer 代付**，从协议手续费 (0.3%) 覆盖 | 用户决策 |
-| 3 | 仲裁人初始设置 | **arbiter = nexusOperator** (Nexus 管理钱包)，后续可 `setArbiter()` 更换 | 用户决策 |
+| 3 | 仲裁人初始设置 | **arbiter = nexusOperator** (XAgent Pay 管理钱包)，后续可 `setArbiter()` 更换 | 用户决策 |
 | 4 | 合约安全审计方式 | **AI 审计** + Slither + Foundry fuzz/invariant，不做外部审计 | 用户决策 |
 | 5 | 支付模式 | **双模式并行**: Direct Transfer + Escrow Contract | RFC-010 |
 
 ### 11.3 待讨论项
 
-1. PlatON 主网 USDC 合约地址需要确认
+1. XLayer 主网 USDC 合约地址需要确认
 2. 是否需要 Quote 价格波动保护（锁价机制）？
 3. 商户结算频率：Escrow 模式实时结算 vs 批量结算
 4. Relayer 的 LAT 初始充值量和自动充值阈值

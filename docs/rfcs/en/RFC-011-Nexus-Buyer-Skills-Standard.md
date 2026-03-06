@@ -1,4 +1,4 @@
-# RFC-011: Nexus Buyer Skills Standard (NBSS)
+# RFC-011: XAgent Pay Buyer Skills Standard (NBSS)
 | Field | Description |
 | --- | --- |
 | **Package** | `@nexus/buyer-skills` |
@@ -7,18 +7,18 @@
 | **Role** | Payment Orchestration & Execution |
 ## 1. Design Goals
 This standard aims to provide Agent developers with **zero blockchain barrier** integration. Developers do not need to write any Web3 code (such as `ethers.js` or ABI calls) — they simply register these Skills with the LLM, and the Agent can autonomously complete payments.
-## 2. Core Class: `NexusBuyerToolkit`
-This is the SDK entry point. It manages the wallet signer and the connection to Nexus Core.
+## 2. Core Class: `XAgent PayBuyerToolkit`
+This is the SDK entry point. It manages the wallet signer and the connection to XAgent Pay Core.
 ```typescript
-import { NexusBuyerToolkit } from '@nexus/buyer-skills';
+import { XAgent PayBuyerToolkit } from '@nexus/buyer-skills';
 import { PrivateKeySigner } from '@nexus/buyer-skills/signers'; // Or import from wagmi/viem
 // Initialize the toolkit
-const nexusToolkit = new NexusBuyerToolkit({
+const nexusToolkit = new XAgent PayBuyerToolkit({
 // 1. Agent identity (for risk control and signing)
 signer: new PrivateKeySigner(process.env.AGENT_WALLET_PRIVATE_KEY),
 // 2. Environment configuration
-chainId: 210425, // PlatON / Ethereum / Base ...
-coreUrl: "https://api.nexus.xyz" // Nexus Core MCP/API Endpoint
+chainId: 210425, // XLayer / Ethereum / Base ...
+coreUrl: "https://api.nexus.xyz" // XAgent Pay Core MCP/API Endpoint
 });
 ```
 ---
@@ -26,9 +26,9 @@ coreUrl: "https://api.nexus.xyz" // Nexus Core MCP/API Endpoint
 This toolkit exposes three core Skills. Each Skill includes standard `name`, `description` (Prompt), and `schema` (Zod), which can be directly injected into Agent frameworks.
 ### Skill 1: `PreparePayment` (Payment Orchestration)
 **Positioning:** Transforms a UCP "quote" into a "signable transaction".
-**LLM Cognition:** "When a merchant returns a xNexus quote, use this tool to perform preprocessing and risk control checks."
+**LLM Cognition:** "When a merchant returns a xXAgent Pay quote, use this tool to perform preprocessing and risk control checks."
 * **Tool Name:** `nexus_prepare_transaction`
-* **Description:** "Analyzes a UCP payment quote, performs risk checks via Nexus Core, and generates a signable blockchain transaction manifest."
+* **Description:** "Analyzes a UCP payment quote, performs risk checks via XAgent Pay Core, and generates a signable blockchain transaction manifest."
 * **Input Schema:**
 ```typescript
 z.object({
@@ -57,7 +57,7 @@ transaction_manifest: z.any().describe("The manifest object returned from prepar
 **Positioning:** Confirms whether the transaction has been accepted by the merchant (closed loop).
 **LLM Cognition:** "After payment is completed, you must use this tool to confirm whether the merchant has received and confirmed fulfillment."
 * **Tool Name:** `nexus_track_status`
-* **Description:** "Polls Nexus Core until the order is confirmed by the merchant (MERCHANT_ACCEPTED) or fails."
+* **Description:** "Polls XAgent Pay Core until the order is confirmed by the merchant (MERCHANT_ACCEPTED) or fails."
 * **Input Schema:**
 ```typescript
 z.object({
@@ -75,7 +75,7 @@ import { genkit } from 'genkit';
 import { nexusBuyerPlugin } from '@nexus/buyer-skills/adapters/genkit';
 const ai = genkit({
 plugins: [
-// One line of code to inject all Nexus capabilities
+// One line of code to inject all XAgent Pay capabilities
 nexusBuyerPlugin({
 privateKey: process.env.KEY,
 chainId: 210425
@@ -88,7 +88,7 @@ name: 'buyProduct',
 inputSchema: z.any(), // Input: UCP Response
 }, async (ucpResponse) => {
 // LLM automatically plans:
-// 1. Recognizes the Nexus Quote inside the UCP Response
+// 1. Recognizes the XAgent Pay Quote inside the UCP Response
 // 2. Calls nexus_prepare_transaction
 // 3. Calls nexus_execute_transaction
 // 4. Calls nexus_track_status
@@ -101,8 +101,8 @@ return result.text;
 ```
 ### Scenario B: Using LangChain (Python/JS)
 ```typescript
-import { NexusBuyerToolkit } from '@nexus/buyer-skills';
-const toolkit = new NexusBuyerToolkit({...});
+import { XAgent PayBuyerToolkit } from '@nexus/buyer-skills';
+const toolkit = new XAgent PayBuyerToolkit({...});
 // Get a LangChain-compatible Tools array
 const tools = toolkit.getTools();
 const agent = createOpenAIFunctionsAgent({
@@ -121,7 +121,7 @@ After the Agent imports this code, the standard Chain of Thought for processing 
 1. **Observation:** The user wants to buy a ticket. The merchant returned UCP JSON containing `urn:ucp:payment:nexus_v1`.
 2. **Thought:** I need to convert this Quote into a transaction.
 3. **Action:** Call `nexus_prepare_transaction(quote)`.
-4. **Observation:** Nexus Core returned `risk: PASS` and a `manifest`.
+4. **Observation:** XAgent Pay Core returned `risk: PASS` and a `manifest`.
 5. **Thought:** Risk control passed, and the user has authorized it (assuming the Agent has an automatic spending limit). I will now execute on-chain.
 6. **Action:** Call `nexus_execute_transaction(manifest)`.
 7. **Observation:** The transaction has been broadcast. The hash is `0x123...`.
@@ -135,4 +135,4 @@ To make this package `public publishable`, the following security design princip
 1. **Non-Custodial Design:** `@nexus/buyer-skills` **never** hardcodes private keys in the code. Private keys must be injected by the developer at runtime via a `Signer` instance.
 2. **Manifest Verification (Explicit Confirmation):** During the `ExecutePayment` step, the SDK should support passing an `approvalCallback`. For attended Agents, this can trigger a popup for user secondary confirmation; for unattended Agents, the behavior is determined by policy configuration.
 3. **Minimal Dependencies:** The package should be as small as possible, with no dependency on large UI libraries — only lightweight cryptographic libraries (such as `viem`).
-By publishing this standardized SDK, Nexus effectively establishes **the industry standard for "Agent Pay"**. Any Agent that installs this plugin automatically gains the ability to connect to the global Nexus merchant network.
+By publishing this standardized SDK, XAgent Pay effectively establishes **the industry standard for "Agent Pay"**. Any Agent that installs this plugin automatically gains the ability to connect to the global XAgent Pay merchant network.

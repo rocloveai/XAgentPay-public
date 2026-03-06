@@ -1,11 +1,11 @@
-# xNexus Stateless API 设计方案
+# xXAgent Pay Stateless API 设计方案
 
 | Metadata | Value |
 | --- | --- |
 | **Title** | Stateless REST API for LLM Tool Integration |
 | **Version** | 1.0.0 |
 | **Status** | Design (Proposed) |
-| **Author** | Cipher & Nexus Architect Team |
+| **Author** | Cipher & XAgent Pay Architect Team |
 | **Created** | 2026-02-26 |
 | **Related** | RFC-005v2, skill.md v0.5.0 |
 
@@ -125,7 +125,7 @@ nak_test_<20 char base62>_<16 char checksum>
 例如: nak_live_3kTyx9j2Lm4Qp6Rn_8hV2Zq1Wc5X
 ```
 
-- Prefix: `nak` = Nexus API Key
+- Prefix: `nak` = XAgent Pay API Key
 - Environment: `live` | `test`
 - Body: 20 字符 base62 编码的随机数
 - Checksum: 16 字符 CRC32(body)
@@ -239,7 +239,7 @@ Idempotency-Key: rel_1234567890abcdef  // 客户端生成的唯一标识
 
 ```typescript
 const NEXUS_DISPUTE_DOMAIN = {
-  name: "xNexus",
+  name: "xXAgent Pay",
   version: "1",
   chainId: 20250407,
   verifyingContract: config.escrowContract as Address, // 使用 escrow 合约地址
@@ -742,18 +742,18 @@ if (restHandled) return;
 
 **For LLM tools without SSE support**, all core functionality is available via stateless REST API with Bearer token authentication.
 
-**Base URL:** `https://api.nexus-mvp.topos.one`
+**Base URL:** `https://api.xagentpay.com`
 
 #### Authentication
 
-Most endpoints require a Nexus API Key:
+Most endpoints require a XAgent Pay API Key:
 
 ```http
 Authorization: Bearer nak_live_3kTyx9j2Lm4Qp6Rn_8hV2Zq1Wc5X
 ```
 
 **Get your API Key:**
-1. Contact Nexus team to register your merchant DID
+1. Contact XAgent Pay team to register your merchant DID
 2. Receive API Key via secure channel (email/webhook)
 3. Store in environment variable: `NEXUS_API_KEY=nak_live_...`
 
@@ -774,7 +774,7 @@ Authorization: Bearer nak_live_3kTyx9j2Lm4Qp6Rn_8hV2Zq1Wc5X
 |------|--------------|------------|
 | Anonymous (IP-based) | 10/min | No authentication |
 | Standard (API Key) | 60/min | Free tier API Key |
-| Premium (API Key) | 300/min | Contact Nexus team |
+| Premium (API Key) | 300/min | Contact XAgent Pay team |
 
 Rate limit headers:
 ```http
@@ -786,7 +786,7 @@ X-RateLimit-Reset: 1709712400
 #### Example: Release Payment (Merchant)
 
 ```bash
-curl -X POST https://api.nexus-mvp.topos.one/api/payments/PAY-xxx/release \
+curl -X POST https://api.xagentpay.com/api/payments/PAY-xxx/release \
   -H "Authorization: Bearer $NEXUS_API_KEY" \
   -H "Idempotency-Key: rel_$(uuidgen)" \
   -H "Content-Type: application/json" \
@@ -796,11 +796,11 @@ curl -X POST https://api.nexus-mvp.topos.one/api/payments/PAY-xxx/release \
 #### Example: Get Payment Status (Public)
 
 ```bash
-curl https://api.nexus-mvp.topos.one/api/payments/PAY-xxx
+curl https://api.xagentpay.com/api/payments/PAY-xxx
 ```
 
 **For complete API reference, see:**
-- 📖 REST API Docs: `https://api.nexus-mvp.topos.one/docs` (OpenAPI)
+- 📖 REST API Docs: `https://api.xagentpay.com/docs` (OpenAPI)
 - 🔐 Security: All endpoints use HTTPS + Bearer token auth
 ```
 
@@ -927,7 +927,7 @@ Phase 4 (可选): MCP → gRPC / GraphQL (根据需求)
 - 缺点: 需要实现 Portal 认证(OAuth/DID Login)
 
 **选项 B: 人工颁发**
-- Merchant 联系 Nexus 团队,人工审核后发放
+- Merchant 联系 XAgent Pay 团队,人工审核后发放
 - 优点: 简单,安全
 - 缺点: 不可扩展
 
@@ -975,4 +975,4 @@ Phase 4 (可选): MCP → gRPC / GraphQL (根据需求)
 
 ---
 
-**Copyright (c) 2026 Nexus Protocol. All Rights Reserved.**
+**Copyright (c) 2026 XAgent Pay. All Rights Reserved.**

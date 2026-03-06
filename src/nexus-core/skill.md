@@ -1,7 +1,7 @@
 ---
 name: xnexus-core
 version: "0.5.0"
-description: xNexus Core — payment orchestration MCP server for multi-merchant aggregated checkout
+description: xXAgent Pay Core — payment orchestration MCP server for multi-merchant aggregated checkout
 protocol: NUPS/1.5
 category: finance.payment
 currencies: [USDC]
@@ -30,11 +30,11 @@ tools:
     description: Fetch full skill.md content for a specific merchant agent
 ---
 
-# Nexus Core — MCP Skill
+# XAgent Pay Core — MCP Skill
 
 Payment orchestration MCP server. **When a user wants to pay for orders from merchant agents (flights, hotels, etc.), submit all quotes here for a single aggregated payment.**
 
-> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://api.nexus-mvp.topos.one/skill-user.md).
+> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://api.xagentpay.com/skill-user.md).
 
 ## MCP Connection
 
@@ -42,7 +42,7 @@ Payment orchestration MCP server. **When a user wants to pay for orders from mer
 {
   "mcpServers": {
     "nexus-core": {
-      "url": "https://api.nexus-mvp.topos.one/mcp"
+      "url": "https://api.xagentpay.com/mcp"
     }
   }
 }
@@ -60,7 +60,7 @@ Transport: **Streamable HTTP** (stateless, single `POST /mcp` per request).
 Merchant agents return a UCP Checkout Response. The quote you need is at:
 `response.ucp.payment_handlers["urn:ucp:payment:nexus_v1"][0].config`
 
-The `config` object is a `NexusQuotePayload` with these required fields:
+The `config` object is a `XAgent PayQuotePayload` with these required fields:
 - `merchant_did` (string)
 - `merchant_order_ref` (string)
 - `amount` (string — uint256, e.g. `"100000"` for 0.10 USDC)
@@ -96,14 +96,14 @@ Both options accept raw `config` objects, full UCP envelopes, or handler objects
 
 ### `nexus_orchestrate_payment`
 
-Orchestrate aggregated payment for one or more merchant quotes. Validates signatures, creates a payment group, and returns a `BatchDepositInstruction` with EIP-3009 signing data, precomputed on-chain hashes, and a group signature from the Nexus Core operator.
+Orchestrate aggregated payment for one or more merchant quotes. Validates signatures, creates a payment group, and returns a `BatchDepositInstruction` with EIP-3009 signing data, precomputed on-chain hashes, and a group signature from the XAgent Pay Core operator.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | `quotes_json` | string | Preferred | JSON string of the quotes array. Use this for reliable CLI/MCP compatibility. |
-| `quotes` | array | Alternative | Array of `NexusQuotePayload` objects. Use if your MCP client handles complex objects well. |
+| `quotes` | array | Alternative | Array of `XAgent PayQuotePayload` objects. Use if your MCP client handles complex objects well. |
 | `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
 
 One of `quotes_json` or `quotes` must be provided. Both accept raw quotes, full UCP envelopes, or handler objects (auto-unwrapped).
@@ -120,7 +120,7 @@ Check payment status by any identifier.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `nexus_payment_id` | string | No | Nexus payment ID (e.g. `PAY-...`) |
+| `nexus_payment_id` | string | No | XAgent Pay payment ID (e.g. `PAY-...`) |
 | `merchant_order_ref` | string | No | Merchant order reference (e.g. `FLT-...`, `HTL-...`) |
 | `group_id` | string | No | Payment group ID (e.g. `grp_...`) |
 
@@ -149,7 +149,7 @@ Release escrowed funds to the merchant. Called by merchant agent after fulfillme
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `payment_id` | string | Yes | Nexus payment ID (e.g. `PAY-...`) |
+| `payment_id` | string | Yes | XAgent Pay payment ID (e.g. `PAY-...`) |
 
 ---
 
@@ -161,7 +161,7 @@ Open a dispute for an escrowed payment. Returns calldata for the payer to submit
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `payment_id` | string | Yes | Nexus payment ID (e.g. `PAY-...`) |
+| `payment_id` | string | Yes | XAgent Pay payment ID (e.g. `PAY-...`) |
 | `reason` | string | Yes | Dispute reason (UTF-8, max 256 chars) |
 
 ---
@@ -174,7 +174,7 @@ Resolve a disputed payment by splitting funds between merchant and payer. Only c
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `payment_id` | string | Yes | Nexus payment ID (e.g. `PAY-...`) |
+| `payment_id` | string | Yes | XAgent Pay payment ID (e.g. `PAY-...`) |
 | `merchant_bps` | number | Yes | Basis points (0-10000) allocated to merchant |
 
 ---
@@ -187,14 +187,14 @@ Confirm fulfillment of a payment. If ESCROWED, submits release to escrow contrac
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `payment_id` | string | Yes | Nexus payment ID (e.g. `PAY-...`) |
+| `payment_id` | string | Yes | XAgent Pay payment ID (e.g. `PAY-...`) |
 | `fulfillment_proof` | string | No | Proof of fulfillment (URL, hash, etc.) |
 
 ---
 
 ### `discover_agents`
 
-Search and discover merchant agents in the Nexus marketplace. Returns agents ranked by stars.
+Search and discover merchant agents in the XAgent Pay marketplace. Returns agents ranked by stars.
 
 **Parameters:**
 
@@ -221,8 +221,8 @@ Fetch the full skill.md content for a specific merchant agent.
 ## End-to-End Payment Flow
 
 1. **Discover** (optional) — Call `discover_agents` to find merchant agents, then `get_agent_skill` to read their capabilities.
-2. **Collect Quotes** — Call merchant agents' `nexus_generate_quote` tools. Each returns a UCP checkout response containing a `config` (NexusQuotePayload) inside `urn:ucp:payment:nexus_v1`.
-3. **Orchestrate** — Call `nexus_orchestrate_payment` with all `config` objects as the `quotes` array, plus the user's `payer_wallet`. Nexus Core validates each quote, creates a payment group, and returns a `BatchDepositInstruction` with EIP-3009 signing data and a group signature.
+2. **Collect Quotes** — Call merchant agents' `nexus_generate_quote` tools. Each returns a UCP checkout response containing a `config` (XAgent PayQuotePayload) inside `urn:ucp:payment:nexus_v1`.
+3. **Orchestrate** — Call `nexus_orchestrate_payment` with all `config` objects as the `quotes` array, plus the user's `payer_wallet`. XAgent Pay Core validates each quote, creates a payment group, and returns a `BatchDepositInstruction` with EIP-3009 signing data and a group signature.
 4. **Sign & Submit** — User signs the EIP-3009 typed data via `eth_signTypedData_v4`, then submits `batchDepositWithAuthorization` on-chain (user pays gas). The checkout page at `checkout_url` handles this automatically via MetaMask.
 5. **Confirm** — Call `nexus_confirm_deposit` with `group_id` + `tx_hash`.
 6. **Track** — Call `nexus_get_payment_status` with `group_id` to monitor progress (CREATED -> ESCROWED -> SETTLED -> COMPLETED).
@@ -232,7 +232,7 @@ Fetch the full skill.md content for a specific merchant agent.
 
 ### Group Signature (`nexus_group_sig`)
 
-Every `BatchDepositInstruction` includes an EIP-712 signature from the Nexus Core operator over `NexusGroupApproval(groupId, entriesHash, totalAmount)`. This prevents MITM tampering of the payments array (merchant addresses and amounts). Clients should verify `nexus_group_sig` and `core_operator_address` before submitting transactions.
+Every `BatchDepositInstruction` includes an EIP-712 signature from the XAgent Pay Core operator over `XAgent PayGroupApproval(groupId, entriesHash, totalAmount)`. This prevents MITM tampering of the payments array (merchant addresses and amounts). Clients should verify `nexus_group_sig` and `core_operator_address` before submitting transactions.
 
 ### Precomputed Hashes
 

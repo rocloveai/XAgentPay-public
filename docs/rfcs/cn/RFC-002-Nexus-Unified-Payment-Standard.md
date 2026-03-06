@@ -1,15 +1,15 @@
-# RFC-002: Nexus UCP Payment Standard (NUPS)
+# RFC-002: XAgent Pay UCP Payment Standard (NUPS)
 | Metadata | Value |
 | --- | --- |
-| **Title** | Nexus UCP Payment Standard (NUPS) |
+| **Title** | XAgent Pay UCP Payment Standard (NUPS) |
 | **Version** | 1.5.0 (Enterprise Edition) |
 | **Status** | Final Draft |
-| **Author** | Cipher & Nexus Architect Team |
+| **Author** | Cipher & XAgent Pay Architect Team |
 | **Integrations** | Google UCP, EVM Chains, ISO 20022 Financial Rails |
 ## 1. Architecture Overview (架构总览)
 本协议采用 **"Quote-to-Transaction" (报价-交易)** 模型。数据流分为两个严格阶段，确保商户接入的轻量化与结算逻辑的严谨性。
-1. **Quote Phase (商户侧):** 商户生成包含业务单号和 ISO 元数据的“报价”。**商户不生成 Nexus ID，也不生成链上 Calldata。**
-2. **Orchestration Phase (核心侧):** Nexus Core 接收报价，分配 `nexus_payment_id`，解析 DID 路由，生成符合 ISO 标准的结算交易。
+1. **Quote Phase (商户侧):** 商户生成包含业务单号和 ISO 元数据的“报价”。**商户不生成 XAgent Pay ID，也不生成链上 Calldata。**
+2. **Orchestration Phase (核心侧):** XAgent Pay Core 接收报价，分配 `nexus_payment_id`，解析 DID 路由，生成符合 ISO 标准的结算交易。
 3. **Settlement Phase (链上):** 智能合约执行原子化分账，并抛出兼容 ISO 20022 语义的 Event。
 ---
 ## 2. Phase I: Merchant Quote Payload (商户报价载荷)
@@ -22,13 +22,13 @@
 "payment_methods": [
 {
 "type": "urn:ucp:payment:nexus_v1",
-"display_name": "xNexus (USDC)",
+"display_name": "xXAgent Pay (USDC)",
 "payload": {
 // --- A. 商业意图 (Business Intent) ---
 "merchant_did": "did:nexus:20250407:trip_com",
 "merchant_order_ref": "TRIP-2026-888", // [关键] 商户ERP中的唯一单号
 "amount": "530000000", // 整数 (6位精度)
-"currency": "USDC", // Nexus 内部资产标识
+"currency": "USDC", // XAgent Pay 内部资产标识
 "chain_id": 20250407,
 "expiry": 1768809600,
 // --- B. 业务上下文 (Context - User View) ---
@@ -71,7 +71,7 @@
 ```
 ---
 ## 3. Phase II: Settlement Manifest (结算清单)
-当 User Agent 执行聚合支付 (`nexus/orchestrateBatch`) 时，Nexus Core 返回此对象。这是 User Agent 最终签名的内容。
+当 User Agent 执行聚合支付 (`nexus/orchestrateBatch`) 时，XAgent Pay Core 返回此对象。这是 User Agent 最终签名的内容。
 ### 3.1 JSON Schema
 ```json
 {
@@ -84,7 +84,7 @@
 {
 "index": 0,
 "merchant_name": "Trip.com",
-// [ID 桥接] Nexus 资金号 <---> 商户业务号
+// [ID 桥接] XAgent Pay 资金号 <---> 商户业务号
 "nexus_payment_id": "NEX-UUID-001", // [NEW] 核心生成的端到端ID
 "merchant_order_ref": "TRIP-2026-888", // [OLD] 来自商户Quote
 "amount": "530000000",
@@ -93,7 +93,7 @@
 },
 {
 "index": 1,
-"merchant_name": "Nexus OTC",
+"merchant_name": "XAgent Pay OTC",
 "nexus_payment_id": "NEX-UUID-002",
 "merchant_order_ref": "OTC-BTC-05",
 "amount": "100000000",
@@ -102,7 +102,7 @@
 ],
 // --- B. 链上交互数据 (Transaction Data) ---
 "tx_data": {
-"to": "0xNexusRouter...",
+"to": "0xXAgent PayRouter...",
 "chain_id": 20250407,
 "data": "0x...", // Encoded batchPay
 "value": "0"
@@ -112,7 +112,7 @@
 ---
 ## 4. ISO 20022 Data Mapping (数据映射标准)
 为了兼容金融机构系统，我们将 JSON 字段映射到 ISO 20022 XML 标签 (pacs.008 / pain.001)。
-| Nexus JSON Field | ISO 20022 XML Tag | 业务含义 |
+| XAgent Pay JSON Field | ISO 20022 XML Tag | 业务含义 |
 | --- | --- | --- |
 | `nexus_payment_id` | `` | **端到端标识符**。贯穿全链路的唯一流水号。 |
 | `merchant_order_ref` | `//` | **汇款附言**。商户 ERP 用于自动销账的单号。 |
@@ -148,7 +148,7 @@ string iso_currency_code // e.g. "USD"
 商户 SDK 必须对 Quote 进行签名。
 ```javascript
 const types = {
-NexusQuote: [
+XAgent PayQuote: [
 { name: 'merchant_did', type: 'string' },
 { name: 'merchant_order_ref', type: 'string' },
 { name: 'amount', type: 'uint256' },
@@ -161,5 +161,5 @@ NexusQuote: [
 };
 ```
 ### 6.2 DID Resolution
-Nexus Core **严禁**信任前端传入的收款地址。必须使用 `merchant_did` 调用链上 Registry 合约（或可信缓存）获取真实的 `payment_address`。
+XAgent Pay Core **严禁**信任前端传入的收款地址。必须使用 `merchant_did` 调用链上 Registry 合约（或可信缓存）获取真实的 `payment_address`。
 ---

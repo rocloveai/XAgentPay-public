@@ -1,12 +1,12 @@
-# RFC-006: Nexus Risk Gatekeeper Specificationn
+# RFC-006: XAgent Pay Risk Gatekeeper Specificationn
 | Metadata | Value |
 | --- | --- |
-| **Title** | Nexus Risk Gatekeeper Protocol |
+| **Title** | XAgent Pay Risk Gatekeeper Protocol |
 | **Version** | 1.0.0 |
 | **Status** | Standards Track (Draft) |
 | **Scope** | Risk Assessment, Permit Issuance, On-Chain Enforcement |
 ## 1. Abstract (摘要)
-Nexus Risk Gatekeeper 是支付网络的**安全卫士**。它采用 **"Hybrid Guard" (混合防御)** 架构：链下 AI 引擎负责复杂的行为分析并签发凭证 (Permit)，链上智能合约负责验证凭证并执行硬性拦截。Gatekeeper 对 Payment Core 是透明的，Core 只需透传凭证，无需理解风控逻辑。
+XAgent Pay Risk Gatekeeper 是支付网络的**安全卫士**。它采用 **"Hybrid Guard" (混合防御)** 架构：链下 AI 引擎负责复杂的行为分析并签发凭证 (Permit)，链上智能合约负责验证凭证并执行硬性拦截。Gatekeeper 对 Payment Core 是透明的，Core 只需透传凭证，无需理解风控逻辑。
 ## 2. Architecture: Hybrid Control (混合风控架构)
 ### 2.1 Off-Chain Engine (大脑)
 * **Data Ingestion:** 接收来自 Core 的交易上下文、链上历史数据、外部情报库 (如 Chainalysis)。
@@ -38,7 +38,7 @@ bytes signature; // Gatekeeper Oracle 的签名
 * **CHALLENGE:** (未来扩展) 返回需要用户进行 2FA 或生物验证的指令。
 * **REJECT:** 返回拒绝原因代码 (如 `ERR_RISK_HIGH_FRAUD`)。
 ### 4.2 Phase 2: On-Chain Enforcement (运行时拦截)
-当 `NexusRouter` 调用 `NexusRiskController.assessRisk(...)` 时：
+当 `XAgent PayRouter` 调用 `XAgent PayRiskController.assessRisk(...)` 时：
 1. **Signature Verification:** `ecrecover` 恢复签名者，必须等于 `GatekeeperOracle`。
 2. **Binding Verification:** 校验 `msg.sender == permit.payer`，校验 `amount <= permit.amountCap`。
 3. **Liveness Check:** 校验 `block.timestamp <= permit.deadline`。
@@ -46,7 +46,7 @@ bytes signature; // Gatekeeper Oracle 的签名
 ## 5. Design Key Points (设计要点)
 1. **Fail-Close Mechanism (故障关闭):** 如果链下风控服务宕机，无法签发 Permit，链上合约将拒绝所有新交易。这保证了系统故障时不会发生资金风险。
 2. **Privacy Preservation (隐私保护):** 用户的 IP、设备 ID 等敏感数据**只进入链下风控引擎**，绝不上链。链上只验证 Permit 签名，不包含隐私字段。
-3. **Decoupling:** `NexusRouter` (在 Core 侧) 只要拿到 `bool isPassed` 即可，不需要知道具体的风控规则。规则的升级（如调整限额）只需升级 Gatekeeper 模块。
+3. **Decoupling:** `XAgent PayRouter` (在 Core 侧) 只要拿到 `bool isPassed` 即可，不需要知道具体的风控规则。规则的升级（如调整限额）只需升级 Gatekeeper 模块。
 ---
 ### 总结：Core 与 Gatekeeper 的交互协议
 为了将两者串联，我们需要定义一个内部交互协议 (Internal Protocol)。

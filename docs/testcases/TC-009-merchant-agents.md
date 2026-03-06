@@ -448,13 +448,13 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 ---
 
-### TC-009-18: MCP Connect (Nexus Core)
+### TC-009-18: MCP Connect (XAgent Pay Core)
 
 **Priority:** P0
 **Type:** Integration
 
 **Steps:**
-1. POST to `https://api.nexus-mvp.topos.one/mcp` with JSON-RPC initialize request
+1. POST to `https://api.xagentpay.com/mcp` with JSON-RPC initialize request
 
 **Expected:**
 - HTTP 200 with JSON-RPC response

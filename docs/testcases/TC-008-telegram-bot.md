@@ -21,7 +21,7 @@ nexus-telegram-bot / `POST /api/render-order` / Status Polling
    ```json
    {
      "chat_id": 123456789,
-     "checkout_url": "https://api.nexus-mvp.topos.one/checkout/tok_xxx",
+     "checkout_url": "https://api.xagentpay.com/checkout/tok_xxx",
      "group_id": "GRP-abc123",
      "total_amount_display": "0.30",
      "currency": "USDC",
@@ -62,7 +62,7 @@ nexus-telegram-bot / `POST /api/render-order` / Status Polling
 
 **Expected:**
 ```
-🎫 xNexus Order
+🎫 xXAgent Pay Order
 
 ⏳ Pending Payment
 ────────────────────

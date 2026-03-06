@@ -209,7 +209,7 @@
 3. Verify `core_operator_address` matches relayer address
 
 **Expected:**
-- EIP-712 signature over `NexusGroupApproval(groupId, entriesHash, totalAmount)` is valid
+- EIP-712 signature over `XAgent PayGroupApproval(groupId, entriesHash, totalAmount)` is valid
 - Recovers to `core_operator_address`
 - Signature prevents MITM tampering of payment array
 

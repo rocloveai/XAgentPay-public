@@ -1,4 +1,4 @@
-# xNexus System Overview
+# xXAgent Pay System Overview
 
 ## RFC Summary
 
@@ -14,7 +14,7 @@
 | RFC-007 | Core Agentic Interface | Hub-Spoke 跨链托管 + Buyer/Seller Plugin | Final Spec (Future) |
 | RFC-008 | NMSS (Merchant Skill) | skill.md 标准 + 工具角色分类 | Draft |
 | RFC-009 | Webhook Standard | 支付结果回调 + HMAC + 重试策略 | **v1.1.0 (Implemented)** |
-| RFC-010 | xNexus Escrow Contract | 智能合约担保支付 + 批量存款 + Group 签名 | **v2.0.0 (Deployed)** |
+| RFC-010 | xXAgent Pay Escrow Contract | 智能合约担保支付 + 批量存款 + Group 签名 | **v2.0.0 (Deployed)** |
 | NBSS | Buyer Skills Standard | User Agent 标准接入 SDK | Draft (Future) |
 
 ## Architecture: MVP (Escrow Settlement — Current)
@@ -27,12 +27,12 @@
 +------------------------+------------------------+
                          | MCP Protocol / HTTP 402
 +------------------------v------------------------+
-|          xNexus Core (RFC-005v3 + RFC-010)     |
+|          xXAgent Pay Core (RFC-005v3 + RFC-010)     |
 |  +-------------+ +-----------+ +-------------+  |
 |  |  Security   | |  Order    | |  Chain      |  |
 |  |  Module     | |  State    | |  Watcher    |  |
 |  |             | |  Machine  | |             |  |
-|  | EIP-712     | | 12 States | | PlatON RPC  |  |
+|  | EIP-712     | | 12 States | | XLayer RPC  |  |
 |  | DID Resolve | | 8 Group   | | Escrow Evts |  |
 |  | Group Sig   | | Statuses  | | (Deposited, |  |
 |  |             | | Timeout   | |  Released,  |  |
@@ -62,7 +62,7 @@
 +------------------------v------------------------+
 |             XLayer Mainnet                      |
 |             chain_id: 196                        |
-|  USDC (ERC-20)     xNexusEscrow (UUPS Proxy)  |
+|  USDC (ERC-20)     xXAgent PayEscrow (UUPS Proxy)  |
 |  EIP-3009          batchDeposit / release /      |
 |                    refund / dispute / resolve     |
 +-------------------------------------------------+
@@ -77,7 +77,7 @@
 +------------------------+------------------------+
                          | MCP Protocol
 +------------------------v------------------------+
-|              Nexus Payment Core                  |
+|              XAgent Payment Core                  |
 |        (RFC-005 + RFC-007 State Machine)         |
 |  initialize -> finalize -> detect -> sync -> lock|
 |                         |                        |
@@ -96,9 +96,9 @@
                          |
 +------------------------v------------------------+
 |              On-Chain Layer                      |
-|  NexusMerchantRegistry (RFC-001 DID)             |
-|  NexusRouter + Escrow (Settlement)               |
-|  NexusRiskController (Permit Verification)       |
+|  XAgent PayMerchantRegistry (RFC-001 DID)             |
+|  XAgent PayRouter + Escrow (Settlement)               |
+|  XAgent PayRiskController (Permit Verification)       |
 |  Hub: XLayer Mainnet | Spokes: Base, Ethereum            |
 +-------------------------------------------------+
 ```
@@ -118,7 +118,7 @@
 
 ### Full Vision (Future - RFC-005v1 + RFC-007)
 1. **Quote-to-Transaction**: 商户只生成报价，Core 负责编排链上交易
-2. **Hub-and-Spoke**: PlatON 为结算主链，支持多链入金 (Base, ETH)
+2. **Hub-and-Spoke**: XLayer 为结算主链，支持多链入金 (Base, ETH)
 3. **Key Separation**: 签名密钥与收款地址分离 (RFC-001)
 4. **Hybrid Risk**: 链下 AI 风控 + 链上 Permit 验证 (RFC-006)
 5. **Draft-then-Finalize**: 用户先选链再生成 MPC 托管地址 (RFC-007)
@@ -128,8 +128,8 @@
 
 | Contract | Address | Type |
 |----------|---------|------|
-| xNexusEscrow (Proxy) | `0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2` | UUPS Proxy |
-| xNexusEscrow (Impl v4.0.0) | `0x81CF9E0d2c1ad879c24b19815Ec803015D5B2e9b` | Implementation |
+| xXAgent PayEscrow (Proxy) | `0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2` | UUPS Proxy |
+| xXAgent PayEscrow (Impl v4.0.0) | `0x81CF9E0d2c1ad879c24b19815Ec803015D5B2e9b` | Implementation |
 | USDC | `0x74b7F16337b8972027F6196A17a631aC6dE26d22` | ERC-20 (FiatToken) |
 | Core Operator | `0xaC9d5239b597f8903DA93b9B8D92E6CfF564e989` | EOA |
 
@@ -137,4 +137,4 @@
 
 | Document | Path | Description |
 |----------|------|-------------|
-| PRD-001 | docs/prd/PRD-001-xNexus-Core.md | xNexus Core 完整产品需求文档 |
+| PRD-001 | docs/prd/PRD-001-xXAgent Pay-Core.md | xXAgent Pay Core 完整产品需求文档 |

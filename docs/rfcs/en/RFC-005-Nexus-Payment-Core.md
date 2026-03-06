@@ -1,21 +1,21 @@
-# RFC-005 v3: Nexus Payment Core Specification (MVP - Escrow Settlement)
+# RFC-005 v3: XAgent Payment Core Specification (MVP - Escrow Settlement)
 
 | Metadata | Value |
 | --- | --- |
-| **Title** | Nexus Payment Core Specification (MVP) |
+| **Title** | XAgent Payment Core Specification (MVP) |
 | **Version** | 3.0.0 |
 | **Status** | Standards Track (Draft) |
 | **Supersedes** | RFC-005 v2.0.0 (Direct Settlement) |
-| **Author** | Cipher & Nexus Architect Team |
+| **Author** | Cipher & XAgent Pay Architect Team |
 | **Created** | 2026-02-24 |
 | **Updated** | 2026-02-26 |
 | **Scope** | Orchestration, State Management, Escrow Settlement, Group Payments, Webhook Notification |
-| **Chain** | PlatON Devnet (chain_id: 20250407) |
+| **Chain** | XLayer Devnet (chain_id: 20250407) |
 | **Currency** | USDC (ERC-20, 6 decimals) |
 
 ## 1. Abstract
 
-This RFC defines the MVP implementation specification for xNexus Core. Unlike v2's Direct Settlement, v3 adopts an **Escrow Settlement** model: users deposit USDC into the xNexusEscrow contract via EIP-3009 authorization signatures, and after merchant fulfillment, the Core's Relayer triggers the release.
+This RFC defines the MVP implementation specification for xXAgent Pay Core. Unlike v2's Direct Settlement, v3 adopts an **Escrow Settlement** model: users deposit USDC into the xXAgent PayEscrow contract via EIP-3009 authorization signatures, and after merchant fulfillment, the Core's Relayer triggers the release.
 
 Key changes (v2 -> v3):
 1. **Escrow Settlement**: Funds are first locked in a smart contract and released after merchant confirms fulfillment
@@ -27,7 +27,7 @@ Key changes (v2 -> v3):
 ## 2. Design Principles
 
 1. **Escrow Settlement**: Funds are guaranteed through a smart contract, released after merchant fulfillment, with automatic refund on timeout
-2. **Gasless UX**: Users only need to sign EIP-3009 authorization; no need to hold LAT (PlatON native token)
+2. **Gasless UX**: Users only need to sign EIP-3009 authorization; no need to hold LAT (XLayer native token)
 3. **Batch Efficiency**: Multiple payments are aggregated into a group, sharing a single on-chain transaction
 4. **MCP-First**: All capabilities are exposed through the MCP Protocol, with REST API also available
 5. **Event Sourcing**: Each state change generates an immutable event record
@@ -36,7 +36,7 @@ Key changes (v2 -> v3):
 ## 3. Architecture
 
 ```
-UA --[MCP/REST]--> xNexus Core --[Webhook]--> MA
+UA --[MCP/REST]--> xXAgent Pay Core --[Webhook]--> MA
                        |
                        +-- Security Module (EIP-712, DID Resolver, Group Sig)
                        +-- Order State Machine (12 states)
@@ -46,8 +46,8 @@ UA --[MCP/REST]--> xNexus Core --[Webhook]--> MA
                        +-- Webhook Notifier (HMAC signed, RFC-009)
                        +-- PostgreSQL (payments, payment_groups, events, merchants, webhook_logs)
                        |
-                  PlatON Devnet (chain_id: 20250407)
-                  USDC (ERC-20) + xNexusEscrow (UUPS Proxy)
+                  XLayer Devnet (chain_id: 20250407)
+                  USDC (ERC-20) + xXAgent PayEscrow (UUPS Proxy)
 ```
 
 ## 4. Payment Flow (Escrow Settlement)
@@ -104,7 +104,7 @@ interface PaymentRequired402 {
 interface BatchDepositInstruction {
   readonly group_id: string;
   readonly chain_id: 20250407;
-  readonly chain_name: "PlatON Devnet";
+  readonly chain_name: "XLayer Devnet";
   readonly rpc_url: string;
   readonly payment_method: "ESCROW_CONTRACT";
   readonly escrow_contract: Address;     // UUPS proxy address
@@ -200,14 +200,14 @@ Payments are grouped into `PaymentGroup` records for batch processing:
 
 ```typescript
 const NEXUS_QUOTE_DOMAIN = {
-  name: "xNexus",
+  name: "xXAgent Pay",
   version: "1",
   chainId: 20250407,
   verifyingContract: "0x0000000000000000000000000000000000000000",
 } as const;
 
 const NEXUS_QUOTE_TYPES = {
-  NexusQuote: [
+  XAgent PayQuote: [
     { name: "merchant_did", type: "string" },
     { name: "merchant_order_ref", type: "string" },
     { name: "amount", type: "uint256" },
@@ -232,7 +232,7 @@ After Core generates the BatchDepositInstruction, it signs an EIP-712 GroupAppro
 
 ```typescript
 const GROUP_APPROVAL_TYPES = {
-  NexusGroupApproval: [
+  XAgent PayGroupApproval: [
     { name: "groupId", type: "bytes32" },
     { name: "entriesHash", type: "bytes32" },
     { name: "totalAmount", type: "uint256" },
@@ -298,8 +298,8 @@ CRITICAL: Core MUST resolve payment_address from the merchant_did registry. It M
 
 ### 8.1 Polling Strategy
 
-- Poll PlatON RPC every 3 seconds for new blocks
-- Filter xNexusEscrow contract logs for:
+- Poll XLayer RPC every 3 seconds for new blocks
+- Filter xXAgent PayEscrow contract logs for:
   - `Deposited(paymentId, payer, merchant, amount, orderRef)`
   - `Released(paymentId, merchant, merchantAmount, feeAmount)`
   - `Refunded(paymentId, payer, amount)`
@@ -343,7 +343,7 @@ Relayer wallet: `0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920` (also coreOperator 
 
 See RFC-009 for full specification. Key points:
 - Events: payment.escrowed, payment.settled, payment.completed, payment.refunded, dispute.opened, dispute.resolved
-- HMAC-SHA256 signature in `X-Nexus-Signature` header
+- HMAC-SHA256 signature in `X-XAgent Pay-Signature` header
 - Exponential backoff retry (6 attempts: 10s, 30s, 2min, 10min, 30min)
 - Idempotent via event_id
 - Delivery logged in `webhook_delivery_logs` table
@@ -361,8 +361,8 @@ Core tables:
 
 | Contract | Address | Type |
 | --- | --- | --- |
-| xNexusEscrow (Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` | UUPS Proxy |
-| xNexusEscrow (Impl v4.0.0) | `0x2EF4dB5E0021d074286c36821Cc897d2605e542E` | Implementation |
+| xXAgent PayEscrow (Proxy) | `0xeB33a9C2b4c7D3F44Fd5514F90C355AF6bb79236` | UUPS Proxy |
+| xXAgent PayEscrow (Impl v4.0.0) | `0x2EF4dB5E0021d074286c36821Cc897d2605e542E` | Implementation |
 | USDC | `0xFF8dEe9983768D0399673014cf77826896F97e4d` | ERC-20 (FiatToken) |
 | Relayer / Core Operator | `0xf7EA5d3f0Bf8185c4f3C2F405D9a71009CF4D920` | EOA |
 
@@ -370,13 +370,13 @@ Core tables:
 
 | MVP (this RFC) | Future (RFC-005v1 + RFC-007) |
 | --- | --- |
-| Escrow settlement (single chain) | Hub-Spoke cross-chain (PlatON + Base + ETH) |
-| Local merchant_registry | On-chain NexusMerchantRegistry |
+| Escrow settlement (single chain) | Hub-Spoke cross-chain (XLayer + Base + ETH) |
+| Local merchant_registry | On-chain XAgent PayMerchantRegistry |
 | Basic signature verification | Full RiskGatekeeper with Permit |
-| PlatON Devnet only | Multi-chain production |
+| XLayer Devnet only | Multi-chain production |
 | Browser checkout + MCP | `@nexus/buyer-skills` SDK |
 | HMAC webhook | MCP Resource subscription |
 
 ## 14. Copyright
 
-Copyright (c) 2026 Nexus Protocol. All Rights Reserved.
+Copyright (c) 2026 XAgent Pay. All Rights Reserved.

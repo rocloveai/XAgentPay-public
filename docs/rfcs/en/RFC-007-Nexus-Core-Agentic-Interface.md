@@ -1,18 +1,18 @@
-# RFC-007: Nexus Core Agentic Interface
+# RFC-007: XAgent Pay Core Agentic Interface
 | Metadata | Value |
 | --- | --- |
-| **Title** | Nexus Core Agentic Interface |
+| **Title** | XAgent Pay Core Agentic Interface |
 | **Version** | **1.7.0 (Interactive Escrow Edition)** |
 | **Status** | **Final Specification** |
 | **Protocol** | Model Context Protocol (MCP) |
-| **Architecture** | Hub (PlatON) + Spoke (MPC Ingress) + KYT Firewall |
+| **Architecture** | Hub (XLayer) + Spoke (MPC Ingress) + KYT Firewall |
 ## 1. Core Design Philosophy
-Nexus Core operates as an **MCP Server**, providing two standard plugin sets to Agents in the network:
+XAgent Pay Core operates as an **MCP Server**, providing two standard plugin sets to Agents in the network:
 1. **Buyer Plugin:** Guides the UA through the entire flow of "Quote -> Select Chain -> Pay -> Receive Goods".
 2. **Seller Plugin:** Helps the MA complete the closed loop of "Check Balance -> Fulfill -> Withdraw".
 The interaction model follows **"Draft-then-Finalize"**: first generate a draft order for the user to select a payment method, then lock in and generate a dedicated MPC custody address.
 ---
-## 2. Nexus Buyer Plugin (For User Agent)
+## 2. XAgent Pay Buyer Plugin (For User Agent)
 This plugin grants the UA the ability to process payment intents, interact with users to select networks, and execute fund escrow.
 ### Tool A: `initialize_payment` (Initialize / Pre-orchestration)
 **Lifecycle Stage:** **Discovery** (when the user sees the quote card)
@@ -56,7 +56,7 @@ This plugin grants the UA the ability to process payment intents, interact with 
 {
 "option_id": "opt_platon_usdc",
 "chain_id": 210425,
-"chain_name": "PlatON",
+"chain_name": "XLayer",
 "bridge_fee_usd": "0.00",
 "tags": ["NATIVE_SETTLEMENT"]
 }
@@ -84,7 +84,7 @@ This plugin grants the UA the ability to process payment intents, interact with 
 "chain_id": 8453,
 "chain_name": "Base",
 // MPC Custody Address (Ephemeral Address)
-"target_address": "0xNexusMPC_Temp_Addr_99",
+"target_address": "0xXAgent PayMPC_Temp_Addr_99",
 "token_address": "0xUSDC_Base_Addr",
 "amount": "530000000",
 // Explicitly instruct the UA to use a plain transfer, not a contract call
@@ -113,11 +113,11 @@ This plugin grants the UA the ability to process payment intents, interact with 
 }
 ```
 ---
-## 3. Nexus Seller Plugin (For Merchant Agent)
-This plugin grants the MA seamless cross-chain collection capabilities; the MA only needs to monitor the Hub Chain (PlatON) state.
+## 3. XAgent Pay Seller Plugin (For Merchant Agent)
+This plugin grants the MA seamless cross-chain collection capabilities; the MA only needs to monitor the Hub Chain (XLayer) state.
 ### Tool A: `verify_order_lock` (Verify Fulfillment Conditions)
 **Lifecycle Stage:** **Fulfillment** (before the MA prepares to fulfill/ship)
-**Function:** Query the Escrow contract on the Hub Chain (PlatON) to confirm whether funds are securely locked (LOCKED).
+**Function:** Query the Escrow contract on the Hub Chain (XLayer) to confirm whether funds are securely locked (LOCKED).
 **Logic:** This tool only returns LOCKED after Core has completed KYT and synchronized the state.
 * **Input Schema:**
 ```json
@@ -130,13 +130,13 @@ This plugin grants the MA seamless cross-chain collection capabilities; the MA o
 "status": "LOCKED", // Key signal: safe to fulfill
 "amount_settled": "530.00",
 "currency": "USDC",
-"hub_chain": "PlatON",
+"hub_chain": "XLayer",
 "kyt_result": "PASS" // Funds are compliant
 }
 ```
 ### Tool B: `claim_funds` (Withdraw / Settle)
 **Lifecycle Stage:** **Settlement** (after receiving the user's Release signature)
-**Function:** Pull the user's signature from Nexus Core and call the on-chain contract on PlatON to withdraw funds.
+**Function:** Pull the user's signature from XAgent Pay Core and call the on-chain contract on XLayer to withdraw funds.
 * **Input Schema:**
 ```json
 { "nexus_payment_id": "NEX-UUID-001" }
@@ -145,29 +145,29 @@ This plugin grants the MA seamless cross-chain collection capabilities; the MA o
 ```json
 {
 "status": "CLAIMED",
-"tx_hash": "0xPlatONTxHash...",
+"tx_hash": "0xXLayerTxHash...",
 "settled_at": "2026-01-21T12:00:00Z"
 }
 ```
 ---
 ## 4. Core State Machine (Order State Machine)
-The single source of truth maintained by Nexus Core, exposed via MCP Resource `nexus://core/orders/{id}`.
+The single source of truth maintained by XAgent Pay Core, exposed via MCP Resource `nexus://core/orders/{id}`.
 | Status | Meaning | Triggering Action | UA Interface Display |
 | --- | --- | --- | --- |
 | **DRAFT** | Order intent created | `initialize_payment` | Selector View (Chain/Wallet) |
 | **AWAITING_DEPOSIT** | MPC address assigned | `finalize_payment` | Transfer View (Target Addr) |
 | **DETECTING** | On-chain deposit detected | Listener captures Tx | "Verifying Transaction..." |
 | **SYNCING** | KYT passed, writing to Hub | KYT Engine | "Securing Funds..." |
-| **LOCKED** | **[Milestone]** Locked on PlatON | Hub contract event | "Payment Successful" |
+| **LOCKED** | **[Milestone]** Locked on XLayer | Hub contract event | "Payment Successful" |
 | **RELEASE_SIGNED** | User signed release | `sign_release` | "Order Completed" |
 | **CLAIMED** | Merchant withdrew funds | `claim_funds` | (History Record) |
 | **RISK_REJECTED** | KYT failed | KYT Engine | "Security Alert" (triggers refund) |
 ---
 ## 5. Implementation Guidance for Antigravity
 ### Core Server (`nexuspay-core`)
-1. **Routing Engine:** Requires hardcoded or configured RPC endpoints for PlatON, Base, and Ethereum to fetch real-time Gas Prices and calculate `est_gas_fee_usd`.
+1. **Routing Engine:** Requires hardcoded or configured RPC endpoints for XLayer, Base, and Ethereum to fetch real-time Gas Prices and calculate `est_gas_fee_usd`.
 2. **MPC Service:** Integrate an MPC wallet SDK (e.g., Fireblocks, Coinbase WaaS, or custom TSS) to derive child addresses during `finalize_payment`.
-3. **KYT Hook:** During the `DETECTING` state, block the flow and call the KYT API; only execute `createVirtualDeposit` to PlatON after passing.
+3. **KYT Hook:** During the `DETECTING` state, block the flow and call the KYT API; only execute `createVirtualDeposit` to XLayer after passing.
 ### UA Integration (`@nexus/ua-kit`)
 1. **Step 1:** Component Mount -> call `initialize_payment` -> render `<ChainSelector>`.
 2. **Step 2:** User selects Base + connects wallet -> clicks Pay -> call `finalize_payment`.

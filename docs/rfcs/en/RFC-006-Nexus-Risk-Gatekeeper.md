@@ -1,12 +1,12 @@
-# RFC-006: Nexus Risk Gatekeeper Specificationn
+# RFC-006: XAgent Pay Risk Gatekeeper Specificationn
 | Metadata | Value |
 | --- | --- |
-| **Title** | Nexus Risk Gatekeeper Protocol |
+| **Title** | XAgent Pay Risk Gatekeeper Protocol |
 | **Version** | 1.0.0 |
 | **Status** | Standards Track (Draft) |
 | **Scope** | Risk Assessment, Permit Issuance, On-Chain Enforcement |
 ## 1. Abstract
-Nexus Risk Gatekeeper is the **security guardian** of the payment network. It adopts a **"Hybrid Guard"** architecture: the off-chain AI engine handles complex behavioral analysis and issues credentials (Permits), while on-chain smart contracts verify credentials and enforce hard interceptions. The Gatekeeper is transparent to Payment Core — Core only needs to pass through the credentials without understanding the risk control logic.
+XAgent Pay Risk Gatekeeper is the **security guardian** of the payment network. It adopts a **"Hybrid Guard"** architecture: the off-chain AI engine handles complex behavioral analysis and issues credentials (Permits), while on-chain smart contracts verify credentials and enforce hard interceptions. The Gatekeeper is transparent to Payment Core — Core only needs to pass through the credentials without understanding the risk control logic.
 ## 2. Architecture: Hybrid Control
 ### 2.1 Off-Chain Engine (The Brain)
 * **Data Ingestion:** Receives transaction context from Core, on-chain historical data, and external intelligence feeds (e.g., Chainalysis).
@@ -38,7 +38,7 @@ When Core requests a risk assessment:
 * **CHALLENGE:** (Future extension) Returns instructions requiring the user to perform 2FA or biometric verification.
 * **REJECT:** Returns a rejection reason code (e.g., `ERR_RISK_HIGH_FRAUD`).
 ### 4.2 Phase 2: On-Chain Enforcement (Runtime Interception)
-When `NexusRouter` calls `NexusRiskController.assessRisk(...)`:
+When `XAgent PayRouter` calls `XAgent PayRiskController.assessRisk(...)`:
 1. **Signature Verification:** `ecrecover` recovers the signer, which must equal `GatekeeperOracle`.
 2. **Binding Verification:** Validates that `msg.sender == permit.payer` and that `amount <= permit.amountCap`.
 3. **Liveness Check:** Validates that `block.timestamp <= permit.deadline`.
@@ -46,7 +46,7 @@ When `NexusRouter` calls `NexusRiskController.assessRisk(...)`:
 ## 5. Design Key Points
 1. **Fail-Close Mechanism:** If the off-chain risk control service goes down and cannot issue Permits, the on-chain contract will reject all new transactions. This ensures that no fund risk occurs during system failures.
 2. **Privacy Preservation:** Sensitive user data such as IP addresses and device IDs **only enter the off-chain risk engine** and are never recorded on-chain. The on-chain component only verifies the Permit signature and contains no privacy-sensitive fields.
-3. **Decoupling:** `NexusRouter` (on the Core side) only needs to receive a `bool isPassed` result — it does not need to know the specific risk control rules. Upgrading rules (e.g., adjusting limits) only requires upgrading the Gatekeeper module.
+3. **Decoupling:** `XAgent PayRouter` (on the Core side) only needs to receive a `bool isPassed` result — it does not need to know the specific risk control rules. Upgrading rules (e.g., adjusting limits) only requires upgrading the Gatekeeper module.
 ---
 ### Summary: Interaction Protocol Between Core and Gatekeeper
 To link the two together, we need to define an Internal Protocol.
