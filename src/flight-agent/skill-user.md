@@ -158,6 +158,12 @@ Content-Type: application/json
 
 Save `group_id` and `checkout_url`.
 
+> **⚠️ CRITICAL — ALWAYS DO THIS:** After receiving the orchestrate response, **immediately show the user the checkout link** in your reply:
+> ```
+> 您的付款链接：<checkout_url>
+> ```
+> Do NOT skip this step. The user needs this URL to pay via OKX Wallet.
+
 ### Step 4A — Execute Payment (Browser / OKX Wallet)
 
 Direct the user to open `checkout_url` in a browser with OKX Wallet installed on XLayer network. The user confirms **two transactions** (Step 1: USDC approve, Step 2: deposit). The page auto-confirms on success — skip Steps 5 and 6.

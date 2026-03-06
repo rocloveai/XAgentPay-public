@@ -26,7 +26,7 @@ const EIP712_TYPES = {
 
 function buildDomain(config: NexusCoreConfig) {
   return {
-    name: "xNexus",
+    name: "NexusPay",
     version: "1",
     chainId: config.chainId,
     verifyingContract: config.escrowContract as Address,
