@@ -490,19 +490,20 @@ tailwind.config = {
         </button>
       </div>
 
-      <!-- Signing spinner -->
+      <!-- Step 1: Approve USDC -->
       <div id="signing" class="hidden">
         <div class="flex items-center justify-center gap-3">
           <div class="spinner"></div>
-          <span class="text-slate-300 text-sm">Waiting for OKX Wallet signature...</span>
+          <span class="text-slate-300 text-sm">Step 1/2 — Approve USDC in OKX Wallet...</span>
         </div>
+        <p class="text-slate-500 text-xs mt-2 text-center">Please confirm the USDC approval transaction.</p>
       </div>
 
-      <!-- Submitting -->
+      <!-- Step 2: Deposit -->
       <div id="submitting" class="hidden">
         <div class="flex items-center justify-center gap-3">
           <div class="spinner"></div>
-          <span class="text-slate-300 text-sm">Sending transaction via OKX Wallet...</span>
+          <span class="text-slate-300 text-sm">Step 2/2 — Confirm deposit in OKX Wallet...</span>
         </div>
         <div class="mt-3 w-full bg-slate-700 rounded-full h-2">
           <div class="bg-indigo-500 h-2 rounded-full" style="width: 50%; transition: width 2s;"></div>
