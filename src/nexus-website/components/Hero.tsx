@@ -31,7 +31,7 @@ const Hero: React.FC = () => {
 
         {/* Based On Tag */}
         <p className="text-sm font-mono text-gray-500 uppercase tracking-widest flex items-center justify-center gap-2 mt-6">
-          <span className="w-2 h-2 rounded-full bg-platon-blue"></span>
+          <span className="w-2 h-2 rounded-full bg-xlayer-blue"></span>
           {t("hero.poweredBy")}
         </p>
 

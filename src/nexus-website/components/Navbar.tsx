@@ -30,7 +30,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
                 </span>
               </div>
               <span className="text-2xl font-bold tracking-wider text-white">
-                NEXUS
+                XAgent Pay
               </span>
             </a>
             <div className="h-6 w-[1px] bg-white/20 mx-2 hidden sm:block"></div>
@@ -39,7 +39,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage }) => {
                 {t("navbar.basedOn")}
               </span>
               <span className="text-sm font-bold text-white tracking-widest font-display">
-                PLATON
+                XLAYER
               </span>
             </div>
           </div>

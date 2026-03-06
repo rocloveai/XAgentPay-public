@@ -117,7 +117,7 @@ const ProtocolFlow: React.FC = () => {
                     hub
                   </span>
                   <span className="text-white font-bold tracking-widest text-xs sm:text-sm relative z-10">
-                    NEXUS
+                    XAgent Pay
                   </span>
                   <div className="mt-1 px-2 py-0.5 bg-accent-cyan/10 border border-accent-cyan/30 rounded text-[10px] text-accent-cyan font-mono relative z-10 overflow-hidden">
                     <span className="animate-pulse">CLEARING</span>

@@ -13,7 +13,7 @@ const Quote: React.FC = () => {
           </p>
           <footer className="flex flex-col items-center gap-2">
             <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent mb-2"></div>
-            <cite className="not-italic text-lg font-bold text-white tracking-wide">Nexus Protocol</cite>
+            <cite className="not-italic text-lg font-bold text-white tracking-wide">XAgent Pay</cite>
             <span className="text-sm text-gray-500 uppercase tracking-widest font-mono">Vision Statement</span>
           </footer>
         </blockquote>

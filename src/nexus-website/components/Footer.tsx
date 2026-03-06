@@ -19,7 +19,7 @@ const Footer: React.FC = () => {
                   hub
                 </span>
               </div>
-              <span className="text-xl font-bold text-white">NEXUS</span>
+              <span className="text-xl font-bold text-white">XAgent Pay</span>
             </div>
             <p className="text-gray-500 text-sm mb-4">{t("footer.tagline")}</p>
             <div className="flex items-center gap-2 opacity-60">
@@ -27,7 +27,7 @@ const Footer: React.FC = () => {
                 {t("navbar.basedOn")}
               </span>
               <span className="text-sm font-bold text-white tracking-widest font-display">
-                PLATON
+                XLAYER
               </span>
             </div>
           </div>
