@@ -83,14 +83,11 @@ export function buildEscrowInstruction(
 ): EscrowInstruction {
   const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
   const now = Math.floor(Date.now() / 1000);
-  // PlatON EVM uses block.timestamp in milliseconds, so EIP-3009
-  // validAfter / validBefore must be in milliseconds for on-chain checks.
-  const nowMs = Date.now();
 
   const eip3009SignData: EIP3009SignData = {
     domain: {
       name: "USD Coin",
-      version: "1",
+      version: "2",
       chainId: config.chainId,
       verifyingContract: config.usdcAddress as Address,
     },
@@ -116,7 +113,7 @@ export function buildEscrowInstruction(
       to: config.escrowContract as Address,
       value: payment.amount,
       validAfter: "0",
-      validBefore: String(nowMs + DEFAULT_RELEASE_TIMEOUT_S * 1000),
+      validBefore: String(now + DEFAULT_RELEASE_TIMEOUT_S),
       nonce,
     },
   };
@@ -163,8 +160,6 @@ export function buildGroupEscrowInstruction(
 ): GroupEscrowInstruction {
   const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
   const now = Math.floor(Date.now() / 1000);
-  // PlatON EVM uses block.timestamp in milliseconds
-  const nowMs = Date.now();
 
   // Build per-payment details
   const paymentDetails: GroupPaymentDetail[] = payments.map((p, i) => ({
@@ -186,7 +181,7 @@ export function buildGroupEscrowInstruction(
   const eip3009SignData: EIP3009SignData = {
     domain: {
       name: "USD Coin",
-      version: "1",
+      version: "2",
       chainId: config.chainId,
       verifyingContract: config.usdcAddress as Address,
     },
@@ -212,7 +207,7 @@ export function buildGroupEscrowInstruction(
       to: config.escrowContract as Address,
       value: group.total_amount,
       validAfter: "0",
-      validBefore: String(nowMs + DEFAULT_RELEASE_TIMEOUT_S * 1000),
+      validBefore: String(now + DEFAULT_RELEASE_TIMEOUT_S),
       nonce,
     },
   };
@@ -255,8 +250,7 @@ export function buildBatchDepositInstruction(
   config: NexusCoreConfig,
 ): UnsignedBatchDepositInstruction {
   const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
-  // PlatON EVM uses block.timestamp in milliseconds
-  const nowMs = Date.now();
+  const now = Math.floor(Date.now() / 1000);
 
   const paymentDetails: GroupPaymentDetail[] = payments.map((p, i) => ({
     nexus_payment_id: p.nexus_payment_id,
@@ -278,7 +272,7 @@ export function buildBatchDepositInstruction(
   const eip3009SignData: EIP3009SignData = {
     domain: {
       name: "USD Coin",
-      version: "1",
+      version: "2",
       chainId: config.chainId,
       verifyingContract: config.usdcAddress as Address,
     },
@@ -304,7 +298,7 @@ export function buildBatchDepositInstruction(
       to: config.escrowContract as Address,
       value: group.total_amount,
       validAfter: "0",
-      validBefore: String(nowMs + DEFAULT_RELEASE_TIMEOUT_S * 1000),
+      validBefore: String(now + DEFAULT_RELEASE_TIMEOUT_S),
       nonce,
     },
   };
