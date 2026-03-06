@@ -161,7 +161,6 @@ export class NexusOrchestrator {
           "CREATED",
           {
             payment_id_bytes32: paymentIdBytes32,
-            eip3009_nonce: unsignedInstruction.eip3009_sign_data.message.nonce,
             escrow_contract: this.config.escrowContract,
             release_deadline: new Date(
               (now + this.config.releaseTimeoutS) * 1000,

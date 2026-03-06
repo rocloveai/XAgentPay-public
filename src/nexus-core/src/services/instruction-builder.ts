@@ -28,7 +28,11 @@ import {
   DEFAULT_DISPUTE_WINDOW_S,
 } from "../constants.js";
 import { NEXUS_PAY_ESCROW_ABI } from "../abi/nexus-pay-escrow.js";
-import { keccak256, toHex, encodeFunctionData, parseAbi } from "viem";
+import { keccak256, toHex, encodeFunctionData, parseAbi, maxUint256 } from "viem";
+
+const ERC20_APPROVE_ABI = parseAbi([
+  "function approve(address spender, uint256 amount) returns (bool)",
+]);
 
 const ERC20_TRANSFER_ABI = parseAbi([
   "function transfer(address to, uint256 amount) returns (bool)",
@@ -231,11 +235,11 @@ export function buildGroupEscrowInstruction(
 }
 
 // ---------------------------------------------------------------------------
-// Batch Deposit (EIP-3009 + user-submitted batchDepositWithAuthorization)
+// Batch Deposit (approve + batchDepositApprove — works with bridged USDC on XLayer)
 // ---------------------------------------------------------------------------
 
 const BATCH_DEPOSIT_ABI_HUMAN =
-  "function batchDepositWithGroupApproval((bytes32 paymentId, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)[] entries, uint256 totalAmount, bytes32 groupIdBytes32, uint8 groupV, bytes32 groupR, bytes32 groupS, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)";
+  "function batchDepositApprove((bytes32 paymentId, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)[] entries, uint256 totalAmount, bytes32 groupIdBytes32, uint8 groupV, bytes32 groupR, bytes32 groupS)";
 
 /** Unsigned batch deposit instruction (without group signature fields). */
 export type UnsignedBatchDepositInstruction = Omit<
@@ -249,9 +253,6 @@ export function buildBatchDepositInstruction(
   merchants: readonly MerchantRecord[],
   config: NexusCoreConfig,
 ): UnsignedBatchDepositInstruction {
-  const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
-  const now = Math.floor(Date.now() / 1000);
-
   const paymentDetails: GroupPaymentDetail[] = payments.map((p, i) => ({
     nexus_payment_id: p.nexus_payment_id,
     merchant_did: p.merchant_did,
@@ -268,40 +269,13 @@ export function buildBatchDepositInstruction(
     ) as Hex,
   }));
 
-  // EIP-3009 sign data — user signs this via eth_signTypedData_v4
-  const eip3009SignData: EIP3009SignData = {
-    domain: {
-      name: "USD Coin",
-      version: "2",
-      chainId: config.chainId,
-      verifyingContract: config.usdcAddress as Address,
-    },
-    types: {
-      EIP712Domain: [
-        { name: "name", type: "string" },
-        { name: "version", type: "string" },
-        { name: "chainId", type: "uint256" },
-        { name: "verifyingContract", type: "address" },
-      ],
-      TransferWithAuthorization: [
-        { name: "from", type: "address" },
-        { name: "to", type: "address" },
-        { name: "value", type: "uint256" },
-        { name: "validAfter", type: "uint256" },
-        { name: "validBefore", type: "uint256" },
-        { name: "nonce", type: "bytes32" },
-      ],
-    },
-    primaryType: "TransferWithAuthorization",
-    message: {
-      from: group.payer_wallet as Address,
-      to: config.escrowContract as Address,
-      value: group.total_amount,
-      validAfter: "0",
-      validBefore: String(now + DEFAULT_RELEASE_TIMEOUT_S),
-      nonce,
-    },
-  };
+  // Step 1 tx: USDC.approve(escrow, totalAmount)
+  // Use exact amount (not maxUint256) so approval is bounded to this order
+  const approveData = encodeFunctionData({
+    abi: ERC20_APPROVE_ABI,
+    functionName: "approve",
+    args: [config.escrowContract as Address, BigInt(group.total_amount)],
+  });
 
   return {
     group_id: group.group_id,
@@ -316,14 +290,19 @@ export function buildBatchDepositInstruction(
     total_amount_uint256: group.total_amount,
     total_amount_display: group.total_amount_display,
     payments: paymentDetails,
-    eip3009_sign_data: eip3009SignData,
+    approve_tx: {
+      to: config.usdcAddress as Address,
+      data: approveData as Hex,
+      value: "0",
+      gas_limit: "80000",
+    },
     deposit_tx: {
       to: config.escrowContract as Address,
       abi: BATCH_DEPOSIT_ABI_HUMAN,
       value: "0",
       gas_limit: "500000",
     },
-    user_action: "SIGN_AND_SEND",
+    user_action: "APPROVE_AND_SEND",
     gas_paid_by: "USER",
   };
 }

@@ -366,16 +366,27 @@ export interface BatchDepositInstruction {
   readonly total_amount_uint256: string;
   readonly total_amount_display: string;
   readonly payments: readonly GroupPaymentDetail[];
-  /** EIP-3009 typed data for user to sign via eth_signTypedData_v4 */
-  readonly eip3009_sign_data: EIP3009SignData;
-  /** Pre-encoded batchDepositWithAuthorization tx (v/r/s as zero placeholders — fill after signing) */
+  /**
+   * Step 1: USDC approve tx — user sends USDC.approve(escrow, totalAmount).
+   * Does NOT require EIP-3009; works with any ERC-20 including bridged USDC.
+   */
+  readonly approve_tx: {
+    readonly to: Address;
+    readonly data: Hex;
+    readonly value: "0";
+    readonly gas_limit: string;
+  };
+  /**
+   * Step 2: batchDepositApprove tx — user calls escrow after approving.
+   * No EIP-3009 params needed; the escrow pulls funds via transferFrom.
+   */
   readonly deposit_tx: {
     readonly to: Address;
     readonly abi: string;
     readonly value: "0";
     readonly gas_limit: string;
   };
-  readonly user_action: "SIGN_AND_SEND";
+  readonly user_action: "APPROVE_AND_SEND";
   readonly gas_paid_by: "USER";
   /** EIP-712 signature over (groupId, entriesHash, totalAmount) by Nexus Core operator */
   readonly nexus_group_sig: Hex;

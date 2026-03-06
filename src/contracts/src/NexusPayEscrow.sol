@@ -395,6 +395,68 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     }
 
     // -----------------------------------------------------------------------
+    // Batch Deposit — approve + transferFrom (works with bridged USDC on XLayer)
+    // -----------------------------------------------------------------------
+
+    /**
+     * @notice Batch deposit using approve+transferFrom with on-chain NexusCore
+     *         group-signature verification. Use this on chains where USDC does
+     *         NOT implement EIP-3009 transferWithAuthorization (e.g. XLayer).
+     *
+     *         Two-step UX:
+     *           1. User calls USDC.approve(escrow, totalAmount)
+     *           2. User calls this function
+     *
+     * @param entries        Array of BatchEntry structs
+     * @param totalAmount    Must equal sum of entry amounts
+     * @param groupIdBytes32 Unique group ID (replay protection)
+     * @param groupV         Group-sig v
+     * @param groupR         Group-sig r
+     * @param groupS         Group-sig s
+     */
+    function batchDepositApprove(
+        BatchEntry[] calldata entries,
+        uint256 totalAmount,
+        bytes32 groupIdBytes32,
+        uint8 groupV,
+        bytes32 groupR,
+        bytes32 groupS
+    ) external nonReentrant {
+        if (entries.length == 0) revert EmptyBatch();
+        if (entries.length > MAX_BATCH_SIZE) revert BatchTooLarge(entries.length);
+        if (usedGroupIds[groupIdBytes32]) revert GroupIdAlreadyUsed(groupIdBytes32);
+        usedGroupIds[groupIdBytes32] = true;
+
+        _verifyGroupSignature(groupIdBytes32, entries, totalAmount, groupV, groupR, groupS);
+
+        uint256 sum = 0;
+        for (uint256 i = 0; i < entries.length; i++) {
+            sum += entries[i].amount;
+        }
+        if (sum != totalAmount) revert BatchAmountMismatch(totalAmount, sum);
+
+        // Use standard approve+transferFrom (compatible with bridged USDC)
+        IERC20(address(usdc)).safeTransferFrom(msg.sender, address(this), totalAmount);
+
+        for (uint256 i = 0; i < entries.length; i++) {
+            BatchEntry calldata e = entries[i];
+            _validateDeposit(e.paymentId, msg.sender, e.merchant, e.amount);
+            _createEscrow(
+                e.paymentId,
+                msg.sender,
+                e.merchant,
+                e.amount,
+                e.orderRef,
+                e.merchantDid,
+                e.contextHash
+            );
+        }
+
+        emit BatchDeposited(msg.sender, entries.length, totalAmount);
+        emit GroupSigVerified(groupIdBytes32, coreOperator);
+    }
+
+    // -----------------------------------------------------------------------
     // Release
     // -----------------------------------------------------------------------
 

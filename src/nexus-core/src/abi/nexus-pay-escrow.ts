@@ -27,6 +27,7 @@ export const NEXUS_PAY_ESCROW_ABI = parseAbi([
   "function depositWithAuthorization(bytes32 paymentId, address from, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)",
   "function batchDepositWithAuthorization((bytes32 paymentId, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)[] entries, uint256 totalAmount, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)",
   "function batchDepositWithGroupApproval((bytes32 paymentId, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)[] entries, uint256 totalAmount, bytes32 groupIdBytes32, uint8 groupV, bytes32 groupR, bytes32 groupS, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)",
+  "function batchDepositApprove((bytes32 paymentId, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)[] entries, uint256 totalAmount, bytes32 groupIdBytes32, uint8 groupV, bytes32 groupR, bytes32 groupS)",
   "function release(bytes32 paymentId)",
   "function refund(bytes32 paymentId)",
   "function dispute(bytes32 paymentId, bytes32 reason)",

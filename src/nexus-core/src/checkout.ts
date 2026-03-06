@@ -745,9 +745,7 @@ async function checkChain() {
 
   // Validate connected wallet matches the expected payer_wallet
   var expectedFrom = null;
-  if (checkoutData && checkoutData.instruction && checkoutData.instruction.eip3009_sign_data) {
-    expectedFrom = checkoutData.instruction.eip3009_sign_data.message.from;
-  } else if (checkoutData && checkoutData.group) {
+  if (checkoutData && checkoutData.group) {
     expectedFrom = checkoutData.group.payer_wallet;
   }
 
@@ -794,82 +792,58 @@ async function switchChain() {
 async function signAndPay() {
   if (!checkoutData || !checkoutData.instruction) return;
 
-  // Check if the EIP-3009 authorization has expired
-  // PlatON EVM uses ms timestamps, so validBefore is in milliseconds
-  var signData = checkoutData.instruction.eip3009_sign_data;
-  if (signData && signData.message && signData.message.validBefore) {
-    var vb = Number(signData.message.validBefore);
-    var validBeforeMs = vb < 1e12 ? vb * 1000 : vb;
-    if (Date.now() >= validBeforeMs) {
-      showError("This payment authorization has expired. Please go back and create a new payment.");
-      return;
-    }
-  }
+  var instr = checkoutData.instruction;
 
-  // Verify connected wallet matches the expected payer address
-  var expectedFrom = signData.message.from;
+  // Verify connected wallet matches the expected payer address (from group metadata)
+  var expectedFrom = checkoutData.group && checkoutData.group.payer_wallet;
   if (expectedFrom && account && expectedFrom.toLowerCase() !== account.toLowerCase()) {
     showError(
       "Wrong wallet connected. This payment requires " + truncAddr(expectedFrom) +
       " but you are connected with " + truncAddr(account) +
-      ". Please switch to the correct account in MetaMask."
+      ". Please switch to the correct account in OKX Wallet."
     );
     return;
   }
 
-  // Verify Nexus Core group signature exists (Phase 1: existence check)
-  var instr = checkoutData.instruction;
+  // Verify Nexus Core group signature exists
   if (!instr.nexus_group_sig || !instr.core_operator_address) {
     showError("Missing group signature from Nexus Core. Cannot proceed safely.");
     return;
   }
-  console.log("[xNexus] Group sig verified. Operator:", instr.core_operator_address);
+  console.log("[XAgent] Group sig verified. Operator:", instr.core_operator_address);
 
-  showOnly(["group-info","order-summary","payment-details","action-area","signing"]);
+  var approveTx = instr.approve_tx;
+  var depositTx = instr.deposit_tx;
+
+  if (!approveTx || !depositTx) {
+    showError("Invalid instruction: missing approve_tx or deposit_tx.");
+    return;
+  }
 
   try {
-    // Step 1: Sign EIP-3009 typed data via MetaMask
-    var signerAddress = account;
+    // ── Step 1: USDC approve ─────────────────────────────────────────────────
+    showOnly(["group-info","order-summary","payment-details","action-area","signing"]);
+    console.log("[XAgent] Step 1: USDC approve →", approveTx.to);
 
-    var params = {
-      domain: signData.domain,
-      types: signData.types,
-      primaryType: signData.primaryType,
-      message: {
-        from: signData.message.from,
-        to: signData.message.to,
-        value: signData.message.value,
-        validAfter: signData.message.validAfter,
-        validBefore: signData.message.validBefore,
-        nonce: signData.message.nonce,
-      },
-    };
-
-    console.log("[xNexus] Signer address:", signerAddress);
-    console.log("[xNexus] EIP-712 params:", JSON.stringify(params, null, 2));
-
-    // Compute expected digest client-side for debugging
-    var expectedDigest = computeEIP712Digest(params.domain, params.message);
-    console.log("[xNexus] Expected EIP-712 digest:", expectedDigest);
-
-    var signature = await ethereum.request({
-      method: "eth_signTypedData_v4",
-      params: [signerAddress, JSON.stringify(params)],
+    var approveTxHash = await ethereum.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: account,
+        to: approveTx.to,
+        data: approveTx.data,
+        value: "0x0",
+        gas: "0x" + parseInt(approveTx.gas_limit).toString(16),
+      }],
     });
 
-    var r = signature.slice(0, 66);
-    var s = "0x" + signature.slice(66, 130);
-    var v = parseInt(signature.slice(130, 132), 16);
+    console.log("[XAgent] Approve TX hash:", approveTxHash);
 
-    console.log("[xNexus] Signature:", { v: v, r: r, s: s });
-
-    // Step 2: Build batchDepositWithAuthorization calldata and send tx
+    // ── Wait for approve receipt ─────────────────────────────────────────────
     showOnly(["group-info","order-summary","payment-details","action-area","submitting"]);
+    await waitForReceipt(approveTxHash);
+    console.log("[XAgent] Approve confirmed.");
 
-    var instr = checkoutData.instruction;
-    var depositTx = instr.deposit_tx;
-
-    // Build entries array using server-precomputed hashes (fixes contextHash bug)
+    // ── Step 2: batchDepositApprove ──────────────────────────────────────────
     var entries = instr.payments.map(function(p) {
       return {
         paymentId: p.payment_id_bytes32,
@@ -881,28 +855,21 @@ async function signAndPay() {
       };
     });
 
-    // Decompose group signature into v/r/s
     var groupSig = instr.nexus_group_sig;
     var groupR = groupSig.slice(0, 66);
     var groupS = "0x" + groupSig.slice(66, 130);
     var groupV = parseInt(groupSig.slice(130, 132), 16);
     var groupIdBytes32 = keccak256Str(instr.group_id);
 
-    // ABI-encode batchDepositWithGroupApproval call
-    var encodedData = encodeBatchDepositWithGroupApproval(
+    var encodedData = encodeBatchDepositApprove(
       entries,
-      signData.message.value,
+      instr.total_amount_uint256,
       groupIdBytes32,
-      groupV, groupR, groupS,
-      signData.message.validAfter,
-      signData.message.validBefore,
-      signData.message.nonce,
-      v, r, s
+      groupV, groupR, groupS
     );
 
-    console.log("[xNexus] Sending batchDepositWithGroupApproval tx to:", depositTx.to);
+    console.log("[XAgent] Step 2: batchDepositApprove →", depositTx.to);
 
-    // Send the transaction via MetaMask (user pays gas)
     var txHash = await ethereum.request({
       method: "eth_sendTransaction",
       params: [{
@@ -914,9 +881,9 @@ async function signAndPay() {
       }],
     });
 
-    console.log("[xNexus] TX hash:", txHash);
+    console.log("[XAgent] Deposit TX hash:", txHash);
 
-    // Step 3: Confirm with server
+    // ── Step 3: Confirm with server ──────────────────────────────────────────
     showOnly(["group-info","order-summary","payment-details","action-area","confirming"]);
 
     var confirmRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID) + "/confirm", {
@@ -925,30 +892,25 @@ async function signAndPay() {
       body: JSON.stringify({ tx_hash: txHash }),
     });
 
-    var confirmData = await confirmRes.json().catch(function() { return {}; });
-
     if (confirmRes.status === 422) {
-      // Transaction reverted on-chain
       showError("Transaction reverted on-chain. Your funds were not transferred. TX: " + txHash);
       return;
     }
 
     if (confirmRes.status === 200) {
-      // Already confirmed on-chain
       document.getElementById("success-tx-hash").textContent = "TX: " + txHash;
       showOnly(["group-info","order-summary","state-success"]);
       return;
     }
 
-    // 202 or other — poll for on-chain confirmation
-    console.log("[xNexus] Awaiting on-chain confirmation, polling...");
+    // 202 — poll for on-chain confirmation
+    console.log("[XAgent] Awaiting on-chain confirmation, polling...");
     var pollAttempts = 0;
-    var maxPollAttempts = 24; // 24 * 5s = 120s max
+    var maxPollAttempts = 24;
 
     pollTimer = setInterval(async function() {
       pollAttempts++;
       try {
-        // Re-submit confirm to check receipt
         var retryRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID) + "/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -969,9 +931,6 @@ async function signAndPay() {
           showError("Transaction reverted on-chain. Your funds were not transferred. TX: " + txHash);
           return;
         }
-
-        // 202 means receipt not available yet — the confirm endpoint already
-        // checks group status internally, no need for a second API call
       } catch (e) { /* ignore poll errors */ }
 
       if (pollAttempts >= maxPollAttempts) {
@@ -983,12 +942,37 @@ async function signAndPay() {
 
   } catch (e) {
     if (e.code === 4001) {
-      // User rejected signing or transaction
       showOnly(["group-info","order-summary","payment-details","action-area","ready-sign"]);
     } else {
       showError(e.message || "Transaction failed");
     }
   }
+}
+
+// Wait for a transaction receipt by polling eth_getTransactionReceipt
+async function waitForReceipt(txHash, maxWaitMs) {
+  maxWaitMs = maxWaitMs || 60000;
+  var elapsed = 0;
+  var interval = 2000;
+  while (elapsed < maxWaitMs) {
+    try {
+      var receipt = await ethereum.request({
+        method: "eth_getTransactionReceipt",
+        params: [txHash],
+      });
+      if (receipt && receipt.blockNumber) {
+        if (receipt.status === "0x0") {
+          throw new Error("Approve transaction reverted. TX: " + txHash);
+        }
+        return receipt;
+      }
+    } catch (e) {
+      if (e.message && e.message.indexOf("reverted") !== -1) throw e;
+    }
+    await new Promise(function(r) { setTimeout(r, interval); });
+    elapsed += interval;
+  }
+  throw new Error("Approve transaction not confirmed within timeout. TX: " + txHash);
 }
 
 // ---------------------------------------------------------------------------
@@ -1137,31 +1121,23 @@ function computeEIP712Digest(domain, message) {
   return digest;
 }
 
-// Encode batchDepositWithGroupApproval calldata
-function encodeBatchDepositWithGroupApproval(entries, totalAmount, groupIdBytes32, groupV, groupR, groupS, validAfter, validBefore, nonce, v, r, s) {
-  // Function signature for selector computation
-  var sig = "batchDepositWithGroupApproval((bytes32,address,uint256,bytes32,bytes32,bytes32)[],uint256,bytes32,uint8,bytes32,bytes32,uint256,uint256,bytes32,uint8,bytes32,bytes32)";
+// Encode batchDepositApprove calldata (approve+transferFrom variant — no EIP-3009 params)
+function encodeBatchDepositApprove(entries, totalAmount, groupIdBytes32, groupV, groupR, groupS) {
+  // Function signature: batchDepositApprove((bytes32,address,uint256,bytes32,bytes32,bytes32)[],uint256,bytes32,uint8,bytes32,bytes32)
+  var sig = "batchDepositApprove((bytes32,address,uint256,bytes32,bytes32,bytes32)[],uint256,bytes32,uint8,bytes32,bytes32)";
   var selectorHash = keccak256Bytes(toUtf8Bytes(sig));
   var selector = selectorHash.slice(0, 10); // "0x" + 4 bytes
 
   // ABI encode parameters
-  // Params (12 total): entries[] (dynamic), totalAmount, groupIdBytes32,
-  //   groupV, groupR, groupS, validAfter, validBefore, nonce, v, r, s
-
+  // Params (6 total): entries[] (dynamic), totalAmount, groupIdBytes32, groupV, groupR, groupS
   var totalAmountHex = padUint256(totalAmount);
   var groupIdHex = padBytes32(groupIdBytes32);
   var groupVHex = padUint256(groupV);
   var groupRHex = padBytes32(groupR);
   var groupSHex = padBytes32(groupS);
-  var validAfterHex = padUint256(validAfter);
-  var validBeforeHex = padUint256(validBefore);
-  var nonceHex = padBytes32(nonce);
-  var vHex = padUint256(v);
-  var rHex = padBytes32(r);
-  var sHex = padBytes32(s);
 
-  // Dynamic array offset = 12 * 32 = 384 = 0x180
-  var headOffset = padUint256(384);
+  // Dynamic array offset = 6 * 32 = 192 = 0xc0
+  var headOffset = padUint256(192);
 
   // Array encoding: length + N * 6 words per entry
   var arrayLen = padUint256(entries.length);
@@ -1183,12 +1159,6 @@ function encodeBatchDepositWithGroupApproval(entries, totalAmount, groupIdBytes3
     groupVHex +
     groupRHex +
     groupSHex +
-    validAfterHex +
-    validBeforeHex +
-    nonceHex +
-    vHex +
-    rHex +
-    sHex +
     arrayLen +
     arrayData;
 }

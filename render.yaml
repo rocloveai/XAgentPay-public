@@ -43,7 +43,7 @@ services:
       - key: RELAYER_PRIVATE_KEY
         sync: false
       - key: ESCROW_CONTRACT
-        value: "0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2"
+        value: "0x959028964e8a4e52d6AC716E621B68b3fa579A25"
       - key: RPC_URL
         value: "https://rpc.xlayer.tech"
       - key: CHAIN_ID

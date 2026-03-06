@@ -1142,10 +1142,11 @@ async function main(): Promise<void> {
             return;
           }
 
-          // POST /api/agent-pay/build-tx — build fully-encoded deposit tx for AI agent wallets
-          // The AI agent (e.g. OKX wallet) signs the EIP-3009 typed data, then POSTs
-          // the signature here. The server returns the ABI-encoded calldata so the agent
-          // can submit eth_sendTransaction without needing to know the ABI.
+          // POST /api/agent-pay/build-tx — build approve + deposit txs for AI agent wallets.
+          // Returns both transactions that the agent must execute sequentially:
+          //   1. USDC.approve(escrow, totalAmount)
+          //   2. escrow.batchDepositApprove(...)
+          // No EIP-3009 signature needed — works with bridged USDC on XLayer.
           if (
             url.pathname === "/api/agent-pay/build-tx" &&
             req.method === "POST"
@@ -1163,33 +1164,26 @@ async function main(): Promise<void> {
                 req.on("error", reject);
               });
               const body = JSON.parse(Buffer.concat(chunks).toString());
-              const { group_id, eip3009_signature } = body as {
-                group_id?: string;
-                eip3009_signature?: string;
-              };
+              const { group_id } = body as { group_id?: string };
 
               if (!group_id || typeof group_id !== "string") {
                 res.writeHead(400, corsHeaders);
                 res.end(JSON.stringify({ error: "Missing group_id" }));
                 return;
               }
-              if (!eip3009_signature || typeof eip3009_signature !== "string" || !eip3009_signature.startsWith("0x")) {
-                res.writeHead(400, corsHeaders);
-                res.end(JSON.stringify({ error: "Missing or invalid eip3009_signature (must be 0x hex string)" }));
-                return;
-              }
 
-              // Look up group instruction (contains payments + eip3009_sign_data)
+              // Look up group instruction
               const rawInstr = await groupRepo.findInstruction(group_id);
               if (!rawInstr) {
                 res.writeHead(404, corsHeaders);
                 res.end(JSON.stringify({ error: "Payment instruction not found for group" }));
                 return;
               }
-              // Type the instruction
               type InstrType = {
                 nexus_group_sig: string;
                 escrow_contract: string;
+                token_address: string;
+                total_amount_uint256: string;
                 chain_id: number;
                 rpc_url: string;
                 payments: Array<{
@@ -1200,34 +1194,27 @@ async function main(): Promise<void> {
                   merchant_did_bytes32: string;
                   context_hash: string;
                 }>;
-                eip3009_sign_data: {
-                  message: {
-                    value: string | number;
-                    validAfter: string | number;
-                    validBefore: string | number;
-                    nonce: string;
-                  };
-                };
               };
               const instr = rawInstr as unknown as InstrType;
 
-              // Decompose EIP-3009 signature: 65-byte hex = r(32) + s(32) + v(1)
-              const sig = eip3009_signature as import("viem").Hex;
-              const r = ("0x" + sig.slice(2, 66)) as import("viem").Hex;
-              const s = ("0x" + sig.slice(66, 130)) as import("viem").Hex;
-              const v = parseInt(sig.slice(130, 132), 16);
+              const { keccak256, toHex, encodeFunctionData, parseAbi } = await import("viem");
+              const { NEXUS_PAY_ESCROW_ABI } = await import("./abi/nexus-pay-escrow.js");
 
-              // Decompose nexus group signature
+              // Build approve calldata (USDC.approve(escrow, totalAmount))
+              const ERC20_APPROVE = parseAbi(["function approve(address spender, uint256 amount) returns (bool)"]);
+              const approveData = encodeFunctionData({
+                abi: ERC20_APPROVE,
+                functionName: "approve",
+                args: [instr.escrow_contract as import("viem").Address, BigInt(instr.total_amount_uint256)],
+              });
+
+              // Build batchDepositApprove calldata
               const groupSig = instr.nexus_group_sig as import("viem").Hex;
               const groupR = ("0x" + groupSig.slice(2, 66)) as import("viem").Hex;
               const groupS = ("0x" + groupSig.slice(66, 130)) as import("viem").Hex;
               const groupV = parseInt(groupSig.slice(130, 132), 16);
-
-              // keccak256 of group_id string → bytes32
-              const { keccak256, toHex, encodeFunctionData } = await import("viem");
               const groupIdBytes32 = keccak256(toHex(group_id)) as import("viem").Hex;
 
-              // Build entries from stored instruction.payments
               const entries = instr.payments.map((p) => ({
                 paymentId: p.payment_id_bytes32 as import("viem").Hex,
                 merchant: p.merchant_address as import("viem").Address,
@@ -1237,42 +1224,42 @@ async function main(): Promise<void> {
                 contextHash: p.context_hash as import("viem").Hex,
               }));
 
-              const eip = instr.eip3009_sign_data.message;
-              const totalAmount = BigInt(eip.value);
-              const validAfter = BigInt(eip.validAfter);
-              const validBefore = BigInt(eip.validBefore);
-              const nonce = eip.nonce as import("viem").Hex;
-
-              // ABI-encode the batchDepositWithGroupApproval call
-              const { NEXUS_PAY_ESCROW_ABI } = await import("./abi/nexus-pay-escrow.js");
-              const data = encodeFunctionData({
+              const depositData = encodeFunctionData({
                 abi: NEXUS_PAY_ESCROW_ABI,
-                functionName: "batchDepositWithGroupApproval",
+                functionName: "batchDepositApprove",
                 args: [
                   entries,
-                  totalAmount,
+                  BigInt(instr.total_amount_uint256),
                   groupIdBytes32,
                   groupV,
                   groupR,
                   groupS,
-                  validAfter,
-                  validBefore,
-                  nonce,
-                  v,
-                  r,
-                  s,
                 ],
               });
 
               res.writeHead(200, corsHeaders);
               res.end(JSON.stringify({
-                to: instr.escrow_contract,
-                data,
-                value: "0x0",
-                gas_limit: "500000",
                 chain_id: instr.chain_id,
                 rpc_url: instr.rpc_url,
-                note: "Send this transaction from the payer wallet (msg.sender must equal the EIP-3009 signer / payer_wallet). After mining, POST the tx_hash to /api/checkout/<group_id>/confirm",
+                transactions: [
+                  {
+                    step: 1,
+                    description: "Approve USDC spend",
+                    to: instr.token_address,
+                    data: approveData,
+                    value: "0x0",
+                    gas_limit: "80000",
+                  },
+                  {
+                    step: 2,
+                    description: "Batch deposit into escrow",
+                    to: instr.escrow_contract,
+                    data: depositData,
+                    value: "0x0",
+                    gas_limit: "500000",
+                  },
+                ],
+                note: "Execute step 1 first and wait for confirmation, then execute step 2. Both must be sent from the payer_wallet. After step 2 mines, POST the tx_hash to /api/checkout/<group_id>/confirm",
               }));
             } catch (err) {
               const message = err instanceof Error ? err.message : String(err);
