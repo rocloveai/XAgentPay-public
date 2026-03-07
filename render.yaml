@@ -135,7 +135,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: TELEGRAM_BOT_TOKEN
-        value: "REDACTED_EVA_BOT_TOKEN"
+        value: "REDACTED_ORDERS_BOT_TOKEN"
       - key: NEXUS_CORE_URL
         value: "https://nexus-core-r0xf.onrender.com"
       - key: PORT
