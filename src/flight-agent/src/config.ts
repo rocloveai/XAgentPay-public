@@ -7,6 +7,7 @@ export interface Config {
   readonly paymentAddress: string;
   readonly signerPrivateKey: string;
   readonly nexusCoreUrl: string;
+  readonly portalBaseUrl: string;
 }
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -34,6 +35,8 @@ export function loadConfig(): Config {
     "0x3be84b4fa995ef7d87918aea8b0b1ad0cb88d66161b569c3fb55c8125cc31ba7";
   const nexusCoreUrl =
     process.env.NEXUS_CORE_URL || "https://nexus-core-r0xf.onrender.com";
+  const portalBaseUrl =
+    process.env.PORTAL_BASE_URL || "https://nexus-flight-agent-3xb1.onrender.com";
 
   return {
     duffelApiToken,
@@ -44,5 +47,6 @@ export function loadConfig(): Config {
     paymentAddress,
     signerPrivateKey,
     nexusCoreUrl,
+    portalBaseUrl,
   };
 }

@@ -8,6 +8,7 @@ export interface Config {
   readonly paymentAddress: string;
   readonly signerPrivateKey: string;
   readonly nexusCoreUrl: string;
+  readonly portalBaseUrl: string;
 }
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -36,6 +37,8 @@ export function loadConfig(): Config {
     "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997";
   const nexusCoreUrl =
     process.env.NEXUS_CORE_URL || "https://nexus-core-r0xf.onrender.com";
+  const portalBaseUrl =
+    process.env.PORTAL_BASE_URL || "https://nexus-hotel-agent-d2lj.onrender.com";
 
   return {
     merchantDid,
@@ -47,5 +50,6 @@ export function loadConfig(): Config {
     paymentAddress,
     signerPrivateKey,
     nexusCoreUrl,
+    portalBaseUrl,
   };
 }

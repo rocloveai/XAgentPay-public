@@ -16,6 +16,7 @@ import {
   readBody,
   sendJson,
 } from "./portal.js";
+import { privateKeyToAccount } from "viem/accounts";
 import type { HotelOffer } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -34,6 +35,42 @@ startReconciler({
   nexusCoreUrl: config.nexusCoreUrl,
   merchantDid: config.merchantDid,
 });
+
+// Auto-register with nexus-core so webhooks work immediately on startup
+async function registerWithNexusCore() {
+  try {
+    const signerAddress = privateKeyToAccount(
+      config.signerPrivateKey as `0x${string}`,
+    ).address;
+    const body = {
+      merchant_did: config.merchantDid,
+      name: "Nexus Hotel Agent",
+      description: "AI-powered hotel search and booking with USDC payments",
+      category: "travel.hotels",
+      signer_address: signerAddress,
+      payment_address: config.paymentAddress,
+      skill_md_url: `${config.portalBaseUrl}/skill.md`,
+      health_url: `${config.portalBaseUrl}/health`,
+      webhook_url: `${config.portalBaseUrl}/webhook`,
+      webhook_secret: config.webhookSecret,
+    };
+    const res = await fetch(`${config.nexusCoreUrl}/api/market/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      console.error("[Hotel Agent] Registered with nexus-core successfully");
+    } else {
+      console.error(
+        `[Hotel Agent] Registration failed: ${res.status} ${await res.text()}`,
+      );
+    }
+  } catch (err: any) {
+    console.error(`[Hotel Agent] Registration error: ${err.message}`);
+  }
+}
+registerWithNexusCore();
 
 type HotelCacheEntry = { offer: HotelOffer; nights: number };
 

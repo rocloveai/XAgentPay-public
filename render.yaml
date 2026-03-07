@@ -92,6 +92,8 @@ services:
         value: "https://nexus-core-r0xf.onrender.com"
       - key: NEXUS_WEBHOOK_SECRET
         value: "REDACTED_WEBHOOK_SECRET"
+      - key: PORTAL_BASE_URL
+        value: "https://nexus-hotel-agent-d2lj.onrender.com"
 
   - type: web
     name: nexus-flight-agent
@@ -124,6 +126,8 @@ services:
         value: "https://nexus-core-r0xf.onrender.com"
       - key: NEXUS_WEBHOOK_SECRET
         value: "REDACTED_WEBHOOK_SECRET"
+      - key: PORTAL_BASE_URL
+        value: "https://nexus-flight-agent-3xb1.onrender.com"
 
   - type: web
     name: nexus-telegram-bot

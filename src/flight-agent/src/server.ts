@@ -16,6 +16,7 @@ import {
   readBody,
   sendJson,
 } from "./portal.js";
+import { privateKeyToAccount } from "viem/accounts";
 import type { FlightOffer } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -34,6 +35,42 @@ startReconciler({
   nexusCoreUrl: config.nexusCoreUrl,
   merchantDid: config.merchantDid,
 });
+
+// Auto-register with nexus-core so webhooks work immediately on startup
+async function registerWithNexusCore() {
+  try {
+    const signerAddress = privateKeyToAccount(
+      config.signerPrivateKey as `0x${string}`,
+    ).address;
+    const body = {
+      merchant_did: config.merchantDid,
+      name: "Nexus Flight Agent",
+      description: "AI-powered flight search and booking with USDC payments",
+      category: "travel.flights",
+      signer_address: signerAddress,
+      payment_address: config.paymentAddress,
+      skill_md_url: `${config.portalBaseUrl}/skill.md`,
+      health_url: `${config.portalBaseUrl}/health`,
+      webhook_url: `${config.portalBaseUrl}/webhook`,
+      webhook_secret: config.webhookSecret,
+    };
+    const res = await fetch(`${config.nexusCoreUrl}/api/market/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      console.error("[Flight Agent] Registered with nexus-core successfully");
+    } else {
+      console.error(
+        `[Flight Agent] Registration failed: ${res.status} ${await res.text()}`,
+      );
+    }
+  } catch (err: any) {
+    console.error(`[Flight Agent] Registration error: ${err.message}`);
+  }
+}
+registerWithNexusCore();
 
 // Stateless REST calls share a process-level cache (offer_id contains unique
 // timestamp prefix so there's no cross-user collision risk)
