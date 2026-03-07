@@ -171,10 +171,10 @@ async function handleApiInfo(
   try {
     if (config.paymentAddress) {
       const publicClient = createPublicClient({
-        transport: http("https://devnet3openapi.platon.network/rpc"),
+        transport: http("https://rpc.xlayer.tech"),
       });
       const bal = await publicClient.readContract({
-        address: "0xFF8dEe9983768D0399673014cf77826896F97e4d",
+        address: "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
         abi: erc20Abi,
         functionName: "balanceOf",
         args: [config.paymentAddress as Hex],
@@ -379,7 +379,7 @@ tailwind.config = {
             </div>
             <div class="bg-slate-950 rounded-lg border border-slate-700 p-3">
               <div class="text-xs text-slate-500 mb-1">Protocol</div>
-              <span class="text-xs text-slate-300">NUPS/1.5 &middot; Chain 20250407 &middot; USDC</span>
+              <span class="text-xs text-slate-300">NUPS/1.5 &middot; XLayer Mainnet (196) &middot; USDC</span>
             </div>
           </div>
         </div>
@@ -476,7 +476,7 @@ const STATUS_CLASSES = {
   PAID:    "bg-emerald-400/15 text-emerald-400",
   EXPIRED: "bg-red-400/15 text-red-400",
 };
-const CHAIN_NAMES = { 84532: "Base Sepolia", 8453: "Base", 1: "Ethereum", 10: "Optimism", 20250407: "PlatON Devnet" };
+const CHAIN_NAMES = { 84532: "Base Sepolia", 8453: "Base", 1: "Ethereum", 10: "Optimism", 196: "XLayer Mainnet" };
 
 function esc(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");
