@@ -148,7 +148,7 @@ services:
     region: singapore
     runtime: node
     rootDir: src/telegram-order-panel
-    buildCommand: npm ci
+    buildCommand: npm install
     startCommand: node server.js
     plan: free
     healthCheckPath: /health
