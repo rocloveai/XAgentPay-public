@@ -35,7 +35,7 @@ export function loadConfig(): Config {
     process.env.MERCHANT_SIGNER_PRIVATE_KEY ||
     "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997";
   const nexusCoreUrl =
-    process.env.NEXUS_CORE_URL || "https://api.nexus-mvp.topos.one";
+    process.env.NEXUS_CORE_URL || "https://nexus-core-r0xf.onrender.com";
 
   return {
     merchantDid,

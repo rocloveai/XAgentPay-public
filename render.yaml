@@ -56,6 +56,8 @@ services:
         sync: false
       - key: BASE_URL
         sync: false
+      - key: TELEGRAM_NOTIFY_URL
+        value: "https://nexus-telegram-bot-8fzu.onrender.com/api/payment-notify"
 
   - type: web
     name: nexus-hotel-agent
@@ -87,7 +89,9 @@ services:
       - key: MERCHANT_DID
         value: "did:nexus:20250407:demo_hotel"
       - key: NEXUS_CORE_URL
-        sync: false
+        value: "https://nexus-core-r0xf.onrender.com"
+      - key: NEXUS_WEBHOOK_SECRET
+        value: "REDACTED_WEBHOOK_SECRET"
 
   - type: web
     name: nexus-flight-agent
@@ -117,7 +121,9 @@ services:
       - key: MERCHANT_DID
         value: "did:nexus:20250407:demo_flight"
       - key: NEXUS_CORE_URL
-        sync: false
+        value: "https://nexus-core-r0xf.onrender.com"
+      - key: NEXUS_WEBHOOK_SECRET
+        value: "REDACTED_WEBHOOK_SECRET"
 
   - type: web
     name: nexus-telegram-bot
@@ -131,7 +137,7 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: NEXUS_CORE_URL
-        sync: false
+        value: "https://nexus-core-r0xf.onrender.com"
       - key: PORT
         value: "10000"
       - key: BASE_URL
