@@ -1,7 +1,7 @@
 ---
 name: xagentpay-telegram-renderer
-version: "3.0.0"
-description: Send live XAgent Pay order status cards to Telegram. The card is sent by Eva's own bot so the whole conversation appears as a single bot.
+version: "4.0.0"
+description: Send live XAgent Pay order status cards to Telegram. Always use Eva's own bot token — single bot, no fragmented conversation.
 protocol: HTTP/REST
 category: notification.telegram
 ---
@@ -10,21 +10,20 @@ category: notification.telegram
 
 **Base URL:** `https://nexus-telegram-bot-8fzu.onrender.com`
 
-**Default chat_id: `REDACTED_CHAT_ID`** (Roc's personal chat) — use this by default for ALL order panels.
+**ALWAYS send to chat_id: `REDACTED_CHAT_ID`** (Roc's personal chat) — NEVER use a group chat.
 
 ---
 
-## ⭐ KEY FEATURE: Send card from YOUR OWN bot
+## CRITICAL RULES
 
-Pass your own Telegram bot token as `botToken`. The order card will appear to come from **you (Eva)** — no second bot, no fragmented conversation.
-
-- The card auto-refreshes every 10 s without any extra action.
-- A "💳 去收银台支付" button is shown until all orders are PAID.
-- No manual-refresh button (not needed — auto-refresh handles it).
+1. **ALWAYS pass your own `botToken`** — the card must appear from Eva, not any other bot.
+2. **ALWAYS use `chatId: REDACTED_CHAT_ID`** — Roc's personal chat. NEVER use a group chat ID.
+3. **NEVER send the order card to a group** (`REDACTED_GROUP_CHAT_ID` or any negative chat ID).
+4. There is no second bot. Eva handles everything in one conversation.
 
 ---
 
-## RECOMMENDED: `POST /start-order-panel`
+## `POST /start-order-panel`
 
 ### Request
 
@@ -36,19 +35,19 @@ Pass your own Telegram bot token as `botToken`. The order card will appear to co
   "outRef": "FLT-20260307-001",
   "hotelRef": "HTL-20260307-001",
   "backRef": "FLT-20260310-001",
-  "botToken": "<YOUR_OWN_TELEGRAM_BOT_TOKEN>"
+  "botToken": "YOUR_OWN_TELEGRAM_BOT_TOKEN"
 }
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `chatId` | ✅ | Telegram chat ID — use `REDACTED_CHAT_ID` for Roc |
+| `chatId` | ✅ | **Always `REDACTED_CHAT_ID`** (Roc's personal chat) |
 | `groupId` | ✅ | XAgent Pay group ID from orchestrate response |
 | `checkoutUrl` | ✅ | Checkout URL from orchestrate response |
 | `outRef` | ✅ | Outbound flight order_ref (e.g. `FLT-001`) |
 | `hotelRef` | ❌ optional | Hotel order_ref (omit if flight-only) |
 | `backRef` | ❌ optional | Return flight order_ref (omit if one-way) |
-| `botToken` | ⭐ **strongly recommended** | Your own Telegram bot token — makes the card appear as sent by you |
+| `botToken` | ✅ **REQUIRED** | Your own Telegram bot token — card appears as sent by Eva |
 
 ### Response
 
@@ -56,9 +55,9 @@ Pass your own Telegram bot token as `botToken`. The order card will appear to co
 { "ok": true, "groupId": "GRP-xxxx", "messageId": 42, "pollEverySec": 10, "mode": "custom_bot" }
 ```
 
-`mode` will be `"custom_bot"` when your token was used, or `"orders_bot"` as fallback.
+`mode` must always be `"custom_bot"`. If you see `"orders_bot"`, you forgot to pass `botToken`.
 
-### What Roc sees in Telegram (sent by Eva herself)
+### What Roc sees (sent by Eva in personal chat)
 
 **Before payment:**
 ```
@@ -73,7 +72,7 @@ Pass your own Telegram bot token as `botToken`. The order card will appear to co
 [ 💳 去收银台支付 ]
 ```
 
-**After payment (auto-updated):**
+**After payment (auto-updated every 10 s):**
 ```
 ✅ XAgent Pay 订单（已全部支付）
 
@@ -95,15 +94,15 @@ Pass your own Telegram bot token as `botToken`. The order card will appear to co
 2. Search hotels  → SHOW results → WAIT for Roc to select
 3. SHOW full price summary → ask "确认支付吗？" → WAIT for "确认"
 4. Call nexus_orchestrate_payment → get groupId + checkoutUrl
-5. Call POST /start-order-panel with YOUR botToken → card appears in Roc's chat from Eva
-6. Reply to Roc with 1-2 lines only: "✅ 订单已创建，卡片请看上方，正在为您支付…"
+5. Call POST /start-order-panel with chatId=REDACTED_CHAT_ID and YOUR botToken
+6. Reply to Roc: "✅ 订单卡片已发送，正在为您支付…" (1-2 lines max)
 7. Submit payment transactions (agent-pay/build-tx flow)
 8. Card auto-refreshes every 10 s until all PAID — no further action needed
 ```
 
-> **NEVER skip steps 1–3. Always show options and wait for user selection/confirmation before proceeding.**
->
-> **After sending the card (step 5), keep YOUR reply to 1-2 short lines — all status info is in the card.**
+> **NEVER skip steps 1–3.**
+> **NEVER use a group chat ID.**
+> **ALWAYS include your own botToken in step 5.**
 
 ## Health Check
 
