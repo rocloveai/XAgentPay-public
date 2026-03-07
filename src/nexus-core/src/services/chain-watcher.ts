@@ -444,6 +444,21 @@ export class ChainWatcher {
                 error: err instanceof Error ? err.message : String(err),
               }),
             );
+
+          // Push real-time notification to Telegram order panel (Eva's bot)
+          if (this.config.telegramNotifyUrl) {
+            fetch(this.config.telegramNotifyUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                group_id: updated.group_id,
+                merchant_order_ref: updated.merchant_order_ref,
+                status: updated.status,
+                event_type: webhookEventType,
+              }),
+              signal: AbortSignal.timeout(8_000),
+            }).catch(() => {});
+          }
         }
       }
     } catch (err) {

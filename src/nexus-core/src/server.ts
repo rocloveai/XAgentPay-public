@@ -87,6 +87,38 @@ if (config.databaseUrl) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Telegram push helper — fire-and-forget notification to the order panel bot
+// ---------------------------------------------------------------------------
+
+/**
+ * Push a payment state change to the Telegram bot service so it can
+ * immediately refresh the Eva order card without waiting for the 10-s poll.
+ *
+ * Payload: { group_id, merchant_order_ref, status, event_type }
+ */
+function pushTelegramNotify(
+  payment: { group_id: string | null; merchant_order_ref: string; status: string },
+  eventType: string,
+): void {
+  const url = config.telegramNotifyUrl;
+  if (!url) return;
+  const body = JSON.stringify({
+    group_id: payment.group_id,
+    merchant_order_ref: payment.merchant_order_ref,
+    status: payment.status,
+    event_type: eventType,
+  });
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    signal: AbortSignal.timeout(8_000),
+  }).catch((err) =>
+    console.error("[server] telegram notify failed:", err instanceof Error ? err.message : String(err)),
+  );
+}
+
 // Repositories
 const paymentRepo = new NeonPaymentRepository();
 const merchantRepo = new NeonMerchantRepository();
@@ -509,13 +541,14 @@ function createNexusCoreServer(): McpServer {
           };
         }
 
-        // Notify webhooks (fire-and-forget)
+        // Notify webhooks + Telegram (fire-and-forget)
         for (const payment of detail.payments) {
           webhookNotifier
             .notify(payment, "payment.escrowed")
             .catch((err) =>
               console.error("[server] webhook notify failed:", err),
             );
+          pushTelegramNotify(payment, "payment.escrowed");
         }
 
         return {
@@ -919,12 +952,13 @@ function createNexusCoreServer(): McpServer {
             fields: { completed_at: now },
           });
 
-          // Send payment.completed webhook
+          // Send payment.completed webhook + Telegram push
           webhookNotifier
             .notify(payment, "payment.completed")
             .catch((err) =>
               console.error("[server] webhook notify failed:", err),
             );
+          pushTelegramNotify(payment, "payment.completed");
 
           return {
             content: [

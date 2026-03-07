@@ -262,6 +262,12 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // Payment notify — pushed by nexus-core on state changes (no polling needed)
+  if (method === "POST" && url === "/api/payment-notify") {
+    await handlePaymentNotify(req, res);
+    return;
+  }
+
   jsonResponse(res, 404, { error: "Not Found" });
 });
 
@@ -486,6 +492,72 @@ async function handleTelegramWebhook(
   }
 
   res.writeHead(200); res.end();
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/payment-notify — pushed by nexus-core on payment state changes
+// ---------------------------------------------------------------------------
+
+const PaymentNotifySchema = z.object({
+  group_id:           z.string().nullable().optional(),
+  merchant_order_ref: z.string(),
+  status:             z.string(),
+  event_type:         z.string(),
+});
+
+async function handlePaymentNotify(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  let body: string;
+  try { body = await readBody(req); } catch { jsonResponse(res, 400, { error: "Failed to read body" }); return; }
+
+  let parsed: unknown;
+  try { parsed = JSON.parse(body); } catch { jsonResponse(res, 400, { error: "Invalid JSON" }); return; }
+
+  const result = PaymentNotifySchema.safeParse(parsed);
+  if (!result.success) { jsonResponse(res, 400, { error: "Validation failed" }); return; }
+
+  const { group_id, merchant_order_ref } = result.data;
+
+  // Find matching panel job — prefer exact group_id match, fallback to ref scan
+  let targetJob: OrderPanelJob | undefined;
+
+  if (group_id) {
+    targetJob = panelJobs.get(group_id);
+  }
+
+  if (!targetJob) {
+    // Scan all active jobs to find one whose refs include this order ref
+    for (const job of panelJobs.values()) {
+      const s = job.state;
+      if (
+        s.outRef === merchant_order_ref ||
+        s.hotelRef === merchant_order_ref ||
+        s.backRef === merchant_order_ref
+      ) {
+        targetJob = job;
+        break;
+      }
+    }
+  }
+
+  if (!targetJob) {
+    // No active panel for this payment — silently acknowledge
+    jsonResponse(res, 200, { ok: true, matched: false });
+    return;
+  }
+
+  // Immediately refresh the panel (uses Eva's bot token via state.customTgClient)
+  const activeClient = targetJob.state.customTgClient ?? telegramClient;
+  updatePanelMessage(targetJob.state, activeClient).catch((e: unknown) =>
+    panelLog.error("payment-notify refresh failed", {
+      groupId: targetJob!.state.groupId,
+      error: e instanceof Error ? e.message : String(e),
+    }),
+  );
+
+  jsonResponse(res, 200, { ok: true, matched: true, groupId: targetJob.state.groupId });
 }
 
 // ---------------------------------------------------------------------------

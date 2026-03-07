@@ -38,6 +38,26 @@ export interface CheckoutDeps {
 // Helpers
 // ---------------------------------------------------------------------------
 
+function pushTelegramNotifyCheckout(
+  telegramNotifyUrl: string,
+  payment: { group_id: string | null; merchant_order_ref: string; status: string },
+  eventType: string,
+): void {
+  if (!telegramNotifyUrl) return;
+  const body = JSON.stringify({
+    group_id: payment.group_id,
+    merchant_order_ref: payment.merchant_order_ref,
+    status: payment.status,
+    event_type: eventType,
+  });
+  fetch(telegramNotifyUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    signal: AbortSignal.timeout(8_000),
+  }).catch(() => {});
+}
+
 function sendJson(
   res: ServerResponse,
   status: number,
@@ -303,9 +323,10 @@ async function handleCheckoutConfirm(
       tx_hash: txHash,
     });
 
-    // Fire-and-forget webhook notifications
+    // Fire-and-forget webhook notifications + Telegram push
     for (const payment of payments) {
       deps.webhookNotifier.notify(payment, "payment.escrowed").catch(() => {});
+      pushTelegramNotifyCheckout(deps.config.telegramNotifyUrl, payment, "payment.escrowed");
     }
 
     sendJson(res, 200, {

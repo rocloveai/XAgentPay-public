@@ -23,6 +23,13 @@ export interface NexusCoreConfig {
   readonly arbitrationTimeoutS: number;
   readonly portalToken: string;
   readonly baseUrl: string;
+  /**
+   * Optional URL of the Telegram bot service's /api/payment-notify endpoint.
+   * When set, nexus-core pushes real-time payment state changes to the bot
+   * so the order card (sent by Eva) updates instantly without polling.
+   * e.g. https://nexus-telegram-bot-8fzu.onrender.com/api/payment-notify
+   */
+  readonly telegramNotifyUrl: string;
 }
 
 export interface ConfigValidationError {
@@ -95,5 +102,6 @@ export function loadNexusCoreConfig(): NexusCoreConfig {
     arbitrationTimeoutS: Number(process.env.ARBITRATION_TIMEOUT_S ?? "604800"),
     portalToken: process.env.PORTAL_TOKEN ?? "",
     baseUrl: process.env.BASE_URL ?? "",
+    telegramNotifyUrl: process.env.TELEGRAM_NOTIFY_URL ?? "",
   };
 }
