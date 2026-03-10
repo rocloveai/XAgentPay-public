@@ -1,0 +1,125 @@
+version: "3.8"
+
+services:
+  # ── PostgreSQL ──
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: nexuspay
+      POSTGRES_USER: nexuspay
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-REDACTED_DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexuspay"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Nexus Core ──
+  nexus-core:
+    build:
+      context: ../src/nexus-core
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "127.0.0.1:10000:10000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TRANSPORT: http
+      PORT: "10000"
+      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay
+      RELAYER_PRIVATE_KEY: ${RELAYER_PRIVATE_KEY}
+      ESCROW_CONTRACT: "0x959028964e8a4e52d6AC716E621B68b3fa579A25"
+      RPC_URL: "https://rpc.xlayer.tech"
+      CHAIN_ID: "196"
+      CHAIN_NAME: "XLayer Mainnet"
+      USDC_ADDRESS: "0x74b7F16337b8972027F6196A17a631aC6dE26d22"
+      BASE_URL: "https://xagenpay.com/api"
+      TELEGRAM_NOTIFY_URL: "http://telegram-bot:10000/api/payment-notify"
+
+  # ── Flight Agent ──
+  flight-agent:
+    build:
+      context: ../src/flight-agent
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "127.0.0.1:10001:10000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TRANSPORT: http
+      PORTAL_PORT: "10000"
+      PORTAL_HOST: "0.0.0.0"
+      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay
+      DUFFEL_API_TOKEN: ${DUFFEL_API_TOKEN}
+      MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_FLIGHT}
+      MERCHANT_PAYMENT_ADDRESS: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1"
+      MERCHANT_DID: "did:nexus:20250407:demo_flight"
+      NEXUS_CORE_URL: "http://nexus-core:10000"
+      NEXUS_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
+      PORTAL_BASE_URL: "https://xagenpay.com/flight"
+
+  # ── Hotel Agent ──
+  hotel-agent:
+    build:
+      context: ../src/hotel-agent
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "127.0.0.1:10002:10000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TRANSPORT: http
+      PORTAL_PORT: "10000"
+      PORTAL_HOST: "0.0.0.0"
+      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay
+      AMADEUS_API_KEY: ${AMADEUS_API_KEY}
+      AMADEUS_API_SECRET: ${AMADEUS_API_SECRET}
+      MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_HOTEL}
+      MERCHANT_PAYMENT_ADDRESS: "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd"
+      MERCHANT_DID: "did:nexus:20250407:demo_hotel"
+      NEXUS_CORE_URL: "http://nexus-core:10000"
+      NEXUS_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
+      PORTAL_BASE_URL: "https://xagenpay.com/hotel"
+
+  # ── Telegram Bot ──
+  telegram-bot:
+    build:
+      context: ../src/telegram-bot
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "127.0.0.1:10003:10000"
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      NEXUS_CORE_URL: "http://nexus-core:10000"
+      PORT: "10000"
+      BASE_URL: "https://xagenpay.com/tg-bot"
+
+  # ── Telegram Order Panel ──
+  telegram-order-panel:
+    image: node:20-slim
+    restart: always
+    ports:
+      - "127.0.0.1:10004:3000"
+    working_dir: /app
+    volumes:
+      - ../src/telegram-order-panel:/app
+    command: sh -c "npm install --production && node server.js"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      TG_BOT_TOKEN: ${TG_ORDER_BOT_TOKEN}
+      FLIGHT_API: "http://flight-agent:10000/api/v1/call-tool"
+      HOTEL_API: "http://hotel-agent:10000/api/v1/call-tool"
+
+volumes:
+  pgdata:
