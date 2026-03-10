@@ -1045,7 +1045,7 @@ const MarketPage = ({ lang }: { lang: Language }) => {
 export default function App() {
   const [lang, setLang] = useState<Language>('en');
   const [page, setPage] = useState<'home' | 'market'>('home');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
   // Scroll to top on page change
   useEffect(() => {
