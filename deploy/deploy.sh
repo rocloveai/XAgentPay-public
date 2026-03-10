@@ -20,7 +20,12 @@ echo "========================================="
 echo ""
 echo "[1/7] 安装系统依赖..."
 apt update -qq
-apt install -y -qq docker.io docker-compose-plugin nginx certbot python3-certbot-nginx git ufw
+apt install -y -qq nginx certbot python3-certbot-nginx git ufw ca-certificates curl
+
+# 安装 Docker (官方源)
+if ! command -v docker &>/dev/null; then
+  curl -fsSL https://get.docker.com | sh
+fi
 
 # 启动 Docker
 systemctl enable docker
