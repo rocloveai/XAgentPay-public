@@ -202,6 +202,150 @@ export const translations = {
         required: "Required Fields",
         optional: "Optional Fields",
       }
+    },
+    privacy: {
+      badge: "Legal",
+      title: "Privacy Policy",
+      lastUpdated: "Last updated: March 10, 2026",
+      intro: 'XAgent Pay ("we," "our," or "us") operates the xagenpay.com website and the XAgent Pay protocol. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website or use our services.',
+      infoCollect: {
+        title: "1. Information We Collect",
+        blockchain: {
+          title: "1.1 Blockchain Data",
+          text: "When you interact with the XAgent Pay protocol, your transactions are recorded on the XLayer blockchain. This includes wallet addresses, transaction hashes, amounts, and timestamps. This data is publicly available on the blockchain and cannot be deleted."
+        },
+        agentReg: {
+          title: "1.2 Agent Registration Data",
+          text: "When you register an AI agent on our marketplace, we collect the agent name, description, endpoint URL, skill manifest URL, payment address, and category information."
+        },
+        autoCollect: {
+          title: "1.3 Automatically Collected Data",
+          text: "We may automatically collect certain information when you visit our website, including your IP address, browser type, operating system, referring URLs, and pages viewed. This information is used for analytics and to improve our services."
+        }
+      },
+      howWeUse: {
+        title: "2. How We Use Your Information",
+        intro: "We use the information we collect to:",
+        items: [
+          "Facilitate escrow payments and settlement between AI agents",
+          "Display registered agents on the marketplace",
+          "Monitor and prevent fraudulent or unauthorized transactions",
+          "Comply with anti-money laundering (AML) requirements",
+          "Improve and maintain our website and protocol",
+          "Communicate important updates about the service"
+        ]
+      },
+      dataSharing: {
+        title: "3. Data Sharing",
+        intro: "We do not sell your personal information. We may share data with:",
+        items: [
+          { bold: "Blockchain networks:", text: "Transaction data is broadcast to the XLayer network" },
+          { bold: "Compliance partners:", text: "For AML/KYC screening as required by law" },
+          { bold: "Service providers:", text: "Infrastructure and hosting providers that help us operate" },
+          { bold: "Legal authorities:", text: "When required by law or to protect our rights" }
+        ]
+      },
+      dataSecurity: {
+        title: "4. Data Security",
+        text: "We implement industry-standard security measures to protect your information. However, no method of transmission over the Internet is 100% secure. We use encryption, access controls, and regular security audits to safeguard data."
+      },
+      yourRights: {
+        title: "5. Your Rights",
+        intro: "Depending on your jurisdiction, you may have the right to:",
+        items: [
+          "Access the personal data we hold about you",
+          "Request correction of inaccurate data",
+          "Request deletion of your data (excluding blockchain records)",
+          "Opt out of marketing communications"
+        ]
+      },
+      cookies: {
+        title: "6. Cookies",
+        text: "Our website uses minimal cookies for essential functionality. We do not use third-party tracking cookies. You can control cookie preferences through your browser settings."
+      },
+      changes: {
+        title: "7. Changes to This Policy",
+        text: 'We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last updated" date.'
+      },
+      contact: {
+        title: "8. Contact Us",
+        text: "If you have questions about this Privacy Policy, please contact us at",
+        email: "privacy@xagenpay.com"
+      }
+    },
+    terms: {
+      badge: "Legal",
+      title: "Terms of Service",
+      lastUpdated: "Last updated: March 10, 2026",
+      intro: 'These Terms of Service ("Terms") govern your access to and use of the XAgent Pay website (xagenpay.com), protocol, and related services. By accessing or using our services, you agree to be bound by these Terms.',
+      acceptance: {
+        title: "1. Acceptance of Terms",
+        text: "By using XAgent Pay, you confirm that you are at least 18 years old, have the legal capacity to enter into these Terms, and are not prohibited from using blockchain-based services under applicable laws."
+      },
+      description: {
+        title: "2. Description of Service",
+        intro: "XAgent Pay is a decentralized payment protocol that enables AI agents to make autonomous stablecoin payments on the XLayer blockchain. Our services include:",
+        items: [
+          "Escrow-based payment settlement between AI agents",
+          "A marketplace for discovering and listing commercial AI agents",
+          "MCP (Model Context Protocol) integration for agent-to-agent payments",
+          "Automated revenue distribution and split payments"
+        ]
+      },
+      wallet: {
+        title: "3. Wallet and Blockchain",
+        text: "You are solely responsible for the security of your wallet private keys. XAgent Pay is non-custodial — we never hold or have access to your funds. All transactions are executed through smart contracts on the XLayer blockchain and are irreversible once confirmed."
+      },
+      agentReg: {
+        title: "4. Agent Registration",
+        intro: "When listing an AI agent on the XAgent Pay marketplace, you represent that:",
+        items: [
+          "You have the right to offer the agent's services",
+          "Your agent does not facilitate illegal activities",
+          "The information provided is accurate and up to date",
+          "Your agent maintains reasonable uptime and service quality"
+        ]
+      },
+      prohibited: {
+        title: "5. Prohibited Uses",
+        intro: "You agree not to use XAgent Pay to:",
+        items: [
+          "Facilitate money laundering, terrorist financing, or other illegal activities",
+          "Circumvent sanctions or trade restrictions",
+          "Engage in fraud, deception, or market manipulation",
+          "Interfere with or disrupt the protocol or other users' access",
+          "Reverse-engineer or attempt to exploit smart contract vulnerabilities"
+        ]
+      },
+      fees: {
+        title: "6. Fees",
+        text: "XAgent Pay may charge protocol fees on transactions processed through the escrow contract. Fee rates are transparently defined in the smart contract and may be updated through governance. You are also responsible for blockchain gas fees on the XLayer network."
+      },
+      disclaimer: {
+        title: "7. Disclaimer of Warranties",
+        text: 'XAgent Pay is provided "as is" and "as available" without warranties of any kind, either express or implied. We do not guarantee uninterrupted access, error-free operation, or that the protocol will meet your requirements. Smart contracts may contain bugs despite auditing efforts.'
+      },
+      liability: {
+        title: "8. Limitation of Liability",
+        text: "To the maximum extent permitted by law, XAgent Pay and its contributors shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of funds, data, or business opportunities, arising from your use of or inability to use our services."
+      },
+      indemnification: {
+        title: "9. Indemnification",
+        text: "You agree to indemnify and hold harmless XAgent Pay, its contributors, and affiliates from any claims, damages, or expenses arising from your use of the service, violation of these Terms, or infringement of any third party's rights."
+      },
+      modifications: {
+        title: "10. Modifications",
+        text: "We reserve the right to modify these Terms at any time. Changes will be effective upon posting to this page. Your continued use of XAgent Pay after changes constitutes acceptance of the updated Terms."
+      },
+      governing: {
+        title: "11. Governing Law",
+        text: "These Terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles. Any disputes shall be resolved through binding arbitration."
+      },
+      contact: {
+        title: "12. Contact",
+        text: "For questions about these Terms, please contact us at",
+        email: "legal@xagenpay.com"
+      }
     }
   },
   zh: {
@@ -404,6 +548,150 @@ export const translations = {
         api: "注册 API",
         required: "必填字段",
         optional: "可选字段",
+      }
+    },
+    privacy: {
+      badge: "法律",
+      title: "隐私政策",
+      lastUpdated: "最后更新：2026年3月10日",
+      intro: 'XAgent Pay（"我们"或"本公司"）运营 xagenpay.com 网站和 XAgent Pay 协议。本隐私政策说明了当您访问我们的网站或使用我们的服务时，我们如何收集、使用、披露和保护您的信息。',
+      infoCollect: {
+        title: "1. 我们收集的信息",
+        blockchain: {
+          title: "1.1 区块链数据",
+          text: "当您与 XAgent Pay 协议交互时，您的交易会被记录在 XLayer 区块链上。这包括钱包地址、交易哈希、金额和时间戳。这些数据在区块链上公开可见且无法删除。"
+        },
+        agentReg: {
+          title: "1.2 代理注册数据",
+          text: "当您在我们的市场上注册 AI 代理时，我们会收集代理名称、描述、端点 URL、技能清单 URL、收款地址和类别信息。"
+        },
+        autoCollect: {
+          title: "1.3 自动收集的数据",
+          text: "当您访问我们的网站时，我们可能会自动收集某些信息，包括您的 IP 地址、浏览器类型、操作系统、引用 URL 和浏览页面。这些信息用于分析和改善我们的服务。"
+        }
+      },
+      howWeUse: {
+        title: "2. 我们如何使用您的信息",
+        intro: "我们使用收集到的信息来：",
+        items: [
+          "促进 AI 代理之间的托管支付和结算",
+          "在市场上展示已注册的代理",
+          "监控和防止欺诈或未授权交易",
+          "遵守反洗钱 (AML) 要求",
+          "改善和维护我们的网站和协议",
+          "传达有关服务的重要更新"
+        ]
+      },
+      dataSharing: {
+        title: "3. 数据共享",
+        intro: "我们不会出售您的个人信息。我们可能会与以下方共享数据：",
+        items: [
+          { bold: "区块链网络：", text: "交易数据会广播到 XLayer 网络" },
+          { bold: "合规合作伙伴：", text: "根据法律要求进行 AML/KYC 筛查" },
+          { bold: "服务提供商：", text: "帮助我们运营的基础设施和托管提供商" },
+          { bold: "法律机关：", text: "法律要求时或为保护我们的权利时" }
+        ]
+      },
+      dataSecurity: {
+        title: "4. 数据安全",
+        text: "我们采用行业标准的安全措施来保护您的信息。但是，互联网上的任何传输方法都不是 100% 安全的。我们使用加密、访问控制和定期安全审计来保护数据。"
+      },
+      yourRights: {
+        title: "5. 您的权利",
+        intro: "根据您所在的司法管辖区，您可能有权：",
+        items: [
+          "访问我们持有的关于您的个人数据",
+          "请求更正不准确的数据",
+          "请求删除您的数据（不包括区块链记录）",
+          "选择退出营销通信"
+        ]
+      },
+      cookies: {
+        title: "6. Cookies",
+        text: "我们的网站仅使用基本功能所需的最少 Cookie。我们不使用第三方跟踪 Cookie。您可以通过浏览器设置控制 Cookie 偏好。"
+      },
+      changes: {
+        title: "7. 政策变更",
+        text: '我们可能会不时更新本隐私政策。我们将通过在本页面发布新的隐私政策并更新"最后更新"日期来通知您任何变更。'
+      },
+      contact: {
+        title: "8. 联系我们",
+        text: "如果您对本隐私政策有任何疑问，请通过以下邮箱联系我们",
+        email: "privacy@xagenpay.com"
+      }
+    },
+    terms: {
+      badge: "法律",
+      title: "服务条款",
+      lastUpdated: "最后更新：2026年3月10日",
+      intro: '本服务条款（"条款"）约束您对 XAgent Pay 网站 (xagenpay.com)、协议及相关服务的访问和使用。访问或使用我们的服务即表示您同意受这些条款的约束。',
+      acceptance: {
+        title: "1. 接受条款",
+        text: "使用 XAgent Pay 即表示您确认您已年满 18 周岁，具有签订这些条款的法律行为能力，且未被适用法律禁止使用基于区块链的服务。"
+      },
+      description: {
+        title: "2. 服务说明",
+        intro: "XAgent Pay 是一个去中心化支付协议，使 AI 代理能够在 XLayer 区块链上进行自主稳定币支付。我们的服务包括：",
+        items: [
+          "AI 代理之间基于托管的支付结算",
+          "用于发现和上架商业 AI 代理的市场",
+          "用于代理间支付的 MCP（模型上下文协议）集成",
+          "自动化收入分配和分账支付"
+        ]
+      },
+      wallet: {
+        title: "3. 钱包与区块链",
+        text: "您全权负责钱包私钥的安全。XAgent Pay 是非托管的——我们从不持有或访问您的资金。所有交易通过 XLayer 区块链上的智能合约执行，一旦确认即不可逆转。"
+      },
+      agentReg: {
+        title: "4. 代理注册",
+        intro: "在 XAgent Pay 市场上架 AI 代理时，您声明：",
+        items: [
+          "您有权提供该代理的服务",
+          "您的代理不会促进非法活动",
+          "提供的信息准确且最新",
+          "您的代理保持合理的正常运行时间和服务质量"
+        ]
+      },
+      prohibited: {
+        title: "5. 禁止用途",
+        intro: "您同意不将 XAgent Pay 用于：",
+        items: [
+          "促进洗钱、恐怖主义融资或其他非法活动",
+          "规避制裁或贸易限制",
+          "从事欺诈、欺骗或市场操纵",
+          "干扰或破坏协议或其他用户的访问",
+          "逆向工程或试图利用智能合约漏洞"
+        ]
+      },
+      fees: {
+        title: "6. 费用",
+        text: "XAgent Pay 可能会对通过托管合约处理的交易收取协议费用。费率在智能合约中透明定义，并可通过治理进行更新。您还需要承担 XLayer 网络上的区块链 Gas 费用。"
+      },
+      disclaimer: {
+        title: "7. 免责声明",
+        text: 'XAgent Pay 按"现状"和"可用"基础提供，不提供任何明示或暗示的保证。我们不保证不间断的访问、无错误的运行，或协议将满足您的要求。尽管经过审计，智能合约仍可能包含错误。'
+      },
+      liability: {
+        title: "8. 责任限制",
+        text: "在法律允许的最大范围内，XAgent Pay 及其贡献者不对任何间接、附带、特殊、后果性或惩罚性损害承担责任，包括因您使用或无法使用我们的服务而产生的资金、数据或商业机会损失。"
+      },
+      indemnification: {
+        title: "9. 赔偿",
+        text: "您同意对 XAgent Pay、其贡献者和关联方进行赔偿并使其免受损害，包括因您使用服务、违反这些条款或侵犯任何第三方权利而产生的任何索赔、损害或费用。"
+      },
+      modifications: {
+        title: "10. 修改",
+        text: "我们保留随时修改这些条款的权利。变更将在发布到本页面后生效。您在变更后继续使用 XAgent Pay 即表示接受更新后的条款。"
+      },
+      governing: {
+        title: "11. 适用法律",
+        text: "这些条款应根据适用法律进行管辖和解释，不考虑法律冲突原则。任何争议应通过有约束力的仲裁解决。"
+      },
+      contact: {
+        title: "12. 联系方式",
+        text: "如果您对这些条款有疑问，请通过以下邮箱联系我们",
+        email: "legal@xagenpay.com"
       }
     }
   },
@@ -608,6 +896,150 @@ export const translations = {
         required: "必須フィールド",
         optional: "オプションフィールド",
       }
+    },
+    privacy: {
+      badge: "法務",
+      title: "プライバシーポリシー",
+      lastUpdated: "最終更新日：2026年3月10日",
+      intro: "XAgent Pay（「当社」）は、xagenpay.com ウェブサイトおよび XAgent Pay プロトコルを運営しています。本プライバシーポリシーは、当社のウェブサイトにアクセスしたり、サービスを利用したりする際に、お客様の情報をどのように収集、使用、開示、保護するかについて説明します。",
+      infoCollect: {
+        title: "1. 収集する情報",
+        blockchain: {
+          title: "1.1 ブロックチェーンデータ",
+          text: "XAgent Pay プロトコルとやり取りすると、お客様の取引は XLayer ブロックチェーンに記録されます。これには、ウォレットアドレス、トランザクションハッシュ、金額、タイムスタンプが含まれます。このデータはブロックチェーン上で公開されており、削除できません。"
+        },
+        agentReg: {
+          title: "1.2 エージェント登録データ",
+          text: "マーケットプレイスに AI エージェントを登録する際、エージェント名、説明、エンドポイント URL、スキルマニフェスト URL、支払いアドレス、カテゴリ情報を収集します。"
+        },
+        autoCollect: {
+          title: "1.3 自動収集データ",
+          text: "当社のウェブサイトにアクセスした際、IP アドレス、ブラウザの種類、オペレーティングシステム、参照 URL、閲覧ページなどの情報を自動的に収集する場合があります。これらの情報は分析やサービスの改善に使用されます。"
+        }
+      },
+      howWeUse: {
+        title: "2. 情報の利用方法",
+        intro: "収集した情報は以下の目的で使用します：",
+        items: [
+          "AI エージェント間のエスクロー支払いと決済の促進",
+          "マーケットプレイスでの登録済みエージェントの表示",
+          "不正または未承認の取引の監視と防止",
+          "マネーロンダリング防止 (AML) 要件への準拠",
+          "ウェブサイトとプロトコルの改善と維持",
+          "サービスに関する重要な更新の通知"
+        ]
+      },
+      dataSharing: {
+        title: "3. データ共有",
+        intro: "当社はお客様の個人情報を販売しません。以下の場合にデータを共有することがあります：",
+        items: [
+          { bold: "ブロックチェーンネットワーク：", text: "取引データは XLayer ネットワークにブロードキャストされます" },
+          { bold: "コンプライアンスパートナー：", text: "法律で要求される AML/KYC スクリーニングのため" },
+          { bold: "サービスプロバイダー：", text: "運営を支援するインフラおよびホスティングプロバイダー" },
+          { bold: "法的機関：", text: "法律で要求される場合、または当社の権利を保護するため" }
+        ]
+      },
+      dataSecurity: {
+        title: "4. データセキュリティ",
+        text: "当社は業界標準のセキュリティ対策を実施してお客様の情報を保護しています。ただし、インターネット上の伝送方法は 100% 安全ではありません。暗号化、アクセス制御、定期的なセキュリティ監査を使用してデータを保護しています。"
+      },
+      yourRights: {
+        title: "5. お客様の権利",
+        intro: "お客様の管轄区域に応じて、以下の権利を有する場合があります：",
+        items: [
+          "当社が保有するお客様の個人データへのアクセス",
+          "不正確なデータの訂正の要求",
+          "データの削除の要求（ブロックチェーン記録を除く）",
+          "マーケティング通信からのオプトアウト"
+        ]
+      },
+      cookies: {
+        title: "6. Cookie",
+        text: "当社のウェブサイトは、基本的な機能に必要な最小限の Cookie を使用しています。サードパーティのトラッキング Cookie は使用していません。ブラウザの設定で Cookie の設定を制御できます。"
+      },
+      changes: {
+        title: "7. ポリシーの変更",
+        text: "本プライバシーポリシーは随時更新される場合があります。変更がある場合は、本ページに新しいプライバシーポリシーを掲載し、「最終更新日」を更新することでお知らせします。"
+      },
+      contact: {
+        title: "8. お問い合わせ",
+        text: "本プライバシーポリシーについてご質問がある場合は、以下のメールアドレスまでお問い合わせください",
+        email: "privacy@xagenpay.com"
+      }
+    },
+    terms: {
+      badge: "法務",
+      title: "利用規約",
+      lastUpdated: "最終更新日：2026年3月10日",
+      intro: "本利用規約（「規約」）は、XAgent Pay ウェブサイト (xagenpay.com)、プロトコル、および関連サービスへのアクセスと使用を規定します。当社のサービスにアクセスまたは使用することにより、お客様はこれらの規約に拘束されることに同意します。",
+      acceptance: {
+        title: "1. 規約の承諾",
+        text: "XAgent Pay を使用することにより、お客様は 18 歳以上であること、これらの規約を締結する法的能力を有すること、および適用法の下でブロックチェーンベースのサービスの使用を禁止されていないことを確認します。"
+      },
+      description: {
+        title: "2. サービスの説明",
+        intro: "XAgent Pay は、AI エージェントが XLayer ブロックチェーン上で自律的なステーブルコイン決済を行うことを可能にする分散型決済プロトコルです。当社のサービスには以下が含まれます：",
+        items: [
+          "AI エージェント間のエスクローベースの決済",
+          "商用 AI エージェントの発見と出品のためのマーケットプレイス",
+          "エージェント間決済のための MCP（モデルコンテキストプロトコル）統合",
+          "自動化された収益分配と分割支払い"
+        ]
+      },
+      wallet: {
+        title: "3. ウォレットとブロックチェーン",
+        text: "ウォレットの秘密鍵のセキュリティはお客様の全責任です。XAgent Pay は非カストディアルです — 当社はお客様の資金を保有またはアクセスすることはありません。すべての取引は XLayer ブロックチェーン上のスマートコントラクトを通じて実行され、確認後は取り消すことができません。"
+      },
+      agentReg: {
+        title: "4. エージェント登録",
+        intro: "XAgent Pay マーケットプレイスに AI エージェントを出品する際、お客様は以下を表明します：",
+        items: [
+          "エージェントのサービスを提供する権利を有すること",
+          "エージェントが違法行為を促進しないこと",
+          "提供される情報が正確かつ最新であること",
+          "エージェントが合理的な稼働時間とサービス品質を維持すること"
+        ]
+      },
+      prohibited: {
+        title: "5. 禁止される使用",
+        intro: "お客様は XAgent Pay を以下の目的で使用しないことに同意します：",
+        items: [
+          "マネーロンダリング、テロ資金調達、またはその他の違法活動の促進",
+          "制裁または貿易制限の回避",
+          "詐欺、欺瞞、または市場操作への関与",
+          "プロトコルまたは他のユーザーのアクセスへの妨害または混乱",
+          "スマートコントラクトの脆弱性のリバースエンジニアリングまたは悪用の試み"
+        ]
+      },
+      fees: {
+        title: "6. 手数料",
+        text: "XAgent Pay は、エスクローコントラクトを通じて処理される取引にプロトコル手数料を課す場合があります。手数料率はスマートコントラクトで透明に定義され、ガバナンスを通じて更新される場合があります。お客様は XLayer ネットワーク上のブロックチェーンガス手数料も負担します。"
+      },
+      disclaimer: {
+        title: "7. 保証の免責",
+        text: "XAgent Pay は、明示的または黙示的を問わず、いかなる種類の保証もなく、「現状のまま」「利用可能な範囲で」提供されます。中断のないアクセス、エラーのない動作、またはプロトコルがお客様の要件を満たすことを保証するものではありません。監査にもかかわらず、スマートコントラクトにはバグが含まれている可能性があります。"
+      },
+      liability: {
+        title: "8. 責任の制限",
+        text: "法律で許可される最大限の範囲で、XAgent Pay およびその貢献者は、お客様のサービスの使用または使用不能から生じる資金、データ、またはビジネス機会の損失を含む、間接的、偶発的、特別、結果的、または懲罰的損害について責任を負いません。"
+      },
+      indemnification: {
+        title: "9. 補償",
+        text: "お客様は、サービスの使用、これらの規約の違反、または第三者の権利の侵害から生じるあらゆる請求、損害、または費用について、XAgent Pay、その貢献者、および関連会社を補償し、無害に保つことに同意します。"
+      },
+      modifications: {
+        title: "10. 変更",
+        text: "当社はいつでもこれらの規約を変更する権利を留保します。変更は本ページに掲載した時点で有効になります。変更後の XAgent Pay の継続的な使用は、更新された規約の承諾を意味します。"
+      },
+      governing: {
+        title: "11. 準拠法",
+        text: "これらの規約は、法の抵触原則に関わらず、適用法に従って準拠し解釈されるものとします。紛争は拘束力のある仲裁を通じて解決されるものとします。"
+      },
+      contact: {
+        title: "12. お問い合わせ",
+        text: "これらの規約についてご質問がある場合は、以下のメールアドレスまでお問い合わせください",
+        email: "legal@xagenpay.com"
+      }
     }
   },
   th: {
@@ -810,6 +1242,150 @@ export const translations = {
         api: "Registration API",
         required: "ฟิลด์ที่จำเป็น",
         optional: "ฟิลด์เสริม",
+      }
+    },
+    privacy: {
+      badge: "กฎหมาย",
+      title: "นโยบายความเป็นส่วนตัว",
+      lastUpdated: "อัปเดตล่าสุด: 10 มีนาคม 2026",
+      intro: "XAgent Pay (\"เรา\" หรือ \"บริษัท\") ดำเนินการเว็บไซต์ xagenpay.com และโปรโตคอล XAgent Pay นโยบายความเป็นส่วนตัวนี้อธิบายวิธีที่เราเก็บรวบรวม ใช้ เปิดเผย และปกป้องข้อมูลของคุณเมื่อคุณเยี่ยมชมเว็บไซต์หรือใช้บริการของเรา",
+      infoCollect: {
+        title: "1. ข้อมูลที่เราเก็บรวบรวม",
+        blockchain: {
+          title: "1.1 ข้อมูลบล็อกเชน",
+          text: "เมื่อคุณโต้ตอบกับโปรโตคอล XAgent Pay ธุรกรรมของคุณจะถูกบันทึกบนบล็อกเชน XLayer ซึ่งรวมถึงที่อยู่วอลเล็ต แฮชธุรกรรม จำนวนเงิน และเวลาประทับ ข้อมูลนี้เปิดเผยต่อสาธารณะบนบล็อกเชนและไม่สามารถลบได้"
+        },
+        agentReg: {
+          title: "1.2 ข้อมูลการลงทะเบียนเอเยนต์",
+          text: "เมื่อคุณลงทะเบียนเอเยนต์ AI บนตลาดของเรา เราจะเก็บรวบรวมชื่อเอเยนต์ คำอธิบาย URL ปลายทาง URL ไฟล์ทักษะ ที่อยู่การชำระเงิน และข้อมูลหมวดหมู่"
+        },
+        autoCollect: {
+          title: "1.3 ข้อมูลที่เก็บรวบรวมโดยอัตโนมัติ",
+          text: "เราอาจเก็บรวบรวมข้อมูลบางอย่างโดยอัตโนมัติเมื่อคุณเยี่ยมชมเว็บไซต์ของเรา รวมถึงที่อยู่ IP ประเภทเบราว์เซอร์ ระบบปฏิบัติการ URL อ้างอิง และหน้าที่เข้าชม ข้อมูลนี้ใช้สำหรับการวิเคราะห์และปรับปรุงบริการของเรา"
+        }
+      },
+      howWeUse: {
+        title: "2. วิธีที่เราใช้ข้อมูลของคุณ",
+        intro: "เราใช้ข้อมูลที่เก็บรวบรวมเพื่อ:",
+        items: [
+          "อำนวยความสะดวกในการชำระเงินแบบ Escrow และการชำระเงินระหว่างเอเยนต์ AI",
+          "แสดงเอเยนต์ที่ลงทะเบียนบนตลาด",
+          "ตรวจสอบและป้องกันธุรกรรมที่ฉ้อโกงหรือไม่ได้รับอนุญาต",
+          "ปฏิบัติตามข้อกำหนดการป้องกันการฟอกเงิน (AML)",
+          "ปรับปรุงและบำรุงรักษาเว็บไซต์และโปรโตคอลของเรา",
+          "สื่อสารข้อมูลอัปเดตสำคัญเกี่ยวกับบริการ"
+        ]
+      },
+      dataSharing: {
+        title: "3. การแบ่งปันข้อมูล",
+        intro: "เราไม่ขายข้อมูลส่วนบุคคลของคุณ เราอาจแบ่งปันข้อมูลกับ:",
+        items: [
+          { bold: "เครือข่ายบล็อกเชน:", text: "ข้อมูลธุรกรรมจะถูกส่งไปยังเครือข่าย XLayer" },
+          { bold: "พันธมิตรด้านการปฏิบัติตามกฎระเบียบ:", text: "สำหรับการคัดกรอง AML/KYC ตามที่กฎหมายกำหนด" },
+          { bold: "ผู้ให้บริการ:", text: "ผู้ให้บริการโครงสร้างพื้นฐานและโฮสติ้งที่ช่วยเราดำเนินงาน" },
+          { bold: "หน่วยงานทางกฎหมาย:", text: "เมื่อกฎหมายกำหนดหรือเพื่อปกป้องสิทธิ์ของเรา" }
+        ]
+      },
+      dataSecurity: {
+        title: "4. ความปลอดภัยของข้อมูล",
+        text: "เราใช้มาตรการความปลอดภัยตามมาตรฐานอุตสาหกรรมเพื่อปกป้องข้อมูลของคุณ อย่างไรก็ตาม ไม่มีวิธีการส่งข้อมูลผ่านอินเทอร์เน็ตที่ปลอดภัย 100% เราใช้การเข้ารหัส การควบคุมการเข้าถึง และการตรวจสอบความปลอดภัยเป็นประจำเพื่อปกป้องข้อมูล"
+      },
+      yourRights: {
+        title: "5. สิทธิ์ของคุณ",
+        intro: "ขึ้นอยู่กับเขตอำนาจศาลของคุณ คุณอาจมีสิทธิ์:",
+        items: [
+          "เข้าถึงข้อมูลส่วนบุคคลที่เราถือครองเกี่ยวกับคุณ",
+          "ร้องขอการแก้ไขข้อมูลที่ไม่ถูกต้อง",
+          "ร้องขอการลบข้อมูลของคุณ (ยกเว้นบันทึกบล็อกเชน)",
+          "เลือกที่จะไม่รับการสื่อสารทางการตลาด"
+        ]
+      },
+      cookies: {
+        title: "6. คุกกี้",
+        text: "เว็บไซต์ของเราใช้คุกกี้น้อยที่สุดสำหรับฟังก์ชันพื้นฐาน เราไม่ใช้คุกกี้ติดตามจากบุคคลที่สาม คุณสามารถควบคุมการตั้งค่าคุกกี้ผ่านการตั้งค่าเบราว์เซอร์"
+      },
+      changes: {
+        title: "7. การเปลี่ยนแปลงนโยบาย",
+        text: "เราอาจอัปเดตนโยบายความเป็นส่วนตัวนี้เป็นครั้งคราว เราจะแจ้งให้คุณทราบถึงการเปลี่ยนแปลงใดๆ โดยการโพสต์นโยบายความเป็นส่วนตัวใหม่บนหน้านี้และอัปเดตวันที่ \"อัปเดตล่าสุด\""
+      },
+      contact: {
+        title: "8. ติดต่อเรา",
+        text: "หากคุณมีคำถามเกี่ยวกับนโยบายความเป็นส่วนตัวนี้ โปรดติดต่อเราที่",
+        email: "privacy@xagenpay.com"
+      }
+    },
+    terms: {
+      badge: "กฎหมาย",
+      title: "ข้อกำหนดการให้บริการ",
+      lastUpdated: "อัปเดตล่าสุด: 10 มีนาคม 2026",
+      intro: "ข้อกำหนดการให้บริการนี้ (\"ข้อกำหนด\") ควบคุมการเข้าถึงและใช้งานเว็บไซต์ XAgent Pay (xagenpay.com) โปรโตคอล และบริการที่เกี่ยวข้อง การเข้าถึงหรือใช้บริการของเราถือว่าคุณยอมรับข้อผูกพันตามข้อกำหนดเหล่านี้",
+      acceptance: {
+        title: "1. การยอมรับข้อกำหนด",
+        text: "การใช้ XAgent Pay หมายความว่าคุณยืนยันว่าคุณมีอายุอย่างน้อย 18 ปี มีความสามารถทางกฎหมายในการเข้าร่วมข้อกำหนดเหล่านี้ และไม่ถูกห้ามจากการใช้บริการบนบล็อกเชนภายใต้กฎหมายที่เกี่ยวข้อง"
+      },
+      description: {
+        title: "2. คำอธิบายบริการ",
+        intro: "XAgent Pay เป็นโปรโตคอลการชำระเงินแบบกระจายศูนย์ที่ช่วยให้เอเยนต์ AI สามารถทำการชำระเงินด้วย Stablecoin อัตโนมัติบนบล็อกเชน XLayer บริการของเรารวมถึง:",
+        items: [
+          "การชำระเงินแบบ Escrow ระหว่างเอเยนต์ AI",
+          "ตลาดสำหรับค้นหาและลงรายการเอเยนต์ AI เชิงพาณิชย์",
+          "การรวม MCP (Model Context Protocol) สำหรับการชำระเงินระหว่างเอเยนต์",
+          "การกระจายรายได้อัตโนมัติและการแบ่งจ่าย"
+        ]
+      },
+      wallet: {
+        title: "3. วอลเล็ตและบล็อกเชน",
+        text: "คุณเป็นผู้รับผิดชอบแต่เพียงผู้เดียวต่อความปลอดภัยของ Private Key ของวอลเล็ตของคุณ XAgent Pay เป็นแบบ Non-custodial — เราไม่เคยถือหรือเข้าถึงเงินทุนของคุณ ธุรกรรมทั้งหมดดำเนินการผ่าน Smart Contract บนบล็อกเชน XLayer และไม่สามารถย้อนกลับได้เมื่อยืนยันแล้ว"
+      },
+      agentReg: {
+        title: "4. การลงทะเบียนเอเยนต์",
+        intro: "เมื่อลงรายการเอเยนต์ AI บนตลาด XAgent Pay คุณรับรองว่า:",
+        items: [
+          "คุณมีสิทธิ์ในการเสนอบริการของเอเยนต์",
+          "เอเยนต์ของคุณไม่อำนวยความสะดวกในกิจกรรมที่ผิดกฎหมาย",
+          "ข้อมูลที่ให้มาถูกต้องและเป็นปัจจุบัน",
+          "เอเยนต์ของคุณรักษาเวลาทำงานและคุณภาพบริการที่สมเหตุสมผล"
+        ]
+      },
+      prohibited: {
+        title: "5. การใช้งานที่ห้าม",
+        intro: "คุณตกลงที่จะไม่ใช้ XAgent Pay เพื่อ:",
+        items: [
+          "อำนวยความสะดวกในการฟอกเงิน การสนับสนุนทางการเงินแก่ผู้ก่อการร้าย หรือกิจกรรมผิดกฎหมายอื่นๆ",
+          "หลีกเลี่ยงการคว่ำบาตรหรือข้อจำกัดทางการค้า",
+          "มีส่วนร่วมในการฉ้อโกง การหลอกลวง หรือการปั่นตลาด",
+          "แทรกแซงหรือรบกวนโปรโตคอลหรือการเข้าถึงของผู้ใช้อื่น",
+          "ทำวิศวกรรมย้อนกลับหรือพยายามใช้ประโยชน์จากช่องโหว่ของ Smart Contract"
+        ]
+      },
+      fees: {
+        title: "6. ค่าธรรมเนียม",
+        text: "XAgent Pay อาจเรียกเก็บค่าธรรมเนียมโปรโตคอลสำหรับธุรกรรมที่ดำเนินการผ่านสัญญา Escrow อัตราค่าธรรมเนียมถูกกำหนดอย่างโปร่งใสใน Smart Contract และอาจอัปเดตผ่านการกำกับดูแล คุณยังรับผิดชอบค่า Gas ของบล็อกเชนบนเครือข่าย XLayer"
+      },
+      disclaimer: {
+        title: "7. การปฏิเสธการรับประกัน",
+        text: "XAgent Pay ให้บริการ \"ตามสภาพ\" และ \"ตามที่มี\" โดยไม่มีการรับประกันใดๆ ไม่ว่าจะโดยชัดแจ้งหรือโดยนัย เราไม่รับประกันการเข้าถึงที่ไม่หยุดชะงัก การดำเนินงานที่ปราศจากข้อผิดพลาด หรือโปรโตคอลจะตอบสนองความต้องการของคุณ Smart Contract อาจมีข้อบกพร่องแม้จะมีการตรวจสอบแล้ว"
+      },
+      liability: {
+        title: "8. ข้อจำกัดความรับผิด",
+        text: "ในขอบเขตสูงสุดที่กฎหมายอนุญาต XAgent Pay และผู้ร่วมพัฒนาจะไม่รับผิดชอบต่อความเสียหายทางอ้อม โดยบังเอิญ พิเศษ ที่เป็นผลตามมา หรือเชิงลงโทษ รวมถึงการสูญเสียเงินทุน ข้อมูล หรือโอกาสทางธุรกิจที่เกิดจากการใช้หรือไม่สามารถใช้บริการของเรา"
+      },
+      indemnification: {
+        title: "9. การชดใช้ค่าเสียหาย",
+        text: "คุณตกลงที่จะชดใช้ค่าเสียหายและปกป้อง XAgent Pay ผู้ร่วมพัฒนา และบริษัทในเครือจากการเรียกร้อง ความเสียหาย หรือค่าใช้จ่ายใดๆ ที่เกิดจากการใช้บริการของคุณ การละเมิดข้อกำหนดเหล่านี้ หรือการละเมิดสิทธิ์ของบุคคลที่สาม"
+      },
+      modifications: {
+        title: "10. การแก้ไข",
+        text: "เราขอสงวนสิทธิ์ในการแก้ไขข้อกำหนดเหล่านี้ได้ตลอดเวลา การเปลี่ยนแปลงจะมีผลเมื่อโพสต์บนหน้านี้ การใช้ XAgent Pay ต่อเนื่องของคุณหลังจากการเปลี่ยนแปลงถือว่ายอมรับข้อกำหนดที่อัปเดต"
+      },
+      governing: {
+        title: "11. กฎหมายที่ใช้บังคับ",
+        text: "ข้อกำหนดเหล่านี้จะอยู่ภายใต้และตีความตามกฎหมายที่เกี่ยวข้อง โดยไม่คำนึงถึงหลักการขัดกันของกฎหมาย ข้อพิพาทใดๆ จะต้องได้รับการแก้ไขผ่านอนุญาโตตุลาการที่มีผลผูกพัน"
+      },
+      contact: {
+        title: "12. ติดต่อ",
+        text: "หากคุณมีคำถามเกี่ยวกับข้อกำหนดเหล่านี้ โปรดติดต่อเราที่",
+        email: "legal@xagenpay.com"
       }
     }
   }
