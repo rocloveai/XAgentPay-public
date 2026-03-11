@@ -12,16 +12,16 @@ chain_id: 196
 
 **Pay for merchant orders in a single aggregated transaction via HTTP.** No MCP client required — all functionality is available as standard REST endpoints.
 
-> For MCP tool definitions and connection config, see [skill.md](https://api.xagentpay.com/skill.md).
+> For MCP tool definitions and connection config, see [skill.md](https://api.xagenpay.com/skill.md).
 
-**Base URL:** `https://api.xagentpay.com`
+**Base URL:** `https://api.xagenpay.com`
 
 ## Step 1 — Orchestrate Payment
 
 Submit all merchant quotes + user wallet to create a payment group.
 
 ```bash
-curl -X POST https://api.xagentpay.com/api/orchestrate \
+curl -X POST https://api.xagenpay.com/api/orchestrate \
   -H "Content-Type: application/json" \
   -d '{
     "quotes": [
@@ -55,7 +55,7 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
   "nexus_version": "0.5.0",
   "group_id": "grp_...",
   "status": "PAYMENT_REQUIRED",
-  "checkout_url": "https://api.xagentpay.com/checkout/tok_...",
+  "checkout_url": "https://api.xagenpay.com/checkout/tok_...",
   "instruction": {
     "group_id": "grp_...",
     "chain_id": 196,
@@ -128,7 +128,7 @@ This path is suitable when the agent has direct access to wallet signing (e.g. v
 After the user submits the on-chain transaction (via either path):
 
 ```bash
-curl -X POST https://api.xagentpay.com/api/checkout/tok_.../confirm \
+curl -X POST https://api.xagenpay.com/api/checkout/tok_.../confirm \
   -H "Content-Type: application/json" \
   -d '{"tx_hash": "0x..."}'
 ```
@@ -136,7 +136,7 @@ curl -X POST https://api.xagentpay.com/api/checkout/tok_.../confirm \
 ## Step 4 — Track Status
 
 ```bash
-curl "https://api.xagentpay.com/api/payments?group_id=grp_..."
+curl "https://api.xagenpay.com/api/payments?group_id=grp_..."
 ```
 
 Status lifecycle: `CREATED` -> `ESCROWED` -> `SETTLED` -> `COMPLETED`
@@ -163,7 +163,7 @@ Status lifecycle: `CREATED` -> `ESCROWED` -> `SETTLED` -> `COMPLETED`
 Retrieve group, payments, and instruction for a checkout token. The `:token` can be a `tok_...` token (from `checkout_url`) or a direct `grp_...` / `GRP-...` group ID.
 
 ```bash
-curl https://api.xagentpay.com/api/checkout/tok_abc123...
+curl https://api.xagenpay.com/api/checkout/tok_abc123...
 ```
 
 ### `GET /checkout/:token` — Browser Checkout Page
@@ -171,7 +171,7 @@ curl https://api.xagentpay.com/api/checkout/tok_abc123...
 Open in browser for MetaMask-powered interactive checkout. The checkout page handles wallet connection, chain switching, EIP-3009 signing, and transaction submission.
 
 ```
-https://api.xagentpay.com/checkout/tok_abc123...
+https://api.xagenpay.com/checkout/tok_abc123...
 ```
 
 > **Note:** Checkout URLs expire after 1 hour. If expired, the user must re-orchestrate to get a new URL.
@@ -181,7 +181,7 @@ https://api.xagentpay.com/checkout/tok_abc123...
 Query payment status by XAgent Pay payment ID:
 
 ```bash
-curl https://api.xagentpay.com/api/payments/PAY-xxx
+curl https://api.xagenpay.com/api/payments/PAY-xxx
 ```
 
 Response (HTTP 200):
@@ -214,8 +214,8 @@ Response (HTTP 200):
 Search and discover merchant agents. No authentication required.
 
 ```bash
-curl "https://api.xagentpay.com/api/agents"
-curl "https://api.xagentpay.com/api/agents?query=flight&category=travel&limit=10"
+curl "https://api.xagenpay.com/api/agents"
+curl "https://api.xagenpay.com/api/agents?query=flight&category=travel&limit=10"
 ```
 
 Response (HTTP 200):
@@ -246,7 +246,7 @@ Response (HTTP 200):
 Fetch the full skill.md content for a specific merchant agent. Returns `text/markdown`.
 
 ```bash
-curl https://api.xagentpay.com/api/agents/did:nexus:196:demo_flight/skill
+curl https://api.xagenpay.com/api/agents/did:nexus:196:demo_flight/skill
 ```
 
 ### Rate Limits

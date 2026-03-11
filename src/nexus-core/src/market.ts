@@ -337,7 +337,7 @@ function renderMarketPage(baseUrl: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Commercial Agent Marketplace — Nexus</title>
+  <title>Commercial Agent Marketplace — XAgent</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -386,7 +386,7 @@ function renderMarketPage(baseUrl: string): string {
           <div class="w-8 h-8 rounded bg-gradient-to-br from-brand to-cyan-400 flex items-center justify-center">
             <span class="material-icons-round text-white text-sm">hub</span>
           </div>
-          <span class="text-lg font-bold text-white tracking-wide">xNexus</span>
+          <span class="text-lg font-bold text-white tracking-wide">XAgent</span>
         </a>
         <span class="text-gray-600 mx-1">/</span>
         <span class="text-sm font-medium text-white">Commercial Marketplace</span>
@@ -460,7 +460,7 @@ function renderMarketPage(baseUrl: string): string {
             </div>
             <div>
               <p class="text-sm font-medium text-white">Health endpoint</p>
-              <p class="text-xs text-gray-400 mt-0.5">GET endpoint returning HTTP 200. Nexus checks every 5 minutes to display live status.</p>
+              <p class="text-xs text-gray-400 mt-0.5">GET endpoint returning HTTP 200. XAgent checks every 5 minutes to display live status.</p>
             </div>
           </div>
 
@@ -470,7 +470,7 @@ function renderMarketPage(baseUrl: string): string {
             </div>
             <div>
               <p class="text-sm font-medium text-white">Payment identity</p>
-              <p class="text-xs text-gray-400 mt-0.5">An EVM signer address (for quote signing) and payment address (for receiving stablecoins). These enable Nexus payment integration.</p>
+              <p class="text-xs text-gray-400 mt-0.5">An EVM signer address (for quote signing) and payment address (for receiving stablecoins). These enable XAgent payment integration.</p>
             </div>
           </div>
 

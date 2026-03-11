@@ -89,7 +89,7 @@ services:
       - key: MERCHANT_DID
         value: "did:nexus:196:demo_hotel"
       - key: NEXUS_CORE_URL
-        value: "https://nexus-core-r0xf.onrender.com"
+        value: "https://api.xagenpay.com"
       - key: NEXUS_WEBHOOK_SECRET
         value: "REDACTED_WEBHOOK_SECRET"
       - key: PORTAL_BASE_URL
@@ -123,7 +123,7 @@ services:
       - key: MERCHANT_DID
         value: "did:nexus:196:demo_flight"
       - key: NEXUS_CORE_URL
-        value: "https://nexus-core-r0xf.onrender.com"
+        value: "https://api.xagenpay.com"
       - key: NEXUS_WEBHOOK_SECRET
         value: "REDACTED_WEBHOOK_SECRET"
       - key: PORTAL_BASE_URL
@@ -141,7 +141,7 @@ services:
       - key: TELEGRAM_BOT_TOKEN
         value: "REDACTED_ORDERS_BOT_TOKEN"
       - key: NEXUS_CORE_URL
-        value: "https://nexus-core-r0xf.onrender.com"
+        value: "https://api.xagenpay.com"
       - key: PORT
         value: "10000"
       - key: BASE_URL

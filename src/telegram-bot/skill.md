@@ -31,7 +31,7 @@ category: notification.telegram
 {
   "chatId": "REDACTED_CHAT_ID",
   "groupId": "GRP-xxxx",
-  "checkoutUrl": "https://nexus-core-r0xf.onrender.com/checkout/tok_xxx",
+  "checkoutUrl": "https://api.xagenpay.com/checkout/tok_xxx",
   "outRef": "FLT-20260307-001",
   "hotelRef": "HTL-20260307-001",
   "backRef": "FLT-20260310-001",

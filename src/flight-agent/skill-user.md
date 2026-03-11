@@ -72,7 +72,7 @@ Flight booking merchant agent powered by XAgent Pay. **No MCP client required** 
 
 **Base URL:** `https://nexus-flight-agent-3xb1.onrender.com`
 
-**XAgent Pay Core URL:** `https://nexus-core-r0xf.onrender.com`
+**XAgent Pay Core URL:** `https://api.xagenpay.com`
 
 ## Call Tool Endpoint
 
@@ -181,7 +181,7 @@ Save the parsed JSON as `hotel_quote`.
 Submit one or more quotes to XAgent Pay Core to create a payment group:
 
 ```bash
-POST https://nexus-core-r0xf.onrender.com/api/orchestrate
+POST https://api.xagenpay.com/api/orchestrate
 Content-Type: application/json
 
 {
@@ -196,7 +196,7 @@ Content-Type: application/json
 {
   "status": "PAYMENT_REQUIRED",
   "group_id": "GRP-...",
-  "checkout_url": "https://nexus-core-r0xf.onrender.com/checkout/tok_...",
+  "checkout_url": "https://api.xagenpay.com/checkout/tok_...",
   "instruction": {
     "chain_id": 196,
     "escrow_contract": "0x959028964e8a4e52d6AC716E621B68b3fa579A25",
@@ -230,7 +230,7 @@ This path allows an AI agent wallet to pay on-chain without opening a browser. N
 **4B-1: Get pre-built transactions**
 
 ```bash
-POST https://nexus-core-r0xf.onrender.com/api/agent-pay/build-tx
+POST https://api.xagenpay.com/api/agent-pay/build-tx
 Content-Type: application/json
 
 {
@@ -298,7 +298,7 @@ Wait for this transaction to be mined before proceeding.
 After transaction 2 (deposit) is mined, submit its `tx_hash` to nexus-core:
 
 ```bash
-POST https://nexus-core-r0xf.onrender.com/api/checkout/<group_id>/confirm
+POST https://api.xagenpay.com/api/checkout/<group_id>/confirm
 Content-Type: application/json
 
 {"tx_hash": "0x<DEPOSIT_TX_HASH>"}

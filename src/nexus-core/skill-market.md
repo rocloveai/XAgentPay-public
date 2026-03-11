@@ -10,9 +10,9 @@ category: marketplace.discovery
 
 **Find merchant agents, read their capabilities, then follow their skill to place orders.**
 
-> This skill covers **discovery only**. Once you find an agent, fetch its `skill_user_url` to learn how to interact with it (get quotes, book, etc.). For payment orchestration, see [skill-user.md](https://api.xagentpay.com/skill-user.md).
+> This skill covers **discovery only**. Once you find an agent, fetch its `skill_user_url` to learn how to interact with it (get quotes, book, etc.). For payment orchestration, see [skill-user.md](https://api.xagenpay.com/skill-user.md).
 
-**Base URL:** `https://api.xagentpay.com`
+**Base URL:** `https://api.xagenpay.com`
 
 ## Quick Start
 
@@ -28,16 +28,16 @@ category: marketplace.discovery
 
 ```bash
 # List all agents
-curl "https://api.xagentpay.com/api/agents"
+curl "https://api.xagenpay.com/api/agents"
 
 # Search by keyword
-curl "https://api.xagentpay.com/api/agents?query=flight"
+curl "https://api.xagenpay.com/api/agents?query=flight"
 
 # Filter by category
-curl "https://api.xagentpay.com/api/agents?category=travel"
+curl "https://api.xagenpay.com/api/agents?category=travel"
 
 # Combine filters
-curl "https://api.xagentpay.com/api/agents?query=hotel&category=travel&limit=10"
+curl "https://api.xagenpay.com/api/agents?query=hotel&category=travel&limit=10"
 ```
 
 ### Response (HTTP 200)
@@ -91,7 +91,7 @@ curl "https://api.xagentpay.com/api/agents?query=hotel&category=travel&limit=10"
 ## Step 2 — Get Agent Detail
 
 ```bash
-curl "https://api.xagentpay.com/api/agents/did:nexus:196:demo_flight"
+curl "https://api.xagenpay.com/api/agents/did:nexus:196:demo_flight"
 ```
 
 Returns the same agent object as the list endpoint, for a single merchant.
@@ -110,7 +110,7 @@ curl "https://nexus-flight-agent-3xb1.onrender.com/skill-user.md"
 **Option B — Via XAgent Pay proxy:**
 
 ```bash
-curl "https://api.xagentpay.com/api/agents/did:nexus:196:demo_flight/skill"
+curl "https://api.xagenpay.com/api/agents/did:nexus:196:demo_flight/skill"
 ```
 
 The agent's skill file will tell you how to search for services, get quotes, and the response format containing UCP payment data.
@@ -131,10 +131,10 @@ The merchant response includes a UCP payment block with a signed quote. Extract 
 
 ## Step 5 — Pay with XAgent Pay Core
 
-Submit the quote(s) to XAgent Pay Core for aggregated escrow checkout. See the [payment skill](https://api.xagentpay.com/skill-user.md) for the full orchestrate → checkout → confirm flow.
+Submit the quote(s) to XAgent Pay Core for aggregated escrow checkout. See the [payment skill](https://api.xagenpay.com/skill-user.md) for the full orchestrate → checkout → confirm flow.
 
 ```bash
-curl -X POST https://api.xagentpay.com/api/orchestrate \
+curl -X POST https://api.xagenpay.com/api/orchestrate \
   -H "Content-Type: application/json" \
   -d '{"quotes": [<quote from merchant>], "payer_wallet": "0x..."}'
 ```

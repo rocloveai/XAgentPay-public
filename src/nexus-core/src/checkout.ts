@@ -915,7 +915,7 @@ async function signAndPay() {
 
   // Verify Nexus Core group signature exists
   if (!instr.nexus_group_sig || !instr.core_operator_address) {
-    showError("Missing group signature from Nexus Core. Cannot proceed safely.");
+    showError("Missing group signature from XAgent Core. Cannot proceed safely.");
     return;
   }
   console.log("[XAgent] Group sig verified. Operator:", instr.core_operator_address);
@@ -1221,7 +1221,7 @@ function computeEIP712Digest(domain, message) {
   var digestData = "1901" + domainSeparator.slice(2) + structHash.slice(2);
   var digest = keccak256Bytes(hexToBytes(digestData));
 
-  console.log("[xNexus] EIP-712 debug:", {
+  console.log("[XAgent] EIP-712 debug:", {
     domainSeparator: domainSeparator,
     structHash: structHash,
     digest: digest,

@@ -30,7 +30,7 @@ After you call `nexus_orchestrate_payment` and receive a `checkout_url` + `group
 ```json
 {
   "chat_id": 123456789,
-  "checkout_url": "https://api.xagentpay.com/checkout/tok_xxx",
+  "checkout_url": "https://api.xagenpay.com/checkout/tok_xxx",
   "group_id": "grp_abc123",
   "total_amount_display": "0.30",
   "currency": "USDC",
@@ -117,7 +117,7 @@ The raw tool response is **internal data for you to extract fields from**, not c
 After calling `nexus_orchestrate_payment`, you get back a response like:
 
 ```
-CHECKOUT_URL: https://api.xagentpay.com/checkout/tok_xxx
+CHECKOUT_URL: https://api.xagenpay.com/checkout/tok_xxx
 
 Payment Summary:
   Group: grp_abc123

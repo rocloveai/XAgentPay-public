@@ -38,7 +38,7 @@ https://nexus-telegram-bot-8fzu.onrender.com
 {
   "chatId": "123456789",
   "groupId": "GRP-b4a5d720-318e-48d9-b774-6bd26ad641e1",
-  "checkoutUrl": "https://nexus-core-r0xf.onrender.com/checkout/tok_abc123",
+  "checkoutUrl": "https://api.xagenpay.com/checkout/tok_abc123",
   "outRef": "FLT-20260307-001",
   "hotelRef": "HTL-20260307-001",
   "backRef": "FLT-20260310-001"
@@ -51,7 +51,7 @@ https://nexus-telegram-bot-8fzu.onrender.com
 {
   "chatId": "123456789",
   "groupId": "GRP-xxxx",
-  "checkoutUrl": "https://nexus-core-r0xf.onrender.com/checkout/tok_xxx",
+  "checkoutUrl": "https://api.xagenpay.com/checkout/tok_xxx",
   "outRef": "FLT-20260307-001"
 }
 ```

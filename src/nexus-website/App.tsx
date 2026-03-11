@@ -627,7 +627,7 @@ const Footer = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => v
 // --- Market Page ---
 
 // --- API Configuration ---
-const API_URL = import.meta.env.VITE_NEXUS_CORE_URL || "https://nexus-core-r0xf.onrender.com";
+const API_URL = import.meta.env.VITE_NEXUS_CORE_URL || "https://api.xagenpay.com";
 const SKILL_URL = `${API_URL}/skill.md`;
 const MARKET_SKILL_URL = `${API_URL}/skill-market.md`;
 

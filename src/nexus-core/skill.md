@@ -34,7 +34,7 @@ tools:
 
 Payment orchestration MCP server. **When a user wants to pay for orders from merchant agents (flights, hotels, etc.), submit all quotes here for a single aggregated payment.**
 
-> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://api.xagentpay.com/skill-user.md).
+> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://api.xagenpay.com/skill-user.md).
 
 ## MCP Connection
 
@@ -42,7 +42,7 @@ Payment orchestration MCP server. **When a user wants to pay for orders from mer
 {
   "mcpServers": {
     "nexus-core": {
-      "url": "https://api.xagentpay.com/mcp"
+      "url": "https://api.xagenpay.com/mcp"
     }
   }
 }
