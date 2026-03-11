@@ -37,11 +37,13 @@ import { translations, Language } from './i18n/translations';
 
 // --- Components ---
 
-const Navbar = ({ lang, setLang, page, setPage, theme, setTheme }: { 
-  lang: Language, 
-  setLang: (l: Language) => void, 
-  page: 'home' | 'market',
-  setPage: (p: 'home' | 'market') => void,
+type PageType = 'home' | 'market' | 'privacy' | 'terms';
+
+const Navbar = ({ lang, setLang, page, setPage, theme, setTheme }: {
+  lang: Language,
+  setLang: (l: Language) => void,
+  page: PageType,
+  setPage: (p: PageType) => void,
   theme: 'dark' | 'light',
   setTheme: (t: 'dark' | 'light') => void
 }) => {
@@ -104,8 +106,11 @@ const Navbar = ({ lang, setLang, page, setPage, theme, setTheme }: {
             </div>
           </div>
           
-          <button className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg text-sm font-bold transition-all glow-effect hidden md:block">
-            Launch App
+          <button
+            onClick={() => setPage('market')}
+            className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg text-sm font-bold transition-all glow-effect hidden md:block"
+          >
+            {translations[lang].nav.listAgent}
           </button>
 
           <button className="md:hidden text-slate-500 dark:text-slate-400" onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -570,7 +575,7 @@ const UseCases = ({ lang }: { lang: Language }) => {
   );
 };
 
-const Footer = ({ lang }: { lang: Language }) => {
+const Footer = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => void }) => {
   const t = translations[lang].footer;
   const nav = translations[lang].nav;
 
@@ -600,8 +605,8 @@ const Footer = ({ lang }: { lang: Language }) => {
           <div className="flex flex-col gap-4">
             <h4 className="font-bold text-slate-900 dark:text-white transition-colors">Legal</h4>
             <div className="flex flex-col gap-2">
-              <a href="#" className="text-slate-500 hover:text-primary transition-colors">{t.privacy}</a>
-              <a href="#" className="text-slate-500 hover:text-primary transition-colors">{t.terms}</a>
+              <button onClick={() => setPage('privacy')} className="text-left text-slate-500 hover:text-primary transition-colors">{t.privacy}</button>
+              <button onClick={() => setPage('terms')} className="text-left text-slate-500 hover:text-primary transition-colors">{t.terms}</button>
             </div>
           </div>
         </div>
@@ -1040,11 +1045,213 @@ const MarketPage = ({ lang }: { lang: Language }) => {
   );
 };
 
+// --- Legal Pages ---
+
+const legalSectionClass = "text-slate-700 dark:text-slate-300 leading-relaxed transition-colors";
+const legalHeading2 = "text-xl font-bold text-slate-900 dark:text-white mt-10 mb-4 transition-colors";
+const legalHeading3 = "text-lg font-semibold text-slate-800 dark:text-slate-200 mt-6 mb-3 transition-colors";
+
+const PrivacyPolicyPage = ({ lang }: { lang: Language }) => {
+  return (
+    <section className="py-20 px-6">
+      <div className="max-w-3xl mx-auto">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 bg-primary/5 text-primary text-sm font-medium mb-6">
+            <Shield className="w-4 h-4" />
+            <span>Legal</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4 transition-colors">
+            Privacy Policy
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mb-12 transition-colors">
+            Last updated: March 10, 2026
+          </p>
+
+          <div className={legalSectionClass}>
+            <p className="mb-6">
+              XAgent Pay (&ldquo;we,&rdquo; &ldquo;our,&rdquo; or &ldquo;us&rdquo;) operates the xagenpay.com website and the XAgent Pay protocol. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website or use our services.
+            </p>
+
+            <h2 className={legalHeading2}>1. Information We Collect</h2>
+            <h3 className={legalHeading3}>1.1 Blockchain Data</h3>
+            <p className="mb-4">
+              When you interact with the XAgent Pay protocol, your transactions are recorded on the XLayer blockchain. This includes wallet addresses, transaction hashes, amounts, and timestamps. This data is publicly available on the blockchain and cannot be deleted.
+            </p>
+            <h3 className={legalHeading3}>1.2 Agent Registration Data</h3>
+            <p className="mb-4">
+              When you register an AI agent on our marketplace, we collect the agent name, description, endpoint URL, skill manifest URL, payment address, and category information.
+            </p>
+            <h3 className={legalHeading3}>1.3 Automatically Collected Data</h3>
+            <p className="mb-4">
+              We may automatically collect certain information when you visit our website, including your IP address, browser type, operating system, referring URLs, and pages viewed. This information is used for analytics and to improve our services.
+            </p>
+
+            <h2 className={legalHeading2}>2. How We Use Your Information</h2>
+            <p className="mb-4">We use the information we collect to:</p>
+            <ul className="list-disc list-inside mb-6 space-y-2 pl-4">
+              <li>Facilitate escrow payments and settlement between AI agents</li>
+              <li>Display registered agents on the marketplace</li>
+              <li>Monitor and prevent fraudulent or unauthorized transactions</li>
+              <li>Comply with anti-money laundering (AML) requirements</li>
+              <li>Improve and maintain our website and protocol</li>
+              <li>Communicate important updates about the service</li>
+            </ul>
+
+            <h2 className={legalHeading2}>3. Data Sharing</h2>
+            <p className="mb-4">
+              We do not sell your personal information. We may share data with:
+            </p>
+            <ul className="list-disc list-inside mb-6 space-y-2 pl-4">
+              <li><strong>Blockchain networks:</strong> Transaction data is broadcast to the XLayer network</li>
+              <li><strong>Compliance partners:</strong> For AML/KYC screening as required by law</li>
+              <li><strong>Service providers:</strong> Infrastructure and hosting providers that help us operate</li>
+              <li><strong>Legal authorities:</strong> When required by law or to protect our rights</li>
+            </ul>
+
+            <h2 className={legalHeading2}>4. Data Security</h2>
+            <p className="mb-6">
+              We implement industry-standard security measures to protect your information. However, no method of transmission over the Internet is 100% secure. We use encryption, access controls, and regular security audits to safeguard data.
+            </p>
+
+            <h2 className={legalHeading2}>5. Your Rights</h2>
+            <p className="mb-4">Depending on your jurisdiction, you may have the right to:</p>
+            <ul className="list-disc list-inside mb-6 space-y-2 pl-4">
+              <li>Access the personal data we hold about you</li>
+              <li>Request correction of inaccurate data</li>
+              <li>Request deletion of your data (excluding blockchain records)</li>
+              <li>Opt out of marketing communications</li>
+            </ul>
+
+            <h2 className={legalHeading2}>6. Cookies</h2>
+            <p className="mb-6">
+              Our website uses minimal cookies for essential functionality. We do not use third-party tracking cookies. You can control cookie preferences through your browser settings.
+            </p>
+
+            <h2 className={legalHeading2}>7. Changes to This Policy</h2>
+            <p className="mb-6">
+              We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the &ldquo;Last updated&rdquo; date.
+            </p>
+
+            <h2 className={legalHeading2}>8. Contact Us</h2>
+            <p>
+              If you have questions about this Privacy Policy, please contact us at{' '}
+              <a href="mailto:privacy@xagenpay.com" className="text-primary hover:underline">privacy@xagenpay.com</a>.
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+const TermsOfServicePage = ({ lang }: { lang: Language }) => {
+  return (
+    <section className="py-20 px-6">
+      <div className="max-w-3xl mx-auto">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 bg-primary/5 text-primary text-sm font-medium mb-6">
+            <FileText className="w-4 h-4" />
+            <span>Legal</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4 transition-colors">
+            Terms of Service
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mb-12 transition-colors">
+            Last updated: March 10, 2026
+          </p>
+
+          <div className={legalSectionClass}>
+            <p className="mb-6">
+              These Terms of Service (&ldquo;Terms&rdquo;) govern your access to and use of the XAgent Pay website (xagenpay.com), protocol, and related services. By accessing or using our services, you agree to be bound by these Terms.
+            </p>
+
+            <h2 className={legalHeading2}>1. Acceptance of Terms</h2>
+            <p className="mb-6">
+              By using XAgent Pay, you confirm that you are at least 18 years old, have the legal capacity to enter into these Terms, and are not prohibited from using blockchain-based services under applicable laws.
+            </p>
+
+            <h2 className={legalHeading2}>2. Description of Service</h2>
+            <p className="mb-4">
+              XAgent Pay is a decentralized payment protocol that enables AI agents to make autonomous stablecoin payments on the XLayer blockchain. Our services include:
+            </p>
+            <ul className="list-disc list-inside mb-6 space-y-2 pl-4">
+              <li>Escrow-based payment settlement between AI agents</li>
+              <li>A marketplace for discovering and listing commercial AI agents</li>
+              <li>MCP (Model Context Protocol) integration for agent-to-agent payments</li>
+              <li>Automated revenue distribution and split payments</li>
+            </ul>
+
+            <h2 className={legalHeading2}>3. Wallet and Blockchain</h2>
+            <p className="mb-6">
+              You are solely responsible for the security of your wallet private keys. XAgent Pay is non-custodial — we never hold or have access to your funds. All transactions are executed through smart contracts on the XLayer blockchain and are irreversible once confirmed.
+            </p>
+
+            <h2 className={legalHeading2}>4. Agent Registration</h2>
+            <p className="mb-4">When listing an AI agent on the XAgent Pay marketplace, you represent that:</p>
+            <ul className="list-disc list-inside mb-6 space-y-2 pl-4">
+              <li>You have the right to offer the agent&apos;s services</li>
+              <li>Your agent does not facilitate illegal activities</li>
+              <li>The information provided is accurate and up to date</li>
+              <li>Your agent maintains reasonable uptime and service quality</li>
+            </ul>
+
+            <h2 className={legalHeading2}>5. Prohibited Uses</h2>
+            <p className="mb-4">You agree not to use XAgent Pay to:</p>
+            <ul className="list-disc list-inside mb-6 space-y-2 pl-4">
+              <li>Facilitate money laundering, terrorist financing, or other illegal activities</li>
+              <li>Circumvent sanctions or trade restrictions</li>
+              <li>Engage in fraud, deception, or market manipulation</li>
+              <li>Interfere with or disrupt the protocol or other users&apos; access</li>
+              <li>Reverse-engineer or attempt to exploit smart contract vulnerabilities</li>
+            </ul>
+
+            <h2 className={legalHeading2}>6. Fees</h2>
+            <p className="mb-6">
+              XAgent Pay may charge protocol fees on transactions processed through the escrow contract. Fee rates are transparently defined in the smart contract and may be updated through governance. You are also responsible for blockchain gas fees on the XLayer network.
+            </p>
+
+            <h2 className={legalHeading2}>7. Disclaimer of Warranties</h2>
+            <p className="mb-6">
+              XAgent Pay is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo; without warranties of any kind, either express or implied. We do not guarantee uninterrupted access, error-free operation, or that the protocol will meet your requirements. Smart contracts may contain bugs despite auditing efforts.
+            </p>
+
+            <h2 className={legalHeading2}>8. Limitation of Liability</h2>
+            <p className="mb-6">
+              To the maximum extent permitted by law, XAgent Pay and its contributors shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of funds, data, or business opportunities, arising from your use of or inability to use our services.
+            </p>
+
+            <h2 className={legalHeading2}>9. Indemnification</h2>
+            <p className="mb-6">
+              You agree to indemnify and hold harmless XAgent Pay, its contributors, and affiliates from any claims, damages, or expenses arising from your use of the service, violation of these Terms, or infringement of any third party&apos;s rights.
+            </p>
+
+            <h2 className={legalHeading2}>10. Modifications</h2>
+            <p className="mb-6">
+              We reserve the right to modify these Terms at any time. Changes will be effective upon posting to this page. Your continued use of XAgent Pay after changes constitutes acceptance of the updated Terms.
+            </p>
+
+            <h2 className={legalHeading2}>11. Governing Law</h2>
+            <p className="mb-6">
+              These Terms shall be governed by and construed in accordance with applicable laws, without regard to conflict of law principles. Any disputes shall be resolved through binding arbitration.
+            </p>
+
+            <h2 className={legalHeading2}>12. Contact</h2>
+            <p>
+              For questions about these Terms, please contact us at{' '}
+              <a href="mailto:legal@xagenpay.com" className="text-primary hover:underline">legal@xagenpay.com</a>.
+            </p>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
 // --- Main App ---
 
 export default function App() {
   const [lang, setLang] = useState<Language>('en');
-  const [page, setPage] = useState<'home' | 'market'>('home');
+  const [page, setPage] = useState<PageType>('home');
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
 
   // Scroll to top on page change
@@ -1071,7 +1278,7 @@ export default function App() {
       <main className="flex-1">
         <AnimatePresence mode="wait">
           {page === 'home' ? (
-            <motion.div 
+            <motion.div
               key="home"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1085,8 +1292,8 @@ export default function App() {
               <Monetize lang={lang} />
               <UseCases lang={lang} />
             </motion.div>
-          ) : (
-            <motion.div 
+          ) : page === 'market' ? (
+            <motion.div
               key="market"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1095,11 +1302,31 @@ export default function App() {
             >
               <MarketPage lang={lang} />
             </motion.div>
+          ) : page === 'privacy' ? (
+            <motion.div
+              key="privacy"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <PrivacyPolicyPage lang={lang} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="terms"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <TermsOfServicePage lang={lang} />
+            </motion.div>
           )}
         </AnimatePresence>
       </main>
 
-      <Footer lang={lang} />
+      <Footer lang={lang} setPage={setPage} />
     </div>
   );
 }

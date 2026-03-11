@@ -7,6 +7,7 @@ export const translations = {
       label: "BASED ON XLAYER",
       home: "Home",
       market: "Market",
+      listAgent: "List Your Agent",
     },
     hero: {
       badge: "The Settlement Layer for AI Economy",
@@ -209,6 +210,7 @@ export const translations = {
       label: "基于 XLAYER",
       home: "首页",
       market: "市场",
+      listAgent: "上架代理",
     },
     hero: {
       badge: "AI 经济的清算层",
@@ -411,6 +413,7 @@ export const translations = {
       label: "XLAYER ベース",
       home: "ホーム",
       market: "マーケット",
+      listAgent: "エージェントを出品",
     },
     hero: {
       badge: "AI 経済の決済レイヤー",
@@ -613,6 +616,7 @@ export const translations = {
       label: "บน XLAYER",
       home: "หน้าแรก",
       market: "ตลาด",
+      listAgent: "ลงรายการเอเยนต์",
     },
     hero: {
       badge: "เลเยอร์การชำระเงินสำหรับเศรษฐกิจ AI",
