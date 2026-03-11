@@ -353,243 +353,311 @@ function renderCheckoutPage(
   const rpcUrl = config.rpcUrl;
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>XAgent Checkout</title>
+<title>XAgent Pay - Checkout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
 tailwind.config = {
+  darkMode: 'class',
   theme: {
     extend: {
-      fontFamily: { sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'] }
+      fontFamily: {
+        sans: ['Space Grotesk', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+      },
+      colors: {
+        primary: '#0b50da',
+        darkBg: '#0a0e17',
+        lightBg: '#f5f6f8',
+        cardDark: 'rgba(15, 23, 42, 0.5)',
+        accentGreen: '#10b981',
+      },
+      backgroundImage: {
+        'grid-pattern': "linear-gradient(to right, rgba(11, 80, 218, 0.08) 1px, transparent 1px), linear-gradient(to bottom, rgba(11, 80, 218, 0.08) 1px, transparent 1px)",
+        'grid-pattern-light': "linear-gradient(to right, rgba(11, 80, 218, 0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(11, 80, 218, 0.06) 1px, transparent 1px)",
+      },
+      backgroundSize: { 'grid-size': '40px 40px' },
     }
   }
 }
 </script>
 <style>
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   .fade-in { animation: fadeIn 0.3s ease-out; }
-  @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-  .pulse-dot { animation: pulse-dot 2s ease-in-out infinite; }
+  @keyframes pulse-soft { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.1); } }
+  .pulse-dot { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .spinner { animation: spin 1s linear infinite; border: 3px solid rgba(255,255,255,0.1); border-top-color: #818cf8; border-radius: 50%; width: 24px; height: 24px; }
-  @keyframes progress { 0% { width: 0; } 100% { width: 100%; } }
+  .spinner { animation: spin 1s linear infinite; border: 3px solid rgba(255,255,255,0.1); border-top-color: #0b50da; border-radius: 50%; width: 24px; height: 24px; }
+  .dark .spinner { border-color: rgba(255,255,255,0.1); border-top-color: #0b50da; }
+  html:not(.dark) .spinner { border-color: rgba(0,0,0,0.1); border-top-color: #0b50da; }
+  .glass-border { border: 1px solid rgba(255, 255, 255, 0.05); }
+  html:not(.dark) .glass-border { border: 1px solid rgba(0, 0, 0, 0.08); }
+  .glow-button { box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); transition: all 0.3s ease; }
+  .glow-button:hover { box-shadow: 0 0 30px rgba(16, 185, 129, 0.5); }
+  body { min-height: 100dvh; transition: background-color 0.3s, color 0.3s; }
 </style>
 </head>
-<body class="bg-slate-900 text-slate-50 min-h-screen font-sans antialiased">
+<body class="dark:bg-darkBg dark:text-slate-100 bg-lightBg text-slate-900 font-sans antialiased dark:bg-grid-pattern bg-grid-pattern-light bg-grid-size flex justify-center">
+
+<main class="w-full max-w-2xl px-4 py-8 flex flex-col gap-6">
 
 <!-- Header -->
-<header class="border-b border-slate-800 px-6 py-4">
-  <div class="max-w-2xl mx-auto flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-        <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-        </svg>
-      </div>
-      <h1 class="text-lg font-semibold tracking-tight">XAgent Checkout</h1>
+<header class="flex items-center justify-between">
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-lg">
+      <svg fill="none" height="24" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24" width="24">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+      </svg>
     </div>
-    <span id="chain-badge" class="hidden items-center gap-1.5 bg-emerald-500/15 text-emerald-400 text-xs font-medium px-2.5 py-1 rounded-full">
-      <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full pulse-dot"></span>
-      <span id="chain-name">${esc(chainName)}</span>
+    <div>
+      <h1 class="text-xl font-bold tracking-tight dark:text-white text-slate-900">XAgent Pay</h1>
+      <p class="text-[10px] text-primary font-bold tracking-[0.2em] uppercase leading-none">Checkout</p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2">
+    <!-- Theme toggle -->
+    <button id="theme-toggle" onclick="toggleTheme()"
+            class="w-9 h-9 rounded-full flex items-center justify-center dark:bg-slate-800/80 bg-white dark:border-slate-700 border-slate-200 border transition-colors cursor-pointer hover:opacity-80">
+      <svg id="icon-sun" class="w-4 h-4 dark:text-slate-400 text-slate-500 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      </svg>
+      <svg id="icon-moon" class="w-4 h-4 dark:text-slate-400 text-slate-500 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+      </svg>
+    </button>
+    <!-- Chain badge -->
+    <span id="chain-badge" class="hidden items-center gap-2 dark:bg-slate-900/80 bg-white px-3 py-1.5 rounded-full dark:border-slate-800 border-slate-200 border shadow-sm">
+      <span class="relative flex h-2 w-2">
+        <span class="pulse-dot absolute inline-flex h-full w-full rounded-full bg-accentGreen opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-accentGreen"></span>
+      </span>
+      <span id="chain-name" class="text-[11px] font-medium dark:text-slate-300 text-slate-600">${esc(chainName)}</span>
     </span>
   </div>
 </header>
 
-<main class="max-w-2xl mx-auto p-6 space-y-6">
-
-  <!-- Loading skeleton -->
-  <div id="state-loading" class="space-y-4">
-    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 animate-pulse">
-      <div class="h-4 bg-slate-700 rounded w-1/3 mb-4"></div>
-      <div class="h-4 bg-slate-700 rounded w-2/3 mb-2"></div>
-      <div class="h-4 bg-slate-700 rounded w-1/2"></div>
-    </div>
+<!-- Loading skeleton -->
+<div id="state-loading" class="space-y-4">
+  <div class="glass-border dark:bg-cardDark bg-white rounded-3xl p-6 animate-pulse">
+    <div class="h-4 dark:bg-slate-700 bg-slate-200 rounded w-1/3 mb-4"></div>
+    <div class="h-4 dark:bg-slate-700 bg-slate-200 rounded w-2/3 mb-2"></div>
+    <div class="h-4 dark:bg-slate-700 bg-slate-200 rounded w-1/2"></div>
   </div>
+</div>
 
-  <!-- Group Info -->
-  <div id="group-info" class="hidden fade-in">
-    <div class="bg-slate-800 rounded-xl border border-slate-700 px-6 py-4 flex items-center justify-between">
-      <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Group ID</span>
-      <span id="group-id-display" class="font-mono text-xs text-slate-300 truncate ml-3"></span>
+<!-- Group Info -->
+<div id="group-info" class="hidden fade-in">
+  <section class="glass-border dark:bg-cardDark bg-white rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+    <span class="text-[10px] font-bold dark:text-slate-500 text-slate-400 tracking-wider uppercase">Group ID</span>
+    <span id="group-id-display" class="font-mono text-[13px] dark:text-slate-300 text-slate-600 break-all select-all"></span>
+  </section>
+</div>
+
+<!-- Order Summary -->
+<div id="order-summary" class="hidden fade-in">
+  <section class="glass-border dark:bg-cardDark bg-white rounded-3xl overflow-hidden flex flex-col">
+    <div class="p-5 border-b dark:border-white/5 border-slate-100 dark:bg-white/[0.02] bg-slate-50/50">
+      <h2 class="text-sm font-semibold dark:text-slate-400 text-slate-500 uppercase tracking-wide">Order Summary</h2>
     </div>
-  </div>
-
-  <!-- Order Summary (shown in most states) -->
-  <div id="order-summary" class="hidden fade-in">
-    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
-      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Order Summary</h2>
-      <div id="line-items" class="space-y-3 mb-4"></div>
-      <div class="border-t border-slate-700 pt-3 flex justify-between items-center">
-        <span class="text-sm font-semibold text-slate-300">Total</span>
-        <span id="total-amount" class="text-lg font-bold text-slate-50"></span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Payment Details -->
-  <div id="payment-details" class="hidden fade-in">
-    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6">
-      <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Payment Details</h2>
-      <div class="space-y-2 text-sm">
-        <div class="flex justify-between"><span class="text-slate-500">Method</span><span class="text-slate-300">EIP-3009 + Batch Deposit</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Chain</span><span class="text-slate-300">${esc(chainName)}</span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Escrow</span><span class="font-mono text-xs text-slate-300" id="escrow-addr"></span></div>
-        <div class="flex justify-between"><span class="text-slate-500">Token</span><span class="text-slate-300">USDC</span></div>
+    <div id="line-items" class="flex flex-col"></div>
+    <div class="p-5 dark:bg-white/[0.03] bg-slate-50/80 border-t dark:border-white/5 border-slate-100 flex items-center justify-between">
+      <span class="text-sm font-semibold dark:text-slate-400 text-slate-500 uppercase tracking-wide">Total</span>
+      <div class="text-right">
+        <span id="total-amount" class="text-3xl font-bold dark:text-white text-slate-900 leading-none"></span>
+        <span class="text-lg font-semibold text-primary ml-1">USDC</span>
       </div>
     </div>
-  </div>
+  </section>
+</div>
 
-  <!-- Wallet / Action area -->
-  <div id="action-area" class="hidden fade-in">
-    <div class="bg-slate-800 rounded-xl border border-slate-700 p-6 text-center space-y-4">
-
-      <!-- No OKX Wallet (desktop) -->
-      <div id="no-metamask" class="hidden">
-        <p class="text-red-400 text-sm mb-2">OKX Wallet not detected</p>
-        <div class="space-y-2">
-          <a href="https://www.okx.com/web3" target="_blank" rel="noopener"
-             class="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg transition-colors">
-            <svg class="w-5 h-5" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#000"/><rect x="4" y="4" width="10" height="10" rx="1" fill="white"/><rect x="18" y="4" width="10" height="10" rx="1" fill="white"/><rect x="4" y="18" width="10" height="10" rx="1" fill="white"/><rect x="18" y="18" width="10" height="10" rx="1" fill="white"/></svg>
-            Install OKX Wallet
-          </a>
-          <p class="text-slate-500 text-xs">OKX Wallet supports X Layer natively</p>
-        </div>
-      </div>
-
-      <!-- No OKX Wallet (mobile) -->
-      <div id="no-metamask-mobile" class="hidden">
-        <p class="text-slate-400 text-sm mb-3">Open in OKX Wallet to complete payment</p>
-        <a id="metamask-deeplink" href="#"
-           class="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-8 rounded-lg transition-colors text-lg">
-          <svg class="w-6 h-6" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="white" fill-opacity="0.15"/><rect x="4" y="4" width="10" height="10" rx="1" fill="white"/><rect x="18" y="4" width="10" height="10" rx="1" fill="white"/><rect x="4" y="18" width="10" height="10" rx="1" fill="white"/><rect x="18" y="18" width="10" height="10" rx="1" fill="white"/></svg>
-          Open in OKX Wallet
-        </a>
-        <p class="text-slate-500 text-xs mt-3">Don't have OKX Wallet?
-          <a href="https://www.okx.com/web3" target="_blank" rel="noopener" class="text-blue-400 hover:underline">Download here</a>
-        </p>
-      </div>
-
-      <!-- Connect Wallet -->
-      <div id="connect-wallet" class="hidden">
-        <button id="btn-connect" onclick="connectWallet()"
-                class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2.5 px-8 rounded-lg transition-colors cursor-pointer">
-          Connect OKX Wallet
-        </button>
-      </div>
-
-      <!-- Wrong Chain -->
-      <div id="wrong-chain" class="hidden">
-        <p class="text-amber-400 text-sm mb-2">Please switch to ${esc(chainName)}</p>
-        <button onclick="switchChain()"
-                class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2.5 px-8 rounded-lg transition-colors cursor-pointer">
-          Switch Network
-        </button>
-      </div>
-
-      <!-- Wrong Wallet -->
-      <div id="wrong-wallet" class="hidden">
-        <div class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mb-4">
-          <p class="text-amber-400 text-sm font-medium mb-1">Wrong wallet connected</p>
-          <p class="text-slate-400 text-xs">This payment requires wallet:</p>
-          <p id="expected-wallet" class="font-mono text-xs text-amber-300 mt-1 break-all"></p>
-          <p class="text-slate-400 text-xs mt-2">Currently connected:</p>
-          <p id="current-wallet" class="font-mono text-xs text-slate-300 mt-1 break-all"></p>
-        </div>
-        <p class="text-slate-500 text-xs">Please switch to the correct account in OKX Wallet.</p>
-      </div>
-
-      <!-- Ready to Sign -->
-      <div id="ready-sign" class="hidden">
-        <p class="text-slate-400 text-xs mb-1">Connected</p>
-        <p id="connected-address" class="font-mono text-xs text-slate-300 mb-4"></p>
-        <button id="btn-sign" onclick="signAndPay()"
-                class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-3 px-8 rounded-lg transition-colors text-lg cursor-pointer">
-          Sign &amp; Pay <span id="btn-sign-amount"></span>
-        </button>
-      </div>
-
-      <!-- Step 1: Approve USDC -->
-      <div id="signing" class="hidden">
-        <div class="flex items-center justify-center gap-3">
-          <div class="spinner"></div>
-          <span class="text-slate-300 text-sm">Step 1/2 — Approve USDC in OKX Wallet...</span>
-        </div>
-        <p class="text-slate-500 text-xs mt-2 text-center">Please confirm the USDC approval transaction.</p>
-      </div>
-
-      <!-- Step 2: Deposit -->
-      <div id="submitting" class="hidden">
-        <div class="flex items-center justify-center gap-3">
-          <div class="spinner"></div>
-          <span class="text-slate-300 text-sm">Step 2/2 — Confirm deposit in OKX Wallet...</span>
-        </div>
-        <div class="mt-3 w-full bg-slate-700 rounded-full h-2">
-          <div class="bg-indigo-500 h-2 rounded-full" style="width: 50%; transition: width 2s;"></div>
-        </div>
-        <p class="text-slate-500 text-xs mt-2">You will pay gas for this transaction.</p>
-      </div>
-
-      <!-- Confirming -->
-      <div id="confirming" class="hidden">
-        <div class="flex items-center justify-center gap-3">
-          <div class="spinner"></div>
-          <span class="text-slate-300 text-sm">Confirming on-chain...</span>
-        </div>
-        <div class="mt-3 w-full bg-slate-700 rounded-full h-2">
-          <div class="bg-indigo-500 h-2 rounded-full" style="width: 75%; transition: width 2s;"></div>
-        </div>
-      </div>
+<!-- Payment Details -->
+<div id="payment-details" class="hidden fade-in">
+  <section class="glass-border dark:bg-cardDark bg-white rounded-3xl p-5 grid grid-cols-2 gap-y-4">
+    <div class="flex flex-col gap-1">
+      <span class="text-[10px] font-bold dark:text-slate-500 text-slate-400 tracking-wider uppercase">Method</span>
+      <span class="text-sm font-medium dark:text-slate-100 text-slate-800">Batch Deposit</span>
     </div>
-  </div>
-
-  <!-- Success -->
-  <div id="state-success" class="hidden fade-in">
-    <div class="bg-slate-800 rounded-xl border border-emerald-500/30 p-6 text-center">
-      <div class="w-16 h-16 mx-auto mb-4 bg-emerald-500/20 rounded-full flex items-center justify-center">
-        <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-      </div>
-      <h2 class="text-xl font-bold text-emerald-400 mb-2">Payment Successful</h2>
-      <p class="text-slate-400 text-sm mb-4">Your funds have been deposited into escrow.</p>
-      <div class="bg-slate-900 rounded-lg p-3 text-xs font-mono text-slate-300 break-all" id="success-tx-hash"></div>
+    <div class="flex flex-col gap-1">
+      <span class="text-[10px] font-bold dark:text-slate-500 text-slate-400 tracking-wider uppercase">Chain</span>
+      <span class="text-sm font-medium dark:text-slate-100 text-slate-800">${esc(chainName)}</span>
     </div>
-  </div>
-
-  <!-- Already Paid -->
-  <div id="state-already-paid" class="hidden fade-in">
-    <div class="bg-slate-800 rounded-xl border border-blue-500/30 p-6 text-center">
-      <div class="w-16 h-16 mx-auto mb-4 bg-blue-500/20 rounded-full flex items-center justify-center">
-        <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
-      <h2 class="text-xl font-bold text-blue-400 mb-2">Already Processed</h2>
-      <p class="text-slate-400 text-sm">This payment has already been submitted.</p>
+    <div class="flex flex-col gap-1">
+      <span class="text-[10px] font-bold dark:text-slate-500 text-slate-400 tracking-wider uppercase">Escrow Contract</span>
+      <span class="text-sm font-mono dark:text-slate-400 text-slate-500" id="escrow-addr"></span>
     </div>
-  </div>
+    <div class="flex flex-col gap-1">
+      <span class="text-[10px] font-bold dark:text-slate-500 text-slate-400 tracking-wider uppercase">Token</span>
+      <span class="text-sm font-medium dark:text-slate-100 text-slate-800 flex items-center gap-1.5">
+        <span class="w-4 h-4 rounded-full bg-primary flex items-center justify-center text-[10px] text-white font-bold">$</span>
+        USDC
+      </span>
+    </div>
+  </section>
+</div>
 
-  <!-- Error -->
-  <div id="state-error" class="hidden fade-in">
-    <div class="bg-slate-800 rounded-xl border border-red-500/30 p-6 text-center">
-      <div class="w-16 h-16 mx-auto mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
-        <svg class="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </div>
-      <h2 class="text-xl font-bold text-red-400 mb-2">Error</h2>
-      <p id="error-message" class="text-slate-400 text-sm mb-4"></p>
-      <button onclick="location.reload()"
-              class="bg-slate-700 hover:bg-slate-600 text-white font-semibold py-2 px-6 rounded-lg transition-colors cursor-pointer">
-        Try Again
+<!-- Action area -->
+<div id="action-area" class="hidden fade-in">
+  <section class="space-y-4">
+
+    <!-- No OKX Wallet (desktop) -->
+    <div id="no-metamask" class="hidden glass-border dark:bg-cardDark bg-white rounded-3xl p-6 text-center space-y-3">
+      <p class="text-red-500 dark:text-red-400 text-sm font-medium">OKX Wallet not detected</p>
+      <a href="https://www.okx.com/web3" target="_blank" rel="noopener"
+         class="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-6 rounded-xl transition-colors">
+        <svg class="w-5 h-5" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="white" fill-opacity="0.15"/><rect x="4" y="4" width="10" height="10" rx="1" fill="white"/><rect x="18" y="4" width="10" height="10" rx="1" fill="white"/><rect x="4" y="18" width="10" height="10" rx="1" fill="white"/><rect x="18" y="18" width="10" height="10" rx="1" fill="white"/></svg>
+        Install OKX Wallet
+      </a>
+      <p class="dark:text-slate-500 text-slate-400 text-xs">OKX Wallet supports X Layer natively</p>
+    </div>
+
+    <!-- No OKX Wallet (mobile) -->
+    <div id="no-metamask-mobile" class="hidden glass-border dark:bg-cardDark bg-white rounded-3xl p-6 text-center space-y-3">
+      <p class="dark:text-slate-300 text-slate-600 text-sm">Open in OKX Wallet to complete payment</p>
+      <a id="metamask-deeplink" href="#"
+         class="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-semibold py-3.5 px-8 rounded-xl transition-colors text-lg">
+        <svg class="w-6 h-6" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="white" fill-opacity="0.15"/><rect x="4" y="4" width="10" height="10" rx="1" fill="white"/><rect x="18" y="4" width="10" height="10" rx="1" fill="white"/><rect x="4" y="18" width="10" height="10" rx="1" fill="white"/><rect x="18" y="18" width="10" height="10" rx="1" fill="white"/></svg>
+        Open in OKX Wallet
+      </a>
+      <p class="dark:text-slate-500 text-slate-400 text-xs">Don't have OKX Wallet?
+        <a href="https://www.okx.com/web3" target="_blank" rel="noopener" class="text-primary hover:underline">Download here</a>
+      </p>
+    </div>
+
+    <!-- Connect Wallet -->
+    <div id="connect-wallet" class="hidden text-center py-2">
+      <button id="btn-connect" onclick="connectWallet()"
+              class="bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-8 rounded-xl transition-colors cursor-pointer">
+        Connect OKX Wallet
       </button>
     </div>
-  </div>
 
-  <div class="text-center text-xs text-slate-600 mt-4">Powered by Nexus Protocol v0.4.0</div>
+    <!-- Wrong Chain -->
+    <div id="wrong-chain" class="hidden glass-border dark:bg-cardDark bg-white rounded-3xl p-6 text-center space-y-3">
+      <p class="text-amber-500 dark:text-amber-400 text-sm font-medium">Please switch to ${esc(chainName)}</p>
+      <button onclick="switchChain()"
+              class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-3 px-8 rounded-xl transition-colors cursor-pointer">
+        Switch Network
+      </button>
+    </div>
+
+    <!-- Wrong Wallet -->
+    <div id="wrong-wallet" class="hidden glass-border dark:bg-cardDark bg-white rounded-3xl p-6 space-y-3">
+      <div class="dark:bg-amber-500/10 bg-amber-50 border dark:border-amber-500/30 border-amber-200 rounded-xl p-4">
+        <p class="text-amber-600 dark:text-amber-400 text-sm font-semibold mb-2">Wrong wallet connected</p>
+        <p class="dark:text-slate-400 text-slate-500 text-xs">This payment requires wallet:</p>
+        <p id="expected-wallet" class="font-mono text-xs dark:text-amber-300 text-amber-600 mt-1 break-all"></p>
+        <p class="dark:text-slate-400 text-slate-500 text-xs mt-2">Currently connected:</p>
+        <p id="current-wallet" class="font-mono text-xs dark:text-slate-300 text-slate-600 mt-1 break-all"></p>
+      </div>
+      <p class="dark:text-slate-500 text-slate-400 text-xs text-center">Please switch to the correct account in OKX Wallet.</p>
+    </div>
+
+    <!-- Ready to Sign -->
+    <div id="ready-sign" class="hidden text-center space-y-4">
+      <div class="flex items-center justify-center gap-2 text-sm">
+        <span class="w-1.5 h-1.5 rounded-full bg-accentGreen"></span>
+        <span class="dark:text-slate-400 text-slate-500">Connected</span>
+        <span id="connected-address" class="font-mono dark:text-slate-200 text-slate-700 dark:bg-slate-800/50 bg-slate-100 px-2 py-0.5 rounded dark:border-slate-700 border-slate-200 border text-xs"></span>
+      </div>
+      <button id="btn-sign" onclick="signAndPay()"
+              class="w-full py-5 px-6 rounded-2xl bg-accentGreen text-darkBg font-bold text-lg glow-button hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-3 cursor-pointer">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path>
+        </svg>
+        Sign &amp; Pay <span id="btn-sign-amount"></span>
+      </button>
+    </div>
+
+    <!-- Step 1: Approve USDC -->
+    <div id="signing" class="hidden glass-border dark:bg-cardDark bg-white rounded-3xl p-6 text-center space-y-3">
+      <div class="flex items-center justify-center gap-3">
+        <div class="spinner"></div>
+        <span class="dark:text-slate-300 text-slate-600 text-sm font-medium">Step 1/2 — Approve USDC in OKX Wallet...</span>
+      </div>
+      <p class="dark:text-slate-500 text-slate-400 text-xs">Please confirm the USDC approval transaction.</p>
+    </div>
+
+    <!-- Step 2: Deposit -->
+    <div id="submitting" class="hidden glass-border dark:bg-cardDark bg-white rounded-3xl p-6 text-center space-y-3">
+      <div class="flex items-center justify-center gap-3">
+        <div class="spinner"></div>
+        <span class="dark:text-slate-300 text-slate-600 text-sm font-medium">Step 2/2 — Confirm deposit in OKX Wallet...</span>
+      </div>
+      <div class="w-full dark:bg-slate-700 bg-slate-200 rounded-full h-2">
+        <div class="bg-primary h-2 rounded-full" style="width: 50%; transition: width 2s;"></div>
+      </div>
+      <p class="dark:text-slate-500 text-slate-400 text-xs">You will pay gas for this transaction.</p>
+    </div>
+
+    <!-- Confirming -->
+    <div id="confirming" class="hidden glass-border dark:bg-cardDark bg-white rounded-3xl p-6 text-center space-y-3">
+      <div class="flex items-center justify-center gap-3">
+        <div class="spinner"></div>
+        <span class="dark:text-slate-300 text-slate-600 text-sm font-medium">Confirming on-chain...</span>
+      </div>
+      <div class="w-full dark:bg-slate-700 bg-slate-200 rounded-full h-2">
+        <div class="bg-primary h-2 rounded-full" style="width: 75%; transition: width 2s;"></div>
+      </div>
+    </div>
+
+  </section>
+</div>
+
+<!-- Success -->
+<div id="state-success" class="hidden fade-in">
+  <div class="glass-border dark:bg-cardDark bg-white rounded-3xl border dark:border-accentGreen/30 border-accentGreen/20 p-8 text-center">
+    <div class="w-16 h-16 mx-auto mb-4 bg-accentGreen/20 rounded-full flex items-center justify-center">
+      <svg class="w-8 h-8 text-accentGreen" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    </div>
+    <h2 class="text-xl font-bold text-accentGreen mb-2">Payment Successful</h2>
+    <p class="dark:text-slate-400 text-slate-500 text-sm mb-4">Your funds have been deposited into escrow.</p>
+    <div class="dark:bg-darkBg bg-slate-50 rounded-xl p-3 text-xs font-mono dark:text-slate-300 text-slate-600 break-all border dark:border-white/5 border-slate-200" id="success-tx-hash"></div>
+  </div>
+</div>
+
+<!-- Already Paid -->
+<div id="state-already-paid" class="hidden fade-in">
+  <div class="glass-border dark:bg-cardDark bg-white rounded-3xl border dark:border-primary/30 border-primary/20 p-8 text-center">
+    <div class="w-16 h-16 mx-auto mb-4 bg-primary/20 rounded-full flex items-center justify-center">
+      <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+    <h2 class="text-xl font-bold text-primary mb-2">Already Processed</h2>
+    <p class="dark:text-slate-400 text-slate-500 text-sm">This payment has already been submitted.</p>
+  </div>
+</div>
+
+<!-- Error -->
+<div id="state-error" class="hidden fade-in">
+  <div class="glass-border dark:bg-cardDark bg-white rounded-3xl border dark:border-red-500/30 border-red-200 p-8 text-center">
+    <div class="w-16 h-16 mx-auto mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
+      <svg class="w-8 h-8 text-red-500 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </div>
+    <h2 class="text-xl font-bold text-red-500 dark:text-red-400 mb-2">Error</h2>
+    <p id="error-message" class="dark:text-slate-400 text-slate-500 text-sm mb-4"></p>
+    <button onclick="location.reload()"
+            class="dark:bg-slate-700 dark:hover:bg-slate-600 bg-slate-100 hover:bg-slate-200 dark:text-white text-slate-700 font-semibold py-2.5 px-6 rounded-xl transition-colors cursor-pointer">
+      Try Again
+    </button>
+  </div>
+</div>
+
+<footer class="mt-auto py-8 text-center">
+  <p class="text-[11px] dark:text-slate-500 text-slate-400 font-medium tracking-wide">
+    Powered by <span class="dark:text-slate-400 text-slate-500">XAgent Pay Protocol</span> v0.5.0
+  </p>
+</footer>
 </main>
 
 <script>
@@ -604,6 +672,27 @@ var pollTimer = null;
 function esc(s) {
   return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
+
+function toggleTheme() {
+  var html = document.documentElement;
+  if (html.classList.contains("dark")) {
+    html.classList.remove("dark");
+    localStorage.setItem("xagent-theme", "light");
+  } else {
+    html.classList.add("dark");
+    localStorage.setItem("xagent-theme", "dark");
+  }
+}
+
+// Restore saved theme
+(function() {
+  var saved = localStorage.getItem("xagent-theme");
+  if (saved === "light") {
+    document.documentElement.classList.remove("dark");
+  } else {
+    document.documentElement.classList.add("dark");
+  }
+})();
 
 function isMobile() {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
@@ -716,25 +805,22 @@ function renderOrderSummary() {
     var did = p.merchant_did || "-";
     var orderRef = p.merchant_order_ref || "-";
 
-    html += '<div class="bg-slate-900/50 rounded-lg p-3 space-y-1.5">' +
-      '<div class="flex justify-between items-center">' +
-        '<span class="text-sm text-slate-200 font-medium">' + (i + 1) + '. ' + esc(label) + '</span>' +
-        '<span class="text-sm text-slate-200 font-semibold">' + esc(display) + ' USDC</span>' +
+    html += '<div class="p-5 flex flex-col gap-1.5 border-b dark:border-white/5 border-slate-100 last:border-0">' +
+      '<div class="flex justify-between items-start">' +
+        '<h3 class="text-[15px] font-medium dark:text-slate-100 text-slate-800">' + esc(label) + '</h3>' +
+        '<span class="text-[15px] font-bold dark:text-white text-slate-900 whitespace-nowrap">' + esc(display) +
+          ' <span class="text-[12px] font-medium dark:text-slate-400 text-slate-500">USDC</span></span>' +
       '</div>' +
-      '<div class="flex justify-between items-center">' +
-        '<span class="text-xs text-slate-500">Merchant DID</span>' +
-        '<span class="text-xs text-slate-400 font-mono truncate ml-2 max-w-[60%] text-right">' + esc(did) + '</span>' +
-      '</div>' +
-      '<div class="flex justify-between items-center">' +
-        '<span class="text-xs text-slate-500">Order Ref</span>' +
-        '<span class="text-xs text-slate-400 font-mono truncate ml-2 max-w-[60%] text-right">' + esc(orderRef) + '</span>' +
+      '<div class="flex flex-col gap-0.5 font-mono text-[10px] dark:text-slate-600 text-slate-400">' +
+        '<p>DID: <span class="dark:text-slate-500 text-slate-500">' + esc(did) + '</span></p>' +
+        '<p>Ref: <span class="dark:text-slate-500 text-slate-500">' + esc(orderRef) + '</span></p>' +
       '</div>' +
     '</div>';
   }
   container.innerHTML = html;
 
   var totalDisplay = checkoutData.group.total_amount_display || checkoutData.group.total_amount;
-  document.getElementById("total-amount").textContent = totalDisplay + " USDC";
+  document.getElementById("total-amount").textContent = totalDisplay;
 }
 
 function renderPaymentDetails() {
