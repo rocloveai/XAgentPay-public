@@ -22,7 +22,7 @@ function parsePort(raw: string | undefined, fallback: number): number {
 
 export function loadConfig(): Config {
   const merchantDid =
-    process.env.MERCHANT_DID ?? "did:nexus:20250407:demo_hotel";
+    process.env.MERCHANT_DID ?? "did:nexus:196:demo_hotel";
   const portalPort = parsePort(process.env.PORTAL_PORT, 3002);
   const amadeusApiKey = process.env.AMADEUS_API_KEY ?? "";
   const amadeusApiSecret = process.env.AMADEUS_API_SECRET ?? "";

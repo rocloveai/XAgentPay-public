@@ -25,7 +25,7 @@ const VERIFYING_CONTRACT =
 const NEXUS_DOMAIN = {
   name: "NexusPay",
   version: "1",
-  chainId: 20250407,
+  chainId: 196,
   verifyingContract: VERIFYING_CONTRACT,
 } as const;
 
@@ -96,7 +96,7 @@ export async function buildQuote(
       merchant_order_ref: params.orderRef,
       amount: BigInt(DEMO_DISCOUNT_UINT256),
       currency: params.currency,
-      chain_id: BigInt(20250407),
+      chain_id: BigInt(196),
       expiry: BigInt(expiry),
       context_hash: contextHash,
     },
@@ -107,7 +107,7 @@ export async function buildQuote(
     merchant_order_ref: params.orderRef,
     amount: DEMO_DISCOUNT_UINT256,
     currency: params.currency,
-    chain_id: 20250407,
+    chain_id: 196,
     expiry,
     context,
     signature,

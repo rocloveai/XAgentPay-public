@@ -22,7 +22,7 @@ function parsePort(raw: string | undefined, fallback: number): number {
 export function loadConfig(): Config {
   const duffelApiToken = process.env.DUFFEL_API_TOKEN ?? "";
   const merchantDid =
-    process.env.MERCHANT_DID ?? "did:nexus:20250407:demo_flight";
+    process.env.MERCHANT_DID ?? "did:nexus:196:demo_flight";
   const portalPort = parsePort(process.env.PORTAL_PORT, 3001);
   const databaseUrl = process.env.DATABASE_URL ?? "";
   const webhookSecret =

@@ -44,8 +44,8 @@ async function registerWithNexusCore() {
     ).address;
     const body = {
       merchant_did: config.merchantDid,
-      name: "Nexus Hotel Agent",
-      description: "AI-powered hotel search and booking with USDC payments",
+      name: "XAgent Hotel Booking",
+      description: "AI-powered hotel booking with USDC payments on XLayer. Find and book hotels worldwide.",
       category: "travel.hotels",
       signer_address: signerAddress,
       payment_address: config.paymentAddress,

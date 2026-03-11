@@ -82,15 +82,15 @@ export function loadNexusCoreConfig(): NexusCoreConfig {
   return {
     databaseUrl: process.env.DATABASE_URL ?? "",
     escrowContract: getAddress(escrowContract),
-    chainId: Number(process.env.CHAIN_ID ?? "20250407"),
-    chainName: process.env.CHAIN_NAME ?? "PlatON Devnet",
+    chainId: Number(process.env.CHAIN_ID ?? "196"),
+    chainName: process.env.CHAIN_NAME ?? "XLayer Mainnet",
     usdcAddress: getAddress(usdcAddress),
     usdcDecimals: 6,
     protocolFeeBps: Number(process.env.PROTOCOL_FEE_BPS ?? "30"),
     releaseTimeoutS: Number(process.env.RELEASE_TIMEOUT_S ?? "86400"),
     disputeWindowS: Number(process.env.DISPUTE_WINDOW_S ?? "259200"),
     port: Number(process.env.PORT ?? "4000"),
-    rpcUrl: process.env.RPC_URL ?? "https://devnet3openapi.platon.network/rpc",
+    rpcUrl: process.env.RPC_URL ?? "https://rpc.xlayer.tech",
     relayerPrivateKey: process.env.RELAYER_PRIVATE_KEY ?? "",
     watcherIntervalMs: Number(process.env.WATCHER_INTERVAL_MS ?? "8000"),
     timeoutSweepIntervalMs: Number(

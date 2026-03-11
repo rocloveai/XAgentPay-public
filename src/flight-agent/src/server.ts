@@ -44,8 +44,8 @@ async function registerWithNexusCore() {
     ).address;
     const body = {
       merchant_did: config.merchantDid,
-      name: "Nexus Flight Agent",
-      description: "AI-powered flight search and booking with USDC payments",
+      name: "XAgent Flight Booking",
+      description: "AI-powered flight booking with USDC payments on XLayer. Search and book flights globally.",
       category: "travel.flights",
       signer_address: signerAddress,
       payment_address: config.paymentAddress,

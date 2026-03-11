@@ -24,7 +24,7 @@ import { SecurityError } from "../errors.js";
 const NEXUS_DOMAIN = {
   name: "NexusPay",
   version: "1",
-  chainId: 20250407,
+  chainId: 196,
   verifyingContract: "0x0000000000000000000000000000000000000000" as Address,
 } as const;
 
