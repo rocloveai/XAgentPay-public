@@ -762,7 +762,9 @@ async function checkAgentHealth(deps: MarketDeps): Promise<void> {
       }
     }
   } catch (err) {
-    marketLog.warn("Health check round failed:", err);
+    marketLog.warn(
+      `Health check round failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
