@@ -1198,8 +1198,28 @@ const TermsOfServicePage = ({ lang }: { lang: Language }) => {
 
 export default function App() {
   const [lang, setLang] = useState<Language>('en');
-  const [page, setPage] = useState<PageType>('home');
+  // Read initial page from URL hash
+  const getPageFromHash = (): PageType => {
+    const hash = window.location.hash.replace('#', '');
+    if (['home', 'market', 'privacy', 'terms'].includes(hash)) return hash as PageType;
+    return 'home';
+  };
+
+  const [page, setPageState] = useState<PageType>(getPageFromHash);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
+
+  // Sync page state with URL hash
+  const setPage = (p: PageType) => {
+    window.location.hash = p === 'home' ? '' : p;
+    setPageState(p);
+  };
+
+  // Listen for browser back/forward navigation
+  useEffect(() => {
+    const onHashChange = () => setPageState(getPageFromHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   // Scroll to top on page change
   useEffect(() => {
