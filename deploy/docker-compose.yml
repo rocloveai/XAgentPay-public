@@ -31,7 +31,7 @@ services:
     environment:
       TRANSPORT: http
       PORT: "10000"
-      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay
+      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay?sslmode=disable
       RELAYER_PRIVATE_KEY: ${RELAYER_PRIVATE_KEY}
       ESCROW_CONTRACT: "0x959028964e8a4e52d6AC716E621B68b3fa579A25"
       RPC_URL: "https://rpc.xlayer.tech"
@@ -56,7 +56,7 @@ services:
       TRANSPORT: http
       PORTAL_PORT: "10000"
       PORTAL_HOST: "0.0.0.0"
-      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay
+      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay?sslmode=disable
       DUFFEL_API_TOKEN: ${DUFFEL_API_TOKEN}
       MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_FLIGHT}
       MERCHANT_PAYMENT_ADDRESS: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1"
@@ -80,7 +80,7 @@ services:
       TRANSPORT: http
       PORTAL_PORT: "10000"
       PORTAL_HOST: "0.0.0.0"
-      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay
+      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay?sslmode=disable
       AMADEUS_API_KEY: ${AMADEUS_API_KEY}
       AMADEUS_API_SECRET: ${AMADEUS_API_SECRET}
       MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_HOTEL}
