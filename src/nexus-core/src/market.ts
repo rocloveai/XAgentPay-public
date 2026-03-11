@@ -108,7 +108,9 @@ async function fetchSkillMetadata(skillMdUrl: string): Promise<SkillMetadata> {
     for (const line of lines) {
       const match = line.match(/^(\w[\w_-]*):\s*(.+)$/);
       if (match) {
-        kvMap.set(match[1].trim(), match[2].trim());
+        // Strip surrounding quotes from YAML values (e.g. "0.1.0" → 0.1.0)
+        const val = match[2].trim().replace(/^["'](.*)["']$/, "$1");
+        kvMap.set(match[1].trim(), val);
       }
     }
 
@@ -719,6 +721,63 @@ async function handleGetStars(
       error: "Star feature unavailable — migration pending",
     });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Periodic health checker
+// ---------------------------------------------------------------------------
+
+const HEALTH_CHECK_INTERVAL_MS = 60_000; // 1 minute
+let healthCheckTimer: ReturnType<typeof setInterval> | null = null;
+
+async function checkAgentHealth(deps: MarketDeps): Promise<void> {
+  try {
+    const agents = await deps.merchantRepo.listAll();
+    for (const agent of agents) {
+      if (!agent.health_url) continue;
+      const start = Date.now();
+      try {
+        const res = await fetch(agent.health_url, {
+          signal: AbortSignal.timeout(10_000),
+        });
+        const latency = Date.now() - start;
+        const status: AgentHealthStatus = res.ok ? "ONLINE" : "DEGRADED";
+        await deps.merchantRepo.updateHealth(
+          agent.merchant_did,
+          status,
+          latency,
+          0,
+        );
+      } catch {
+        const latency = Date.now() - start;
+        const failures = (agent as any).consecutive_failures ?? 0;
+        const status: AgentHealthStatus =
+          failures + 1 >= 3 ? "OFFLINE" : "DEGRADED";
+        await deps.merchantRepo.updateHealth(
+          agent.merchant_did,
+          status,
+          latency,
+          failures + 1,
+        );
+      }
+    }
+  } catch (err) {
+    marketLog.warn("Health check round failed:", err);
+  }
+}
+
+/** Start the periodic health check loop. Call once at server startup. */
+export function startHealthChecker(deps: MarketDeps): void {
+  if (healthCheckTimer) return;
+  marketLog.info(
+    `Starting agent health checker (interval: ${HEALTH_CHECK_INTERVAL_MS / 1000}s)`,
+  );
+  // Run immediately, then repeat
+  checkAgentHealth(deps);
+  healthCheckTimer = setInterval(
+    () => checkAgentHealth(deps),
+    HEALTH_CHECK_INTERVAL_MS,
+  );
 }
 
 // ---------------------------------------------------------------------------

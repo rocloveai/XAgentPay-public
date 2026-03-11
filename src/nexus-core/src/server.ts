@@ -41,7 +41,7 @@ import { NEXUS_PAY_ESCROW_ABI } from "./abi/nexus-pay-escrow.js";
 import type { NexusQuotePayload, Hex } from "./types.js";
 import { handlePortalRequest, type PortalDeps } from "./portal.js";
 import { handleCheckoutRequest, type CheckoutDeps } from "./checkout.js";
-import { handleMarketRequest, type MarketDeps } from "./market.js";
+import { handleMarketRequest, startHealthChecker, type MarketDeps } from "./market.js";
 import {
   handleDiscoverAgents,
   handleGetAgentSkill,
@@ -1639,6 +1639,9 @@ async function main(): Promise<void> {
       }
       if (timeoutHandler) timeoutHandler.start();
       webhookNotifier.startRetryLoop(config.webhookRetryIntervalMs);
+
+      // Start periodic agent health checker
+      startHealthChecker({ merchantRepo, starRepo, config });
     });
   } else {
     const mcpServer = createNexusCoreServer();
