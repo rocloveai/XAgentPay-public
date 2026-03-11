@@ -23,7 +23,7 @@ After you call `nexus_orchestrate_payment` and receive a `checkout_url` + `group
 
 ### `POST /api/render-order`
 
-**Base URL:** `https://nexus-telegram-bot-8fzu.onrender.com`
+**Base URL:** `https://xagenpay.com/tg-bot`
 
 **Request:**
 

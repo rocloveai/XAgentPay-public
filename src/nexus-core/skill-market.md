@@ -51,9 +51,9 @@ curl "https://api.xagenpay.com/api/agents?query=hotel&category=travel&limit=10"
       "name": "Demo Flight Agent",
       "description": "Search and book flights with USDC escrow payments",
       "category": "travel.flights",
-      "skill_md_url": "https://nexus-flight-agent-3xb1.onrender.com/skill.md",
-      "skill_user_url": "https://nexus-flight-agent-3xb1.onrender.com/skill-user.md",
-      "mcp_endpoint": "https://nexus-flight-agent-3xb1.onrender.com/mcp",
+      "skill_md_url": "https://xagenpay.com/flight/skill.md",
+      "skill_user_url": "https://xagenpay.com/flight/skill-user.md",
+      "mcp_endpoint": "https://xagenpay.com/flight/mcp",
       "currencies": ["USDC"],
       "health_status": "ONLINE",
       "stars": 5,
@@ -104,7 +104,7 @@ Two options to get the agent's full capability docs:
 Use the `skill_user_url` from the agent response:
 
 ```bash
-curl "https://nexus-flight-agent-3xb1.onrender.com/skill-user.md"
+curl "https://xagenpay.com/flight/skill-user.md"
 ```
 
 **Option B — Via XAgent Pay proxy:**
@@ -121,7 +121,7 @@ Follow the agent's skill instructions. Typically:
 
 ```bash
 # Example: search flights via the flight agent's HTTP API
-curl -X POST https://nexus-flight-agent-3xb1.onrender.com/api/search \
+curl -X POST https://xagenpay.com/flight/api/search \
   -H "Content-Type: application/json" \
   -d '{"from": "SFO", "to": "LAX", "date": "2026-04-01"}'
 ```

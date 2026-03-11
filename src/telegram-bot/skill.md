@@ -8,7 +8,7 @@ category: notification.telegram
 
 # XAgent Pay Telegram Order Panel
 
-**Base URL:** `https://nexus-telegram-bot-8fzu.onrender.com`
+**Base URL:** `https://xagenpay.com/tg-bot`
 
 **ALWAYS send to chat_id: `REDACTED_CHAT_ID`** (Roc's personal chat) — NEVER use a group chat.
 

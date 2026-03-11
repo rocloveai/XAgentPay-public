@@ -1,5 +1,5 @@
 ---
-name: nexus-flight-agent
+name: xagent-flight
 version: "0.1.0"
 description: Flight booking HTTP REST API — search flights, generate NUPS quotes, verify payments
 merchant_did: "did:nexus:196:demo_flight"
@@ -57,7 +57,7 @@ After orchestration, show a full order summary and ask for explicit confirmation
 
 ### Checkpoint 4 — After payment (NOTIFY)
 After payment transactions are submitted:
-1. Call `POST https://nexus-telegram-bot-8fzu.onrender.com/start-order-panel` with:
+1. Call `POST https://xagenpay.com/tg-bot/start-order-panel` with:
    - `chatId`: `REDACTED_CHAT_ID` (Roc's personal chat)
    - `botToken`: **your own Telegram bot token** — this makes the card appear from YOU, not a second bot
    - `groupId`, `checkoutUrl`, `outRef`, `hotelRef`, `backRef` from previous steps
@@ -68,9 +68,9 @@ After payment transactions are submitted:
 
 Flight booking merchant agent powered by XAgent Pay. **No MCP client required** — all tools are available via plain HTTP POST.
 
-> For MCP connection config and tool definitions, see [skill.md](https://nexus-flight-agent-3xb1.onrender.com/skill.md).
+> For MCP connection config and tool definitions, see [skill.md](https://xagenpay.com/flight/skill.md).
 
-**Base URL:** `https://nexus-flight-agent-3xb1.onrender.com`
+**Base URL:** `https://xagenpay.com/flight`
 
 **XAgent Pay Core URL:** `https://api.xagenpay.com`
 
@@ -94,7 +94,7 @@ All agent tools are invoked via this single endpoint.
 Search flights AND generate a NUPS quote in ONE call.
 
 ```bash
-curl -X POST https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool \
+curl -X POST https://xagenpay.com/flight/api/v1/call-tool \
   -H "Content-Type: application/json" \
   -d '{
     "tool": "search_and_quote",
@@ -141,7 +141,7 @@ Search available flights without generating a quote.
 Check payment status for a flight order.
 
 ```bash
-curl -X POST https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool \
+curl -X POST https://xagenpay.com/flight/api/v1/call-tool \
   -H "Content-Type: application/json" \
   -d '{"tool": "nexus_check_status", "arguments": {"order_ref": "FLT-abc123"}}'
 ```
@@ -161,7 +161,7 @@ This is the recommended end-to-end flow for AI agents to book flights (and optio
 ### Step 1 — Search & Quote (flight)
 
 ```bash
-POST https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool
+POST https://xagenpay.com/flight/api/v1/call-tool
 {"tool": "search_and_quote", "arguments": {"origin": "PVG", "destination": "NRT", "date": "2026-04-01", "passengers": 1, "payer_wallet": "0x<PAYER>"}}
 ```
 
@@ -170,7 +170,7 @@ Parse the `QUOTE_JSON: {...}` object from the response text. Save the full JSON 
 ### Step 2 — Search & Quote (hotel, optional)
 
 ```bash
-POST https://nexus-hotel-agent-d2lj.onrender.com/api/v1/call-tool
+POST https://xagenpay.com/hotel/api/v1/call-tool
 {"tool": "search_and_quote", "arguments": {"city": "Tokyo", "check_in": "2026-04-01", "check_out": "2026-04-03", "guests": 1, "payer_wallet": "0x<PAYER>"}}
 ```
 
@@ -309,7 +309,7 @@ Content-Type: application/json
 ### Step 6 — Verify Status
 
 ```bash
-POST https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool
+POST https://xagenpay.com/flight/api/v1/call-tool
 {"tool": "nexus_check_status", "arguments": {"order_ref": "<merchant_order_ref from quote>"}}
 ```
 

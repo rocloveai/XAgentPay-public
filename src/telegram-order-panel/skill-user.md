@@ -5,7 +5,7 @@ After you complete a flight + hotel booking via XAgent Pay, call this service to
 ## Base URL
 
 ```
-https://nexus-telegram-bot-8fzu.onrender.com
+https://xagenpay.com/tg-bot
 ```
 
 ## CRITICAL RULES
@@ -101,7 +101,7 @@ After payment:
 ## Important Notes
 
 - **Always use `chatId: REDACTED_CHAT_ID`** (Roc's personal chat) — NEVER use the group chat `REDACTED_GROUP_CHAT_ID` or any negative chat ID
-- **Base URL**: `https://nexus-telegram-bot-8fzu.onrender.com`
+- **Base URL**: `https://xagenpay.com/tg-bot`
 - After calling `/start-order-panel`, tell the user: "订单卡片已发送到你的 Telegram，请查看并点击支付按钮完成支付"
 - Do NOT also send a manual text summary — the card replaces that
 - The card auto-refreshes every 10 seconds — no further action needed
