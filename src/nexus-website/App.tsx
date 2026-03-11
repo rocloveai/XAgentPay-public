@@ -681,6 +681,14 @@ const MarketPage = ({ lang }: { lang: Language }) => {
     try { return new Set(JSON.parse(localStorage.getItem('nexus_starred') || '[]')); }
     catch { return new Set(); }
   });
+  const [copiedDid, setCopiedDid] = useState<string | null>(null);
+
+  const copySkillUrl = (did: string, url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedDid(did);
+      setTimeout(() => setCopiedDid(null), 2000);
+    });
+  };
 
   // Fetch agents from real API
   useEffect(() => {
@@ -935,14 +943,33 @@ const MarketPage = ({ lang }: { lang: Language }) => {
                           </div>
                         </div>
 
-                        <a
-                          href={agent.skill_user_url || agent.skill_md_url || '#'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-full py-3 rounded-xl border border-primary/20 text-primary font-bold text-sm hover:bg-primary hover:text-white transition-all text-center block"
-                        >
-                          {t.discover.card.viewSkill}
-                        </a>
+                        <div className="flex gap-2">
+                          <a
+                            href={agent.skill_user_url || agent.skill_md_url || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 py-3 rounded-xl border border-primary/20 text-primary font-bold text-sm hover:bg-primary hover:text-white transition-all text-center block"
+                          >
+                            {t.discover.card.viewSkill}
+                          </a>
+                          {(agent.skill_user_url || agent.skill_md_url) && (
+                            <button
+                              onClick={() => copySkillUrl(agent.merchant_did, (agent.skill_user_url || agent.skill_md_url)!)}
+                              className={`px-4 py-3 rounded-xl border font-bold text-sm transition-all flex items-center gap-1.5 ${
+                                copiedDid === agent.merchant_did
+                                  ? 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400'
+                                  : 'border-primary/20 text-primary hover:bg-primary/10'
+                              }`}
+                              title="Copy Skill URL"
+                            >
+                              {copiedDid === agent.merchant_did ? (
+                                <><CheckCircle2 className="w-4 h-4" /> Copied</>
+                              ) : (
+                                <><Copy className="w-4 h-4" /> Copy</>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </motion.div>
                     ))}
                     {filteredAgents.length === 0 && !loading && (
