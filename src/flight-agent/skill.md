@@ -2,11 +2,11 @@
 name: nexus-flight-agent
 version: "0.1.0"
 description: Flight booking MCP agent — search flights, generate NUPS quotes, verify on-chain payments
-merchant_did: "did:nexus:20250407:demo_flight"
+merchant_did: "did:nexus:196:demo_flight"
 protocol: NUPS/1.5
 category: travel.flights
 currencies: [USDC]
-chain_id: 20250407
+chain_id: 196
 tools:
   - name: search_and_quote
     role: search+quote
@@ -22,7 +22,7 @@ tools:
 
 Flight booking merchant agent powered by XAgent Pay. Searches flights across popular Asia-Pacific routes (PVG, NRT, SIN, HKG, BKK), generates NUPS payment quotes, and verifies on-chain payments.
 
-> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://nexus-flight-agent-nr8m.onrender.com/skill-user.md).
+> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://nexus-flight-agent-3xb1.onrender.com/skill-user.md).
 
 ## MCP Connection
 
@@ -30,7 +30,7 @@ Flight booking merchant agent powered by XAgent Pay. Searches flights across pop
 {
   "mcpServers": {
     "flight-agent": {
-      "url": "https://nexus-flight-agent-nr8m.onrender.com/mcp"
+      "url": "https://nexus-flight-agent-3xb1.onrender.com/mcp"
     }
   }
 }

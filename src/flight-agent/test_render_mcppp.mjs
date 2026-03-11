@@ -4,7 +4,7 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 async function main() {
     console.log("Connecting to Render via SSE...");
     const transport = new SSEClientTransport(
-        new URL("https://nexus-flight-agent-nr8m.onrender.com/sse")
+        new URL("https://nexus-flight-agent-3xb1.onrender.com/sse")
     );
 
     const client = new Client(

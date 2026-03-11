@@ -426,7 +426,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 **Type:** Integration
 
 **Steps:**
-1. POST to `https://nexus-flight-agent-nr8m.onrender.com/mcp` with JSON-RPC initialize request
+1. POST to `https://nexus-flight-agent-3xb1.onrender.com/mcp` with JSON-RPC initialize request
 
 **Expected:**
 - HTTP 200 with JSON-RPC response
@@ -440,7 +440,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 **Type:** Integration
 
 **Steps:**
-1. POST to `https://nexus-hotel-agent-nr8m.onrender.com/mcp` with JSON-RPC initialize request
+1. POST to `https://nexus-hotel-agent-d2lj.onrender.com/mcp` with JSON-RPC initialize request
 
 **Expected:**
 - HTTP 200 with JSON-RPC response

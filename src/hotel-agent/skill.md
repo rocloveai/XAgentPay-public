@@ -2,11 +2,11 @@
 name: nexus-hotel-agent
 version: "0.1.0"
 description: Hotel booking MCP agent — search hotels, generate NUPS quotes, verify on-chain payments
-merchant_did: "did:nexus:20250407:demo_hotel"
+merchant_did: "did:nexus:196:demo_hotel"
 protocol: NUPS/1.5
 category: travel.hotels
 currencies: [USDC]
-chain_id: 20250407
+chain_id: 196
 tools:
   - name: search_and_quote
     role: search+quote
@@ -22,7 +22,7 @@ tools:
 
 Hotel booking merchant agent powered by XAgent Pay. Searches hotels across popular cities (Tokyo, Singapore, Shanghai, Bangkok, Hong Kong), generates NUPS payment quotes, and verifies on-chain payments.
 
-> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://nexus-hotel-agent-nr8m.onrender.com/skill-user.md).
+> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://nexus-hotel-agent-d2lj.onrender.com/skill-user.md).
 
 ## MCP Connection
 
@@ -30,7 +30,7 @@ Hotel booking merchant agent powered by XAgent Pay. Searches hotels across popul
 {
   "mcpServers": {
     "hotel-agent": {
-      "url": "https://nexus-hotel-agent-nr8m.onrender.com/mcp"
+      "url": "https://nexus-hotel-agent-d2lj.onrender.com/mcp"
     }
   }
 }

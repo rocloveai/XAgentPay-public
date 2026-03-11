@@ -2,11 +2,11 @@
 name: nexus-hotel-agent
 version: "0.1.0"
 description: Hotel booking HTTP REST API — search hotels, generate NUPS quotes, verify payments
-merchant_did: "did:nexus:20250407:demo_hotel"
+merchant_did: "did:nexus:196:demo_hotel"
 protocol: NUPS/1.5
 category: travel.hotels
 currencies: [USDC]
-chain_id: 20250407
+chain_id: 196
 ---
 
 # XAgent Pay Hotel Agent — HTTP REST API

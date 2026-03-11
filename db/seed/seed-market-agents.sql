@@ -5,35 +5,35 @@
 UPDATE merchant_registry SET
   description = 'AI-powered hotel booking with Nexus Payment. Search and book hotels worldwide with real-time availability and instant USDC checkout.',
   category = 'travel.hotels',
-  skill_md_url = 'https://nexus-hotel-agent-nr8m.onrender.com/skill.md',
-  health_url = 'https://nexus-hotel-agent-nr8m.onrender.com/health',
-  mcp_endpoint = 'https://nexus-hotel-agent-nr8m.onrender.com/mcp',
-  webhook_url = 'https://nexus-hotel-agent-nr8m.onrender.com/webhook',
+  skill_md_url = 'https://nexus-hotel-agent-d2lj.onrender.com/skill.md',
+  health_url = 'https://nexus-hotel-agent-d2lj.onrender.com/health',
+  mcp_endpoint = 'https://nexus-hotel-agent-d2lj.onrender.com/mcp',
+  webhook_url = 'https://nexus-hotel-agent-d2lj.onrender.com/webhook',
   webhook_secret = 'REDACTED_WEBHOOK_SECRET',
   skill_name = 'nexus-hotel-agent',
   skill_version = '0.1.0',
   skill_protocol = 'MCP',
   skill_tools = '[{"name":"search_hotels","role":"search"},{"name":"generate_hotel_quote","role":"quote"}]'::jsonb,
   currencies = '["USDC"]'::jsonb,
-  chain_id = 20250407,
+  chain_id = 196,
   is_verified = TRUE,
   updated_at = NOW()
-WHERE merchant_did = 'did:nexus:20250407:demo_hotel';
+WHERE merchant_did = 'did:nexus:196:demo_hotel';
 
 UPDATE merchant_registry SET
   description = 'AI-powered flight booking with Nexus Payment. Search and book flights via Duffel with real-time pricing and instant USDC checkout.',
   category = 'travel.flights',
-  skill_md_url = 'https://nexus-flight-agent-nr8m.onrender.com/skill.md',
-  health_url = 'https://nexus-flight-agent-nr8m.onrender.com/health',
-  mcp_endpoint = 'https://nexus-flight-agent-nr8m.onrender.com/mcp',
-  webhook_url = 'https://nexus-flight-agent-nr8m.onrender.com/webhook',
+  skill_md_url = 'https://nexus-flight-agent-3xb1.onrender.com/skill.md',
+  health_url = 'https://nexus-flight-agent-3xb1.onrender.com/health',
+  mcp_endpoint = 'https://nexus-flight-agent-3xb1.onrender.com/mcp',
+  webhook_url = 'https://nexus-flight-agent-3xb1.onrender.com/webhook',
   webhook_secret = 'REDACTED_WEBHOOK_SECRET',
   skill_name = 'nexus-flight-agent',
   skill_version = '0.1.0',
   skill_protocol = 'MCP',
   skill_tools = '[{"name":"search_flights","role":"search"},{"name":"generate_flight_quote","role":"quote"}]'::jsonb,
   currencies = '["USDC"]'::jsonb,
-  chain_id = 20250407,
+  chain_id = 196,
   is_verified = TRUE,
   updated_at = NOW()
-WHERE merchant_did = 'did:nexus:20250407:demo_flight';
+WHERE merchant_did = 'did:nexus:196:demo_flight';

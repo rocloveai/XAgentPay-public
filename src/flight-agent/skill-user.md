@@ -2,11 +2,11 @@
 name: nexus-flight-agent
 version: "0.1.0"
 description: Flight booking HTTP REST API — search flights, generate NUPS quotes, verify payments
-merchant_did: "did:nexus:20250407:demo_flight"
+merchant_did: "did:nexus:196:demo_flight"
 protocol: NUPS/1.5
 category: travel.flights
 currencies: [USDC]
-chain_id: 20250407
+chain_id: 196
 ---
 
 # XAgent Pay Flight Agent — HTTP REST API

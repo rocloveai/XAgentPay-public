@@ -31,7 +31,7 @@
 - **XAgent Pay Core**：`skill.md` 描述 MCP 连接与工具（`nexus_orchestrate_payment`、`nexus_get_payment_status`、`discover_agents`、`get_agent_skill` 等）。
 - **商户 Agent**：每个商户有 `skill.md`（YAML frontmatter + Markdown），含 `name`、`version`、`merchant_did`、`protocol`、`category`、`currencies`、`chain_id`、`tools`（role: search / quote / status / action）。
 - **skill-user.md**：面向终端用户的简化说明；**skill-market.md**：市场/发现用。
-- 当前文档里的示例 URL：`api.xagentpay.com`、`nexus-flight-agent-nr8m.onrender.com`、`nexus-hotel-agent-nr8m.onrender.com` — 若你部署的 Render URL 不同，需在对应 `skill.md` / 前端配置里替换为实际 BASE_URL / NEXUS_CORE_URL。
+- 当前文档里的示例 URL：`api.xagentpay.com`、`nexus-flight-agent-3xb1.onrender.com`、`nexus-hotel-agent-d2lj.onrender.com` — 若你部署的 Render URL 不同，需在对应 `skill.md` / 前端配置里替换为实际 BASE_URL / NEXUS_CORE_URL。
 
 ## 配置 skills 时可能要做的事
 

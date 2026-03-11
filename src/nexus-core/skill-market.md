@@ -47,13 +47,13 @@ curl "https://api.xagentpay.com/api/agents?query=hotel&category=travel&limit=10"
   "http_status": 200,
   "agents": [
     {
-      "merchant_did": "did:nexus:20250407:demo_flight",
+      "merchant_did": "did:nexus:196:demo_flight",
       "name": "Demo Flight Agent",
       "description": "Search and book flights with USDC escrow payments",
       "category": "travel.flights",
-      "skill_md_url": "https://nexus-flight-agent-nr8m.onrender.com/skill.md",
-      "skill_user_url": "https://nexus-flight-agent-nr8m.onrender.com/skill-user.md",
-      "mcp_endpoint": "https://nexus-flight-agent-nr8m.onrender.com/mcp",
+      "skill_md_url": "https://nexus-flight-agent-3xb1.onrender.com/skill.md",
+      "skill_user_url": "https://nexus-flight-agent-3xb1.onrender.com/skill-user.md",
+      "mcp_endpoint": "https://nexus-flight-agent-3xb1.onrender.com/mcp",
       "currencies": ["USDC"],
       "health_status": "ONLINE",
       "stars": 5,
@@ -91,7 +91,7 @@ curl "https://api.xagentpay.com/api/agents?query=hotel&category=travel&limit=10"
 ## Step 2 — Get Agent Detail
 
 ```bash
-curl "https://api.xagentpay.com/api/agents/did:nexus:20250407:demo_flight"
+curl "https://api.xagentpay.com/api/agents/did:nexus:196:demo_flight"
 ```
 
 Returns the same agent object as the list endpoint, for a single merchant.
@@ -104,13 +104,13 @@ Two options to get the agent's full capability docs:
 Use the `skill_user_url` from the agent response:
 
 ```bash
-curl "https://nexus-flight-agent-nr8m.onrender.com/skill-user.md"
+curl "https://nexus-flight-agent-3xb1.onrender.com/skill-user.md"
 ```
 
 **Option B — Via XAgent Pay proxy:**
 
 ```bash
-curl "https://api.xagentpay.com/api/agents/did:nexus:20250407:demo_flight/skill"
+curl "https://api.xagentpay.com/api/agents/did:nexus:196:demo_flight/skill"
 ```
 
 The agent's skill file will tell you how to search for services, get quotes, and the response format containing UCP payment data.
@@ -121,7 +121,7 @@ Follow the agent's skill instructions. Typically:
 
 ```bash
 # Example: search flights via the flight agent's HTTP API
-curl -X POST https://nexus-flight-agent-nr8m.onrender.com/api/search \
+curl -X POST https://nexus-flight-agent-3xb1.onrender.com/api/search \
   -H "Content-Type: application/json" \
   -d '{"from": "SFO", "to": "LAX", "date": "2026-04-01"}'
 ```

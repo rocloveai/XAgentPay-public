@@ -10,9 +10,9 @@
 | Core API | `https://api.xagentpay.com` |
 | Core MCP | `https://api.xagentpay.com/mcp` |
 | Website | `https://xagentpay.com` |
-| Flight Agent | `https://nexus-flight-agent-nr8m.onrender.com` |
-| Hotel Agent | `https://nexus-hotel-agent-nr8m.onrender.com` |
-| Telegram Bot | `https://nexus-telegram-bot-nr8m.onrender.com` |
+| Flight Agent | `https://nexus-flight-agent-3xb1.onrender.com` |
+| Hotel Agent | `https://nexus-hotel-agent-d2lj.onrender.com` |
+| Telegram Bot | `https://nexus-telegram-bot-8fzu.onrender.com` |
 
 ## Test Case Index
 

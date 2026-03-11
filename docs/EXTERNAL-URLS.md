@@ -10,9 +10,9 @@ All public-facing URLs, endpoints, and skill.md files for the xXAgent Pay platfo
 |---------|-----|------|
 | Website | `https://xagentpay.com` | Static SPA (Vite + React) |
 | XAgent Pay Core API | `https://api.xagentpay.com` | MCP Server + HTTP API |
-| Flight Agent | `https://nexus-flight-agent-nr8m.onrender.com` | MCP Merchant Agent |
-| Hotel Agent | `https://nexus-hotel-agent-nr8m.onrender.com` | MCP Merchant Agent |
-| Telegram Bot | `https://nexus-telegram-bot-nr8m.onrender.com` | Telegram Integration |
+| Flight Agent | `https://nexus-flight-agent-3xb1.onrender.com` | MCP Merchant Agent |
+| Hotel Agent | `https://nexus-hotel-agent-d2lj.onrender.com` | MCP Merchant Agent |
+| Telegram Bot | `https://nexus-telegram-bot-8fzu.onrender.com` | Telegram Integration |
 
 ---
 
@@ -24,12 +24,12 @@ Each service provides two skill files: **skill.md** (MCP connection + tool defin
 |-------|-----|-------------|
 | XAgent Pay Core (MCP) | `https://api.xagentpay.com/skill.md` | MCP connection + 9 tool definitions |
 | XAgent Pay Core (HTTP) | `https://api.xagentpay.com/skill-user.md` | HTTP REST API with curl examples |
-| Flight Agent (MCP) | `https://nexus-flight-agent-nr8m.onrender.com/skill.md` | MCP connection + 3 tool definitions |
-| Flight Agent (HTTP) | `https://nexus-flight-agent-nr8m.onrender.com/skill-user.md` | HTTP REST API with curl examples |
-| Hotel Agent (MCP) | `https://nexus-hotel-agent-nr8m.onrender.com/skill.md` | MCP connection + 3 tool definitions |
-| Hotel Agent (HTTP) | `https://nexus-hotel-agent-nr8m.onrender.com/skill-user.md` | HTTP REST API with curl examples |
+| Flight Agent (MCP) | `https://nexus-flight-agent-3xb1.onrender.com/skill.md` | MCP connection + 3 tool definitions |
+| Flight Agent (HTTP) | `https://nexus-flight-agent-3xb1.onrender.com/skill-user.md` | HTTP REST API with curl examples |
+| Hotel Agent (MCP) | `https://nexus-hotel-agent-d2lj.onrender.com/skill.md` | MCP connection + 3 tool definitions |
+| Hotel Agent (HTTP) | `https://nexus-hotel-agent-d2lj.onrender.com/skill-user.md` | HTTP REST API with curl examples |
 | LINE Messaging | `https://api.xagentpay.com/skills/nexus-line-skill.md` | LINE Flex Message skill |
-| Telegram Bot | `https://nexus-telegram-bot-nr8m.onrender.com/skill.md` | Telegram bot skill |
+| Telegram Bot | `https://nexus-telegram-bot-8fzu.onrender.com/skill.md` | Telegram bot skill |
 
 ---
 

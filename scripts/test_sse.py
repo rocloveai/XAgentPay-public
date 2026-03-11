@@ -44,9 +44,9 @@ def test_sse(name, url):
         return False
 
 if __name__ == "__main__":
-    flight_ok = test_sse("Flight Agent", "https://nexus-flight-agent-nr8m.onrender.com/sse")
+    flight_ok = test_sse("Flight Agent", "https://nexus-flight-agent-3xb1.onrender.com/sse")
     print("\n")
-    hotel_ok = test_sse("Hotel Agent", "https://nexus-hotel-agent-nr8m.onrender.com/sse")
+    hotel_ok = test_sse("Hotel Agent", "https://nexus-hotel-agent-d2lj.onrender.com/sse")
     
     print("\n--- SUMMARY ---")
     print(f"Flight Agent SSE: {'OK' if flight_ok else 'FAILED'}")
