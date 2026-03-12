@@ -331,7 +331,7 @@ async function handleCheckStatus({ order_ref }: { order_ref: string }) {
 function createMcpServer(): McpServer {
   const sessionOfferCache = new Map<string, FlightOffer>();
   const srv = new McpServer({
-    name: "nexus-flight-agent",
+    name: "xagent-flight",
     version: "0.1.0",
   });
 

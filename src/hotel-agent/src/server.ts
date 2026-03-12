@@ -356,7 +356,7 @@ async function handleCheckStatus({ order_ref }: { order_ref: string }) {
 function createMcpServer(): McpServer {
   const sessionOfferCache = new Map<string, HotelCacheEntry>();
   const srv = new McpServer({
-    name: "nexus-hotel-agent",
+    name: "xagent-hotel",
     version: "0.1.0",
   });
 

@@ -24,7 +24,7 @@ import {
   erc20Abi,
 } from "viem";
 
-const AGENT_NAME = "Nexus Flight Agent";
+const AGENT_NAME = "XAgent Flight Booking";
 const ACCENT = "blue";
 const startedAt = Date.now();
 
