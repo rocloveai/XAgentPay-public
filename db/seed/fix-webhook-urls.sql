@@ -3,14 +3,14 @@
 -- Run against the Render production DB via: psql $DATABASE_URL -f db/seed/fix-webhook-urls.sql
 
 UPDATE merchant_registry SET
-  webhook_url = 'https://nexus-flight-agent-3xb1.onrender.com/webhook',
+  webhook_url = 'https://xagenpay.com/flight/webhook',
   webhook_secret = 'REDACTED_WEBHOOK_SECRET',
   updated_at = NOW()
 WHERE merchant_did = 'did:nexus:196:demo_flight'
   AND (webhook_url IS NULL OR webhook_url = '');
 
 UPDATE merchant_registry SET
-  webhook_url = 'https://nexus-hotel-agent-d2lj.onrender.com/webhook',
+  webhook_url = 'https://xagenpay.com/hotel/webhook',
   webhook_secret = 'REDACTED_WEBHOOK_SECRET',
   updated_at = NOW()
 WHERE merchant_did = 'did:nexus:196:demo_hotel'

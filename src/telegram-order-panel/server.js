@@ -8,8 +8,8 @@ app.use(express.json());
 const PORT = Number(process.env.PORT || 3000);
 const TG_TOKEN = process.env.TG_BOT_TOKEN;
 const TG_API = `https://api.telegram.org/bot${TG_TOKEN}`;
-const FLIGHT_API = process.env.FLIGHT_API || 'https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool';
-const HOTEL_API  = process.env.HOTEL_API  || 'https://nexus-hotel-agent-d2lj.onrender.com/api/v1/call-tool';
+const FLIGHT_API = process.env.FLIGHT_API || 'https://xagenpay.com/flight/api/v1/call-tool';
+const HOTEL_API  = process.env.HOTEL_API  || 'https://xagenpay.com/hotel/api/v1/call-tool';
 
 if (!TG_TOKEN) {
   console.error('Missing TG_BOT_TOKEN in environment');

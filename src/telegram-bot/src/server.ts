@@ -48,8 +48,8 @@ interface OrderPanelJob {
 const panelJobs = new Map<string, OrderPanelJob>();
 const panelLog = createLogger("OrderPanel");
 
-const FLIGHT_API_URL = process.env.FLIGHT_API || "https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool";
-const HOTEL_API_URL  = process.env.HOTEL_API  || "https://nexus-hotel-agent-d2lj.onrender.com/api/v1/call-tool";
+const FLIGHT_API_URL = process.env.FLIGHT_API || "https://xagenpay.com/flight/api/v1/call-tool";
+const HOTEL_API_URL  = process.env.HOTEL_API  || "https://xagenpay.com/hotel/api/v1/call-tool";
 
 async function checkMerchantStatus(orderRef: string | null, kind: "flight" | "hotel"): Promise<string> {
   if (!orderRef) return "N/A";

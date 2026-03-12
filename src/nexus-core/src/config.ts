@@ -27,7 +27,7 @@ export interface NexusCoreConfig {
    * Optional URL of the Telegram bot service's /api/payment-notify endpoint.
    * When set, nexus-core pushes real-time payment state changes to the bot
    * so the order card (sent by Eva) updates instantly without polling.
-   * e.g. https://nexus-telegram-bot-8fzu.onrender.com/api/payment-notify
+   * e.g. https://xagenpay.com/tg-bot/api/payment-notify
    */
   readonly telegramNotifyUrl: string;
 }

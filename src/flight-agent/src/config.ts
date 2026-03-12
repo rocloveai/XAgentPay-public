@@ -36,7 +36,7 @@ export function loadConfig(): Config {
   const nexusCoreUrl =
     process.env.NEXUS_CORE_URL || "https://api.xagenpay.com";
   const portalBaseUrl =
-    process.env.PORTAL_BASE_URL || "https://nexus-flight-agent-3xb1.onrender.com";
+    process.env.PORTAL_BASE_URL || "https://xagenpay.com/flight";
 
   return {
     duffelApiToken,
