@@ -44,8 +44,8 @@ services:
   # ── Flight Agent ──
   flight-agent:
     build:
-      context: ../src/flight-agent
-      dockerfile: Dockerfile
+      context: ../src
+      dockerfile: flight-agent/Dockerfile
     restart: always
     ports:
       - "127.0.0.1:10001:10000"
@@ -68,8 +68,8 @@ services:
   # ── Hotel Agent ──
   hotel-agent:
     build:
-      context: ../src/hotel-agent
-      dockerfile: Dockerfile
+      context: ../src
+      dockerfile: hotel-agent/Dockerfile
     restart: always
     ports:
       - "127.0.0.1:10002:10000"
@@ -93,8 +93,8 @@ services:
   # ── eSIM Agent ──
   esim-agent:
     build:
-      context: ../src/esim-agent
-      dockerfile: Dockerfile
+      context: ../src
+      dockerfile: esim-agent/Dockerfile
     restart: always
     ports:
       - "127.0.0.1:10005:10000"
