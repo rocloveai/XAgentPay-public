@@ -1,0 +1,32 @@
+{
+  "name": "@nexuspay/esim-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "XAgent eSIM MCP Agent — search eSIM data plans, generate NUPS quotes, verify payments, deliver QR codes",
+  "bin": {
+    "xagent-esim": "./build/server.js"
+  },
+  "files": [
+    "build",
+    "skill.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/server.js",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "pg": "^8.13.0",
+    "qrcode": "^1.5.4",
+    "viem": "^2.46.3",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/node": "^22.13.4",
+    "typescript": "^5.7.3"
+  }
+}

@@ -148,7 +148,7 @@ const Navbar = ({ lang, setLang, page, setPage, theme, setTheme }: {
   );
 };
 
-const Hero = ({ lang }: { lang: Language }) => {
+const Hero = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => void }) => {
   const t = translations[lang].hero;
   return (
     <section className="relative pt-20 pb-32 px-6 overflow-hidden">
@@ -181,7 +181,7 @@ const Hero = ({ lang }: { lang: Language }) => {
           </div>
 
           <div className="flex flex-wrap gap-4">
-            <button className="bg-primary text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all flex items-center gap-2 group">
+            <button onClick={() => setPage('market')} className="bg-primary text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-all flex items-center gap-2 group">
               Get Started <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
             <div className="flex items-center gap-3 px-4 py-2 rounded-xl border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 transition-colors">
@@ -596,9 +596,9 @@ const Footer = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => v
           <div className="flex flex-col gap-4">
             <h4 className="font-bold text-slate-900 dark:text-white transition-colors">{t.community}</h4>
             <div className="flex flex-col gap-2">
-              <a href="#" className="text-slate-500 hover:text-primary transition-colors">Twitter</a>
-              <a href="#" className="text-slate-500 hover:text-primary transition-colors">Discord</a>
-              <a href="#" className="text-slate-500 hover:text-primary transition-colors">GitHub</a>
+              <a href="https://x.com/xagentpay" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-primary transition-colors">Twitter</a>
+              <a href="https://discord.gg/xagentpay" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-primary transition-colors">Discord</a>
+              <a href="https://github.com/rocloveai/XAgentPay" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-primary transition-colors">GitHub</a>
             </div>
           </div>
 
@@ -614,9 +614,9 @@ const Footer = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => v
         <div className="pt-8 border-t border-black/5 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 transition-colors">
           <p className="text-sm text-slate-500 dark:text-slate-600 transition-colors">{t.rights}</p>
           <div className="flex gap-6">
-            <Globe className="w-4 h-4 text-slate-400 dark:text-slate-600 transition-colors" />
-            <Shield className="w-4 h-4 text-slate-400 dark:text-slate-600 transition-colors" />
-            <Lock className="w-4 h-4 text-slate-400 dark:text-slate-600 transition-colors" />
+            <a href="https://xagenpay.com" className="text-slate-400 dark:text-slate-600 hover:text-primary transition-colors"><Globe className="w-4 h-4" /></a>
+            <a href="https://xlayer.tech" target="_blank" rel="noopener noreferrer" className="text-slate-400 dark:text-slate-600 hover:text-primary transition-colors"><Shield className="w-4 h-4" /></a>
+            <a href="https://github.com/rocloveai/XAgentPay" target="_blank" rel="noopener noreferrer" className="text-slate-400 dark:text-slate-600 hover:text-primary transition-colors"><Lock className="w-4 h-4" /></a>
           </div>
         </div>
       </div>
@@ -682,6 +682,128 @@ const MarketPage = ({ lang }: { lang: Language }) => {
     catch { return new Set(); }
   });
   const [copiedDid, setCopiedDid] = useState<string | null>(null);
+
+  // --- Registration form state ---
+  const [formData, setFormData] = useState({
+    skill_md_url: '', merchant_did: '', name: '', description: '',
+    category: '', signer_address: '', payment_address: '', health_url: '',
+    skill_user_url: '', webhook_url: '', webhook_secret: '',
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitResult, setSubmitResult] = useState<{
+    status: 'success' | 'error'; message: string; agent?: MarketAgent;
+  } | null>(null);
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [autoFillStatus, setAutoFillStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [showOptional, setShowOptional] = useState(false);
+
+  const updateField = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (formErrors[field]) {
+      setFormErrors(prev => { const next = { ...prev }; delete next[field]; return next; });
+    }
+  };
+
+  const tf = t.list.form as Record<string, any>;
+  const validators: Record<string, (v: string) => string> = {
+    skill_md_url: (v) => !v ? tf.errors.required : !/^https?:\/\/.+/.test(v) ? tf.errors.invalidUrl : '',
+    merchant_did: (v) => !v ? tf.errors.required : !/^did:nexus:\d+:\w+$/.test(v) ? tf.errors.invalidDid : '',
+    name: (v) => !v ? tf.errors.required : (v.length < 2 || v.length > 100) ? tf.errors.nameLength : '',
+    description: (v) => !v ? tf.errors.required : (v.length < 10 || v.length > 500) ? tf.errors.descLength : '',
+    category: (v) => !v ? tf.errors.required : '',
+    signer_address: (v) => !v ? tf.errors.required : !/^0x[a-fA-F0-9]{40}$/.test(v) ? tf.errors.invalidAddress : '',
+    payment_address: (v) => !v ? tf.errors.required : !/^0x[a-fA-F0-9]{40}$/.test(v) ? tf.errors.invalidAddress : '',
+    health_url: (v) => !v ? tf.errors.required : !/^https?:\/\/.+/.test(v) ? tf.errors.invalidUrl : '',
+    skill_user_url: (v) => v && !/^https?:\/\/.+/.test(v) ? tf.errors.invalidUrl : '',
+    webhook_url: (v) => v && !/^https?:\/\/.+/.test(v) ? tf.errors.invalidUrl : '',
+    webhook_secret: () => '',
+  };
+
+  const validateField = (field: string) => {
+    const val = formData[field as keyof typeof formData] || '';
+    const err = validators[field]?.(val) || '';
+    if (err) setFormErrors(prev => ({ ...prev, [field]: err }));
+  };
+
+  const handleAutoFill = async (url: string) => {
+    if (!url || !/^https?:\/\/.+/.test(url)) return;
+    setIsAutoFilling(true);
+    setAutoFillStatus('loading');
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      const fmMatch = text.match(/^---\s*\n([\s\S]*?)\n---/);
+      if (!fmMatch) { setAutoFillStatus('error'); setIsAutoFilling(false); return; }
+      const kvMap = new Map<string, string>();
+      for (const line of fmMatch[1].split('\n')) {
+        const m = line.match(/^(\w[\w_-]*):\s*(.+)$/);
+        if (m) kvMap.set(m[1].trim(), m[2].trim().replace(/^["'](.*)["']$/, '$1'));
+      }
+      setFormData(prev => ({
+        ...prev,
+        merchant_did: prev.merchant_did || kvMap.get('merchant_did') || '',
+        name: prev.name || kvMap.get('name') || '',
+        description: prev.description || kvMap.get('description') || '',
+        category: prev.category || kvMap.get('category')?.split('.')[0] || '',
+      }));
+      setAutoFillStatus('success');
+    } catch {
+      setAutoFillStatus('error');
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
+
+  const handleRegisterSubmit = async () => {
+    const errors: Record<string, string> = {};
+    for (const field of ['skill_md_url','merchant_did','name','description','category','signer_address','payment_address','health_url']) {
+      const err = validators[field](formData[field as keyof typeof formData]);
+      if (err) errors[field] = err;
+    }
+    for (const field of ['skill_user_url','webhook_url']) {
+      const val = formData[field as keyof typeof formData];
+      if (val) { const err = validators[field](val); if (err) errors[field] = err; }
+    }
+    if (Object.keys(errors).length > 0) { setFormErrors(errors); return; }
+
+    setIsSubmitting(true);
+    setSubmitResult(null);
+    try {
+      const payload: Record<string, string> = {};
+      for (const [key, value] of Object.entries(formData)) { if (value) payload[key] = value; }
+      const res = await fetch(`${API_URL}/api/market/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSubmitResult({ status: 'success', message: tf.successMessage, agent: data.agent });
+        if (data.agent) {
+          setAgents(prev => {
+            const exists = prev.some((a: MarketAgent) => a.merchant_did === data.agent.merchant_did);
+            return exists ? prev.map((a: MarketAgent) => a.merchant_did === data.agent.merchant_did ? data.agent : a) : [data.agent, ...prev];
+          });
+        }
+      } else {
+        setSubmitResult({ status: 'error', message: data.error || tf.errorMessage });
+      }
+    } catch {
+      setSubmitResult({ status: 'error', message: tf.networkError });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({ skill_md_url: '', merchant_did: '', name: '', description: '', category: '', signer_address: '', payment_address: '', health_url: '', skill_user_url: '', webhook_url: '', webhook_secret: '' });
+    setFormErrors({});
+    setSubmitResult(null);
+    setAutoFillStatus('idle');
+    setShowOptional(false);
+  };
 
   const copySkillUrl = (did: string, url: string) => {
     navigator.clipboard.writeText(url).then(() => {
@@ -1038,29 +1160,147 @@ const MarketPage = ({ lang }: { lang: Language }) => {
                 </div>
 
                 <div className="relative">
-                  <div className="sticky top-32 p-8 rounded-3xl bg-primary/5 border border-primary/10 flex flex-col gap-8">
-                    <div className="flex flex-col gap-2">
-                      <h3 className="text-2xl font-bold text-slate-900 dark:text-white transition-colors">Ready to scale?</h3>
-                      <p className="text-slate-600 dark:text-slate-400 transition-colors">Join the ecosystem of autonomous commercial agents.</p>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">Merchant DID</label>
-                        <input type="text" placeholder="did:nexus:..." className="bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white" />
+                  <div className="sticky top-32 p-8 rounded-3xl bg-primary/5 border border-primary/10 flex flex-col gap-6 max-h-[calc(100vh-10rem)] overflow-y-auto">
+                    {submitResult?.status === 'success' ? (
+                      <div className="flex flex-col gap-6">
+                        <div className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+                          <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0" />
+                          <div>
+                            <p className="font-bold text-green-600 dark:text-green-400">{tf.successTitle}</p>
+                            <p className="text-sm text-green-600/80 dark:text-green-400/80">{tf.successMessage}</p>
+                          </div>
+                        </div>
+                        {submitResult.agent && (
+                          <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-black/5 dark:border-white/5 flex flex-col gap-3">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${healthColor(submitResult.agent.health_status)}`} />
+                              <h4 className="font-bold text-slate-900 dark:text-white">{submitResult.agent.name}</h4>
+                            </div>
+                            <p className="text-sm text-slate-600 dark:text-slate-400">{submitResult.agent.description}</p>
+                            <span className="px-2 py-0.5 rounded bg-primary/10 text-[10px] font-mono text-primary border border-primary/20 w-fit">{submitResult.agent.category}</span>
+                          </div>
+                        )}
+                        <button onClick={resetForm} className="w-full py-3 rounded-xl border border-primary/20 text-primary font-bold hover:bg-primary/10 transition-all">{tf.registerAnother}</button>
                       </div>
-                      <div className="flex flex-col gap-2">
-                        <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">Skill.md URL</label>
-                        <input type="text" placeholder="https://..." className="bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white" />
-                      </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-col gap-2">
+                          <h3 className="text-2xl font-bold text-slate-900 dark:text-white transition-colors">{tf.heading}</h3>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 transition-colors">{tf.subheading}</p>
+                        </div>
 
-                    <button className="w-full bg-primary text-white py-4 rounded-xl font-bold hover:bg-primary/90 transition-all">Submit for Review</button>
-                    
-                    <div className="flex items-center gap-2 justify-center text-slate-500">
-                      <Info className="w-4 h-4" />
-                      <span className="text-xs">Review typically takes 24-48 hours.</span>
-                    </div>
+                        {submitResult?.status === 'error' && (
+                          <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                            <X className="w-5 h-5 text-red-500 flex-shrink-0" />
+                            <p className="text-sm text-red-600 dark:text-red-400">{submitResult.message}</p>
+                          </div>
+                        )}
+
+                        {/* Section 1: Auto-fill from skill.md */}
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-bold text-primary uppercase tracking-widest">{tf.sectionAutoFill}</p>
+                          <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.skillMdUrl} *</label>
+                            <div className="flex gap-2">
+                              <input type="text" placeholder={tf.placeholders.skillMdUrl} value={formData.skill_md_url} onChange={(e) => updateField('skill_md_url', e.target.value)} onBlur={() => validateField('skill_md_url')} className={`flex-1 bg-white dark:bg-slate-900 border ${formErrors.skill_md_url ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
+                              <button onClick={() => handleAutoFill(formData.skill_md_url)} disabled={isAutoFilling || !formData.skill_md_url} className="px-3 py-3 rounded-xl bg-primary/10 border border-primary/20 text-primary text-xs font-bold hover:bg-primary/20 transition-all disabled:opacity-50" title={tf.autoFillBtn}>
+                                {isAutoFilling ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                              </button>
+                            </div>
+                            {formErrors.skill_md_url && <p className="text-xs text-red-500">{formErrors.skill_md_url}</p>}
+                            {autoFillStatus === 'success' && <p className="text-xs text-green-500 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />{tf.autoFillSuccess}</p>}
+                            {autoFillStatus === 'error' && <p className="text-xs text-amber-500">{tf.autoFillError}</p>}
+                          </div>
+                        </div>
+
+                        {/* Section 2: Agent Identity */}
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tf.sectionIdentity}</p>
+                          <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.merchantDid} *</label>
+                            <input type="text" placeholder={tf.placeholders.merchantDid} value={formData.merchant_did} onChange={(e) => updateField('merchant_did', e.target.value)} onBlur={() => validateField('merchant_did')} className={`bg-white dark:bg-slate-900 border ${formErrors.merchant_did ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
+                            {formErrors.merchant_did && <p className="text-xs text-red-500">{formErrors.merchant_did}</p>}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.name} *</label>
+                            <input type="text" placeholder={tf.placeholders.name} value={formData.name} onChange={(e) => updateField('name', e.target.value)} onBlur={() => validateField('name')} className={`bg-white dark:bg-slate-900 border ${formErrors.name ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
+                            {formErrors.name && <p className="text-xs text-red-500">{formErrors.name}</p>}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.description} *</label>
+                            <textarea rows={3} placeholder={tf.placeholders.description} value={formData.description} onChange={(e) => updateField('description', e.target.value)} onBlur={() => validateField('description')} className={`bg-white dark:bg-slate-900 border ${formErrors.description ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm resize-none`} />
+                            {formErrors.description && <p className="text-xs text-red-500">{formErrors.description}</p>}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.category} *</label>
+                            <select value={formData.category} onChange={(e) => updateField('category', e.target.value)} onBlur={() => validateField('category')} className={`bg-white dark:bg-slate-900 border ${formErrors.category ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`}>
+                              <option value="">{tf.selectCategory}</option>
+                              <option value="travel">Travel</option>
+                              <option value="food">Food</option>
+                              <option value="retail">Retail</option>
+                              <option value="entertainment">Entertainment</option>
+                              <option value="finance">Finance</option>
+                              <option value="telecom">Telecom</option>
+                              <option value="services">Services</option>
+                            </select>
+                            {formErrors.category && <p className="text-xs text-red-500">{formErrors.category}</p>}
+                          </div>
+                        </div>
+
+                        {/* Section 3: Blockchain & Endpoints */}
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tf.sectionBlockchain}</p>
+                          <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.signerAddress} *</label>
+                            <input type="text" placeholder={tf.placeholders.signerAddress} value={formData.signer_address} onChange={(e) => updateField('signer_address', e.target.value)} onBlur={() => validateField('signer_address')} className={`bg-white dark:bg-slate-900 border ${formErrors.signer_address ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm font-mono`} />
+                            {formErrors.signer_address && <p className="text-xs text-red-500">{formErrors.signer_address}</p>}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.paymentAddress} *</label>
+                            <input type="text" placeholder={tf.placeholders.paymentAddress} value={formData.payment_address} onChange={(e) => updateField('payment_address', e.target.value)} onBlur={() => validateField('payment_address')} className={`bg-white dark:bg-slate-900 border ${formErrors.payment_address ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm font-mono`} />
+                            {formErrors.payment_address && <p className="text-xs text-red-500">{formErrors.payment_address}</p>}
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.healthUrl} *</label>
+                            <input type="text" placeholder={tf.placeholders.healthUrl} value={formData.health_url} onChange={(e) => updateField('health_url', e.target.value)} onBlur={() => validateField('health_url')} className={`bg-white dark:bg-slate-900 border ${formErrors.health_url ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
+                            {formErrors.health_url && <p className="text-xs text-red-500">{formErrors.health_url}</p>}
+                          </div>
+                        </div>
+
+                        {/* Section 4: Optional (collapsible) */}
+                        <button type="button" onClick={() => setShowOptional(!showOptional)} className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-primary transition-colors">
+                          <ChevronRight className={`w-4 h-4 transition-transform ${showOptional ? 'rotate-90' : ''}`} />
+                          {showOptional ? tf.hideOptional : tf.showOptional}
+                        </button>
+                        {showOptional && (
+                          <div className="space-y-3">
+                            <div className="flex flex-col gap-2">
+                              <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.skillUserUrl}</label>
+                              <input type="text" placeholder={tf.placeholders.skillUserUrl} value={formData.skill_user_url} onChange={(e) => updateField('skill_user_url', e.target.value)} onBlur={() => validateField('skill_user_url')} className={`bg-white dark:bg-slate-900 border ${formErrors.skill_user_url ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
+                              {formErrors.skill_user_url && <p className="text-xs text-red-500">{formErrors.skill_user_url}</p>}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.webhookUrl}</label>
+                              <input type="text" placeholder={tf.placeholders.webhookUrl} value={formData.webhook_url} onChange={(e) => updateField('webhook_url', e.target.value)} onBlur={() => validateField('webhook_url')} className={`bg-white dark:bg-slate-900 border ${formErrors.webhook_url ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
+                              {formErrors.webhook_url && <p className="text-xs text-red-500">{formErrors.webhook_url}</p>}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.webhookSecret}</label>
+                              <input type="text" placeholder={tf.placeholders.webhookSecret} value={formData.webhook_secret} onChange={(e) => updateField('webhook_secret', e.target.value)} className="bg-white dark:bg-slate-900 border border-black/10 dark:border-white/10 rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm" />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Submit */}
+                        <button onClick={handleRegisterSubmit} disabled={isSubmitting} className="w-full bg-primary text-white py-4 rounded-xl font-bold hover:bg-primary/90 transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                          {isSubmitting ? tf.submitting : tf.submit}
+                        </button>
+                        <div className="flex items-center gap-2 justify-center text-slate-500">
+                          <Info className="w-4 h-4" />
+                          <span className="text-xs">{tf.reviewNote}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -1279,7 +1519,7 @@ export default function App() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <Hero lang={lang} />
+              <Hero lang={lang} setPage={setPage} />
               <ApiKeysSection lang={lang} />
               <RevenueDistribution lang={lang} />
               <Compliance lang={lang} />

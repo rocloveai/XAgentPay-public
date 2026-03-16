@@ -90,6 +90,29 @@ services:
       NEXUS_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
       PORTAL_BASE_URL: "https://xagenpay.com/hotel"
 
+  # ── eSIM Agent ──
+  esim-agent:
+    build:
+      context: ../src/esim-agent
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "127.0.0.1:10005:10000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TRANSPORT: http
+      PORTAL_PORT: "10000"
+      PORTAL_HOST: "0.0.0.0"
+      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay?sslmode=disable
+      MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_ESIM}
+      MERCHANT_PAYMENT_ADDRESS: "0xC4a3E2b5c6D7f8A9b0E1d2C3B4a5F6e7D8c9A0b1"
+      MERCHANT_DID: "did:nexus:196:demo_esim"
+      NEXUS_CORE_URL: "http://nexus-core:10000"
+      NEXUS_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
+      PORTAL_BASE_URL: "https://xagenpay.com/esim"
+
   # ── Telegram Bot ──
   telegram-bot:
     build:
