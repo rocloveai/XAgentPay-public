@@ -1340,12 +1340,37 @@ export async function handleCheckoutRequest(
     return true;
   }
 
-  // GET /checkout/:token — HTML page
+  // GET /checkout/:token — HTML page (or JSON if Accept: application/json)
+  // Note: nginx strips /api/ prefix, so /api/checkout/:token also lands here.
+  // The checkout page JS fetches the same URL with Accept: application/json
+  // to get order data, so we must return JSON when that header is present.
   const htmlMatch = path.match(
     /^\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i,
   );
   if (htmlMatch && req.method === "GET") {
     const tokenOrGroupId = decodeURIComponent(htmlMatch[1]);
+    const accept = req.headers.accept ?? "";
+    // Browser navigation sends "text/html,..." while fetch() sends "*/*" or
+    // "application/json". We treat any request that does NOT explicitly ask
+    // for text/html as a JSON API request — this handles both "Accept: */*"
+    // (default fetch) and "Accept: application/json".
+    const wantsHtml = accept.includes("text/html");
+
+    // If the client does NOT want HTML, delegate to the JSON API handler
+    if (!wantsHtml) {
+      try {
+        await handleApiCheckout(deps, tokenOrGroupId, res);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Internal error";
+        checkoutLog.error("checkout API error (via html route)", {
+          error: message,
+          token: tokenOrGroupId,
+        });
+        sendJson(res, 500, { error: message });
+      }
+      return true;
+    }
+
     const groupId = await resolveTokenOrGroupId(deps.kvRepo, tokenOrGroupId);
 
     if (!groupId) {
@@ -1370,9 +1395,10 @@ export async function handleCheckoutRequest(
     return true;
   }
 
-  // POST /api/checkout/:token/confirm — confirm user-submitted tx hash
+  // POST /checkout/:token/confirm — confirm user-submitted tx hash
+  // Note: also matches /api/checkout/:token/confirm for direct access
   const confirmMatch = path.match(
-    /^\/api\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)\/confirm$/i,
+    /^\/(?:api\/)?checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)\/confirm$/i,
   );
   if (confirmMatch && req.method === "POST") {
     const tokenOrGroupId = decodeURIComponent(confirmMatch[1]);
@@ -1389,9 +1415,10 @@ export async function handleCheckoutRequest(
     return true;
   }
 
-  // GET /api/checkout/:token — JSON data for checkout page
+  // GET /api/checkout/:token — JSON data for checkout page (fallback)
+  // Note: also matches /checkout/:token with Accept: application/json (see above)
   const apiMatch = path.match(
-    /^\/api\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i,
+    /^\/(?:api\/)?checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i,
   );
   if (apiMatch && req.method === "GET") {
     const tokenOrGroupId = decodeURIComponent(apiMatch[1]);
