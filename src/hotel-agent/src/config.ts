@@ -33,7 +33,7 @@ export function loadConfig(): Config {
     process.env.NEXUS_WEBHOOK_SECRET ?? "REDACTED_WEBHOOK_SECRET";
   const paymentAddress =
     process.env.MERCHANT_PAYMENT_ADDRESS ||
-    "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd";
+    "0xac9d5239b597f8903da93b9b8d92e6cff564e989";
   const signerPrivateKey =
     process.env.MERCHANT_SIGNER_PRIVATE_KEY ||
     "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997";
