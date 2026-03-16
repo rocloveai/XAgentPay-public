@@ -1,19 +1,26 @@
 ---
 name: xagent-hotel
-version: "0.1.0"
-description: Hotel booking MCP agent — search hotels, generate NUPS quotes, verify on-chain payments
+version: "2.0.0"
+description: Hotel booking MCP agent — search hotels, generate NUPS quotes, verify on-chain payments. Supports x402 payment protocol.
 merchant_did: "did:nexus:196:demo_hotel"
 protocol: NUPS/1.5
 category: travel.hotels
 currencies: [USDC]
 chain_id: 196
+x402:
+  version: 2
+  scheme: exact
+  network: "eip155:196"
+  asset: "0x74b7F16337b8972027F6196A17a631aC6dE26d22"
+  assetTransferMethod: eip3009
+  description: "Supports x402 payment protocol. Tools accept payment via _meta['x402/payment']."
 tools:
   - name: search_and_quote
-    role: search+quote
+    role: search+quote+x402
   - name: search_hotels
     role: search
   - name: nexus_generate_quote
-    role: quote
+    role: quote+x402
   - name: nexus_check_status
     role: status
 ---
@@ -40,9 +47,9 @@ Transport: **Streamable HTTP** (stateless, single `POST /mcp` per request).
 
 ## Available Tools
 
-### `search_and_quote` (role: search+quote) — Recommended
+### `search_and_quote` (role: search+quote+x402) — Recommended
 
-Search hotels AND generate a NUPS quote in one call. Fastest way to get a hotel quote.
+Search hotels AND generate a NUPS quote in one call. Fastest way to get a hotel quote. Supports **x402 payment protocol** — include `_meta["x402/payment"]` with a signed EIP-3009 `transferWithAuthorization` to pay and receive the booking confirmation instantly.
 
 **Parameters:**
 
@@ -110,3 +117,23 @@ Checks the payment status of a hotel order.
 1. **Search + Quote** — Call `search_and_quote` with city, dates, and payer wallet. Returns hotels + ready-to-use quote.
 2. **Pay** — Call `nexus_orchestrate_payment` on XAgent Pay Core with the `QUOTE_JSON` from step 1. Multiple quotes from different merchants can be combined into a single call.
 3. **Verify** — Call `nexus_check_status` to verify. Only confirm booking when status is `PAID`.
+
+## x402 Payment Protocol
+
+This agent supports the **x402 payment protocol** (v2) for direct on-chain payments via MCP tool calls.
+
+**How it works:**
+1. Call `search_and_quote` without payment → returns search results + `PaymentRequired` (402)
+2. Sign an EIP-3009 `transferWithAuthorization` with the payment details
+3. Call `search_and_quote` again with `_meta["x402/payment"]` containing the signed authorization
+4. Agent verifies signature → settles on-chain → returns results + `_meta["x402/payment-response"]` with TX hash
+
+**Payment Details:**
+- Network: XLayer (eip155:196)
+- Asset: USDC (`0x74b7F16337b8972027F6196A17a631aC6dE26d22`)
+- Method: EIP-3009 `transferWithAuthorization`
+- Amount: 0.10 USDC (demo)
+
+## Supported Cities
+
+Tokyo, Singapore, Shanghai, Bangkok, Hong Kong, and other major Asia-Pacific destinations.

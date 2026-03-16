@@ -17,6 +17,15 @@ import {
   sendJson,
 } from "./portal.js";
 import { privateKeyToAccount } from "viem/accounts";
+import {
+  extractX402Payment,
+  buildPaymentRequired,
+  buildPaymentRequiredResult,
+  buildPaidToolResult,
+  processX402Payment,
+  formatUsdcAmount,
+  type X402ToolConfig,
+} from "@xagentpay/x402";
 import type { FlightOffer } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -332,8 +341,17 @@ function createMcpServer(): McpServer {
   const sessionOfferCache = new Map<string, FlightOffer>();
   const srv = new McpServer({
     name: "xagent-flight",
-    version: "0.1.0",
+    version: "2.0.0",
   });
+
+  // ── x402 Payment Configuration ──────────────────────────────────────────
+  const x402Config: X402ToolConfig = {
+    toolName: "search_and_quote",
+    priceUsdcAtomic: config.x402PriceAtomic,
+    payTo: config.paymentAddress,
+    resourceDescription: "Flight booking on XLayer",
+    signerPrivateKey: config.relayerPrivateKey,
+  };
 
   // ── Tool: search_flights ────────────────────────────────────────────────────
 
@@ -369,13 +387,14 @@ function createMcpServer(): McpServer {
     },
   );
 
-  // ── Tool: search_and_quote (FAST PATH — search + auto-quote in one call) ──
+  // ── Tool: search_and_quote (FAST PATH + x402 Payment) ───────────────────
 
   srv.tool(
     "search_and_quote",
-    "Search flights AND generate a Nexus quote for the best option in ONE call. " +
-      "This is the fastest way to get a flight quote. " +
-      "Returns all options plus a ready-to-use quote for the cheapest flight (or specify offer_index to pick a different one).",
+    "Search flights AND generate a quote in ONE call. " +
+      "Supports x402 payment protocol — include _meta['x402/payment'] with a signed EIP-3009 " +
+      "transferWithAuthorization to pay and book instantly. " +
+      "Without payment, returns flights + PaymentRequired info.",
     {
       origin: z
         .string()
@@ -404,14 +423,10 @@ function createMcpServer(): McpServer {
           "Zero-based index of the flight to quote (default: 0 = cheapest). Use this to pick a different flight after seeing options.",
         ),
     },
-    async ({
-      origin,
-      destination,
-      date,
-      passengers,
-      payer_wallet,
-      offer_index,
-    }) => {
+    async (
+      { origin, destination, date, passengers, payer_wallet, offer_index },
+      extra,
+    ) => {
       try {
         const result = await handleSearchAndQuote(sessionOfferCache, {
           origin,
@@ -421,9 +436,31 @@ function createMcpServer(): McpServer {
           payer_wallet,
           offer_index,
         });
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-        };
+
+        // Check for x402 payment
+        const payment = extractX402Payment(
+          (extra as any)?._meta ?? (extra as any)?.meta,
+        );
+
+        if (!payment) {
+          const pr = buildPaymentRequired(x402Config);
+          return buildPaymentRequiredResult(pr, result.text);
+        }
+
+        // Payment present — verify + settle
+        const payResult = await processX402Payment(payment, x402Config);
+        if ("error" in payResult) {
+          return buildPaymentRequiredResult(payResult.error, result.text);
+        }
+
+        const paidText =
+          `✅ Payment settled on XLayer!\n` +
+          `TX: ${payResult.settled.transaction}\n` +
+          `Amount: ${formatUsdcAmount(x402Config.priceUsdcAtomic)}\n` +
+          `Payer: ${payResult.settled.payer ?? payer_wallet}\n\n` +
+          result.text;
+
+        return buildPaidToolResult(paidText, payResult.settled);
       } catch (err: any) {
         return {
           content: [{ type: "text" as const, text: `Error: ${err.message}` }],
@@ -433,11 +470,13 @@ function createMcpServer(): McpServer {
     },
   );
 
-  // ── Tool: nexus_generate_quote ──────────────────────────────────────────────
+  // ── Tool: nexus_generate_quote (+ x402 Payment) ────────────────────────
 
   srv.tool(
     "nexus_generate_quote",
-    "Generates a Nexus Payment (NUPS) quote for a selected flight offer. Use search_and_quote instead for faster flow.",
+    "Generates a Nexus Payment (NUPS) quote for a selected flight offer. " +
+      "Supports x402 payment — include _meta['x402/payment'] to pay instantly. " +
+      "Use search_and_quote instead for faster flow.",
     {
       flight_offer_id: z
         .string()
@@ -447,15 +486,40 @@ function createMcpServer(): McpServer {
         .regex(/^0x[a-fA-F0-9]{40}$/)
         .describe("Payer's EVM wallet address (0x...)"),
     },
-    async ({ flight_offer_id, payer_wallet }) => {
+    async ({ flight_offer_id, payer_wallet }, extra) => {
       try {
         const result = await handleGenerateQuote(sessionOfferCache, {
           flight_offer_id,
           payer_wallet,
         });
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-        };
+
+        const payment = extractX402Payment(
+          (extra as any)?._meta ?? (extra as any)?.meta,
+        );
+
+        if (!payment) {
+          const quoteConfig: X402ToolConfig = { ...x402Config, toolName: "nexus_generate_quote" };
+          const pr = buildPaymentRequired(quoteConfig);
+          return buildPaymentRequiredResult(pr, result.text);
+        }
+
+        const payResult = await processX402Payment(payment, {
+          ...x402Config,
+          toolName: "nexus_generate_quote",
+        });
+
+        if ("error" in payResult) {
+          return buildPaymentRequiredResult(payResult.error, result.text);
+        }
+
+        const paidText =
+          `✅ Payment settled on XLayer!\n` +
+          `TX: ${payResult.settled.transaction}\n` +
+          `Amount: ${formatUsdcAmount(x402Config.priceUsdcAtomic)}\n` +
+          `Payer: ${payResult.settled.payer ?? payer_wallet}\n\n` +
+          result.text;
+
+        return buildPaidToolResult(paidText, payResult.settled);
       } catch (err: any) {
         return {
           content: [{ type: "text" as const, text: `Error: ${err.message}` }],

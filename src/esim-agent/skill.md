@@ -1,19 +1,26 @@
 ---
 name: xagent-esim
-version: "1.0.0"
-description: Global eSIM data plans for 190+ countries. Instant activation, pay with USDC on XLayer.
+version: "2.0.0"
+description: Global eSIM data plans for 190+ countries. Instant activation, pay with USDC on XLayer. Supports x402 payment protocol.
 merchant_did: "did:nexus:196:demo_esim"
 protocol: NUPS/1.5
 category: telecom.esim
 currencies: [USDC]
 chain_id: 196
+x402:
+  version: 2
+  scheme: exact
+  network: "eip155:196"
+  asset: "0x74b7F16337b8972027F6196A17a631aC6dE26d22"
+  assetTransferMethod: eip3009
+  description: "Supports x402 payment protocol. Tools accept payment via _meta['x402/payment']."
 tools:
   - name: search_and_quote
-    role: search+quote
+    role: search+quote+x402
   - name: search_esim_plans
     role: search
   - name: nexus_generate_quote
-    role: quote
+    role: quote+x402
   - name: nexus_check_status
     role: status
 ---
@@ -38,9 +45,9 @@ Transport: **Streamable HTTP** (stateless, single `POST /mcp` per request).
 
 ## Available Tools
 
-### `search_and_quote` (role: search+quote) — Recommended
+### `search_and_quote` (role: search+quote+x402) — Recommended
 
-Search eSIM plans AND generate a NUPS quote in one call. Fastest way to get an eSIM quote.
+Search eSIM plans AND generate a quote in one call. Supports **x402 payment protocol** — include `_meta["x402/payment"]` with a signed EIP-3009 `transferWithAuthorization` to pay and receive the eSIM instantly.
 
 **Parameters:**
 
@@ -106,6 +113,22 @@ Checks the payment status of an eSIM order. If paid, returns the eSIM activation
 1. **Search + Quote** — Call `search_and_quote` with country and payer wallet. Returns plans + ready-to-use quote.
 2. **Pay** — Call `nexus_orchestrate_payment` on XAgent Pay Core with the `QUOTE_JSON` from step 1.
 3. **Verify** — Call `nexus_check_status` to verify. When status is `PAID`, the response includes the eSIM activation QR code.
+
+## x402 Payment Protocol
+
+This agent supports the **x402 payment protocol** (v2) for direct on-chain payments via MCP tool calls.
+
+**How it works:**
+1. Call `search_and_quote` without payment → returns search results + `PaymentRequired` (402)
+2. Sign an EIP-3009 `transferWithAuthorization` with the payment details
+3. Call `search_and_quote` again with `_meta["x402/payment"]` containing the signed authorization
+4. Agent verifies signature → settles on-chain → returns results + `_meta["x402/payment-response"]` with TX hash
+
+**Payment Details:**
+- Network: XLayer (eip155:196)
+- Asset: USDC (`0x74b7F16337b8972027F6196A17a631aC6dE26d22`)
+- Method: EIP-3009 `transferWithAuthorization`
+- Amount: 0.10 USDC (demo)
 
 ## Supported Countries
 

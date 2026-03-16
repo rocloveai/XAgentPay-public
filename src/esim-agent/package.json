@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "@xagentpay/x402": "file:../shared/x402",
     "pg": "^8.13.0",
     "qrcode": "^1.5.4",
     "viem": "^2.46.3",

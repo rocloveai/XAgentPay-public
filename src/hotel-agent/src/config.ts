@@ -9,6 +9,8 @@ export interface Config {
   readonly signerPrivateKey: string;
   readonly nexusCoreUrl: string;
   readonly portalBaseUrl: string;
+  readonly relayerPrivateKey: string;
+  readonly x402PriceAtomic: string;
 }
 
 function parsePort(raw: string | undefined, fallback: number): number {
@@ -39,6 +41,11 @@ export function loadConfig(): Config {
     process.env.NEXUS_CORE_URL || "https://api.xagenpay.com";
   const portalBaseUrl =
     process.env.PORTAL_BASE_URL || "https://xagenpay.com/hotel";
+  const relayerPrivateKey =
+    process.env.RELAYER_PRIVATE_KEY ||
+    "0x__REDACTED_RELAYER_PRIVATE_KEY__";
+  const x402PriceAtomic =
+    process.env.X402_PRICE_ATOMIC || "100000"; // 0.10 USDC
 
   return {
     merchantDid,
@@ -51,5 +58,7 @@ export function loadConfig(): Config {
     signerPrivateKey,
     nexusCoreUrl,
     portalBaseUrl,
+    relayerPrivateKey,
+    x402PriceAtomic,
   };
 }
