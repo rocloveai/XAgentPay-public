@@ -1190,53 +1190,40 @@ async function signAndPayACP(instr) {
     await waitForReceipt(approveTxHash);
     console.log("[XAgent ACP] Approve confirmed.");
 
-    // Step 2: createAndFund for each job
+    // Step 2: batchCreateAndFund — all jobs in one transaction
     showOnly(["group-info","order-summary","payment-details","action-area","submitting"]);
-    var txHashes = [];
+    console.log("[XAgent ACP] Step 2: batchCreateAndFund for " + instr.jobs.length + " jobs");
+
+    var batchData = encodeBatchCreateAndFund(instr.jobs);
+    var gasLimit = 200000 + instr.jobs.length * 300000;
+
+    var batchTxHash = await ethereum.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: account,
+        to: instr.acp_contract,
+        data: batchData,
+        value: "0x0",
+        gas: "0x" + gasLimit.toString(16),
+      }],
+    });
+
+    console.log("[XAgent ACP] Batch TX:", batchTxHash);
+    var receipt = await waitForReceipt(batchTxHash);
+
+    // Extract all jobIds from JobCreated events in the single receipt
     var jobIds = [];
-
-    for (var i = 0; i < instr.jobs.length; i++) {
-      var job = instr.jobs[i];
-      console.log("[XAgent ACP] Creating job " + (i+1) + "/" + instr.jobs.length + " for " + job.merchant_order_ref);
-
-      var encodedData = encodeCreateAndFund(
-        job.provider_address,
-        job.evaluator_address,
-        job.expired_at,
-        job.description_json,
-        job.amount_uint256
-      );
-
-      var txHash = await ethereum.request({
-        method: "eth_sendTransaction",
-        params: [{
-          from: account,
-          to: instr.acp_contract,
-          data: encodedData,
-          value: "0x0",
-          gas: "0x" + parseInt("500000").toString(16),
-        }],
-      });
-
-      console.log("[XAgent ACP] Job " + (i+1) + " TX:", txHash);
-      var receipt = await waitForReceipt(txHash);
-      txHashes.push(txHash);
-
-      // Extract jobId from JobCreated event in logs
-      // JobCreated event topic = keccak256("JobCreated(uint256,address,address,address,uint256)")
-      if (receipt && receipt.logs) {
-        for (var j = 0; j < receipt.logs.length; j++) {
-          var log = receipt.logs[j];
-          // JobCreated event has jobId as first indexed param (topic[1])
-          if (log.topics && log.topics.length >= 2 && log.address.toLowerCase() === instr.acp_contract.toLowerCase()) {
-            var jobId = parseInt(log.topics[1], 16);
-            jobIds.push(jobId);
-            console.log("[XAgent ACP] Job created, ID:", jobId);
-            break;
-          }
+    if (receipt && receipt.logs) {
+      for (var j = 0; j < receipt.logs.length; j++) {
+        var log = receipt.logs[j];
+        if (log.topics && log.topics.length >= 2 && log.address.toLowerCase() === instr.acp_contract.toLowerCase()) {
+          var jobId = parseInt(log.topics[1], 16);
+          jobIds.push(jobId);
+          console.log("[XAgent ACP] Job created, ID:", jobId);
         }
       }
     }
+    console.log("[XAgent ACP] All jobs created:", jobIds);
 
     // Step 3: Confirm with server (ACP variant)
     showOnly(["group-info","order-summary","payment-details","action-area","confirming"]);
@@ -1244,17 +1231,19 @@ async function signAndPayACP(instr) {
     var confirmRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID) + "/confirm-acp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tx_hashes: txHashes, job_ids: jobIds }),
+      body: JSON.stringify({ tx_hashes: [batchTxHash], job_ids: jobIds }),
     });
 
     if (confirmRes.status === 200) {
-      document.getElementById("success-tx-hash").textContent = "TX: " + txHashes.join(", ");
+      document.getElementById("success-tx-hash").textContent = "TX: " + batchTxHash;
       showOnly(["group-info","order-summary","state-success"]);
       return;
     }
 
-    // For 202 or any other status, show success with tx hashes
-    document.getElementById("success-tx-hash").textContent = "TX: " + txHashes.join(", ");
+    var errBody = "";
+    try { errBody = await confirmRes.text(); } catch(_){}
+    console.error("[XAgent ACP] confirm-acp returned " + confirmRes.status + ": " + errBody);
+    document.getElementById("success-tx-hash").textContent = "TX: " + batchTxHash;
     showOnly(["group-info","order-summary","state-success"]);
 
   } catch (e) {
@@ -1264,6 +1253,63 @@ async function signAndPayACP(instr) {
       showError(e.message || "ACP transaction failed");
     }
   }
+}
+
+// Encode batchCreateAndFund(address[],address[],uint256[],string[],uint256[]) calldata
+function encodeBatchCreateAndFund(jobs) {
+  var sig = "batchCreateAndFund(address[],address[],uint256[],string[],uint256[])";
+  var selectorHash = keccak256Bytes(toUtf8Bytes(sig));
+  var selector = selectorHash.slice(0, 10);
+
+  var n = jobs.length;
+
+  // Encode each array's data (length word + elements)
+  var providersData = padUint256(n);
+  var evaluatorsData = padUint256(n);
+  var expiredAtsData = padUint256(n);
+  var budgetsData = padUint256(n);
+  for (var i = 0; i < n; i++) {
+    providersData += padAddress(jobs[i].provider_address);
+    evaluatorsData += padAddress(jobs[i].evaluator_address);
+    expiredAtsData += padUint256(jobs[i].expired_at);
+    budgetsData += padUint256(jobs[i].amount_uint256);
+  }
+
+  // descriptions: string[] — array of dynamic types
+  // Layout: length + n offsets + n string bodies
+  var descBodies = [];
+  for (var i = 0; i < n; i++) {
+    var descBytes = toUtf8Bytes(jobs[i].description_json);
+    var hexStr = "";
+    for (var b = 0; b < descBytes.length; b++) {
+      hexStr += descBytes[b].toString(16).padStart(2, "0");
+    }
+    var paddedHex = hexStr.padEnd(Math.ceil(descBytes.length / 32) * 64 || 64, "0");
+    descBodies.push({ len: descBytes.length, hex: paddedHex });
+  }
+  var descriptionsData = padUint256(n); // array length
+  // Offsets: relative to start of array data area (after length + offset words)
+  var descOffset = n * 32; // first string starts after n offset words (in bytes)
+  for (var i = 0; i < n; i++) {
+    descriptionsData += padUint256(descOffset);
+    descOffset += 32 + (descBodies[i].hex.length / 2); // 32 for length word + padded data
+  }
+  for (var i = 0; i < n; i++) {
+    descriptionsData += padUint256(descBodies[i].len);
+    descriptionsData += descBodies[i].hex;
+  }
+
+  // Top-level: 5 offset words pointing to each array
+  var headBytes = 5 * 32; // 160 bytes
+  var off1 = headBytes;
+  var off2 = off1 + providersData.length / 2;
+  var off3 = off2 + evaluatorsData.length / 2;
+  var off4 = off3 + expiredAtsData.length / 2;
+  var off5 = off4 + descriptionsData.length / 2;
+
+  return selector +
+    padUint256(off1) + padUint256(off2) + padUint256(off3) + padUint256(off4) + padUint256(off5) +
+    providersData + evaluatorsData + expiredAtsData + descriptionsData + budgetsData;
 }
 
 // Encode createAndFund(address provider, address evaluator, uint256 expiredAt, string description, uint256 budget) calldata

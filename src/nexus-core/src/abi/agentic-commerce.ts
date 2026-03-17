@@ -24,6 +24,7 @@ export const AGENTIC_COMMERCE_ABI = parseAbi([
 
   // Core functions
   "function createAndFund(address provider, address evaluator, uint256 expiredAt, string description, uint256 budget) returns (uint256 jobId)",
+  "function batchCreateAndFund(address[] providers, address[] evaluators, uint256[] expiredAts, string[] descriptions, uint256[] budgets) returns (uint256[] jobIds)",
   "function submit(uint256 jobId, bytes32 deliverable)",
   "function complete(uint256 jobId, bytes32 reason)",
   "function reject(uint256 jobId, bytes32 reason)",

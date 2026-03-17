@@ -229,6 +229,74 @@ contract AgenticCommerce is Ownable, ReentrancyGuard {
     }
 
     // -----------------------------------------------------------------------
+    // Core: Batch Create & Fund
+    // -----------------------------------------------------------------------
+
+    /**
+     * @notice Create multiple jobs and fund them in one transaction.
+     *         Client must have approved this contract for the total budget.
+     *         Single approve + single batchCreateAndFund = 2 signatures total.
+     *
+     * @param providers    Merchant wallets for each job
+     * @param evaluators   Evaluator addresses for each job
+     * @param expiredAts   Expiry timestamps for each job
+     * @param descriptions JSON metadata for each job
+     * @param budgets      USDC amounts for each job
+     * @return jobIds      Array of newly created job IDs
+     */
+    function batchCreateAndFund(
+        address[] calldata providers,
+        address[] calldata evaluators,
+        uint256[] calldata expiredAts,
+        string[] calldata descriptions,
+        uint256[] calldata budgets
+    ) external nonReentrant returns (uint256[] memory jobIds) {
+        uint256 len = providers.length;
+        require(
+            len == evaluators.length &&
+            len == expiredAts.length &&
+            len == descriptions.length &&
+            len == budgets.length,
+            "Array length mismatch"
+        );
+        require(len > 0, "Empty batch");
+
+        jobIds = new uint256[](len);
+        uint256 totalBudget = 0;
+
+        for (uint256 i = 0; i < len; i++) {
+            if (providers[i] == address(0)) revert ZeroAddress();
+            if (evaluators[i] == address(0)) revert ZeroAddress();
+            if (budgets[i] == 0) revert ZeroAmount();
+            if (msg.sender == providers[i]) revert SelfPayment();
+            if (expiredAts[i] <= block.timestamp) revert InvalidExpiry(expiredAts[i]);
+
+            uint256 jobId = nextJobId++;
+            jobIds[i] = jobId;
+
+            _jobs[jobId] = Job({
+                id: jobId,
+                client: msg.sender,
+                provider: providers[i],
+                evaluator: evaluators[i],
+                description: descriptions[i],
+                budget: budgets[i],
+                expiredAt: expiredAts[i],
+                status: JobStatus.Funded,
+                deliverable: bytes32(0),
+                completionReason: bytes32(0)
+            });
+
+            totalBudget += budgets[i];
+
+            emit JobCreated(jobId, msg.sender, providers[i], evaluators[i], budgets[i], expiredAts[i], descriptions[i]);
+        }
+
+        // Single USDC transfer for total amount
+        paymentToken.safeTransferFrom(msg.sender, address(this), totalBudget);
+    }
+
+    // -----------------------------------------------------------------------
     // Core: Submit Deliverable
     // -----------------------------------------------------------------------
 
