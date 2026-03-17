@@ -18,7 +18,7 @@ export type Hex = `0x${string}`;
 // Status unions
 // ---------------------------------------------------------------------------
 
-/** 12-state payment status machine */
+/** 16-state payment status machine */
 export type PaymentStatus =
   | "CREATED"
   | "AWAITING_TX"
@@ -32,10 +32,15 @@ export type PaymentStatus =
   | "ESCROWED"
   | "REFUNDED"
   | "DISPUTE_OPEN"
-  | "DISPUTE_RESOLVED";
+  | "DISPUTE_RESOLVED"
+  // ACP (ERC-8183) specific
+  | "JOB_FUNDED"
+  | "JOB_SUBMITTED"
+  | "JOB_COMPLETED"
+  | "JOB_REJECTED";
 
 /** Payment routing method */
-export type PaymentMethod = "DIRECT_TRANSFER" | "ESCROW_CONTRACT";
+export type PaymentMethod = "DIRECT_TRANSFER" | "ESCROW_CONTRACT" | "ACP_JOB";
 
 /** Append-only event types for payment_events table */
 export type PaymentEventType =
@@ -57,7 +62,13 @@ export type PaymentEventType =
   | "ESCROW_RELEASED"
   | "ESCROW_REFUNDED"
   | "DISPUTE_OPENED"
-  | "DISPUTE_RESOLVED";
+  | "DISPUTE_RESOLVED"
+  // ACP (ERC-8183) specific
+  | "ACP_JOB_FUNDED"
+  | "ACP_JOB_SUBMITTED"
+  | "ACP_JOB_COMPLETED"
+  | "ACP_JOB_REJECTED"
+  | "ACP_JOB_EXPIRED";
 
 /** Webhook event types sent to merchants */
 export type WebhookEventType =
@@ -70,7 +81,12 @@ export type WebhookEventType =
   | "payment.refunded"
   | "dispute.opened"
   | "dispute.resolved"
-  | "payment.completed";
+  | "payment.completed"
+  // ACP (ERC-8183) specific
+  | "payment.job_funded"
+  | "payment.job_submitted"
+  | "payment.job_completed"
+  | "payment.job_rejected";
 
 // ---------------------------------------------------------------------------
 // Core records (immutable DB rows)
@@ -228,6 +244,12 @@ export interface PaymentRecord {
   readonly dispute_deadline: string | null;
   readonly protocol_fee: string | null;
   readonly dispute_reason: string | null;
+  // ACP (ERC-8183) specific (all nullable)
+  readonly acp_contract: string | null;
+  readonly acp_job_id: number | null;
+  readonly acp_deliverable: string | null;
+  readonly acp_submit_tx_hash: string | null;
+  readonly acp_complete_tx_hash: string | null;
 }
 
 /** Append-only event row from `payment_events` */
@@ -407,6 +429,45 @@ export interface PaymentRequired402 {
   readonly nexus_group_sig: Hex;
   /** Address of the core operator that signed the group instruction */
   readonly core_operator_address: Address;
+}
+
+/** ACP Job detail — per-payment ACP job info within an ACPJobInstruction */
+export interface ACPJobDetail {
+  readonly nexus_payment_id: string;
+  readonly merchant_did: string;
+  readonly merchant_order_ref: string;
+  readonly provider_address: Address;
+  readonly evaluator_address: Address;
+  readonly amount_uint256: string;
+  readonly amount_display: string;
+  readonly summary: string;
+  readonly expired_at: number;
+  readonly description_json: string;
+}
+
+/** ACP Job instruction — sent to checkout page for createAndFund() flow */
+export interface ACPJobInstruction {
+  readonly group_id: string;
+  readonly chain_id: number;
+  readonly chain_name: string;
+  readonly rpc_url: string;
+  readonly payment_method: "ACP_JOB";
+  readonly acp_contract: Address;
+  readonly token_address: Address;
+  readonly token_symbol: "USDC";
+  readonly token_decimals: 6;
+  readonly total_amount_uint256: string;
+  readonly total_amount_display: string;
+  readonly jobs: readonly ACPJobDetail[];
+  /** Step 1: USDC approve tx — user sends USDC.approve(acp_contract, totalAmount) */
+  readonly approve_tx: {
+    readonly to: Address;
+    readonly data: Hex;
+    readonly value: "0";
+    readonly gas_limit: string;
+  };
+  readonly user_action: "APPROVE_AND_CREATE_JOBS";
+  readonly gas_paid_by: "USER";
 }
 
 /** @deprecated Use BatchDepositInstruction instead — Escrow mode instruction (EIP-3009 + Relayer) */

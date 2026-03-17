@@ -10,8 +10,10 @@ import type { MerchantRepository } from "./db/interfaces/merchant-repo.js";
 import type { PaymentRepository } from "./db/interfaces/payment-repo.js";
 import type { StarRepository } from "./db/interfaces/star-repo.js";
 import type { KVRepository } from "./db/interfaces/kv-repo.js";
-import type { MerchantRecord } from "./types.js";
+import type { MerchantRecord, Hex } from "./types.js";
+import type { NexusRelayer } from "./services/relayer.js";
 import { createLogger } from "./logger.js";
+import { keccak256, toHex } from "viem";
 
 const log = createLogger("REST-API");
 
@@ -26,6 +28,7 @@ export interface RestApiDeps {
   readonly starRepo: StarRepository;
   readonly kvRepo: KVRepository | null;
   readonly portalToken: string;
+  readonly relayer: NexusRelayer | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -226,6 +229,14 @@ export async function handleRestApiRequest(
   // --- GET /api/merchant/payments?merchant_did=...&since=...&status=...&group_id=... ---
   if (url.pathname === "/api/merchant/payments" && req.method === "GET") {
     return handleMerchantPayments(deps, res, url);
+  }
+
+  // --- POST /api/acp/submit-deliverable ---
+  if (
+    url.pathname === "/api/acp/submit-deliverable" &&
+    req.method === "POST"
+  ) {
+    return handleACPSubmitDeliverable(deps, req, res);
   }
 
   return false;
@@ -560,6 +571,153 @@ async function handleMerchantPayments(
   }
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// POST /api/acp/submit-deliverable — ACP Deliverable Submission
+// ---------------------------------------------------------------------------
+
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => resolve(Buffer.concat(chunks).toString()));
+    req.on("error", reject);
+  });
+}
+
+async function handleACPSubmitDeliverable(
+  deps: RestApiDeps,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<true> {
+  try {
+    if (!deps.relayer) {
+      jsonResponse(res, 503, {
+        error: {
+          code: "RELAYER_NOT_CONFIGURED",
+          message: "Relayer is not available (RELAYER_PRIVATE_KEY missing)",
+        },
+      });
+      return true;
+    }
+
+    let body: {
+      nexus_payment_id?: string;
+      merchant_did?: string;
+      deliverable?: string;
+    };
+    try {
+      const raw = await readBody(req);
+      body = JSON.parse(raw);
+    } catch {
+      jsonResponse(res, 400, {
+        error: { code: "INVALID_JSON", message: "Invalid JSON body" },
+      });
+      return true;
+    }
+
+    const { nexus_payment_id, merchant_did, deliverable } = body;
+
+    if (!nexus_payment_id || !merchant_did || !deliverable) {
+      jsonResponse(res, 400, {
+        error: {
+          code: "MISSING_PARAMS",
+          message:
+            "Required fields: nexus_payment_id, merchant_did, deliverable",
+        },
+      });
+      return true;
+    }
+
+    // Find the payment
+    const payment = await deps.paymentRepo.findById(nexus_payment_id);
+    if (!payment) {
+      jsonResponse(res, 404, {
+        error: { code: "PAYMENT_NOT_FOUND", message: "Payment not found" },
+      });
+      return true;
+    }
+
+    // Verify merchant_did matches
+    if (payment.merchant_did !== merchant_did) {
+      jsonResponse(res, 403, {
+        error: {
+          code: "MERCHANT_MISMATCH",
+          message: "merchant_did does not match payment",
+        },
+      });
+      return true;
+    }
+
+    // Verify payment is in JOB_FUNDED status
+    if (payment.status !== "JOB_FUNDED") {
+      jsonResponse(res, 409, {
+        error: {
+          code: "INVALID_STATUS",
+          message: `Payment status is ${payment.status}, expected JOB_FUNDED`,
+        },
+      });
+      return true;
+    }
+
+    // Get acp_job_id from payment record
+    const acpJobId = payment.acp_job_id;
+    if (!acpJobId) {
+      jsonResponse(res, 400, {
+        error: {
+          code: "NO_ACP_JOB",
+          message: "Payment has no associated ACP job ID",
+        },
+      });
+      return true;
+    }
+
+    // Hash the deliverable string to bytes32
+    const deliverableHash = keccak256(toHex(deliverable)) as Hex;
+
+    // Store deliverable on payment record
+    await deps.paymentRepo.updateStatus(nexus_payment_id, "JOB_FUNDED", {
+      acp_deliverable: deliverable,
+    });
+
+    // Call relayer to submit on-chain
+    const result = await deps.relayer.submitACPSubmit(
+      BigInt(acpJobId),
+      deliverableHash,
+    );
+
+    // Update submit tx hash
+    await deps.paymentRepo.updateStatus(nexus_payment_id, "JOB_FUNDED", {
+      acp_submit_tx_hash: result.txHash,
+    });
+
+    log.info("ACP deliverable submitted", {
+      nexus_payment_id,
+      acp_job_id: acpJobId,
+      tx_hash: result.txHash,
+    });
+
+    jsonResponse(res, 200, {
+      nexus_payment_id,
+      acp_job_id: acpJobId,
+      deliverable_hash: deliverableHash,
+      tx_hash: result.txHash,
+      block_number: result.blockNumber.toString(),
+      status: "submitted",
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    log.error("POST /api/acp/submit-deliverable error", { error: message });
+    jsonResponse(res, 500, {
+      error: { code: "INTERNAL_ERROR", message },
+    });
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Payment summary helper
+// ---------------------------------------------------------------------------
 
 function toPaymentSummary(p: import("./types.js").PaymentRecord) {
   return {

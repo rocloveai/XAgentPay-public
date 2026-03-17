@@ -40,6 +40,9 @@ services:
       USDC_ADDRESS: "0x74b7F16337b8972027F6196A17a631aC6dE26d22"
       BASE_URL: "https://xagenpay.com/api"
       TELEGRAM_NOTIFY_URL: "http://telegram-bot:10000/api/payment-notify"
+      # ACP (ERC-8183) — fill after deployment
+      ACP_CONTRACT: ${ACP_CONTRACT:-}
+      AUTO_EVALUATOR_CONTRACT: ${AUTO_EVALUATOR_CONTRACT:-}
 
   # ── Flight Agent ──
   flight-agent:

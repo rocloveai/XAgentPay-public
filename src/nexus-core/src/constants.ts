@@ -34,6 +34,11 @@ export const VALID_TRANSITIONS: ReadonlyMap<
   ["REFUNDED", new Set()],
   ["DISPUTE_OPEN", new Set(["DISPUTE_RESOLVED"])],
   ["DISPUTE_RESOLVED", new Set()],
+  // ACP (ERC-8183) specific
+  ["JOB_FUNDED", new Set(["JOB_SUBMITTED", "EXPIRED"])],
+  ["JOB_SUBMITTED", new Set(["JOB_COMPLETED", "JOB_REJECTED"])],
+  ["JOB_COMPLETED", new Set(["COMPLETED"])],
+  ["JOB_REJECTED", new Set()],
 ]);
 
 /** Terminal statuses — no further transitions possible */
@@ -44,9 +49,10 @@ export const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set([
   "RISK_REJECTED",
   "REFUNDED",
   "DISPUTE_RESOLVED",
+  "JOB_REJECTED",
 ]);
 
-/** All 12 payment statuses */
+/** All 16 payment statuses */
 export const ALL_STATUSES: readonly PaymentStatus[] = [
   "CREATED",
   "AWAITING_TX",
@@ -60,6 +66,10 @@ export const ALL_STATUSES: readonly PaymentStatus[] = [
   "REFUNDED",
   "DISPUTE_OPEN",
   "DISPUTE_RESOLVED",
+  "JOB_FUNDED",
+  "JOB_SUBMITTED",
+  "JOB_COMPLETED",
+  "JOB_REJECTED",
 ];
 
 // ---------------------------------------------------------------------------

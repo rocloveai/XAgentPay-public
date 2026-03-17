@@ -19,6 +19,10 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import type { NexusCoreConfig } from "../config.js";
 import { NEXUS_PAY_ESCROW_ABI } from "../abi/nexus-pay-escrow.js";
+import {
+  AGENTIC_COMMERCE_ABI,
+  AUTO_EVALUATOR_ABI,
+} from "../abi/agentic-commerce.js";
 import { RelayerError } from "../errors.js";
 
 // ---------------------------------------------------------------------------
@@ -97,6 +101,8 @@ export class NexusRelayer {
   private readonly publicClient: PublicClient<HttpTransport, Chain>;
   private readonly walletClient: WalletClient<HttpTransport, Chain, Account>;
   private readonly escrowAddress: Hex;
+  private readonly acpAddress: Hex | null;
+  private readonly autoEvaluatorAddress: Hex | null;
 
   constructor(config: NexusCoreConfig) {
     if (!config.relayerPrivateKey) {
@@ -110,6 +116,10 @@ export class NexusRelayer {
     this.publicClient = createPublicClient({ chain, transport });
     this.walletClient = createWalletClient({ chain, transport, account });
     this.escrowAddress = config.escrowContract as Hex;
+    this.acpAddress = config.acpContract ? (config.acpContract as Hex) : null;
+    this.autoEvaluatorAddress = config.autoEvaluatorContract
+      ? (config.autoEvaluatorContract as Hex)
+      : null;
   }
 
   async submitRelease(paymentIdBytes32: Hex): Promise<RelayerTxResult> {
@@ -176,6 +186,61 @@ export class NexusRelayer {
 
       return this.waitForReceipt(txHash);
     }, "submitRefund");
+  }
+
+  // ---------------------------------------------------------------------------
+  // ACP (ERC-8183) methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Submit a deliverable on behalf of a provider.
+   * Calls AgenticCommerce.submit(jobId, deliverable).
+   */
+  async submitACPSubmit(
+    jobId: bigint,
+    deliverableHash: Hex,
+  ): Promise<RelayerTxResult> {
+    if (!this.acpAddress) {
+      throw new RelayerError("ACP_CONTRACT is not configured");
+    }
+    return withRetry(async () => {
+      const txHash = await this.walletClient.writeContract({
+        address: this.acpAddress!,
+        abi: AGENTIC_COMMERCE_ABI,
+        functionName: "submit",
+        args: [jobId, deliverableHash],
+      });
+      return this.waitForReceipt(txHash);
+    }, "submitACPSubmit");
+  }
+
+  /**
+   * Trigger auto-evaluation for a submitted job.
+   * Calls AutoEvaluator.evaluate(jobId).
+   */
+  async submitEvaluate(jobId: bigint): Promise<RelayerTxResult> {
+    if (!this.autoEvaluatorAddress) {
+      throw new RelayerError("AUTO_EVALUATOR_CONTRACT is not configured");
+    }
+    return withRetry(async () => {
+      const txHash = await this.walletClient.writeContract({
+        address: this.autoEvaluatorAddress!,
+        abi: AUTO_EVALUATOR_ABI,
+        functionName: "evaluate",
+        args: [jobId],
+      });
+      return this.waitForReceipt(txHash);
+    }, "submitEvaluate");
+  }
+
+  /** Get ACP contract address (for chain-watcher) */
+  getACPAddress(): Hex | null {
+    return this.acpAddress;
+  }
+
+  /** Get the public client (for chain-watcher event polling) */
+  getPublicClient(): PublicClient<HttpTransport, Chain> {
+    return this.publicClient;
   }
 
   private async waitForReceipt(txHash: Hex): Promise<RelayerTxResult> {

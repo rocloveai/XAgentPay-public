@@ -32,6 +32,7 @@ import type {
   PaymentEventType,
 } from "../types.js";
 import { NEXUS_PAY_ESCROW_EVENTS, NEXUS_PAY_ESCROW_ABI } from "../abi/nexus-pay-escrow.js";
+import { AGENTIC_COMMERCE_EVENTS } from "../abi/agentic-commerce.js";
 import { buildPlatonChain, type NexusRelayer, OnChainEscrowStatus } from "./relayer.js";
 import type { PaymentStateMachine } from "./state-machine.js";
 import type { GroupManager } from "./group-manager.js";
@@ -54,6 +55,15 @@ const EVENT_MAP: Readonly<Record<string, EventMapping>> = {
   Resolved: { toStatus: "DISPUTE_RESOLVED", eventType: "DISPUTE_RESOLVED" },
 };
 
+/** ACP (ERC-8183) event → state mapping */
+const ACP_EVENT_MAP: Readonly<Record<string, EventMapping>> = {
+  JobCreated: { toStatus: "JOB_FUNDED", eventType: "ACP_JOB_FUNDED" },
+  JobSubmitted: { toStatus: "JOB_SUBMITTED", eventType: "ACP_JOB_SUBMITTED" },
+  JobCompleted: { toStatus: "JOB_COMPLETED", eventType: "ACP_JOB_COMPLETED" },
+  JobRejected: { toStatus: "JOB_REJECTED", eventType: "ACP_JOB_REJECTED" },
+  JobExpired: { toStatus: "EXPIRED", eventType: "ACP_JOB_EXPIRED" },
+};
+
 const STATUS_TO_WEBHOOK: Readonly<Record<string, string>> = {
   ESCROWED: "payment.escrowed",
   SETTLED: "payment.settled",
@@ -62,6 +72,11 @@ const STATUS_TO_WEBHOOK: Readonly<Record<string, string>> = {
   DISPUTE_OPEN: "dispute.opened",
   DISPUTE_RESOLVED: "dispute.resolved",
   COMPLETED: "payment.completed",
+  // ACP (ERC-8183) specific
+  JOB_FUNDED: "payment.job_funded",
+  JOB_SUBMITTED: "payment.job_submitted",
+  JOB_COMPLETED: "payment.job_completed",
+  JOB_REJECTED: "payment.job_rejected",
 };
 
 // ---------------------------------------------------------------------------
@@ -184,6 +199,14 @@ export class ChainWatcher {
           await this.processBatchDeposited(entry);
         } else {
           await this.processLog(entry);
+        }
+      }
+
+      // ACP (ERC-8183) event polling
+      if (this.config.acpContract) {
+        const acpLogs = await this.getACPLogsWithRetry(fromBlock, toBlock);
+        for (const entry of acpLogs) {
+          await this.processACPLog(entry);
         }
       }
 
@@ -489,6 +512,205 @@ export class ChainWatcher {
     // Run a reconciliation pass: any payments for this payer that are
     // still CREATED/UNPAID but are now DEPOSITED on-chain will be healed.
     await this.reconcileEscrowedPayments();
+  }
+
+  // ---------------------------------------------------------------------------
+  // ACP (ERC-8183) event processing
+  // ---------------------------------------------------------------------------
+
+  private async getACPLogsWithRetry(fromBlock: bigint, toBlock: bigint): Promise<Log[]> {
+    const acpAddress = this.config.acpContract as Hex;
+    let lastError: unknown;
+    for (let attempt = 0; attempt < GETLOGS_MAX_RETRIES; attempt++) {
+      try {
+        return await this.client.getLogs({
+          address: acpAddress,
+          events: AGENTIC_COMMERCE_EVENTS,
+          fromBlock,
+          toBlock,
+        });
+      } catch (err) {
+        lastError = err;
+        const backoffMs = 500 * Math.pow(2, attempt);
+        cwLog.warn("ACP getLogs failed, retrying", {
+          attempt,
+          fromBlock: fromBlock.toString(),
+          backoffMs,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        await new Promise((r) => setTimeout(r, backoffMs));
+      }
+    }
+    cwLog.error("ACP getLogs failed after all retries", {
+      error: lastError instanceof Error ? lastError.message : String(lastError),
+    });
+    return [];
+  }
+
+  private async processACPLog(log: Log): Promise<void> {
+    const eventName = (log as { eventName?: string }).eventName;
+    if (!eventName) return;
+
+    const mapping = ACP_EVENT_MAP[eventName];
+    if (!mapping) return;
+
+    const args = (log as { args?: Record<string, unknown> }).args ?? {};
+    const jobId = args.jobId as bigint | undefined;
+    if (jobId === undefined) return;
+
+    cwLog.info("ACP event", {
+      event: eventName,
+      jobId: jobId.toString(),
+      txHash: log.transactionHash,
+    });
+
+    // Look up payment by acp_job_id
+    let payment: PaymentRecord | undefined;
+    try {
+      const payments = await this.paymentRepo.findAll({
+        limit: 1,
+        // We need to find by acp_job_id — use a raw query approach
+        // For now, use findAll and filter client-side
+      });
+      // Find payment with matching acp_job_id among ACP_JOB payments
+      const allPayments = await this.paymentRepo.findAll({ limit: 500 });
+      payment = allPayments.find(
+        (p) => p.acp_job_id === Number(jobId) && p.payment_method === "ACP_JOB",
+      );
+    } catch (err) {
+      cwLog.warn("ACP: failed to find payment by jobId", {
+        jobId: jobId.toString(),
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
+
+    if (!payment) {
+      // For JobCreated events, the payment may not have the job_id set yet.
+      // The checkout confirm endpoint will set it.
+      if (eventName === "JobCreated") {
+        cwLog.info("ACP: JobCreated for unknown job — will be linked by confirm endpoint", {
+          jobId: jobId.toString(),
+        });
+        return;
+      }
+      cwLog.warn("ACP: no payment found for jobId", { jobId: jobId.toString() });
+      return;
+    }
+
+    const fields = this.extractACPFields(eventName, args, log);
+
+    try {
+      const updated = await this.stateMachine.transition({
+        nexusPaymentId: payment.nexus_payment_id,
+        toStatus: mapping.toStatus,
+        eventType: mapping.eventType,
+        metadata: {
+          tx_hash: log.transactionHash,
+          block_number: log.blockNumber?.toString(),
+          event_name: eventName,
+          acp_job_id: jobId.toString(),
+        },
+        fields,
+      });
+
+      if (updated.group_id) {
+        await this.groupManager.syncGroupStatus(updated.group_id);
+      }
+
+      // Auto-evaluate: when a JobSubmitted event is detected, trigger evaluate()
+      if (eventName === "JobSubmitted" && this.relayer) {
+        cwLog.info("ACP auto-evaluate: triggering for jobId", {
+          jobId: jobId.toString(),
+        });
+        try {
+          const result = await this.relayer.submitEvaluate(jobId);
+          cwLog.info("ACP auto-evaluate: success", {
+            jobId: jobId.toString(),
+            txHash: result.txHash,
+          });
+        } catch (err) {
+          cwLog.error("ACP auto-evaluate: failed", {
+            jobId: jobId.toString(),
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      // Webhook notify
+      if (this.webhookNotifier) {
+        const webhookEventType = STATUS_TO_WEBHOOK[mapping.toStatus];
+        if (webhookEventType) {
+          this.webhookNotifier
+            .notify(
+              updated,
+              webhookEventType as import("../types.js").WebhookEventType,
+            )
+            .catch((err) =>
+              cwLog.error("ACP webhook notify error", {
+                error: err instanceof Error ? err.message : String(err),
+              }),
+            );
+
+          if (this.config.telegramNotifyUrl) {
+            fetch(this.config.telegramNotifyUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                group_id: updated.group_id,
+                merchant_order_ref: updated.merchant_order_ref,
+                status: updated.status,
+                event_type: webhookEventType,
+              }),
+              signal: AbortSignal.timeout(8_000),
+            }).catch(() => {});
+          }
+        }
+      }
+    } catch (err) {
+      cwLog.error(`ACP: failed to process ${eventName}`, {
+        paymentId: payment.nexus_payment_id,
+        jobId: jobId.toString(),
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private extractACPFields(
+    eventName: string,
+    args: Record<string, unknown>,
+    log: Log,
+  ): Record<string, unknown> {
+    const now = new Date().toISOString();
+
+    switch (eventName) {
+      case "JobCreated":
+        return {
+          acp_contract: this.config.acpContract,
+          acp_job_id: Number(args.jobId as bigint),
+        };
+      case "JobSubmitted":
+        return {
+          acp_submit_tx_hash: log.transactionHash,
+          acp_deliverable: (args.deliverable as string) ?? null,
+        };
+      case "JobCompleted":
+        return {
+          acp_complete_tx_hash: log.transactionHash,
+          settled_at: now,
+          tx_hash: log.transactionHash,
+          block_number: log.blockNumber ? Number(log.blockNumber) : null,
+          block_timestamp: now,
+        };
+      case "JobRejected":
+        return {
+          acp_complete_tx_hash: log.transactionHash,
+        };
+      case "JobExpired":
+        return {};
+      default:
+        return {};
+    }
   }
 
   private extractFields(

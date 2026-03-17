@@ -16,6 +16,7 @@ import type {
   GroupEscrowInstruction,
   BatchDepositInstruction,
   PaymentRequired402,
+  ACPJobInstruction,
 } from "../types.js";
 import type { MerchantRepository } from "../db/interfaces/merchant-repo.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
@@ -36,6 +37,7 @@ import { GroupManager } from "./group-manager.js";
 import {
   buildGroupEscrowInstruction,
   buildBatchDepositInstruction,
+  buildACPJobInstruction,
 } from "./instruction-builder.js";
 import { signGroup } from "./group-signer.js";
 import { NexusError } from "../errors.js";
@@ -102,7 +104,7 @@ export class NexusOrchestrator {
     const merchants = validationResults.map((r) => r.merchant);
     const quoteHashes = validationResults.map((r) => r.quoteHash);
 
-    // Phase 2: Route (MVP: all escrow)
+    // Phase 2: Route (respects quote.payment_method)
     const route = routePayment(quotes[0]);
 
     // Phase 3: Create group + child payments
@@ -113,6 +115,11 @@ export class NexusOrchestrator {
       payerWallet,
       paymentMethod: route.method,
     });
+
+    // ---- ACP (ERC-8183) branch ----
+    if (route.method === "ACP_JOB") {
+      return this.handleACPRoute(group, payments, merchants, quotes);
+    }
 
     // Phase 4: Build batch deposit instruction (unsigned)
     const unsignedInstruction = buildBatchDepositInstruction(
@@ -207,6 +214,89 @@ export class NexusOrchestrator {
     };
 
     return { group, payments, instruction, paymentRequired, legacyInstruction };
+  }
+
+  /**
+   * Handle ACP (ERC-8183) payment route.
+   * Builds an ACPJobInstruction and returns a checkout URL.
+   */
+  private async handleACPRoute(
+    group: PaymentGroupRecord,
+    payments: readonly PaymentRecord[],
+    merchants: readonly MerchantRecord[],
+    quotes: readonly NexusQuotePayload[],
+  ): Promise<OrchestrateResult> {
+    const acpInstruction = buildACPJobInstruction(
+      group,
+      payments,
+      merchants,
+      this.config,
+    );
+
+    // Persist ACP instruction for checkout page
+    await this.groupRepo.updateInstruction(
+      group.group_id,
+      acpInstruction as unknown as Record<string, unknown>,
+    );
+
+    // Persist ACP contract on each payment record
+    await Promise.all(
+      payments.map((payment) =>
+        this.paymentRepo.updateStatus(payment.nexus_payment_id, "CREATED", {
+          acp_contract: this.config.acpContract,
+        }),
+      ),
+    );
+
+    // Generate checkout token
+    const earliestPaymentExpiry = Math.min(
+      ...quotes.map((q) => q.expiry * 1000),
+    );
+    const fallbackExpiry = Date.now() + 60 * 60 * 1000;
+    const tokenExpiresAt = Number.isFinite(earliestPaymentExpiry)
+      ? earliestPaymentExpiry
+      : fallbackExpiry;
+
+    let checkoutToken = group.group_id;
+    if (this.kvRepo) {
+      const tokenBytes = randomBytes(16).toString("hex");
+      checkoutToken = `tok_${tokenBytes}`;
+      await this.kvRepo.set(
+        `checkout:token:${checkoutToken}`,
+        JSON.stringify({ groupId: group.group_id, expiresAt: tokenExpiresAt }),
+      );
+    }
+
+    const baseUrl =
+      this.config.baseUrl || `http://localhost:${this.config.port}`;
+
+    // Build a compatible 402 payload (reuse existing shape)
+    // For ACP, we put the acpInstruction in a compatible wrapper
+    const paymentRequired: PaymentRequired402 = {
+      nexus_version: "0.5.0",
+      group_id: group.group_id,
+      status: "PAYMENT_REQUIRED",
+      checkout_url: `${baseUrl}/checkout/${checkoutToken}`,
+      instruction: acpInstruction as unknown as BatchDepositInstruction,
+      nexus_group_sig: "0x" as `0x${string}`,
+      core_operator_address: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+    };
+
+    // Build a no-op legacy instruction (ACP doesn't use it)
+    const legacyInstruction = buildGroupEscrowInstruction(
+      group,
+      payments,
+      merchants,
+      this.config,
+    );
+
+    return {
+      group,
+      payments,
+      instruction: acpInstruction as unknown as BatchDepositInstruction,
+      paymentRequired,
+      legacyInstruction,
+    };
   }
 
   async getPaymentStatus(params: {

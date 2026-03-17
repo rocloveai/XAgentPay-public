@@ -30,6 +30,10 @@ export interface NexusCoreConfig {
    * e.g. https://xagenpay.com/tg-bot/api/payment-notify
    */
   readonly telegramNotifyUrl: string;
+  /** ERC-8183 AgenticCommerce contract address (optional, enables ACP flow) */
+  readonly acpContract: string;
+  /** AutoEvaluator contract address (optional, used with ACP) */
+  readonly autoEvaluatorContract: string;
 }
 
 export interface ConfigValidationError {
@@ -103,5 +107,11 @@ export function loadNexusCoreConfig(): NexusCoreConfig {
     portalToken: process.env.PORTAL_TOKEN ?? "",
     baseUrl: process.env.BASE_URL ?? "",
     telegramNotifyUrl: process.env.TELEGRAM_NOTIFY_URL ?? "",
+    acpContract: process.env.ACP_CONTRACT
+      ? getAddress(process.env.ACP_CONTRACT)
+      : "",
+    autoEvaluatorContract: process.env.AUTO_EVALUATOR_CONTRACT
+      ? getAddress(process.env.AUTO_EVALUATOR_CONTRACT)
+      : "",
   };
 }

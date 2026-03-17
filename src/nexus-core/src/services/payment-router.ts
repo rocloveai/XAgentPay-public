@@ -13,11 +13,19 @@ export interface RouteDecision {
 
 /**
  * Determine payment routing for a quote.
- * MVP implementation: all payments go through escrow.
+ * Routes to ACP_JOB if quote explicitly requests it via payment_method,
+ * otherwise defaults to ESCROW_CONTRACT.
  */
-export function routePayment(_quote: NexusQuotePayload): RouteDecision {
+export function routePayment(quote: NexusQuotePayload): RouteDecision {
+  if (quote.payment_method === "ACP_JOB") {
+    return {
+      method: "ACP_JOB",
+      reason: "Quote requested ACP_JOB payment method (ERC-8183)",
+    };
+  }
+
   return {
     method: "ESCROW_CONTRACT",
-    reason: "MVP: all payments routed to escrow",
+    reason: "Default: routed to escrow",
   };
 }

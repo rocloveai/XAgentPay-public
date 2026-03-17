@@ -1558,6 +1558,7 @@ async function main(): Promise<void> {
             starRepo,
             kvRepo,
             portalToken: config.portalToken,
+            relayer,
           };
           const restHandled = await handleRestApiRequest(
             restApiDeps,

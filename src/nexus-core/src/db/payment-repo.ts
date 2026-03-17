@@ -47,6 +47,12 @@ function rowToPayment(row: Record<string, unknown>): PaymentRecord {
       row.dispute_deadline != null ? String(row.dispute_deadline) : null,
     protocol_fee: (row.protocol_fee as string) ?? null,
     dispute_reason: (row.dispute_reason as string) ?? null,
+    // ACP (ERC-8183) fields
+    acp_contract: (row.acp_contract as string) ?? null,
+    acp_job_id: row.acp_job_id != null ? Number(row.acp_job_id) : null,
+    acp_deliverable: (row.acp_deliverable as string) ?? null,
+    acp_submit_tx_hash: (row.acp_submit_tx_hash as string) ?? null,
+    acp_complete_tx_hash: (row.acp_complete_tx_hash as string) ?? null,
   };
 }
 
@@ -66,6 +72,12 @@ const ALLOWED_UPDATE_COLUMNS = new Set([
   "dispute_deadline",
   "protocol_fee",
   "dispute_reason",
+  // ACP (ERC-8183) fields
+  "acp_contract",
+  "acp_job_id",
+  "acp_deliverable",
+  "acp_submit_tx_hash",
+  "acp_complete_tx_hash",
 ]);
 
 export class NeonPaymentRepository implements PaymentRepository {
@@ -170,6 +182,12 @@ export class NeonPaymentRepository implements PaymentRepository {
         | "dispute_deadline"
         | "protocol_fee"
         | "dispute_reason"
+        // ACP (ERC-8183) fields
+        | "acp_contract"
+        | "acp_job_id"
+        | "acp_deliverable"
+        | "acp_submit_tx_hash"
+        | "acp_complete_tx_hash"
       >
     >,
   ): Promise<PaymentRecord | null> {

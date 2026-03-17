@@ -10,7 +10,7 @@
 // Status unions
 // ---------------------------------------------------------------------------
 
-/** 12-state payment status machine (Core-side) */
+/** 16-state payment status machine (Core-side) */
 export type PaymentStatus =
   | "CREATED"
   | "AWAITING_TX"
@@ -23,10 +23,15 @@ export type PaymentStatus =
   | "ESCROWED"
   | "REFUNDED"
   | "DISPUTE_OPEN"
-  | "DISPUTE_RESOLVED";
+  | "DISPUTE_RESOLVED"
+  // ACP (ERC-8183) specific
+  | "JOB_FUNDED"
+  | "JOB_SUBMITTED"
+  | "JOB_COMPLETED"
+  | "JOB_REJECTED";
 
 /** Payment routing method */
-export type PaymentMethod = "DIRECT_TRANSFER" | "ESCROW_CONTRACT";
+export type PaymentMethod = "DIRECT_TRANSFER" | "ESCROW_CONTRACT" | "ACP_JOB";
 
 /** Webhook event types sent to merchants */
 export type WebhookEventType =
@@ -37,7 +42,13 @@ export type WebhookEventType =
   | "payment.escrowed"
   | "payment.refunded"
   | "dispute.opened"
-  | "dispute.resolved";
+  | "dispute.resolved"
+  | "payment.completed"
+  // ACP (ERC-8183) specific
+  | "payment.job_funded"
+  | "payment.job_submitted"
+  | "payment.job_completed"
+  | "payment.job_rejected";
 
 // ---------------------------------------------------------------------------
 // Quote types

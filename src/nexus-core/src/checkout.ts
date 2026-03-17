@@ -341,6 +341,100 @@ async function handleCheckoutConfirm(
 }
 
 // ---------------------------------------------------------------------------
+// POST /api/checkout/:groupId/confirm-acp — Confirm ACP createAndFund txs
+// ---------------------------------------------------------------------------
+
+async function handleCheckoutConfirmACP(
+  deps: CheckoutDeps,
+  tokenOrGroupId: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  const groupId = await resolveTokenOrGroupId(deps.kvRepo, tokenOrGroupId);
+  if (!groupId) {
+    sendJson(res, 404, { error: "Checkout link invalid or expired" });
+    return;
+  }
+
+  let body: { tx_hashes?: string[]; job_ids?: number[] };
+  try {
+    const raw = await readBody(req);
+    body = JSON.parse(raw);
+  } catch {
+    sendJson(res, 400, { error: "Invalid JSON body" });
+    return;
+  }
+
+  if (!Array.isArray(body.tx_hashes) || body.tx_hashes.length === 0) {
+    sendJson(res, 400, { error: "Missing or invalid tx_hashes" });
+    return;
+  }
+
+  const group = await deps.groupRepo.findById(groupId);
+  if (!group) {
+    sendJson(res, 404, { error: "Group not found" });
+    return;
+  }
+
+  const payments = await deps.paymentRepo.findByGroupId(groupId);
+  if (payments.length === 0) {
+    sendJson(res, 400, { error: "No payments found for group" });
+    return;
+  }
+
+  try {
+    // Assign job IDs and tx hashes to payments
+    const jobIds = body.job_ids ?? [];
+    const txHashes = body.tx_hashes;
+
+    for (let i = 0; i < payments.length; i++) {
+      const payment = payments[i];
+      const txHash = txHashes[i] ?? txHashes[0];
+      const jobId = jobIds[i] ?? null;
+
+      // Transition payment to JOB_FUNDED
+      await deps.stateMachine.transition({
+        nexusPaymentId: payment.nexus_payment_id,
+        toStatus: "JOB_FUNDED",
+        eventType: "ACP_JOB_FUNDED",
+        metadata: {
+          tx_hash: txHash,
+          acp_job_id: jobId,
+          group_id: groupId,
+          source: "checkout-acp",
+        },
+        fields: {
+          deposit_tx_hash: txHash,
+          tx_hash: txHash,
+          acp_job_id: jobId,
+        },
+      });
+    }
+
+    // Update group status
+    await deps.groupRepo.updateStatus(groupId, "GROUP_ESCROWED", {
+      tx_hash: txHashes[0],
+    });
+
+    // Fire-and-forget webhook notifications
+    for (const payment of payments) {
+      deps.webhookNotifier.notify(payment, "payment.job_funded").catch(() => {});
+      pushTelegramNotifyCheckout(deps.config.telegramNotifyUrl, payment, "payment.job_funded");
+    }
+
+    sendJson(res, 200, {
+      tx_hashes: txHashes,
+      job_ids: jobIds,
+      status: "job_funded",
+      group_id: groupId,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    sendJson(res, 500, { error: message });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Checkout HTML Page
 // ---------------------------------------------------------------------------
 
@@ -825,7 +919,9 @@ function renderOrderSummary() {
 
 function renderPaymentDetails() {
   var instr = checkoutData.instruction;
-  if (instr && instr.escrow_contract) {
+  if (instr && instr.payment_method === "ACP_JOB" && instr.acp_contract) {
+    document.getElementById("escrow-addr").textContent = truncAddr(instr.acp_contract);
+  } else if (instr && instr.escrow_contract) {
     document.getElementById("escrow-addr").textContent = truncAddr(instr.escrow_contract);
   }
 }
@@ -913,6 +1009,12 @@ async function signAndPay() {
     return;
   }
 
+  // ── ACP (ERC-8183) flow ──────────────────────────────────────────────────
+  if (instr.payment_method === "ACP_JOB") {
+    return signAndPayACP(instr);
+  }
+
+  // ── Standard escrow flow ─────────────────────────────────────────────────
   // Verify Nexus Core group signature exists
   if (!instr.nexus_group_sig || !instr.core_operator_address) {
     showError("Missing group signature from XAgent Core. Cannot proceed safely.");
@@ -1055,6 +1157,151 @@ async function signAndPay() {
       showError(e.message || "Transaction failed");
     }
   }
+}
+
+// ── ACP (ERC-8183) payment flow ───────────────────────────────────────────
+async function signAndPayACP(instr) {
+  var approveTx = instr.approve_tx;
+  if (!approveTx) {
+    showError("Invalid ACP instruction: missing approve_tx.");
+    return;
+  }
+  if (!instr.jobs || instr.jobs.length === 0) {
+    showError("Invalid ACP instruction: no jobs found.");
+    return;
+  }
+
+  try {
+    // Step 1: USDC approve → ACP contract
+    showOnly(["group-info","order-summary","payment-details","action-area","signing"]);
+    console.log("[XAgent ACP] Step 1: USDC approve →", approveTx.to);
+
+    var approveTxHash = await ethereum.request({
+      method: "eth_sendTransaction",
+      params: [{
+        from: account,
+        to: approveTx.to,
+        data: approveTx.data,
+        value: "0x0",
+        gas: "0x" + parseInt(approveTx.gas_limit).toString(16),
+      }],
+    });
+    console.log("[XAgent ACP] Approve TX:", approveTxHash);
+    await waitForReceipt(approveTxHash);
+    console.log("[XAgent ACP] Approve confirmed.");
+
+    // Step 2: createAndFund for each job
+    showOnly(["group-info","order-summary","payment-details","action-area","submitting"]);
+    var txHashes = [];
+    var jobIds = [];
+
+    for (var i = 0; i < instr.jobs.length; i++) {
+      var job = instr.jobs[i];
+      console.log("[XAgent ACP] Creating job " + (i+1) + "/" + instr.jobs.length + " for " + job.merchant_order_ref);
+
+      var encodedData = encodeCreateAndFund(
+        job.provider_address,
+        job.evaluator_address,
+        job.expired_at,
+        job.description_json,
+        job.amount_uint256
+      );
+
+      var txHash = await ethereum.request({
+        method: "eth_sendTransaction",
+        params: [{
+          from: account,
+          to: instr.acp_contract,
+          data: encodedData,
+          value: "0x0",
+          gas: "0x" + parseInt("500000").toString(16),
+        }],
+      });
+
+      console.log("[XAgent ACP] Job " + (i+1) + " TX:", txHash);
+      var receipt = await waitForReceipt(txHash);
+      txHashes.push(txHash);
+
+      // Extract jobId from JobCreated event in logs
+      // JobCreated event topic = keccak256("JobCreated(uint256,address,address,address,uint256)")
+      if (receipt && receipt.logs) {
+        for (var j = 0; j < receipt.logs.length; j++) {
+          var log = receipt.logs[j];
+          // JobCreated event has jobId as first indexed param (topic[1])
+          if (log.topics && log.topics.length >= 2 && log.address.toLowerCase() === instr.acp_contract.toLowerCase()) {
+            var jobId = parseInt(log.topics[1], 16);
+            jobIds.push(jobId);
+            console.log("[XAgent ACP] Job created, ID:", jobId);
+            break;
+          }
+        }
+      }
+    }
+
+    // Step 3: Confirm with server (ACP variant)
+    showOnly(["group-info","order-summary","payment-details","action-area","confirming"]);
+
+    var confirmRes = await fetch("/api/checkout/" + encodeURIComponent(GROUP_ID) + "/confirm-acp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tx_hashes: txHashes, job_ids: jobIds }),
+    });
+
+    if (confirmRes.status === 200) {
+      document.getElementById("success-tx-hash").textContent = "TX: " + txHashes.join(", ");
+      showOnly(["group-info","order-summary","state-success"]);
+      return;
+    }
+
+    // For 202 or any other status, show success with tx hashes
+    document.getElementById("success-tx-hash").textContent = "TX: " + txHashes.join(", ");
+    showOnly(["group-info","order-summary","state-success"]);
+
+  } catch (e) {
+    if (e.code === 4001) {
+      showOnly(["group-info","order-summary","payment-details","action-area","ready-sign"]);
+    } else {
+      showError(e.message || "ACP transaction failed");
+    }
+  }
+}
+
+// Encode createAndFund(address provider, address evaluator, uint256 expiredAt, string description, uint256 budget) calldata
+function encodeCreateAndFund(provider, evaluator, expiredAt, description, budget) {
+  // Function selector: keccak256("createAndFund(address,address,uint256,string,uint256)")
+  var sig = "createAndFund(address,address,uint256,string,uint256)";
+  var selectorHash = keccak256Bytes(toUtf8Bytes(sig));
+  var selector = selectorHash.slice(0, 10);
+
+  // Fixed params: provider (addr), evaluator (addr), expiredAt (uint256), description (offset), budget (uint256)
+  var providerHex = padAddress(provider);
+  var evaluatorHex = padAddress(evaluator);
+  var expiredAtHex = padUint256(expiredAt);
+  var budgetHex = padUint256(budget);
+
+  // description is a dynamic string — offset = 5 * 32 = 160 = 0xa0
+  var descOffset = padUint256(160);
+
+  // Encode the string: length + padded data
+  var descBytes = toUtf8Bytes(description);
+  var descLenHex = padUint256(descBytes.length);
+  // Pad data to 32-byte boundary
+  var descDataHex = "";
+  for (var i = 0; i < descBytes.length; i++) {
+    descDataHex += descBytes[i].toString(16).padStart(2, "0");
+  }
+  // Pad to next 32-byte boundary
+  var paddedLen = Math.ceil(descBytes.length / 32) * 64;
+  descDataHex = descDataHex.padEnd(paddedLen, "0");
+
+  return selector +
+    providerHex +
+    evaluatorHex +
+    expiredAtHex +
+    descOffset +
+    budgetHex +
+    descLenHex +
+    descDataHex;
 }
 
 // Wait for a transaction receipt by polling eth_getTransactionReceipt
@@ -1407,6 +1654,25 @@ export async function handleCheckoutRequest(
     } catch (err) {
       const message = err instanceof Error ? err.message : "Internal error";
       checkoutLog.error("checkout confirm error", {
+        error: message,
+        token: tokenOrGroupId,
+      });
+      sendJson(res, 500, { error: message });
+    }
+    return true;
+  }
+
+  // POST /checkout/:token/confirm-acp — confirm ACP createAndFund transactions
+  const confirmACPMatch = path.match(
+    /^\/(?:api\/)?checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)\/confirm-acp$/i,
+  );
+  if (confirmACPMatch && req.method === "POST") {
+    const tokenOrGroupId = decodeURIComponent(confirmACPMatch[1]);
+    try {
+      await handleCheckoutConfirmACP(deps, tokenOrGroupId, req, res);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Internal error";
+      checkoutLog.error("checkout confirm-acp error", {
         error: message,
         token: tokenOrGroupId,
       });

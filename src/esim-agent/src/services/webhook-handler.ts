@@ -35,6 +35,39 @@ export async function requestSettlement(
 }
 
 // ---------------------------------------------------------------------------
+// ACP deliverable submission — fire-and-forget call to nexus-core
+// ---------------------------------------------------------------------------
+
+export async function submitDeliverable(
+  nexusCoreUrl: string,
+  nexusPaymentId: string,
+  merchantDid: string,
+  deliverable: string,
+): Promise<void> {
+  const url = `${nexusCoreUrl}/api/acp/submit-deliverable`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nexus_payment_id: nexusPaymentId,
+        merchant_did: merchantDid,
+        deliverable,
+      }),
+      signal: controller.signal,
+    });
+
+    const body = await resp.text();
+    console.error(`[ACP Deliverable] ${nexusPaymentId}: ${resp.status} ${body}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -114,6 +147,9 @@ const STATUS_MAP: Partial<Record<WebhookEventType, "PAID" | "EXPIRED">> = {
   "payment.escrowed": "PAID",
   "payment.settled": "PAID",
   "payment.expired": "EXPIRED",
+  // ACP (ERC-8183) events
+  "payment.job_funded": "PAID",
+  "payment.job_completed": "PAID",
 };
 
 export interface WebhookHandleResult {
@@ -177,6 +213,24 @@ export async function handleWebhookEvent(
           settlementConfig.merchantDid,
         ).catch((err) =>
           console.error("[Webhook] Settlement request failed:", err),
+        );
+      }
+
+      // ACP: submit deliverable when job is funded
+      if (event_type === "payment.job_funded" && settlementConfig) {
+        const deliverable = JSON.stringify({
+          type: "esim_activation",
+          order_ref: data.merchant_order_ref,
+          confirmation: `CONF-${data.merchant_order_ref.slice(0, 8).toUpperCase()}`,
+          timestamp: new Date().toISOString(),
+        });
+        submitDeliverable(
+          settlementConfig.nexusCoreUrl,
+          data.nexus_payment_id,
+          settlementConfig.merchantDid,
+          deliverable,
+        ).catch((err) =>
+          console.error("[Webhook] ACP deliverable submission failed:", err),
         );
       }
 

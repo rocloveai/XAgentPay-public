@@ -59,6 +59,12 @@ export interface TransitionInput {
       | "dispute_deadline"
       | "protocol_fee"
       | "dispute_reason"
+      // ACP (ERC-8183) fields
+      | "acp_contract"
+      | "acp_job_id"
+      | "acp_deliverable"
+      | "acp_submit_tx_hash"
+      | "acp_complete_tx_hash"
     >
   >;
 }

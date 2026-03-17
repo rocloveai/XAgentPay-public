@@ -19,6 +19,8 @@ import type {
   GroupPaymentDetail,
   PaymentGroupRecord,
   BatchDepositInstruction,
+  ACPJobInstruction,
+  ACPJobDetail,
 } from "../types.js";
 import type { NexusCoreConfig } from "../config.js";
 import {
@@ -303,6 +305,76 @@ export function buildBatchDepositInstruction(
       gas_limit: "500000",
     },
     user_action: "APPROVE_AND_SEND",
+    gas_paid_by: "USER",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// ACP Job Instruction (ERC-8183 createAndFund)
+// ---------------------------------------------------------------------------
+
+export function buildACPJobInstruction(
+  group: PaymentGroupRecord,
+  payments: readonly PaymentRecord[],
+  merchants: readonly MerchantRecord[],
+  config: NexusCoreConfig,
+): ACPJobInstruction {
+  if (!config.acpContract) {
+    throw new Error("ACP_CONTRACT is not configured");
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const defaultExpiry = now + 86400; // 24 hours
+
+  // Build per-payment ACP job details
+  const jobs: ACPJobDetail[] = payments.map((p, i) => {
+    const descriptionJson = JSON.stringify({
+      merchant_did: p.merchant_did,
+      order_ref: p.merchant_order_ref,
+      summary: p.quote_payload.context.summary,
+    });
+
+    return {
+      nexus_payment_id: p.nexus_payment_id,
+      merchant_did: p.merchant_did,
+      merchant_order_ref: p.merchant_order_ref,
+      provider_address: merchants[i].payment_address as Address,
+      evaluator_address: (config.autoEvaluatorContract || config.acpContract) as Address,
+      amount_uint256: p.amount,
+      amount_display: p.amount_display,
+      summary: p.quote_payload.context.summary,
+      expired_at: defaultExpiry,
+      description_json: descriptionJson,
+    };
+  });
+
+  // Step 1 tx: USDC.approve(acp_contract, totalAmount)
+  const approveData = encodeFunctionData({
+    abi: ERC20_APPROVE_ABI,
+    functionName: "approve",
+    args: [config.acpContract as Address, BigInt(group.total_amount)],
+  });
+
+  return {
+    group_id: group.group_id,
+    chain_id: config.chainId,
+    chain_name: config.chainName,
+    rpc_url: config.rpcUrl,
+    payment_method: "ACP_JOB",
+    acp_contract: config.acpContract as Address,
+    token_address: config.usdcAddress as Address,
+    token_symbol: "USDC",
+    token_decimals: 6,
+    total_amount_uint256: group.total_amount,
+    total_amount_display: group.total_amount_display,
+    jobs,
+    approve_tx: {
+      to: config.usdcAddress as Address,
+      data: approveData as Hex,
+      value: "0",
+      gas_limit: "80000",
+    },
+    user_action: "APPROVE_AND_CREATE_JOBS",
     gas_paid_by: "USER",
   };
 }
