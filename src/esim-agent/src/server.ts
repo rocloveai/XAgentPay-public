@@ -51,6 +51,11 @@ async function registerWithNexusCore() {
     const signerAddress = privateKeyToAccount(
       config.signerPrivateKey as `0x${string}`,
     ).address;
+    // Use internal Docker URL for webhooks (avoids nginx dependency).
+    // NEXUS_CORE_URL is already the internal address (http://nexus-core:10000),
+    // so we derive our internal hostname from Docker service name.
+    const internalWebhookUrl =
+      process.env.WEBHOOK_URL || "http://esim-agent:10000/webhook";
     const body = {
       merchant_did: config.merchantDid,
       name: "XAgent eSIM",
@@ -60,7 +65,7 @@ async function registerWithNexusCore() {
       payment_address: config.paymentAddress,
       skill_md_url: `${config.portalBaseUrl}/skill.md`,
       health_url: `${config.portalBaseUrl}/health`,
-      webhook_url: `${config.portalBaseUrl}/webhook`,
+      webhook_url: internalWebhookUrl,
       webhook_secret: config.webhookSecret,
     };
     const res = await fetch(`${config.nexusCoreUrl}/api/market/register`, {
