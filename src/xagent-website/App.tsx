@@ -1046,7 +1046,7 @@ const MarketPage = ({ lang }: { lang: Language }) => {
                         {/* Tools */}
                         <div className="flex flex-wrap gap-2">
                           {agent.skill_tools.filter(t => !['MCP','Available','Supported'].includes(t.name)).map((tool, j) => (
-                            <span key={j} className="px-2 py-1 rounded bg-primary/10 text-[10px] font-mono text-primary border border-primary/20 transition-colors">{tool.name}</span>
+                            <span key={j} className="px-2 py-1 rounded bg-primary/10 text-[10px] font-mono text-primary border border-primary/20 transition-colors">{tool.name.replace(/^nexus_/, 'xagent_')}</span>
                           ))}
                         </div>
 
