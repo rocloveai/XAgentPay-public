@@ -193,7 +193,7 @@ export class NexusOrchestrator {
     let checkoutToken = group.group_id; // Default fallback
     if (this.kvRepo) {
       const tokenBytes = randomBytes(16).toString("hex");
-      checkoutToken = `tok_${tokenBytes}`;
+      checkoutToken = `tok-${tokenBytes}`;
       await this.kvRepo.set(
         `checkout:token:${checkoutToken}`,
         JSON.stringify({ groupId: group.group_id, expiresAt: tokenExpiresAt }),
@@ -260,7 +260,7 @@ export class NexusOrchestrator {
     let checkoutToken = group.group_id;
     if (this.kvRepo) {
       const tokenBytes = randomBytes(16).toString("hex");
-      checkoutToken = `tok_${tokenBytes}`;
+      checkoutToken = `tok-${tokenBytes}`;
       await this.kvRepo.set(
         `checkout:token:${checkoutToken}`,
         JSON.stringify({ groupId: group.group_id, expiresAt: tokenExpiresAt }),

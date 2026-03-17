@@ -109,7 +109,7 @@ async function resolveTokenOrGroupId(
   ) {
     return tokenOrId;
   }
-  if (!tokenOrId.startsWith("tok_") || !kvRepo) {
+  if ((!tokenOrId.startsWith("tok-") && !tokenOrId.startsWith("tok_")) || !kvRepo) {
     return null;
   }
 
@@ -1592,7 +1592,7 @@ export async function handleCheckoutRequest(
   // The checkout page JS fetches the same URL with Accept: application/json
   // to get order data, so we must return JSON when that header is present.
   const htmlMatch = path.match(
-    /^\/checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i,
+    /^\/checkout\/((?:tok[-_]|GRP-|grp_)[a-zA-Z0-9_-]+)$/i,
   );
   if (htmlMatch && req.method === "GET") {
     const tokenOrGroupId = decodeURIComponent(htmlMatch[1]);
@@ -1645,7 +1645,7 @@ export async function handleCheckoutRequest(
   // POST /checkout/:token/confirm — confirm user-submitted tx hash
   // Note: also matches /api/checkout/:token/confirm for direct access
   const confirmMatch = path.match(
-    /^\/(?:api\/)?checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)\/confirm$/i,
+    /^\/(?:api\/)?checkout\/((?:tok[-_]|GRP-|grp_)[a-zA-Z0-9_-]+)\/confirm$/i,
   );
   if (confirmMatch && req.method === "POST") {
     const tokenOrGroupId = decodeURIComponent(confirmMatch[1]);
@@ -1664,7 +1664,7 @@ export async function handleCheckoutRequest(
 
   // POST /checkout/:token/confirm-acp — confirm ACP createAndFund transactions
   const confirmACPMatch = path.match(
-    /^\/(?:api\/)?checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)\/confirm-acp$/i,
+    /^\/(?:api\/)?checkout\/((?:tok[-_]|GRP-|grp_)[a-zA-Z0-9_-]+)\/confirm-acp$/i,
   );
   if (confirmACPMatch && req.method === "POST") {
     const tokenOrGroupId = decodeURIComponent(confirmACPMatch[1]);
@@ -1684,7 +1684,7 @@ export async function handleCheckoutRequest(
   // GET /api/checkout/:token — JSON data for checkout page (fallback)
   // Note: also matches /checkout/:token with Accept: application/json (see above)
   const apiMatch = path.match(
-    /^\/(?:api\/)?checkout\/((?:tok_|GRP-|grp_)[a-zA-Z0-9_-]+)$/i,
+    /^\/(?:api\/)?checkout\/((?:tok[-_]|GRP-|grp_)[a-zA-Z0-9_-]+)$/i,
   );
   if (apiMatch && req.method === "GET") {
     const tokenOrGroupId = decodeURIComponent(apiMatch[1]);
