@@ -1,64 +1,205 @@
-# xXAgent Pay Core
+# XAgent Pay — The Settlement Layer for Agentic Commerce
 
-xXAgent Pay Core is a powerful payment orchestration layer designed to bridge the gap between AI Agents (User Agents and Merchant Agents) and blockchain-based settlement. It provides a robust, secure, and compliant framework for handling complex payment workflows in the AI economy.
+> AI Agents autonomously discover services, negotiate payments, and settle on-chain — no human clicks required.
 
-## 🌟 Key Features
+**XAgent Pay** is a payment orchestration protocol that enables AI Agents to transact with each other using on-chain USDC settlement on **XLayer Mainnet**. It implements three payment standards:
 
-*   **Dual Payment Mode**: Supports both **Direct Transfer** (for instant, low-value transactions) and **Escrow Contract** (for high-value, guaranteed settlement with dispute resolution).
-*   **Gasless User Experience**: Leveraging **EIP-3009** and a specialized **Relayer service**, users can sign for payments without needing to hold native gas tokens (OKB).
-*   **MCP-First Architecture**: Built natively for the Model Context Protocol (MCP), allowing AI Agents to seamlessly integrate payment capabilities.
-*   **12-State Robust Machine**: A comprehensive state machine manages the entire payment lifecycle, ensuring trackability and data integrity.
-*   **ISO 20022 Compliance**: Data mapping and event logging follow international financial standards for seamless ERP reconciliation.
-*   **Decentralized Identity (DID)**: Powered by `did:nexus` (RFC-001) for secure merchant identification and verification.
+- **NUPS** (Nexus Unified Payment Standard) — structured quote-to-settlement pipeline
+- **x402** — HTTP-native on-chain payment (Coinbase standard)
+- **ERC-8183** — Agentic Commerce with verifiable task delivery
 
-## 🏗 System Architecture
+## Live Demo
 
-The xXAgent Pay system operates as a hub connecting multiple agents and the blockchain:
+| Service | URL |
+|---------|-----|
+| Website | https://xagenpay.com |
+| Core API | https://xagenpay.com/api/health |
+| Agent Marketplace | https://xagenpay.com (Market tab) |
 
-```mermaid
-graph TD
-    UA[User Agent] -- MCP Protocol --> NPC[xXAgent Pay Core]
-    NPC -- Webhook --> MA[Merchant Agent]
-    NPC -- Relayer --> BC[XLayer Blockchain]
-    BC -- Chain Watcher --> NPC
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        User / AI Agent                          │
+│                    (Claude, ChatGPT, etc.)                       │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ MCP Protocol / REST API
+┌──────────────────────────▼──────────────────────────────────────┐
+│                      XAgent Core                                │
+│                                                                 │
+│  ┌──────────┐  ┌──────────────┐  ┌───────────┐  ┌───────────┐  │
+│  │Orchestrat│  │Chain Watcher │  │  Relayer  │  │ Checkout  │  │
+│  │   or     │  │(Event Poll)  │  │(TX Submit)│  │  (Web UI) │  │
+│  └────┬─────┘  └──────┬───────┘  └─────┬─────┘  └───────────┘  │
+│       │               │                │                        │
+│  ┌────▼───────────────▼────────────────▼────┐                   │
+│  │         PostgreSQL (State Machine)        │                   │
+│  └───────────────────────────────────────────┘                   │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ Webhook
+┌──────────────────────────▼──────────────────────────────────────┐
+│                    Merchant Agents                               │
+│                                                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │Flight Agent │  │ Hotel Agent │  │ eSIM Agent  │             │
+│  │ (Duffel)   │  │ (Amadeus)  │  │ (Airalo)   │             │
+│  └─────────────┘  └─────────────┘  └─────────────┘             │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ On-chain Settlement
+┌──────────────────────────▼──────────────────────────────────────┐
+│                  XLayer Mainnet (Chain ID: 196)                  │
+│                                                                 │
+│  ┌────────────────────┐  ┌────────────────────┐  ┌──────────┐  │
+│  │XAgentPayEscrow     │  │AgenticCommerce     │  │  USDC    │  │
+│  │(Batch Deposit)     │  │(ERC-8183 Jobs)     │  │          │  │
+│  └────────────────────┘  └────────────────────┘  └──────────┘  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Core Components
-- **Security Module**: EIP-712 verification, DID resolution, and anti-replay guards.
-- **Order State Machine**: Manages orchestrating, tracking, and finalizing payment orders.
-- **Chain Watcher**: Real-time monitoring of on-chain events for automated status updates.
-- **Relayer Service**: Handles gas payment and transaction submission on behalf of the user.
-- **Webhook Notifier**: Securely communicates payment results back to merchant systems.
+## Three Payment Paths
 
-## 🚀 Getting Started
+### 1. NUPS + Escrow (Default)
+
+Traditional escrow flow — funds locked in `XAgentPayEscrow`, auto-released after merchant fulfillment.
+
+```
+User → approve USDC → batchDepositApprove() → ESCROWED → auto-release() → SETTLED
+```
+
+### 2. x402 Protocol
+
+HTTP 402 Payment Required — AI agent receives payment instruction in HTTP response, pays, then retries.
+
+### 3. ERC-8183 Agentic Commerce (New)
+
+Job-based escrow with **third-party Evaluator verification**:
+
+```
+User → approve USDC → createAndFund() → JOB_FUNDED
+                                            ↓
+                                   Agent submits deliverable
+                                            ↓
+                                       JOB_SUBMITTED
+                                            ↓
+                                   AutoEvaluator.evaluate()
+                                            ↓
+                                      JOB_COMPLETED → funds released to provider
+```
+
+**Key Innovation**: Unlike self-attestation (merchant says "I delivered"), ERC-8183 requires an independent Evaluator to verify the deliverable before releasing funds. This creates a **trustless, verifiable task delivery** mechanism for AI-to-AI commerce.
+
+## Deployed Contracts (XLayer Mainnet)
+
+| Contract | Address | Explorer |
+|----------|---------|----------|
+| XAgentPayEscrow | `0x959028964e8a4e52d6AC716E621B68b3fa579A25` | [View](https://www.oklink.com/xlayer/address/0x959028964e8a4e52d6AC716E621B68b3fa579A25) |
+| AgenticCommerce (ERC-8183) | `0x6DE4FA2B5fd0746E773C4CFEa152e5252bBCbB33` | [View](https://www.oklink.com/xlayer/address/0x6DE4FA2B5fd0746E773C4CFEa152e5252bBCbB33) |
+| AutoEvaluator | `0x49C11b686f45B0220B9d2Ce2B971049D9118e76a` | [View](https://www.oklink.com/xlayer/address/0x49C11b686f45B0220B9d2Ce2B971049D9118e76a) |
+| USDC | `0x74b7F16337b8972027F6196A17a631aC6dE26d22` | [View](https://www.oklink.com/xlayer/address/0x74b7F16337b8972027F6196A17a631aC6dE26d22) |
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Smart Contracts | Solidity (Foundry) |
+| Backend | TypeScript, Node.js |
+| Protocol | MCP (Model Context Protocol) |
+| Database | PostgreSQL |
+| Frontend | React + Vite + Tailwind CSS |
+| Blockchain | XLayer Mainnet (EVM, Chain ID 196) |
+| Settlement | USDC (ERC-20) |
+| Standards | EIP-712, EIP-3009, ISO 20022, ERC-8183 |
+
+## Project Structure
+
+```
+src/
+├── contracts/           # Solidity smart contracts (Foundry)
+│   ├── src/
+│   │   ├── XAgentPayEscrow.sol      # Batch escrow with dispute resolution
+│   │   ├── AgenticCommerce.sol       # ERC-8183 job-based escrow
+│   │   └── AutoEvaluator.sol         # Automated deliverable verification
+│   └── test/
+├── xagent-core/         # Payment orchestration engine
+│   └── src/
+│       ├── server.ts                 # MCP + HTTP dual transport
+│       ├── services/
+│       │   ├── orchestrator.ts       # Quote → Payment → Settlement
+│       │   ├── chain-watcher.ts      # On-chain event monitoring
+│       │   ├── relayer.ts            # TX submission (escrow + ACP)
+│       │   └── state-machine.ts      # 16-state payment lifecycle
+│       ├── checkout.ts               # Web checkout (MetaMask)
+│       └── rest-api.ts               # REST endpoints
+├── flight-agent/        # Flight booking merchant (Duffel API)
+├── hotel-agent/         # Hotel booking merchant (Amadeus API)
+├── esim-agent/          # eSIM data plans merchant
+├── telegram-bot/        # Telegram bot interface (Eva)
+├── telegram-order-panel/# Order management panel
+└── xagent-website/      # Marketing website + Agent Marketplace
+```
+
+## MCP Tools
+
+XAgent Core exposes 9 MCP tools for AI agents:
+
+| Tool | Description |
+|------|-------------|
+| `xagent_orchestrate_payment` | Create payment from NUPS quotes |
+| `xagent_get_payment_status` | Query payment/group status |
+| `xagent_list_agents` | Discover merchant agents |
+| `xagent_get_agent_skill` | Get agent capability descriptor |
+| `xagent_register_merchant` | Register a new merchant agent |
+| `xagent_get_merchant_payments` | Query merchant's payment history |
+| `xagent_resolve_dispute` | Resolve escrow disputes |
+| `xagent_star_agent` | Star/unstar agents |
+| `xagent_get_agent_stars` | Get agent star counts |
+
+## Quick Start
 
 ### Prerequisites
-- Node.js & npm/yarn/pnpm
-- PostgreSQL (e.g., Neon)
-- Access to XLayer Mainnet (Chain ID: 196)
 
-### Tech Stack
-- **Language**: TypeScript
-- **Framework**: Model Context Protocol (MCP)
-- **Database**: PostgreSQL (Neon)
-- **Blockchain**: XLayer Mainnet (USDC settlement, Chain ID: 196)
-- **Standards**: EIP-712, EIP-3009, ISO 20022
+- Node.js 20+
+- PostgreSQL 16+
+- XLayer RPC access (`https://rpc.xlayer.tech`)
 
-## 🔗 Deployed Contracts (XLayer Mainnet, Chain ID: 196)
+### Development
 
-| Contract | Address |
-|----------|---------|
-| xXAgent PayEscrow (Proxy) | `0x49F9ad8F2c480F8cF9e02b30f8c634F004372cc2` |
-| xXAgent PayEscrow (Impl v4.0.0) | `0x81CF9E0d2c1ad879c24b19815Ec803015D5B2e9b` |
-| USDC | `0x74b7F16337b8972027F6196A17a631aC6dE26d22` |
+```bash
+# Install dependencies
+cd src/xagent-core && npm install
 
-## 📝 Documentation
+# Start in HTTP mode
+TRANSPORT=http \
+DATABASE_URL=postgresql://... \
+RELAYER_PRIVATE_KEY=0x... \
+ESCROW_CONTRACT=0x959028964e8a4e52d6AC716E621B68b3fa579A25 \
+ACP_CONTRACT=0x6DE4FA2B5fd0746E773C4CFEa152e5252bBCbB33 \
+AUTO_EVALUATOR_CONTRACT=0x49C11b686f45B0220B9d2Ce2B971049D9118e76a \
+npm start
+```
 
-Detailed technical specifications can be found in the `docs` directory:
-- [System Overview](docs/architecture/SYSTEM-OVERVIEW.md)
-- [Product Requirements (PRD)](docs/prd/PRD-001-xXAgent Pay-Core.md)
-- [RFCs](docs/rfcs/): Detailed specifications for DID, Payment Core, Escrow, etc.
+### Docker Deployment
 
----
+```bash
+cd deploy
+cp .env.example .env  # Fill in credentials
+docker compose up -d --build
+```
 
-**Copyright (c) 2026 ciphertang. All rights reserved.**
+## End-to-End Flow (ERC-8183)
+
+1. **User** initiates order via Telegram Bot (Eva)
+2. **XAgent Core** orchestrates quotes from merchant agents
+3. **User** opens checkout page, connects MetaMask
+4. **User** approves USDC + calls `createAndFund()` on AgenticCommerce
+5. **ChainWatcher** detects `JobCreated` event → status = `JOB_FUNDED`
+6. **Webhook** notifies merchant agent
+7. **Merchant Agent** constructs deliverable → calls `/api/acp/submit-deliverable`
+8. **Relayer** calls `AgenticCommerce.submit()` → status = `JOB_SUBMITTED`
+9. **ChainWatcher** detects `JobSubmitted` → triggers `AutoEvaluator.evaluate()`
+10. **AutoEvaluator** calls `complete()` → funds released to provider
+11. **Status** = `JOB_COMPLETED` — verifiable on-chain settlement
+
+## License
+
+Copyright (c) 2026. All rights reserved.
