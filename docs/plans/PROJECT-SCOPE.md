@@ -34,9 +34,9 @@ XAgent Paypay/
 │   ├── merchant-agent/          # Merchant Agent Demo 服务
 │   │   ├── (server)             # MCP Server + 业务逻辑
 │   │   ├── (mcp-clients)        # 对接外部商品 MCP
-│   │   └── (tools)              # nexus_generate_quote 等工具实现
+│   │   └── (tools)              # xagent_generate_quote 等工具实现
 │   │
-│   ├── nexus-core/              # XAgent Payment Core (后续)
+│   ├── xagent-core/              # XAgent Payment Core (后续)
 │   │   ├── (orchestrator)       # 编排引擎
 │   │   └── (state-machine)      # 订单状态机
 │   │

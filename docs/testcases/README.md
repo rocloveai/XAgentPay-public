@@ -55,12 +55,12 @@
 Run this sequence to verify the entire system is operational:
 
 1. **Search** — `search_flights` on flight agent
-2. **Quote** — `nexus_generate_quote` with selected offer
-3. **Orchestrate** — `nexus_orchestrate_payment` on nexus-core
+2. **Quote** — `xagent_generate_quote` with selected offer
+3. **Orchestrate** — `xagent_orchestrate_payment` on xagent-core
 4. **Checkout** — Open checkout URL, verify page renders
 5. **Pay** — Connect MetaMask, sign, submit tx
 6. **Confirm** — `POST /api/checkout/:token/confirm`
-7. **Verify Escrowed** — `nexus_get_payment_status` shows ESCROWED
+7. **Verify Escrowed** — `xagent_get_payment_status` shows ESCROWED
 8. **Settle** — Merchant calls `POST /api/merchant/confirm-fulfillment`, relayer releases
 9. **Verify Settled** — Status shows SETTLED
 10. **Complete** — Second fulfillment call, status COMPLETED

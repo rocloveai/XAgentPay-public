@@ -1,10 +1,10 @@
 import { getPool } from "./pool.js";
-import type { NexusQuotePayload, Order, OrderStatus } from "../../types.js";
+import type { XAgentQuotePayload, Order, OrderStatus } from "../../types.js";
 
 const AGENT_TYPE = "hotel";
 
 export async function insertOrder(
-  quotePayload: NexusQuotePayload,
+  quotePayload: XAgentQuotePayload,
   payerWallet?: string,
 ): Promise<Order> {
   const sql = getPool();
@@ -48,7 +48,7 @@ export async function selectOrder(ref: string): Promise<Order | undefined> {
   return {
     order_ref: row.order_ref as string,
     status: row.status as OrderStatus,
-    quote_payload: row.quote_payload as unknown as NexusQuotePayload,
+    quote_payload: row.quote_payload as unknown as XAgentQuotePayload,
     payer_wallet: (row.payer_wallet as string) || undefined,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
@@ -75,7 +75,7 @@ export async function updateOrderStatus(
   return {
     order_ref: row.order_ref as string,
     status: row.status as OrderStatus,
-    quote_payload: row.quote_payload as unknown as NexusQuotePayload,
+    quote_payload: row.quote_payload as unknown as XAgentQuotePayload,
     payer_wallet: (row.payer_wallet as string) || undefined,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
@@ -97,7 +97,7 @@ export async function selectUnpaidSince(
   return rows.map((row) => ({
     order_ref: row.order_ref as string,
     status: row.status as OrderStatus,
-    quote_payload: row.quote_payload as unknown as NexusQuotePayload,
+    quote_payload: row.quote_payload as unknown as XAgentQuotePayload,
     payer_wallet: (row.payer_wallet as string) || undefined,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
@@ -123,7 +123,7 @@ export async function selectAllOrders(
   return rows.map((row) => ({
     order_ref: row.order_ref as string,
     status: row.status as OrderStatus,
-    quote_payload: row.quote_payload as unknown as NexusQuotePayload,
+    quote_payload: row.quote_payload as unknown as XAgentQuotePayload,
     payer_wallet: (row.payer_wallet as string) || undefined,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),

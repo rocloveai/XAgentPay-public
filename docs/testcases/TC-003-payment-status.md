@@ -1,7 +1,7 @@
 # TC-003: Payment Status & State Machine
 
 ## Module
-`nexus_get_payment_status` (MCP) / `GET /api/payments` (REST) / State Machine
+`xagent_get_payment_status` (MCP) / `GET /api/payments` (REST) / State Machine
 
 ## Prerequisites
 - Payments in various states available in database
@@ -150,7 +150,7 @@
 **Type:** Functional
 
 **Steps:**
-1. Call `nexus_get_payment_status` with `group_id: "GRP-xxx"`
+1. Call `xagent_get_payment_status` with `group_id: "GRP-xxx"`
 
 **Expected:**
 - Returns formatted text with payment details

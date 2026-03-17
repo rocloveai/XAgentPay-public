@@ -39,14 +39,14 @@ if (config.databaseUrl) {
   console.error("Warning: DATABASE_URL not set. Using in-memory storage only.");
 }
 
-// Start reconciler (checks for UNPAID orders that nexus-core shows as paid)
+// Start reconciler (checks for UNPAID orders that xagent-core shows as paid)
 startReconciler({
-  nexusCoreUrl: config.nexusCoreUrl,
+  xagentCoreUrl: config.xagentCoreUrl,
   merchantDid: config.merchantDid,
 });
 
-// Auto-register with nexus-core so webhooks work immediately on startup
-async function registerWithNexusCore() {
+// Auto-register with xagent-core so webhooks work immediately on startup
+async function registerWithXAgentCore() {
   try {
     const signerAddress = privateKeyToAccount(
       config.signerPrivateKey as `0x${string}`,
@@ -66,13 +66,13 @@ async function registerWithNexusCore() {
       webhook_url: internalWebhookUrl,
       webhook_secret: config.webhookSecret,
     };
-    const res = await fetch(`${config.nexusCoreUrl}/api/market/register`, {
+    const res = await fetch(`${config.xagentCoreUrl}/api/market/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (res.ok) {
-      console.error("[Flight Agent] Registered with nexus-core successfully");
+      console.error("[Flight Agent] Registered with xagent-core successfully");
     } else {
       console.error(
         `[Flight Agent] Registration failed: ${res.status} ${await res.text()}`,
@@ -82,7 +82,7 @@ async function registerWithNexusCore() {
     console.error(`[Flight Agent] Registration error: ${err.message}`);
   }
 }
-registerWithNexusCore();
+registerWithXAgentCore();
 
 // Stateless REST calls share a process-level cache (offer_id contains unique
 // timestamp prefix so there's no cross-user collision risk)
@@ -176,15 +176,15 @@ async function handleGenerateQuote(
     ucp: {
       version: "2026-01-11",
       payment_handlers: {
-        "urn:ucp:payment:nexus_v1": [
+        "urn:ucp:payment:xagent_v1": [
           {
-            id: "nexus_handler_1",
+            id: "xagent_handler_1",
             version: "v1",
             config: quote,
-            nexus_core: {
-              skill_url: `${config.nexusCoreUrl}/skill-user.md`,
-              mcp_endpoint: `${config.nexusCoreUrl}/mcp`,
-              orchestrate_url: `${config.nexusCoreUrl}/api/orchestrate`,
+            xagent_core: {
+              skill_url: `${config.xagentCoreUrl}/skill-user.md`,
+              mcp_endpoint: `${config.xagentCoreUrl}/mcp`,
+              orchestrate_url: `${config.xagentCoreUrl}/api/orchestrate`,
               orchestrate_body: {
                 quotes: [quote],
                 payer_wallet,
@@ -193,7 +193,7 @@ async function handleGenerateQuote(
                 "REQUIRED: To complete this payment, POST the orchestrate_body to orchestrate_url. " +
                 "The response contains a checkout_url — present ONLY that URL to the user. " +
                 "Do NOT construct URLs yourself or show raw JSON to the user. " +
-                "If you have multiple nexus_v1 quotes, combine all config objects into the quotes array before calling orchestrate.",
+                "If you have multiple xagent_v1 quotes, combine all config objects into the quotes array before calling orchestrate.",
             },
           },
         ],
@@ -219,7 +219,7 @@ async function handleGenerateQuote(
       `QUOTE_JSON: ${quoteJson}\n` +
       `PAYER: ${payer_wallet}\n\n` +
       `Collect all QUOTE_JSON values, then call:\n` +
-      `nexus_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
+      `xagent_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
     data: ucpCheckoutResponse,
     order_ref: order.order_ref,
   };
@@ -313,7 +313,7 @@ async function handleSearchAndQuote(
       `PAYER: ${payer_wallet}\n\n` +
       `To select a different flight, call search_and_quote again with offer_index=N.\n` +
       `When all quotes are ready, call:\n` +
-      `nexus_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
+      `xagent_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
     data: { offers, selectedIndex: idx, quote },
     order_ref: orderRef,
   };
@@ -473,11 +473,11 @@ function createMcpServer(): McpServer {
     },
   );
 
-  // ── Tool: nexus_generate_quote (+ x402 Payment) ────────────────────────
+  // ── Tool: xagent_generate_quote (+ x402 Payment) ────────────────────────
 
   srv.tool(
-    "nexus_generate_quote",
-    "Generates a Nexus Payment (NUPS) quote for a selected flight offer. " +
+    "xagent_generate_quote",
+    "Generates a XAgent Payment (NUPS) quote for a selected flight offer. " +
       "Supports x402 payment — include _meta['x402/payment'] to pay instantly. " +
       "Use search_and_quote instead for faster flow.",
     {
@@ -501,14 +501,14 @@ function createMcpServer(): McpServer {
         );
 
         if (!payment) {
-          const quoteConfig: X402ToolConfig = { ...x402Config, toolName: "nexus_generate_quote" };
+          const quoteConfig: X402ToolConfig = { ...x402Config, toolName: "xagent_generate_quote" };
           const pr = buildPaymentRequired(quoteConfig);
           return buildPaymentRequiredResult(pr, result.text);
         }
 
         const payResult = await processX402Payment(payment, {
           ...x402Config,
-          toolName: "nexus_generate_quote",
+          toolName: "xagent_generate_quote",
         });
 
         if ("error" in payResult) {
@@ -532,10 +532,10 @@ function createMcpServer(): McpServer {
     },
   );
 
-  // ── Tool: nexus_check_status ────────────────────────────────────────────────
+  // ── Tool: xagent_check_status ────────────────────────────────────────────────
 
   srv.tool(
-    "nexus_check_status",
+    "xagent_check_status",
     "Checks the payment status of a flight order. Use this to verify if payment has been completed.",
     {
       order_ref: z.string().describe("The order reference (e.g. FLT-...)"),
@@ -559,7 +559,7 @@ function createMcpServer(): McpServer {
 
   srv.resource(
     "order-state",
-    "nexus://orders/{order_ref}/state",
+    "xagent://orders/{order_ref}/state",
     { description: "Current state of a flight order (RFC-003 compliant)" },
     async (uri) => {
       const orderRef = uri.pathname.split("/")[2] ?? "";
@@ -585,7 +585,7 @@ function createMcpServer(): McpServer {
             text: JSON.stringify({
               order_ref: order.order_ref,
               payment_status: order.status,
-              nexus_payment_id: null,
+              xagent_payment_id: null,
               last_updated: order.updated_at,
             }),
           },
@@ -597,8 +597,8 @@ function createMcpServer(): McpServer {
   // ── Prompt: checkout flow ───────────────────────────────────────────────────
 
   srv.prompt(
-    "nexus_checkout_flow",
-    "Guided flow for searching flights and generating a Nexus payment quote.",
+    "xagent_checkout_flow",
+    "Guided flow for searching flights and generating a XAgent payment quote.",
     {},
     async () => ({
       messages: [
@@ -607,15 +607,15 @@ function createMcpServer(): McpServer {
           content: {
             type: "text" as const,
             text: [
-              "You are facilitating a flight booking transaction using Nexus Protocol.",
+              "You are facilitating a flight booking transaction using XAgent Protocol.",
               "",
               "Follow this workflow:",
               "1. Ask the user for their departure city, destination city, and travel date.",
               "2. Call 'search_flights' with the IATA codes and date.",
               "3. Present the available flights clearly to the user.",
-              "4. When the user selects a flight, call 'nexus_generate_quote' with the offer_id.",
+              "4. When the user selects a flight, call 'xagent_generate_quote' with the offer_id.",
               "5. Display the NUPS payment payload to the user.",
-              "6. If the user says they have paid, call 'nexus_check_status' to verify.",
+              "6. If the user says they have paid, call 'xagent_check_status' to verify.",
               "7. Only confirm the booking after verification returns 'PAID'.",
             ].join("\n"),
           },
@@ -658,9 +658,9 @@ async function handleStatelessCall(
       result = await handleSearchFlights(statelessOfferCache, args);
     } else if (tool === "search_and_quote") {
       result = await handleSearchAndQuote(statelessOfferCache, args);
-    } else if (tool === "nexus_generate_quote") {
+    } else if (tool === "xagent_generate_quote") {
       result = await handleGenerateQuote(statelessOfferCache, args);
-    } else if (tool === "nexus_check_status") {
+    } else if (tool === "xagent_check_status") {
       result = await handleCheckStatus(args);
     } else {
       sendJson(res, 400, { error: `Unknown tool: ${tool}` });

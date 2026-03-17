@@ -235,7 +235,7 @@
 **Type:** Functional
 
 **Steps:**
-1. Call `nexus_confirm_deposit` via MCP with:
+1. Call `xagent_confirm_deposit` via MCP with:
    - `group_id`: "grp_xxx"
    - `tx_hash`: "0xabc..."
 
@@ -252,7 +252,7 @@
 **Type:** Negative
 
 **Steps:**
-1. Call `nexus_confirm_deposit` with `tx_hash: "not_a_hash"`
+1. Call `xagent_confirm_deposit` with `tx_hash: "not_a_hash"`
 
 **Expected:**
 - Error: invalid tx_hash format

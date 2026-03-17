@@ -1,0 +1,380 @@
+/**
+ * xNexus Core — Instruction builder.
+ *
+ * Builds payment instructions for User Agent:
+ * - Direct transfer instructions
+ * - Single escrow instructions
+ * - Group (aggregated) escrow instructions
+ */
+import { randomBytes } from "node:crypto";
+import type {
+  Address,
+  Hex,
+  PaymentRecord,
+  MerchantRecord,
+  PaymentInstruction,
+  EscrowInstruction,
+  EIP3009SignData,
+  GroupEscrowInstruction,
+  GroupPaymentDetail,
+  PaymentGroupRecord,
+  BatchDepositInstruction,
+  ACPJobInstruction,
+  ACPJobDetail,
+} from "../types.js";
+import type { NexusCoreConfig } from "../config.js";
+import {
+  PLATON_DEVNET_USDC_ADDRESS,
+  USDC_DECIMALS,
+  DEFAULT_RELEASE_TIMEOUT_S,
+  DEFAULT_DISPUTE_WINDOW_S,
+} from "../constants.js";
+import { XAGENT_PAY_ESCROW_ABI } from "../abi/xagent-pay-escrow.js";
+import { keccak256, toHex, encodeFunctionData, parseAbi, maxUint256 } from "viem";
+
+const ERC20_APPROVE_ABI = parseAbi([
+  "function approve(address spender, uint256 amount) returns (bool)",
+]);
+
+const ERC20_TRANSFER_ABI = parseAbi([
+  "function transfer(address to, uint256 amount) returns (bool)",
+]);
+
+// ---------------------------------------------------------------------------
+// Direct Transfer
+// ---------------------------------------------------------------------------
+
+export function buildDirectTransferInstruction(
+  payment: PaymentRecord,
+  merchant: MerchantRecord,
+  config: NexusCoreConfig,
+): PaymentInstruction {
+  const data = encodeFunctionData({
+    abi: ERC20_TRANSFER_ABI,
+    functionName: "transfer",
+    args: [merchant.payment_address as Address, BigInt(payment.amount)],
+  });
+
+  return {
+    chain_id: config.chainId,
+    chain_name: config.chainName,
+    payment_method: "DIRECT_TRANSFER",
+    target_address: config.usdcAddress as Address,
+    token_address: config.usdcAddress as Address,
+    token_symbol: "USDC",
+    token_decimals: 6,
+    amount_uint256: payment.amount,
+    amount_display: payment.amount_display,
+    method: "erc20_transfer",
+    tx_data: {
+      to: config.usdcAddress as Address,
+      data: data as Hex,
+      value: "0",
+      gas_limit: "100000",
+    },
+    xagent_payment_id: payment.xagent_payment_id,
+    memo: `xNexus: ${payment.merchant_order_ref}`,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Single Escrow
+// ---------------------------------------------------------------------------
+
+export function buildEscrowInstruction(
+  payment: PaymentRecord,
+  merchant: MerchantRecord,
+  config: NexusCoreConfig,
+  payerWallet: string,
+): EscrowInstruction {
+  const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
+  const now = Math.floor(Date.now() / 1000);
+
+  const eip3009SignData: EIP3009SignData = {
+    domain: {
+      name: "USD Coin",
+      version: "2",
+      chainId: config.chainId,
+      verifyingContract: config.usdcAddress as Address,
+    },
+    types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+        { name: "verifyingContract", type: "address" },
+      ],
+      TransferWithAuthorization: [
+        { name: "from", type: "address" },
+        { name: "to", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "validAfter", type: "uint256" },
+        { name: "validBefore", type: "uint256" },
+        { name: "nonce", type: "bytes32" },
+      ],
+    },
+    primaryType: "TransferWithAuthorization",
+    message: {
+      from: payerWallet as Address,
+      to: config.escrowContract as Address,
+      value: payment.amount,
+      validAfter: "0",
+      validBefore: String(now + DEFAULT_RELEASE_TIMEOUT_S),
+      nonce,
+    },
+  };
+
+  return {
+    chain_id: config.chainId,
+    chain_name: config.chainName,
+    payment_method: "ESCROW_CONTRACT",
+    escrow_contract: config.escrowContract as Address,
+    token_address: config.usdcAddress as Address,
+    token_symbol: "USDC",
+    token_decimals: 6,
+    amount_uint256: payment.amount,
+    amount_display: payment.amount_display,
+    eip3009_sign_data: eip3009SignData,
+    xagent_payment_id: payment.xagent_payment_id,
+    payment_id_bytes32: keccak256(toHex(payment.xagent_payment_id)) as Hex,
+    merchant_address: merchant.payment_address as Address,
+    order_ref_hash: keccak256(toHex(payment.merchant_order_ref)) as Hex,
+    merchant_did_hash: keccak256(toHex(payment.merchant_did)) as Hex,
+    context_hash: keccak256(
+      toHex(JSON.stringify(payment.quote_payload.context)),
+    ) as Hex,
+    release_deadline: new Date(
+      (now + DEFAULT_RELEASE_TIMEOUT_S) * 1000,
+    ).toISOString(),
+    dispute_deadline: new Date(
+      (now + DEFAULT_DISPUTE_WINDOW_S) * 1000,
+    ).toISOString(),
+    user_action: "SIGN_EIP3009",
+    gas_paid_by: "RELAYER",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Group Escrow (aggregated multi-merchant)
+// ---------------------------------------------------------------------------
+
+export function buildGroupEscrowInstruction(
+  group: PaymentGroupRecord,
+  payments: readonly PaymentRecord[],
+  merchants: readonly MerchantRecord[],
+  config: NexusCoreConfig,
+): GroupEscrowInstruction {
+  const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
+  const now = Math.floor(Date.now() / 1000);
+
+  // Build per-payment details
+  const paymentDetails: GroupPaymentDetail[] = payments.map((p, i) => ({
+    xagent_payment_id: p.xagent_payment_id,
+    merchant_did: p.merchant_did,
+    merchant_order_ref: p.merchant_order_ref,
+    merchant_address: merchants[i].payment_address as Address,
+    amount_uint256: p.amount,
+    amount_display: p.amount_display,
+    summary: p.quote_payload.context.summary,
+    payment_id_bytes32: keccak256(toHex(p.xagent_payment_id)) as Hex,
+    order_ref_bytes32: keccak256(toHex(p.merchant_order_ref)) as Hex,
+    merchant_did_bytes32: keccak256(toHex(p.merchant_did)) as Hex,
+    context_hash: keccak256(
+      toHex(JSON.stringify(p.quote_payload.context)),
+    ) as Hex,
+  }));
+
+  const eip3009SignData: EIP3009SignData = {
+    domain: {
+      name: "USD Coin",
+      version: "2",
+      chainId: config.chainId,
+      verifyingContract: config.usdcAddress as Address,
+    },
+    types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+        { name: "verifyingContract", type: "address" },
+      ],
+      TransferWithAuthorization: [
+        { name: "from", type: "address" },
+        { name: "to", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "validAfter", type: "uint256" },
+        { name: "validBefore", type: "uint256" },
+        { name: "nonce", type: "bytes32" },
+      ],
+    },
+    primaryType: "TransferWithAuthorization",
+    message: {
+      from: group.payer_wallet as Address,
+      to: config.escrowContract as Address,
+      value: group.total_amount,
+      validAfter: "0",
+      validBefore: String(now + DEFAULT_RELEASE_TIMEOUT_S),
+      nonce,
+    },
+  };
+
+  return {
+    group_id: group.group_id,
+    chain_id: config.chainId,
+    chain_name: config.chainName,
+    payment_method: "ESCROW_CONTRACT",
+    escrow_contract: config.escrowContract as Address,
+    token_address: config.usdcAddress as Address,
+    token_symbol: "USDC",
+    token_decimals: 6,
+    total_amount_uint256: group.total_amount,
+    total_amount_display: group.total_amount_display,
+    payments: paymentDetails,
+    eip3009_sign_data: eip3009SignData,
+    user_action: "SIGN_EIP3009",
+    gas_paid_by: "RELAYER",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Batch Deposit (approve + batchDepositApprove — works with bridged USDC on XLayer)
+// ---------------------------------------------------------------------------
+
+const BATCH_DEPOSIT_ABI_HUMAN =
+  "function batchDepositApprove((bytes32 paymentId, address merchant, uint256 amount, bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)[] entries, uint256 totalAmount, bytes32 groupIdBytes32, uint8 groupV, bytes32 groupR, bytes32 groupS)";
+
+/** Unsigned batch deposit instruction (without group signature fields). */
+export type UnsignedBatchDepositInstruction = Omit<
+  BatchDepositInstruction,
+  "xagent_group_sig" | "core_operator_address"
+>;
+
+export function buildBatchDepositInstruction(
+  group: PaymentGroupRecord,
+  payments: readonly PaymentRecord[],
+  merchants: readonly MerchantRecord[],
+  config: NexusCoreConfig,
+): UnsignedBatchDepositInstruction {
+  const paymentDetails: GroupPaymentDetail[] = payments.map((p, i) => ({
+    xagent_payment_id: p.xagent_payment_id,
+    merchant_did: p.merchant_did,
+    merchant_order_ref: p.merchant_order_ref,
+    merchant_address: merchants[i].payment_address as Address,
+    amount_uint256: p.amount,
+    amount_display: p.amount_display,
+    summary: p.quote_payload.context.summary,
+    payment_id_bytes32: keccak256(toHex(p.xagent_payment_id)) as Hex,
+    order_ref_bytes32: keccak256(toHex(p.merchant_order_ref)) as Hex,
+    merchant_did_bytes32: keccak256(toHex(p.merchant_did)) as Hex,
+    context_hash: keccak256(
+      toHex(JSON.stringify(p.quote_payload.context)),
+    ) as Hex,
+  }));
+
+  // Step 1 tx: USDC.approve(escrow, totalAmount)
+  // Use exact amount (not maxUint256) so approval is bounded to this order
+  const approveData = encodeFunctionData({
+    abi: ERC20_APPROVE_ABI,
+    functionName: "approve",
+    args: [config.escrowContract as Address, BigInt(group.total_amount)],
+  });
+
+  return {
+    group_id: group.group_id,
+    chain_id: config.chainId,
+    chain_name: config.chainName,
+    rpc_url: config.rpcUrl,
+    payment_method: "ESCROW_CONTRACT",
+    escrow_contract: config.escrowContract as Address,
+    token_address: config.usdcAddress as Address,
+    token_symbol: "USDC",
+    token_decimals: 6,
+    total_amount_uint256: group.total_amount,
+    total_amount_display: group.total_amount_display,
+    payments: paymentDetails,
+    approve_tx: {
+      to: config.usdcAddress as Address,
+      data: approveData as Hex,
+      value: "0",
+      gas_limit: "80000",
+    },
+    deposit_tx: {
+      to: config.escrowContract as Address,
+      abi: BATCH_DEPOSIT_ABI_HUMAN,
+      value: "0",
+      gas_limit: "500000",
+    },
+    user_action: "APPROVE_AND_SEND",
+    gas_paid_by: "USER",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// ACP Job Instruction (ERC-8183 createAndFund)
+// ---------------------------------------------------------------------------
+
+export function buildACPJobInstruction(
+  group: PaymentGroupRecord,
+  payments: readonly PaymentRecord[],
+  merchants: readonly MerchantRecord[],
+  config: NexusCoreConfig,
+): ACPJobInstruction {
+  if (!config.acpContract) {
+    throw new Error("ACP_CONTRACT is not configured");
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const defaultExpiry = now + 86400; // 24 hours
+
+  // Build per-payment ACP job details
+  const jobs: ACPJobDetail[] = payments.map((p, i) => {
+    const descriptionJson = JSON.stringify({
+      merchant_did: p.merchant_did,
+      order_ref: p.merchant_order_ref,
+      summary: p.quote_payload.context.summary,
+    });
+
+    return {
+      xagent_payment_id: p.xagent_payment_id,
+      merchant_did: p.merchant_did,
+      merchant_order_ref: p.merchant_order_ref,
+      provider_address: merchants[i].payment_address as Address,
+      evaluator_address: (config.autoEvaluatorContract || config.acpContract) as Address,
+      amount_uint256: p.amount,
+      amount_display: p.amount_display,
+      summary: p.quote_payload.context.summary,
+      expired_at: defaultExpiry,
+      description_json: descriptionJson,
+    };
+  });
+
+  // Step 1 tx: USDC.approve(acp_contract, totalAmount)
+  const approveData = encodeFunctionData({
+    abi: ERC20_APPROVE_ABI,
+    functionName: "approve",
+    args: [config.acpContract as Address, BigInt(group.total_amount)],
+  });
+
+  return {
+    group_id: group.group_id,
+    chain_id: config.chainId,
+    chain_name: config.chainName,
+    rpc_url: config.rpcUrl,
+    payment_method: "ACP_JOB",
+    acp_contract: config.acpContract as Address,
+    token_address: config.usdcAddress as Address,
+    token_symbol: "USDC",
+    token_decimals: 6,
+    total_amount_uint256: group.total_amount,
+    total_amount_display: group.total_amount_display,
+    jobs,
+    approve_tx: {
+      to: config.usdcAddress as Address,
+      data: approveData as Hex,
+      value: "0",
+      gas_limit: "80000",
+    },
+    user_action: "APPROVE_AND_CREATE_JOBS",
+    gas_paid_by: "USER",
+  };
+}

@@ -35,7 +35,7 @@ feat(contracts): v4.0.0 — on-chain group signature verification + audit fixes
 
 ```
 src/
-├── nexus-core/          # Payment orchestration (MCP + HTTP server)
+├── xagent-core/          # Payment orchestration (MCP + HTTP server)
 │   ├── src/
 │   │   ├── services/    # Business logic (13 service modules)
 │   │   ├── db/          # Repository pattern with interfaces
@@ -64,7 +64,7 @@ src/
 │       ├── server.ts    # MCP + HTTP server
 │       └── portal.ts    # Merchant dashboard
 ├── hotel-agent/         # Merchant agent (hotels) — mirrors flight-agent
-├── nexus-website/       # Static marketing site (React)
+├── xagent-website/       # Static marketing site (React)
 └── skills/              # Skill definitions
 ```
 
@@ -109,14 +109,14 @@ __tests__/mocks/mock-payment-repo.ts → MockPaymentRepository (test)
 3. Run `forge test` — all tests must pass
 4. Deploy via UUPS proxy upgrade (no address change)
 5. Use `--legacy --with-gas-price 20000000000` for XLayer Devnet
-6. Update ABI in `src/nexus-core/src/abi/nexus-pay-escrow.ts`
+6. Update ABI in `src/xagent-core/src/abi/nexus-pay-escrow.ts`
 
 ### Merchant Agent Development
 
 Flight-agent and hotel-agent mirror each other:
 1. `server.ts` — MCP server with quote generation tool
 2. `services/quote-builder.ts` — EIP-712 signed quote creation
-3. `services/webhook-handler.ts` — Handles nexus-core webhooks
+3. `services/webhook-handler.ts` — Handles xagent-core webhooks
 4. `services/order-store.ts` — In-memory order management
 5. `portal.ts` — HTML dashboard with embedded JS
 6. `skill.md` — Agent capability manifest

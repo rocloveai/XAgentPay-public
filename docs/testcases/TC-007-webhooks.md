@@ -173,7 +173,7 @@ WebhookNotifier / Merchant Webhook Handler
 - Merchant can detect duplicate via `event_id`
 - Event IDs stored in `webhook_delivery_logs` table
 
-**Note:** Idempotency deduplication is the **merchant's responsibility** using the `event_id`. There is no enforced TTL in nexus-core.
+**Note:** Idempotency deduplication is the **merchant's responsibility** using the `event_id`. There is no enforced TTL in xagent-core.
 
 ---
 

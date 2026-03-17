@@ -86,13 +86,13 @@ RFC-005v2 already acknowledges "Local DID Registry" as MVP approach. Update RFC-
 - `@nexus/agent-kit` SDK with LangChain, Genkit, MCP adapters
 - Two skills: `SignQuote` (generate signed quote) + `VerifyReceipt` (check settlement on-chain)
 - MCP Resources: `nexus://orders/{order_ref}/state`
-- MCP Prompts: `nexus_checkout_flow`
-- MCP Tools: `nexus_generate_quote`, `nexus_check_status`
+- MCP Prompts: `xagent_checkout_flow`
+- MCP Tools: `xagent_generate_quote`, `xagent_check_status`
 
 ### Reality
 - No `@nexus/agent-kit` package exists
-- Merchant agents implement `nexus_generate_quote` tool directly in server.ts
-- Merchant agents implement `nexus_check_order_status` tool
+- Merchant agents implement `xagent_generate_quote` tool directly in server.ts
+- Merchant agents implement `xagent_check_order_status` tool
 - **No MCP Resources** exposed (no `nexus://` URI scheme)
 - **No MCP Prompts** defined
 - UCP Checkout Response format is correctly implemented
@@ -100,15 +100,15 @@ RFC-005v2 already acknowledges "Local DID Registry" as MVP approach. Update RFC-
 ### Gaps
 | Item | Status | Priority |
 |------|--------|----------|
-| `nexus_generate_quote` tool | IMPLEMENTED (directly) | - |
-| `nexus_check_status` tool | IMPLEMENTED (as `nexus_check_order_status`) | - |
+| `xagent_generate_quote` tool | IMPLEMENTED (directly) | - |
+| `xagent_check_status` tool | IMPLEMENTED (as `xagent_check_order_status`) | - |
 | UCP Checkout Response format | IMPLEMENTED | - |
 | `@nexus/agent-kit` SDK | NOT IMPLEMENTED | Medium |
 | MCP Resources (nexus://) | NOT IMPLEMENTED | Low |
 | MCP Prompts | NOT IMPLEMENTED | Low |
 
 ### Recommendation
-Tool name differs: `nexus_check_status` (spec) vs `nexus_check_order_status` (impl). Either rename or update spec. The SDK can be extracted later once patterns stabilize.
+Tool name differs: `xagent_check_status` (spec) vs `xagent_check_order_status` (impl). Either rename or update spec. The SDK can be extracted later once patterns stabilize.
 
 ---
 
@@ -237,7 +237,7 @@ This is the "Full Vision" architecture. Keep as-is but clearly label as future. 
 ### Reality (flight-agent/skill.md)
 - `skill.md` exists with YAML frontmatter
 - Frontmatter has: `name`, `version`, `description`, **`merchant_did`**, `protocol`, `category`, `currencies`, `chain_id`, `tools` — all required fields present
-- Tools: `search_flights` (search), `nexus_generate_quote` (quote), `nexus_check_order_status` (status) — all 3 roles covered
+- Tools: `search_flights` (search), `xagent_generate_quote` (quote), `xagent_check_order_status` (status) — all 3 roles covered
 - Body has tool documentation but **no "Quick Setup" section** with MCP JSON config
 - Body has checkout workflow section
 
@@ -345,7 +345,7 @@ Implementation significantly exceeds the spec. RFC-010 needs a v2.0.0 update cov
 
 ### Reality
 - **Package does not exist**
-- User agents interact with nexus-core via MCP tools (`nexus_orchestrate_payment`, `nexus_confirm_deposit`, `nexus_get_payment_status`) or REST API
+- User agents interact with xagent-core via MCP tools (`xagent_orchestrate_payment`, `xagent_confirm_deposit`, `xagent_get_payment_status`) or REST API
 - Checkout page handles MetaMask signing (browser-based, not SDK)
 - No agent framework adapters
 

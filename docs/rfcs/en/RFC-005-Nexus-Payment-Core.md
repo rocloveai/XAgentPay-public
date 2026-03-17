@@ -56,7 +56,7 @@ UA --[MCP/REST]--> xXAgent Pay Core --[Webhook]--> MA
 
 ```
 Step 1: UA obtains merchant Quote (NUPS v1.5, EIP-712 signed)
-Step 2: UA calls Core nexus_orchestrate_payment(quotes[], payer_wallet)
+Step 2: UA calls Core xagent_orchestrate_payment(quotes[], payer_wallet)
         Core verifies sigs -> DID resolves -> creates payment group -> returns 402 with BatchDepositInstruction
 Step 3: User signs EIP-3009 TypedData (via MetaMask / wallet)
 Step 4: User submits batchDepositWithGroupApproval() on-chain (or via Checkout page)
@@ -271,11 +271,11 @@ CRITICAL: Core MUST resolve payment_address from the merchant_did registry. It M
 
 | Tool | Caller | Description |
 | --- | --- | --- |
-| nexus_orchestrate_payment | UA | Verify quotes, create payment group, return 402 with BatchDepositInstruction |
-| nexus_confirm_deposit | UA | Submit tx_hash for deposit verification |
-| nexus_get_payment_status | UA/MA | Query payment or group status |
-| nexus_release_payment | MA/Core | Trigger escrow release |
-| nexus_confirm_fulfillment | MA | Confirm merchant delivery |
+| xagent_orchestrate_payment | UA | Verify quotes, create payment group, return 402 with BatchDepositInstruction |
+| xagent_confirm_deposit | UA | Submit tx_hash for deposit verification |
+| xagent_get_payment_status | UA/MA | Query payment or group status |
+| xagent_release_payment | MA/Core | Trigger escrow release |
+| xagent_confirm_fulfillment | MA | Confirm merchant delivery |
 
 ### 7.2 REST API
 

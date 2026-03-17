@@ -11,16 +11,16 @@
 | 服务 | 类型 | 说明 |
 |------|------|------|
 | **nexuspay-db** | PostgreSQL | 新加坡，free plan，库名 `nexuspay` |
-| **nexus-website** | static (Vite) | 前端，`src/nexus-website`，需 `VITE_NEXUS_CORE_URL` |
-| **nexus-core** | Docker | 支付编排 MCP 服务，端口 10000，健康检查 `/health`，需 DATABASE_URL / RELAYER_PRIVATE_KEY / ESCROW_CONTRACT / RPC_URL / PORTAL_TOKEN / BASE_URL |
+| **xagent-website** | static (Vite) | 前端，`src/xagent-website`，需 `VITE_NEXUS_CORE_URL` |
+| **xagent-core** | Docker | 支付编排 MCP 服务，端口 10000，健康检查 `/health`，需 DATABASE_URL / RELAYER_PRIVATE_KEY / ESCROW_CONTRACT / RPC_URL / PORTAL_TOKEN / BASE_URL |
 | **nexus-hotel-agent** | Docker | 酒店预订商户 Agent，Amadeus API，`did:nexus:20250407:demo_hotel` |
 | **nexus-flight-agent** | Docker | 机票商户 Agent，Duffel API，`did:nexus:20250407:demo_flight` |
 | **nexus-telegram-bot** | Docker | Telegram 机器人，健康检查 `/health`，需 TELEGRAM_BOT_TOKEN / NEXUS_CORE_URL / BASE_URL |
 
 ## 代码结构
 
-- **src/nexus-core**：MCP Server + REST + 状态机 + Relayer + Webhook + 市场发现；提供 `skill.md`、`skill-user.md`、`skill-market.md`。
-- **src/nexus-website**：Vite 前端，多语言（en/zh/ja/th），展示商户与 skill.md 使用方式。
+- **src/xagent-core**：MCP Server + REST + 状态机 + Relayer + Webhook + 市场发现；提供 `skill.md`、`skill-user.md`、`skill-market.md`。
+- **src/xagent-website**：Vite 前端，多语言（en/zh/ja/th），展示商户与 skill.md 使用方式。
 - **src/hotel-agent**、**src/flight-agent**：商户 Agent，各有 `skill.md`、`skill-user.md`，HTTP 提供 `/skill.md`、Portal。
 - **src/telegram-bot**：通过 `/skill.md` 暴露 skill。
 - **src/skills/XAgent Pay-SKILL-STANDARD.md**：NMSS 标准与 skill.md 模板。

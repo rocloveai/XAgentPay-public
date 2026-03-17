@@ -20,7 +20,7 @@ error() { echo -e "${RED}[✗]${NC} $*"; exit 1; }
 check_secrets() {
   local missing=0
   for f in \
-    "$ROOT/src/nexus-core/.env.local" \
+    "$ROOT/src/xagent-core/.env.local" \
     "$ROOT/src/flight-agent/.env.local" \
     "$ROOT/src/hotel-agent/.env.local"; do
     if grep -q "CHANGE_ME" "$f" 2>/dev/null; then
@@ -31,7 +31,7 @@ check_secrets() {
   if [ $missing -eq 1 ]; then
     echo ""
     echo "  从 Render Dashboard 复制以下值："
-    echo "  nexus-core:         RELAYER_PRIVATE_KEY"
+    echo "  xagent-core:         RELAYER_PRIVATE_KEY"
     echo "  nexus-flight-agent: MERCHANT_SIGNER_PRIVATE_KEY, DUFFEL_API_TOKEN"
     echo "  nexus-hotel-agent:  MERCHANT_SIGNER_PRIVATE_KEY, AMADEUS_API_KEY, AMADEUS_API_SECRET"
     echo ""
@@ -80,12 +80,12 @@ build_service() {
 }
 
 build_all() {
-  build_service "nexus-core"    "$ROOT/src/nexus-core"
+  build_service "xagent-core"    "$ROOT/src/xagent-core"
   build_service "flight-agent"  "$ROOT/src/flight-agent"
   build_service "hotel-agent"   "$ROOT/src/hotel-agent"
-  # nexus-website 用 Vite dev server，不需要预构建
-  cd "$ROOT/src/nexus-website" && npm install --silent 2>/dev/null
-  info "nexus-website 依赖已安装"
+  # xagent-website 用 Vite dev server，不需要预构建
+  cd "$ROOT/src/xagent-website" && npm install --silent 2>/dev/null
+  info "xagent-website 依赖已安装"
 }
 
 # ── 4. 启动各服务 ─────────────────────────────────────────────
@@ -101,14 +101,14 @@ start_service() {
 
 # ── 5. 等待 Core 就绪 ────────────────────────────────────────
 wait_for_core() {
-  info "等待 nexus-core 就绪..."
+  info "等待 xagent-core 就绪..."
   local retries=30
   while ! curl -s http://localhost:4000/health > /dev/null 2>&1; do
     retries=$((retries - 1))
-    [ $retries -le 0 ] && { warn "nexus-core 启动超时，跳过自动注册"; return 1; }
+    [ $retries -le 0 ] && { warn "xagent-core 启动超时，跳过自动注册"; return 1; }
     sleep 1
   done
-  info "nexus-core 已就绪 $(curl -s http://localhost:4000/health | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["version"])')"
+  info "xagent-core 已就绪 $(curl -s http://localhost:4000/health | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["version"])')"
   return 0
 }
 
@@ -168,9 +168,9 @@ start_postgres
 run_migrations
 build_all
 
-start_service "nexus-core" \
-  "$ROOT/src/nexus-core" \
-  "$ROOT/src/nexus-core/.env.local" \
+start_service "xagent-core" \
+  "$ROOT/src/xagent-core" \
+  "$ROOT/src/xagent-core/.env.local" \
   "node build/server.js"
 
 start_service "flight-agent" \
@@ -183,7 +183,7 @@ start_service "hotel-agent" \
   "$ROOT/src/hotel-agent/.env.local" \
   "node build/server.js"
 
-# nexus-website 用 Vite dev server（前台运行，放最后）
+# xagent-website 用 Vite dev server（前台运行，放最后）
 if wait_for_core; then
   register_merchants
 fi
@@ -202,11 +202,11 @@ echo "║  日志目录: logs/                                         ║"
 echo "║  停止所有: ./scripts/stop-local.sh                       ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
-info "启动 nexus-website (Vite dev server, port 3000)..."
-nohup bash -c "cd \"$ROOT/src/nexus-website\" && VITE_NEXUS_CORE_URL=http://localhost:4000 npm run dev" \
-  > "$LOGS/nexus-website.log" 2>&1 &
-echo $! > "$LOGS/nexus-website.pid"
-echo "  PID=$(cat "$LOGS/nexus-website.pid")  日志: $LOGS/nexus-website.log"
+info "启动 xagent-website (Vite dev server, port 3000)..."
+nohup bash -c "cd \"$ROOT/src/xagent-website\" && VITE_NEXUS_CORE_URL=http://localhost:4000 npm run dev" \
+  > "$LOGS/xagent-website.log" 2>&1 &
+echo $! > "$LOGS/xagent-website.pid"
+echo "  PID=$(cat "$LOGS/xagent-website.pid")  日志: $LOGS/xagent-website.log"
 sleep 4
 echo ""
 echo "  🌐 Website 已就绪: http://localhost:3000"

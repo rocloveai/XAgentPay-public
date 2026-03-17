@@ -1,6 +1,6 @@
 /**
  * Reconciler — periodically checks for UNPAID orders whose payments
- * have actually been completed on nexus-core, and reconciles local state.
+ * have actually been completed on xagent-core, and reconciles local state.
  *
  * Runs every RECONCILE_INTERVAL_MS (default 5 min), querying orders
  * created within RECONCILE_LOOKBACK_MS (default 4 hours).
@@ -13,14 +13,14 @@ import { requestSettlement } from "./webhook-handler.js";
 // ---------------------------------------------------------------------------
 
 export interface ReconcilerConfig {
-  readonly nexusCoreUrl: string;
+  readonly xagentCoreUrl: string;
   readonly merchantDid: string;
   readonly intervalMs?: number;
   readonly lookbackMs?: number;
 }
 
-interface NexusCorePaymentSummary {
-  readonly nexus_payment_id: string;
+interface XAgentCorePaymentSummary {
+  readonly xagent_payment_id: string;
   readonly merchant_order_ref: string;
   readonly status: string;
   readonly group_id: string;
@@ -85,9 +85,9 @@ async function runReconciliation(
     `[Reconciler] Found ${unpaidOrders.length} UNPAID order(s) to check`,
   );
 
-  // Fetch recent payments from nexus-core in one batch call
+  // Fetch recent payments from xagent-core in one batch call
   const corePayments = await fetchMerchantPayments(
-    config.nexusCoreUrl,
+    config.xagentCoreUrl,
     config.merchantDid,
     lookbackMs,
   );
@@ -95,7 +95,7 @@ async function runReconciliation(
   if (!corePayments) return; // fetch failed, skip this cycle
 
   // Index core payments by merchant_order_ref for O(1) lookup
-  const paymentsByRef = new Map<string, NexusCorePaymentSummary>();
+  const paymentsByRef = new Map<string, XAgentCorePaymentSummary>();
   for (const p of corePayments) {
     paymentsByRef.set(p.merchant_order_ref, p);
   }
@@ -103,7 +103,7 @@ async function runReconciliation(
   // Reconcile each unpaid order
   for (const order of unpaidOrders) {
     const corePayment = paymentsByRef.get(order.order_ref);
-    if (!corePayment) continue; // not found in nexus-core, skip
+    if (!corePayment) continue; // not found in xagent-core, skip
 
     const coreStatus = corePayment.status;
 
@@ -120,8 +120,8 @@ async function runReconciliation(
       // If ESCROWED, trigger settlement (fire-and-forget)
       if (coreStatus === "ESCROWED") {
         requestSettlement(
-          config.nexusCoreUrl,
-          corePayment.nexus_payment_id,
+          config.xagentCoreUrl,
+          corePayment.xagent_payment_id,
           config.merchantDid,
         ).catch((err) =>
           console.error(
@@ -140,17 +140,17 @@ async function runReconciliation(
 }
 
 // ---------------------------------------------------------------------------
-// nexus-core API call
+// xagent-core API call
 // ---------------------------------------------------------------------------
 
 async function fetchMerchantPayments(
-  nexusCoreUrl: string,
+  xagentCoreUrl: string,
   merchantDid: string,
   lookbackMs: number,
-): Promise<readonly NexusCorePaymentSummary[] | null> {
+): Promise<readonly XAgentCorePaymentSummary[] | null> {
   const hours = Math.ceil(lookbackMs / 3_600_000);
   const url =
-    `${nexusCoreUrl}/api/merchant/payments` +
+    `${xagentCoreUrl}/api/merchant/payments` +
     `?merchant_did=${encodeURIComponent(merchantDid)}` +
     `&since=${hours}h` +
     `&limit=200`;
@@ -163,13 +163,13 @@ async function fetchMerchantPayments(
 
     if (!resp.ok) {
       console.error(
-        `[Reconciler] nexus-core responded ${resp.status}: ${await resp.text()}`,
+        `[Reconciler] xagent-core responded ${resp.status}: ${await resp.text()}`,
       );
       return null;
     }
 
     const body = (await resp.json()) as {
-      payments?: readonly NexusCorePaymentSummary[];
+      payments?: readonly XAgentCorePaymentSummary[];
     };
     return body.payments ?? [];
   } catch (err) {

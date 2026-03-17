@@ -862,7 +862,7 @@ xXAgent Pay Core 作为 MCP Server 运行，暴露以下标准接口。
 
 ### 4.1 MCP Tools (给 UA 调用)
 
-#### Tool: `nexus_orchestrate_payment`
+#### Tool: `xagent_orchestrate_payment`
 
 验证商户 Quote，创建支付订单，根据支付模式返回 PaymentInstruction 或 EscrowInstruction。
 
@@ -971,7 +971,7 @@ UA 广播交易后，提交 tx_hash 给 Core 追踪。
 }
 ```
 
-#### Tool: `nexus_get_payment_status`
+#### Tool: `xagent_get_payment_status`
 
 查询支付订单状态（对 UA 和 MA 均可用）。
 
@@ -1051,7 +1051,7 @@ UA 提交用户的 EIP-3009 签名，Core 转发给 Relayer 代为上链。
 }
 ```
 
-#### Tool: `nexus_release_payment` (Escrow 模式新增)
+#### Tool: `xagent_release_payment` (Escrow 模式新增)
 
 Core 通过 Relayer 调用 Escrow 合约释放资金给商户。
 
@@ -1086,7 +1086,7 @@ Core 通过 Relayer 调用 Escrow 合约释放资金给商户。
 }
 ```
 
-#### Tool: `nexus_dispute_payment` (Escrow 模式新增)
+#### Tool: `xagent_dispute_payment` (Escrow 模式新增)
 
 UA 代用户发起争议（通过 Relayer 代为提交 dispute 交易）。
 
@@ -1122,7 +1122,7 @@ UA 代用户发起争议（通过 Relayer 代为提交 dispute 交易）。
 
 ### 4.2 MCP Tools (给 MA 调用)
 
-#### Tool: `nexus_confirm_fulfillment`
+#### Tool: `xagent_confirm_fulfillment`
 
 商户确认已履约（出票、发货等）。Escrow 模式下，此操作将触发 Core 通过 Relayer 调用合约 `release()` 释放资金。
 
@@ -1229,7 +1229,7 @@ User Agent (UA)       xXAgent Pay Core        Relayer         xXAgent PayEscrow 
      │                     │                   │                │                    │
      │                     │                   │                │   6. 商户履约 (出票)  │
      │                     │ ◄─────────────────────────────────────────────────────  │
-     │                     │ nexus_confirm_fulfillment(proof)    │                    │
+     │                     │ xagent_confirm_fulfillment(proof)    │                    │
      │                     │                   │                │                    │
      │                     │  7. 释放 Escrow     │                │                    │
      │                     │ ────────────────►  │                │                    │
@@ -1305,7 +1305,7 @@ xXAgent Pay Core 严格遵循以下国际会计标准：
 ### 7.1 目录结构
 
 ```
-src/nexus-core/
+src/xagent-core/
 ├── src/
 │   ├── server.ts                    # MCP Server 入口
 │   ├── config.ts                    # 环境配置
@@ -1394,8 +1394,8 @@ src/contracts/                        # v1.1: 智能合约 (Foundry 项目)
 - [ ] 安全模块：EIP-712 验签 + DID 解析（本地注册表）
 - [ ] 12 态状态机实现 (支持双模式)
 - [ ] Payment Router (支付模式路由)
-- [ ] MCP Tool: `nexus_orchestrate_payment` (先实现 Direct 模式)
-- [ ] MCP Tool: `nexus_get_payment_status`
+- [ ] MCP Tool: `xagent_orchestrate_payment` (先实现 Direct 模式)
+- [ ] MCP Tool: `xagent_get_payment_status`
 
 #### Phase 2: 链上集成 (1-2 周)
 - [ ] XLayer RPC 客户端
@@ -1420,8 +1420,8 @@ src/contracts/                        # v1.1: 智能合约 (Foundry 项目)
 - [ ] Transaction Queue + nonce 管理
 - [ ] Balance Monitor (LAT 余额监控 + 告警)
 - [ ] MCP Tool: `nexus_submit_eip3009_signature`
-- [ ] MCP Tool: `nexus_release_payment`
-- [ ] MCP Tool: `nexus_dispute_payment`
+- [ ] MCP Tool: `xagent_release_payment`
+- [ ] MCP Tool: `xagent_dispute_payment`
 - [ ] 超时自动退款定时任务 (通过 Relayer 调用 refund())
 
 #### Phase 5: Webhook 通知 (1 周)
@@ -1433,7 +1433,7 @@ src/contracts/                        # v1.1: 智能合约 (Foundry 项目)
 - [ ] Merchant Agent 接收端适配
 
 #### Phase 6: 完善与测试 (1 周)
-- [ ] MCP Tool: `nexus_confirm_fulfillment` (Escrow 模式触发 release)
+- [ ] MCP Tool: `xagent_confirm_fulfillment` (Escrow 模式触发 release)
 - [ ] 端到端测试（UA -> Core -> Escrow Contract -> MA -> XLayer）
 - [ ] ISO 20022 数据映射验证 (含 IFRS 15 Escrow 会计)
 - [ ] Portal Dashboard（Core 管理界面）

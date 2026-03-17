@@ -9,7 +9,7 @@
 // ---------------------------------------------------------------------------
 
 export interface PaymentSummary {
-  readonly nexus_payment_id: string;
+  readonly xagent_payment_id: string;
   readonly merchant_order_ref: string;
   readonly amount_display: string;
   readonly status: string;
@@ -42,7 +42,7 @@ export interface GroupInfo {
 }
 
 export interface GroupPaymentInfo {
-  readonly nexus_payment_id: string;
+  readonly xagent_payment_id: string;
   readonly status: string;
   readonly amount_display: string;
   readonly currency: string;
@@ -50,7 +50,7 @@ export interface GroupPaymentInfo {
   readonly merchant_order_ref: string;
 }
 
-export interface NexusGroupStatusResponse {
+export interface XAgentGroupStatusResponse {
   readonly payment: unknown;
   readonly group: GroupInfo | null;
   readonly group_payments: readonly GroupPaymentInfo[];

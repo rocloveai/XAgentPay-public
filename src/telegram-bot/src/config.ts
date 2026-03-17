@@ -6,7 +6,7 @@
 
 export interface TelegramBotConfig {
   readonly telegramBotToken: string;
-  readonly nexusCoreUrl: string;
+  readonly xagentCoreUrl: string;
   readonly baseUrl: string | null;
   readonly port: number;
   /** Initial polling interval in ms (first poll after this delay) */
@@ -19,12 +19,12 @@ export interface TelegramBotConfig {
 
 export function loadConfig(): TelegramBotConfig {
   const telegramBotToken = requireEnv("TELEGRAM_BOT_TOKEN");
-  const nexusCoreUrl = requireEnv("NEXUS_CORE_URL");
+  const xagentCoreUrl = requireEnv("XAGENT_CORE_URL");
   const baseUrl = process.env.BASE_URL?.replace(/\/+$/, "") ?? null;
 
   return {
     telegramBotToken,
-    nexusCoreUrl: nexusCoreUrl.replace(/\/+$/, ""), // strip trailing slash
+    xagentCoreUrl: xagentCoreUrl.replace(/\/+$/, ""), // strip trailing slash
     baseUrl,
     port: intEnv("PORT", 4100),
     pollIntervalMs: intEnv("POLL_INTERVAL_MS", 10_000),

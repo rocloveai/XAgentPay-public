@@ -4,7 +4,7 @@
 
 Phase 0 integrates existing merchant agents (flight-agent, hotel-agent) with xXAgent Pay Core infrastructure. This covers:
 
-- **Type alignment** — shared types from `nexus-core` copied into each agent
+- **Type alignment** — shared types from `xagent-core` copied into each agent
 - **Quote generation** — EIP-712 signed quote via `buildQuote()`
 - **Webhook reception** — `POST /webhook` endpoint for payment notifications
 - **Status mapping** — webhook events trigger local order status updates
@@ -17,12 +17,12 @@ Phase 0 integrates existing merchant agents (flight-agent, hotel-agent) with xXA
 
 ## Type Alignment
 
-Merchant agents maintain a copy of nexus-core types at:
+Merchant agents maintain a copy of xagent-core types at:
 ```
-src/<agent>/src/types/nexus-core-types.ts
+src/<agent>/src/types/xagent-core-types.ts
 ```
 
-**Source of truth:** `src/nexus-core/src/types.ts`
+**Source of truth:** `src/xagent-core/src/types.ts`
 
 Types provided:
 | Type | Purpose |
@@ -34,7 +34,7 @@ Types provided:
 | `XAgent PayQuotePayload` | Full quote payload (EIP-712 signed) |
 | `WebhookPayload` | Webhook event envelope |
 
-Agent-local types (`FlightOffer`, `HotelOffer`, `Order`, `OrderStatus`) remain in `src/<agent>/src/types.ts` and re-export nexus-core types for backward compatibility.
+Agent-local types (`FlightOffer`, `HotelOffer`, `Order`, `OrderStatus`) remain in `src/<agent>/src/types.ts` and re-export xagent-core types for backward compatibility.
 
 ## Quote Generation
 

@@ -840,12 +840,12 @@ User Agent (UA)       xXAgent Pay Core          Relayer            xXAgent PayEs
      |                     |                    |                    |                    |                     |
      |  2. Generate quote    |                    |                    |                    |                     |
      | ──────────────────────────────────────────────────────────────────────────────────►  |                     |
-     |  nexus_generate_quote |                    |                    |                    |                     |
+     |  xagent_generate_quote |                    |                    |                    |                     |
      | ◄────────────────────|  Quote (EIP-712, payment_method: "ESCROW")                  |                     |
      |                     |                    |                    |                    |                     |
      |  3. Orchestrate payment |                    |                    |                    |                     |
      | ────────────────────►|                    |                    |                    |                     |
-     |  nexus_orchestrate_payment(quote, payer_wallet)                |                    |                     |
+     |  xagent_orchestrate_payment(quote, payer_wallet)                |                    |                     |
      |                     | ─ Verify sig ──    |                    |                    |                     |
      |                     | ─ DID resolve ──   |                    |                    |                     |
      |                     | ─ Create payment ──|                    |                    |                     |
@@ -895,7 +895,7 @@ User Agent (UA)       xXAgent Pay Core          Relayer            xXAgent PayEs
      |                     |                    |                    |                    |                     |
      |                     |  11. Merchant confirms fulfillment |                    |                     |
      |                     | ◄────────────────────────────────────────────────────────────|                     |
-     |                     |  nexus_confirm_fulfillment(id, proof)   |                    |                     |
+     |                     |  xagent_confirm_fulfillment(id, proof)   |                    |                     |
      |                     |                    |                    |                    |                     |
      |                     |  12. Relayer calls contract to release funds |                    |                     |
      |                     | ──────────────────►|                    |                    |                     |
@@ -911,7 +911,7 @@ User Agent (UA)       xXAgent Pay Core          Relayer            xXAgent PayEs
      |                     |                    |                    |                    |                     |
      |  14. Query status    |                    |                    |                    |                     |
      | ────────────────────►|                    |                    |                    |                     |
-     |  nexus_get_payment_status                 |                    |                    |                     |
+     |  xagent_get_payment_status                 |                    |                    |                     |
      | ◄────────────────────|                    |                    |                    |                     |
      |  status: SETTLED     |                    |                    |                    |                     |
      |  "Payment successful,|                    |                    |                    |                     |
@@ -1042,13 +1042,13 @@ interface EscrowInstruction {
 
 | Tool | Change Type | Description |
 | --- | --- | --- |
-| `nexus_orchestrate_payment` | **Modified** | Added `payment_method` routing logic; Escrow mode returns `EscrowInstruction` (with EIP-3009 signing parameters) |
+| `xagent_orchestrate_payment` | **Modified** | Added `payment_method` routing logic; Escrow mode returns `EscrowInstruction` (with EIP-3009 signing parameters) |
 | `nexus_submit_eip3009_signature` | **New** | UA submits user's EIP-3009 signature; Core forwards to Relayer for on-chain submission |
 | `nexus_submit_tx` | **Modified** | Still supports traditional tx_hash submission (Direct Transfer mode); Escrow mode uses `nexus_submit_eip3009_signature` instead |
-| `nexus_release_payment` | **New** | Core calls contract `release()` via Relayer to release Escrow funds |
-| `nexus_dispute_payment` | **New** | UA initiates dispute (submitted on-chain via Relayer on behalf of user) |
-| `nexus_get_payment_status` | **Modified** | Added Escrow status display, contract address, timeout information |
-| `nexus_confirm_fulfillment` | **Modified** | Triggers Core to call contract `release()` via Relayer, transitioning Escrow to SETTLED |
+| `xagent_release_payment` | **New** | Core calls contract `release()` via Relayer to release Escrow funds |
+| `xagent_dispute_payment` | **New** | UA initiates dispute (submitted on-chain via Relayer on behalf of user) |
+| `xagent_get_payment_status` | **Modified** | Added Escrow status display, contract address, timeout information |
+| `xagent_confirm_fulfillment` | **Modified** | Triggers Core to call contract `release()` via Relayer, transitioning Escrow to SETTLED |
 
 #### New Tool: `nexus_submit_eip3009_signature`
 
@@ -1072,11 +1072,11 @@ interface EscrowInstruction {
 }
 ```
 
-#### New Tool: `nexus_release_payment`
+#### New Tool: `xagent_release_payment`
 
 ```json
 {
-  "name": "nexus_release_payment",
+  "name": "xagent_release_payment",
   "description": "Core calls Escrow contract via Relayer to release funds to merchant",
   "input": {
     "nexus_payment_id": { "type": "string", "required": true },
@@ -1399,7 +1399,7 @@ src/contracts/
 ### 8.2 Relayer Module Directory Structure
 
 ```
-src/nexus-core/
+src/xagent-core/
 ├── relayer/
 │   ├── relayer-service.ts         # Relayer service entry point
 │   ├── relayer-wallet.ts          # Wallet management (signing + nonce management)
@@ -1687,12 +1687,12 @@ Conclusion: Protocol fee can fully cover Relayer Gas costs with ample margin
 - [ ] Implement Escrow event to Core status mapping
 - [ ] Implement release-handler.ts (call contract release via Relayer)
 - [ ] Implement refund-handler.ts (Relayer auto-executes timeout refund)
-- [ ] Add MCP Tool: nexus_release_payment
+- [ ] Add MCP Tool: xagent_release_payment
 
 #### Phase 3: Dispute Handling (1 week)
 
 - [ ] Implement dispute-handler.ts (submitted via Relayer on behalf)
-- [ ] Add MCP Tool: nexus_dispute_payment
+- [ ] Add MCP Tool: xagent_dispute_payment
 - [ ] Extend Webhook event types
 - [ ] Implement arbiter management interface
 - [ ] End-to-end testing (EIP-3009 signing -> Relayer on-chain submission -> complete Escrow flow)

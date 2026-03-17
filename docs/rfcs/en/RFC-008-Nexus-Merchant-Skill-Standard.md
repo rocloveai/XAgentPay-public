@@ -278,9 +278,9 @@ chain_id: 210425
 tools:
   - name: search_menu
     role: search
-  - name: nexus_generate_quote
+  - name: xagent_generate_quote
     role: quote
-  - name: nexus_check_status
+  - name: xagent_check_status
     role: status
 ---
 

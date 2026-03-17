@@ -734,8 +734,8 @@ async function handleWebhook(
 ): Promise<void> {
   const rawBody = await readBody(req);
 
-  const sig = req.headers["x-nexus-signature"] as string | undefined;
-  const ts = req.headers["x-nexus-timestamp"] as string | undefined;
+  const sig = req.headers["x-xagent-signature"] as string | undefined;
+  const ts = req.headers["x-xagent-timestamp"] as string | undefined;
 
   const result = verifyWebhookSignature(config.webhookSecret, rawBody, sig, ts);
   if (!result.valid) {
@@ -753,7 +753,7 @@ async function handleWebhook(
   }
 
   const handleResult = await handleWebhookEvent(payload, {
-    nexusCoreUrl: config.nexusCoreUrl,
+    xagentCoreUrl: config.xagentCoreUrl,
     merchantDid: config.merchantDid,
   });
   sendJson(res, 200, handleResult);

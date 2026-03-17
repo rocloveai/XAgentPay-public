@@ -1,7 +1,7 @@
 # TC-005: Dispute Flow
 
 ## Module
-`nexus_dispute_payment` / `nexus_resolve_dispute` (MCP) / Escrow Contract
+`xagent_dispute_payment` / `xagent_resolve_dispute` (MCP) / Escrow Contract
 
 > **Note:** Dispute and resolve are MCP-only tools — no HTTP REST endpoints exist for these operations.
 
@@ -19,7 +19,7 @@
 **Type:** Functional
 
 **Steps:**
-1. Call `nexus_dispute_payment` with:
+1. Call `xagent_dispute_payment` with:
    - `payment_id`: "PAY-xxx" (ESCROWED)
    - `reason`: "Service not delivered"
 
@@ -87,14 +87,14 @@
 
 **Steps:**
 1. Payment in DISPUTE_OPEN state
-2. Call `nexus_resolve_dispute` with:
+2. Call `xagent_resolve_dispute` with:
    - `payment_id`: "PAY-xxx"
    - `merchant_bps`: 7000 (70% to merchant)
 
 **Expected:**
 - Relayer submits `resolveDispute()` on-chain
 - On-chain status: `RESOLVED_SPLIT` (0 < merchantBps < 10000)
-- nexus-core maps to: DISPUTE_RESOLVED
+- xagent-core maps to: DISPUTE_RESOLVED
 - 70% of escrow sent to merchant, 30% to payer
 - Webhook `dispute.resolved` sent
 - Response includes tx_hash and split amounts
@@ -175,7 +175,7 @@
 **Expected:**
 - On-chain: requires `block.timestamp >= disputeDeadline + arbitrationTimeout`
 - Full amount refunded to payer (status: `RESOLVED_TO_PAYER`)
-- nexus-core: payment transitions to REFUNDED
+- xagent-core: payment transitions to REFUNDED
 - H-01 audit fix verified
 - `DisputeAutoResolved` event emitted
 

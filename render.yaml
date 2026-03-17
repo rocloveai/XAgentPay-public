@@ -8,9 +8,9 @@ databases:
 services:
   - type: web
     runtime: static
-    name: nexus-website
-    buildCommand: cd src/nexus-website && npm install && npx vite build
-    staticPublishPath: src/nexus-website/dist
+    name: xagent-website
+    buildCommand: cd src/xagent-website && npm install && npx vite build
+    staticPublishPath: src/xagent-website/dist
     headers:
       - path: /*
         name: Cache-Control
@@ -24,11 +24,11 @@ services:
         sync: false
 
   - type: web
-    name: nexus-core
+    name: xagent-core
     region: singapore
     runtime: docker
-    dockerfilePath: src/nexus-core/Dockerfile
-    dockerContext: src/nexus-core
+    dockerfilePath: src/xagent-core/Dockerfile
+    dockerContext: src/xagent-core
     plan: free
     healthCheckPath: /health
     envVars:

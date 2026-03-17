@@ -1,14 +1,14 @@
-// Re-export nexus-core types so existing imports from "../types.js" keep working
+// Re-export xagent-core types so existing imports from "../types.js" keep working
 export type {
   LineItem,
-  NexusQuotePayload,
+  XAgentQuotePayload,
   PaymentMethod,
   PaymentStatus,
   WebhookEventType,
   WebhookPayload,
-} from "./types/nexus-core-types.js";
+} from "./types/xagent-core-types.js";
 
-import type { NexusQuotePayload } from "./types/nexus-core-types.js";
+import type { XAgentQuotePayload } from "./types/xagent-core-types.js";
 
 export interface HotelOffer {
   readonly offer_id: string;
@@ -29,7 +29,7 @@ export type OrderStatus = "UNPAID" | "PAID" | "EXPIRED";
 export interface Order {
   readonly order_ref: string;
   readonly status: OrderStatus;
-  readonly quote_payload: NexusQuotePayload;
+  readonly quote_payload: XAgentQuotePayload;
   readonly payer_wallet?: string;
   readonly created_at: string;
   readonly updated_at: string;

@@ -1,4 +1,4 @@
-import type { LineItem, NexusQuotePayload } from "../types.js";
+import type { LineItem, XAgentQuotePayload } from "../types.js";
 import { type Address, type Hex, keccak256, toHex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
@@ -18,18 +18,18 @@ const QUOTE_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const DEMO_DISCOUNT_AMOUNT = "0.10"; // 0.1 USDC for testing
 const DEMO_DISCOUNT_UINT256 = "100000"; // pre-computed toUint256("0.10")
 
-// NexusPay Core Contract Address (Demo)
+// XAgentPay Core Contract Address (Demo)
 const VERIFYING_CONTRACT =
   "0x0000000000000000000000000000000000000000" as Address;
 
-const NEXUS_DOMAIN = {
+const XAGENT_DOMAIN = {
   name: "NexusPay",
   version: "1",
   chainId: 196,
   verifyingContract: VERIFYING_CONTRACT,
 } as const;
 
-const NEXUS_QUOTE_TYPES = {
+const XAGENT_QUOTE_TYPES = {
   NexusQuote: [
     { name: "merchant_did", type: "string" },
     { name: "merchant_order_ref", type: "string" },
@@ -63,7 +63,7 @@ export function toUint256(
 
 export async function buildQuote(
   params: BuildQuoteParams,
-): Promise<NexusQuotePayload> {
+): Promise<XAgentQuotePayload> {
   const originalUint256 = toUint256(params.amount);
   const lineItemsUint256 = params.lineItems.map((item) => ({
     ...item,
@@ -88,8 +88,8 @@ export async function buildQuote(
 
   // Sign locally via account.signTypedData — no walletClient / RPC needed
   const signature = await cachedAccount.signTypedData({
-    domain: NEXUS_DOMAIN,
-    types: NEXUS_QUOTE_TYPES,
+    domain: XAGENT_DOMAIN,
+    types: XAGENT_QUOTE_TYPES,
     primaryType: "NexusQuote",
     message: {
       merchant_did: params.merchantDid,

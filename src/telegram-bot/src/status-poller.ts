@@ -1,7 +1,7 @@
 /**
  * Telegram Bot — Status polling loop manager.
  *
- * Manages per-message polling of nexus-core for payment status updates.
+ * Manages per-message polling of xagent-core for payment status updates.
  * Edits Telegram messages when status changes. Stops on terminal states.
  *
  * Uses progressive backoff: each successive poll waits longer.
@@ -11,9 +11,9 @@
  */
 import { createLogger } from "./logger.js";
 import { renderStatusUpdate } from "./message-renderer.js";
-import type { NexusClient } from "./nexus-client.js";
+import type { XAgentClient } from "./xagent-client.js";
 import type { TelegramClient } from "./telegram-client.js";
-import type { ActivePoll, NexusGroupStatusResponse } from "./types.js";
+import type { ActivePoll, XAgentGroupStatusResponse } from "./types.js";
 import { TERMINAL_GROUP_STATUSES, TERMINAL_STATUSES } from "./types.js";
 
 const log = createLogger("StatusPoller");
@@ -36,7 +36,7 @@ export class StatusPoller {
   private readonly polls: Map<string, RunningPoll> = new Map();
 
   constructor(
-    private readonly nexusClient: NexusClient,
+    private readonly xagentClient: XAgentClient,
     private readonly telegramClient: TelegramClient,
     private readonly config: PollerConfig,
   ) {}
@@ -100,9 +100,9 @@ export class StatusPoller {
     // Update count before fetch
     this.polls.set(key, { ...poll, pollCount: newCount });
 
-    let response: NexusGroupStatusResponse;
+    let response: XAgentGroupStatusResponse;
     try {
-      response = await this.nexusClient.getGroupStatus(poll.groupId);
+      response = await this.xagentClient.getGroupStatus(poll.groupId);
     } catch (err) {
       const newErrors = poll.consecutiveErrors + 1;
       log.warn("Poll fetch error", {
@@ -213,7 +213,7 @@ export class StatusPoller {
 // Terminal detection
 // ---------------------------------------------------------------------------
 
-function isTerminal(response: NexusGroupStatusResponse): boolean {
+function isTerminal(response: XAgentGroupStatusResponse): boolean {
   if (response.group && TERMINAL_GROUP_STATUSES.has(response.group.status)) {
     return true;
   }

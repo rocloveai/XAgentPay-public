@@ -257,7 +257,7 @@
 **Type:** Functional
 
 **Steps:**
-1. `GET /skill-market.md` on nexus-core
+1. `GET /skill-market.md` on xagent-core
 
 **Expected:**
 - HTTP 200, Content-Type: text/markdown

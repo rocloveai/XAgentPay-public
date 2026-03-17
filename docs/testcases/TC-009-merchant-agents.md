@@ -37,7 +37,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 - Includes ready-to-use `QUOTE_JSON` for the first flight (index 0)
 - Quote contains: merchant_did, merchant_order_ref (FLT-xxx), amount (with 6% tax), currency, signature
 - `PAYER:` line with wallet address
-- Instructions to call `nexus_orchestrate_payment` with collected quotes
+- Instructions to call `xagent_orchestrate_payment` with collected quotes
 
 ---
 
@@ -118,7 +118,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 **Steps:**
 1. Search flights, get `offer_id`
-2. Call `nexus_generate_quote` with:
+2. Call `xagent_generate_quote` with:
    - `flight_offer_id`: selected offer_id
    - `payer_wallet`: "0x..."
 
@@ -163,7 +163,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 **Type:** Functional
 
 **Steps:**
-1. Call `nexus_check_status` with `order_ref: "FLT-001"`
+1. Call `xagent_check_status` with `order_ref: "FLT-001"`
 
 **Expected:**
 - Returns order status: UNPAID / PAID / EXPIRED
@@ -324,7 +324,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 **Steps:**
 1. Search hotels, get `offer_id`
-2. Call `nexus_generate_quote` with `hotel_offer_id` and `payer_wallet`
+2. Call `xagent_generate_quote` with `hotel_offer_id` and `payer_wallet`
 
 **Expected:**
 - Returns UCP quote with: amount (incl. 10% tax + 5% service charge), merchant_order_ref (HTL-xxx)
@@ -375,7 +375,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 1. Search hotels via REST, get `offer_id`
 2. `POST /api/v1/call-tool` on hotel agent:
    ```json
-   { "tool": "nexus_generate_quote", "arguments": { "hotel_offer_id": "offer_xxx", "payer_wallet": "0x..." } }
+   { "tool": "xagent_generate_quote", "arguments": { "hotel_offer_id": "offer_xxx", "payer_wallet": "0x..." } }
    ```
 
 **Expected:**
@@ -392,7 +392,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 **Steps:**
 1. `POST /api/v1/call-tool` on hotel agent:
    ```json
-   { "tool": "nexus_check_status", "arguments": { "order_ref": "HTL-001" } }
+   { "tool": "xagent_check_status", "arguments": { "order_ref": "HTL-001" } }
    ```
 
 **Expected:**
@@ -430,7 +430,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 **Expected:**
 - HTTP 200 with JSON-RPC response
-- Tool list received: search_flights, search_and_quote, nexus_generate_quote, nexus_check_status
+- Tool list received: search_flights, search_and_quote, xagent_generate_quote, xagent_check_status
 
 ---
 
@@ -444,7 +444,7 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 **Expected:**
 - HTTP 200 with JSON-RPC response
-- Tool list received: search_hotels, search_and_quote, nexus_generate_quote, nexus_check_status
+- Tool list received: search_hotels, search_and_quote, xagent_generate_quote, xagent_check_status
 
 ---
 
@@ -458,4 +458,4 @@ nexus-flight-agent / nexus-hotel-agent / MCP Tools / REST API
 
 **Expected:**
 - HTTP 200 with JSON-RPC response
-- Tool list received: nexus_orchestrate_payment, nexus_get_payment_status, nexus_confirm_deposit, nexus_release_payment, nexus_dispute_payment, nexus_resolve_dispute, nexus_confirm_fulfillment, discover_agents, get_agent_skill
+- Tool list received: xagent_orchestrate_payment, xagent_get_payment_status, xagent_confirm_deposit, xagent_release_payment, xagent_dispute_payment, xagent_resolve_dispute, xagent_confirm_fulfillment, discover_agents, get_agent_skill

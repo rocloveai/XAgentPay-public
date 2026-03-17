@@ -646,7 +646,7 @@ src/contracts/
 ### 3.1 核心数据流：Escrow 模式完整调用链
 
 ```
-UA 调用: nexus_orchestrate_payment(quote, payer_wallet)
+UA 调用: xagent_orchestrate_payment(quote, payer_wallet)
   │
   ▼
 M1.SecurityModule.verifyQuote(quote)
@@ -687,7 +687,7 @@ M4.transition(paymentId, 'ESCROWED', { deposit_tx_hash, ... })
 M7.WebhookNotifier.notify(payment, 'payment.escrowed')
   → HTTP POST 到 merchant webhook_url
 
-[商户履约后调用]: nexus_confirm_fulfillment(paymentId, merchantDid, proof)
+[商户履约后调用]: xagent_confirm_fulfillment(paymentId, merchantDid, proof)
   │
   ▼
 M6.RelayerService.submitRelease(paymentId, paymentIdBytes32)
@@ -767,13 +767,13 @@ export function createContainer(config: Config) {
 
 | MCP Tool | 调用路径 |
 | --- | --- |
-| `nexus_orchestrate_payment` | M1 → M2 → M4.create → M3.build → 返回 |
+| `xagent_orchestrate_payment` | M1 → M2 → M4.create → M3.build → 返回 |
 | `nexus_submit_tx` | M4.transition(BROADCASTED) → M5.trackTransaction |
 | `nexus_submit_eip3009_signature` | M4.transition(BROADCASTED) → M6.submitDeposit |
-| `nexus_get_payment_status` | M4.getPayment → 返回 |
-| `nexus_confirm_fulfillment` | M1.checkPermission → M6.submitRelease → M5 等待事件 |
-| `nexus_release_payment` | M1.checkPermission → M6.submitRelease |
-| `nexus_dispute_payment` | M1.checkPermission → M6.submitDispute |
+| `xagent_get_payment_status` | M4.getPayment → 返回 |
+| `xagent_confirm_fulfillment` | M1.checkPermission → M6.submitRelease → M5 等待事件 |
+| `xagent_release_payment` | M1.checkPermission → M6.submitRelease |
+| `xagent_dispute_payment` | M1.checkPermission → M6.submitDispute |
 
 ---
 
@@ -795,7 +795,7 @@ export function createContainer(config: Config) {
 
 | 编号 | 任务 | 负责模块 |
 | --- | --- | --- |
-| P0-1 | 初始化 `src/nexus-core/` 目录，配置 TypeScript + ESLint + Vitest | 基础 |
+| P0-1 | 初始化 `src/xagent-core/` 目录，配置 TypeScript + ESLint + Vitest | 基础 |
 | P0-2 | 定义全量类型文件 `types.ts`（含 PaymentStatus, PaymentRecord, MerchantRecord, 所有 Instruction 类型） | 基础 |
 | P0-3 | 编写 Migration 003：payments, payment_events, merchant_registry, webhook_delivery_logs | M8 |
 | P0-4 | 编写 Migration 004：payments 表的 Escrow 专用字段 | M8 |
@@ -814,7 +814,7 @@ export function createContainer(config: Config) {
 
 ### Phase 1: 安全验签 + 订单创建（预估 4-5 天）
 
-**目标**：实现支付流程的"入口关卡"。UA 能调用 `nexus_orchestrate_payment` 成功创建订单并拿到支付指令（此阶段先返回 mock 指令）。
+**目标**：实现支付流程的"入口关卡"。UA 能调用 `xagent_orchestrate_payment` 成功创建订单并拿到支付指令（此阶段先返回 mock 指令）。
 
 **任务**：
 
@@ -826,13 +826,13 @@ export function createContainer(config: Config) {
 | P1-4 | 为 M2 编写单元测试（覆盖所有分支） | M2 |
 | P1-5 | 实现 M4 OrderStateMachine（createPayment + transition + VALID_TRANSITIONS 校验） | M4 |
 | P1-6 | 为 M4 编写单元测试（合法/非法转换，事件写入验证） | M4 |
-| P1-7 | 实现 MCP Server 骨架 + `nexus_orchestrate_payment` Tool（返回 mock 指令） | MCP |
-| P1-8 | 实现 `nexus_get_payment_status` Tool | MCP |
+| P1-7 | 实现 MCP Server 骨架 + `xagent_orchestrate_payment` Tool（返回 mock 指令） | MCP |
+| P1-8 | 实现 `xagent_get_payment_status` Tool | MCP |
 
 **阶段验证标准**：
 ```bash
 # 以下命令可执行且通过
-curl -X POST .../nexus_orchestrate_payment \
+curl -X POST .../xagent_orchestrate_payment \
   -d '{ "quote_payload": <有效Quote>, "payer_wallet": "0x..." }'
 # 返回: { nexus_payment_id, status: "AWAITING_TX", payment_method: "DIRECT_TRANSFER/ESCROW_CONTRACT", ... }
 
@@ -890,25 +890,25 @@ slither src/xXAgent PayEscrow.sol  # 无 HIGH 告警
 | P3-7 | 实现 M6 Balance Monitor（定时查询 LAT 余额 + 低余额告警） | M6 |
 | P3-8 | 实现 M4 超时扫描（AWAITING_TX 30min → EXPIRED；ESCROWED + release_deadline 过期 → 触发 M6.submitRefund） | M4 |
 | P3-9 | 实现 MCP Tool: `nexus_submit_eip3009_signature` | MCP |
-| P3-10 | 实现 MCP Tool: `nexus_release_payment` | MCP |
-| P3-11 | 实现 MCP Tool: `nexus_dispute_payment` | MCP |
+| P3-10 | 实现 MCP Tool: `xagent_release_payment` | MCP |
+| P3-11 | 实现 MCP Tool: `xagent_dispute_payment` | MCP |
 | P3-12 | 端到端集成测试（Escrow 完整流程） | 集成 |
 
 **阶段验证标准**（完整 Escrow 流程可执行）：
 ```
-1. nexus_orchestrate_payment → 得到 EscrowInstruction (含 eip3009_sign_data)
+1. xagent_orchestrate_payment → 得到 EscrowInstruction (含 eip3009_sign_data)
 2. 用户钱包签名 eth_signTypedData_v4 → 获得 (v, r, s)
 3. nexus_submit_eip3009_signature(paymentId, v, r, s)
 4. Relayer 自动上链，等待约 5s
-5. nexus_get_payment_status → { status: "ESCROWED" }
-6. nexus_confirm_fulfillment(paymentId, merchantDid)
+5. xagent_get_payment_status → { status: "ESCROWED" }
+6. xagent_confirm_fulfillment(paymentId, merchantDid)
 7. Relayer 调用 release()，等待约 5s
-8. nexus_get_payment_status → { status: "SETTLED" }
+8. xagent_get_payment_status → { status: "SETTLED" }
 
 # 超时退款测试 (设置极短 release timeout):
 5b. 等待 release_deadline 过期
 6b. 超时扫描器触发 Relayer.submitRefund()
-7b. nexus_get_payment_status → { status: "REFUNDED" }
+7b. xagent_get_payment_status → { status: "REFUNDED" }
 ```
 
 ---
@@ -947,7 +947,7 @@ slither src/xXAgent PayEscrow.sol  # 无 HIGH 告警
 
 | 编号 | 任务 |
 | --- | --- |
-| P5-1 | 实现 MCP Tool: `nexus_confirm_fulfillment`（Escrow 模式触发 release） |
+| P5-1 | 实现 MCP Tool: `xagent_confirm_fulfillment`（Escrow 模式触发 release） |
 | P5-2 | Portal Dashboard 扩展（Escrow 状态显示、Relayer 余额监控） |
 | P5-3 | 端到端全流程测试（Escrow 正常 + Escrow 超时退款 + Escrow 争议裁决 三条完整路径） |
 | P5-4 | ISO 20022 数据映射验证（所有字段正确填充） |

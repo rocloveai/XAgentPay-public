@@ -4,15 +4,15 @@ import { updateStatus, storeQR } from "./order-store.js";
 import { generateEsimQR } from "./qrcode-gen.js";
 
 // ---------------------------------------------------------------------------
-// Settlement request — fire-and-forget call to nexus-core
+// Settlement request — fire-and-forget call to xagent-core
 // ---------------------------------------------------------------------------
 
 export async function requestSettlement(
-  nexusCoreUrl: string,
-  nexusPaymentId: string,
+  xagentCoreUrl: string,
+  xagentPaymentId: string,
   merchantDid: string,
 ): Promise<void> {
-  const url = `${nexusCoreUrl}/api/merchant/confirm-fulfillment`;
+  const url = `${xagentCoreUrl}/api/merchant/confirm-fulfillment`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
 
@@ -21,30 +21,30 @@ export async function requestSettlement(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        nexus_payment_id: nexusPaymentId,
+        xagent_payment_id: xagentPaymentId,
         merchant_did: merchantDid,
       }),
       signal: controller.signal,
     });
 
     const body = await resp.text();
-    console.error(`[Settlement] ${nexusPaymentId}: ${resp.status} ${body}`);
+    console.error(`[Settlement] ${xagentPaymentId}: ${resp.status} ${body}`);
   } finally {
     clearTimeout(timeout);
   }
 }
 
 // ---------------------------------------------------------------------------
-// ACP deliverable submission — fire-and-forget call to nexus-core
+// ACP deliverable submission — fire-and-forget call to xagent-core
 // ---------------------------------------------------------------------------
 
 export async function submitDeliverable(
-  nexusCoreUrl: string,
-  nexusPaymentId: string,
+  xagentCoreUrl: string,
+  xagentPaymentId: string,
   merchantDid: string,
   deliverable: string,
 ): Promise<void> {
-  const url = `${nexusCoreUrl}/api/acp/submit-deliverable`;
+  const url = `${xagentCoreUrl}/api/acp/submit-deliverable`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
 
@@ -53,7 +53,7 @@ export async function submitDeliverable(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        nexus_payment_id: nexusPaymentId,
+        xagent_payment_id: xagentPaymentId,
         merchant_did: merchantDid,
         deliverable,
       }),
@@ -61,7 +61,7 @@ export async function submitDeliverable(
     });
 
     const body = await resp.text();
-    console.error(`[ACP Deliverable] ${nexusPaymentId}: ${resp.status} ${body}`);
+    console.error(`[ACP Deliverable] ${xagentPaymentId}: ${resp.status} ${body}`);
   } finally {
     clearTimeout(timeout);
   }
@@ -158,7 +158,7 @@ export interface WebhookHandleResult {
 }
 
 export interface SettlementConfig {
-  readonly nexusCoreUrl: string;
+  readonly xagentCoreUrl: string;
   readonly merchantDid: string;
 }
 
@@ -208,8 +208,8 @@ export async function handleWebhookEvent(
       // Fire-and-forget: request escrow release after marking PAID
       if (event_type === "payment.escrowed" && settlementConfig) {
         requestSettlement(
-          settlementConfig.nexusCoreUrl,
-          data.nexus_payment_id,
+          settlementConfig.xagentCoreUrl,
+          data.xagent_payment_id,
           settlementConfig.merchantDid,
         ).catch((err) =>
           console.error("[Webhook] Settlement request failed:", err),
@@ -225,8 +225,8 @@ export async function handleWebhookEvent(
           timestamp: new Date().toISOString(),
         });
         submitDeliverable(
-          settlementConfig.nexusCoreUrl,
-          data.nexus_payment_id,
+          settlementConfig.xagentCoreUrl,
+          data.xagent_payment_id,
           settlementConfig.merchantDid,
           deliverable,
         ).catch((err) =>

@@ -6,7 +6,7 @@ nexus-telegram-bot / `POST /api/render-order` / Status Polling
 ## Prerequisites
 - Telegram bot service running
 - Valid `TELEGRAM_BOT_TOKEN`
-- `NEXUS_CORE_URL` configured pointing to nexus-core
+- `XAGENT_CORE_URL` configured pointing to xagent-core
 - Active Telegram chat with bot
 
 ---
@@ -92,7 +92,7 @@ nexus-telegram-bot / `POST /api/render-order` / Status Polling
 2. Wait for polling interval (10s initial)
 
 **Expected:**
-- Bot polls nexus-core for payment status
+- Bot polls xagent-core for payment status
 - Polling intervals: 10s, 15s, 20s, 25s... (adds 5s per poll)
 - Maximum 20 polls (~19 minutes total)
 
@@ -148,7 +148,7 @@ nexus-telegram-bot / `POST /api/render-order` / Status Polling
 
 **Expected:**
 - Polling stops immediately when group status is in `TERMINAL_GROUP_STATUSES` (GROUP_SETTLED, GROUP_COMPLETED, GROUP_EXPIRED) OR all individual payments are in terminal statuses (SETTLED, COMPLETED, REFUNDED, EXPIRED, TX_FAILED, RISK_REJECTED)
-- No further nexus-core API calls
+- No further xagent-core API calls
 
 ---
 

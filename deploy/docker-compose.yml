@@ -17,10 +17,10 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Nexus Core ──
-  nexus-core:
+  # ── XAgent Core ──
+  xagent-core:
     build:
-      context: ../src/nexus-core
+      context: ../src/xagent-core
       dockerfile: Dockerfile
     restart: always
     ports:
@@ -64,7 +64,7 @@ services:
       MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_FLIGHT}
       MERCHANT_PAYMENT_ADDRESS: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
       MERCHANT_DID: "did:nexus:20250407:demo_flight"
-      NEXUS_CORE_URL: "http://nexus-core:10000"
+      NEXUS_CORE_URL: "http://xagent-core:10000"
       NEXUS_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
       PORTAL_BASE_URL: "https://xagenpay.com/flight"
 
@@ -89,7 +89,7 @@ services:
       MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_HOTEL}
       MERCHANT_PAYMENT_ADDRESS: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
       MERCHANT_DID: "did:nexus:20250407:demo_hotel"
-      NEXUS_CORE_URL: "http://nexus-core:10000"
+      NEXUS_CORE_URL: "http://xagent-core:10000"
       NEXUS_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
       PORTAL_BASE_URL: "https://xagenpay.com/hotel"
 
@@ -112,7 +112,7 @@ services:
       MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_ESIM}
       MERCHANT_PAYMENT_ADDRESS: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
       MERCHANT_DID: "did:nexus:196:demo_esim"
-      NEXUS_CORE_URL: "http://nexus-core:10000"
+      NEXUS_CORE_URL: "http://xagent-core:10000"
       NEXUS_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
       PORTAL_BASE_URL: "https://xagenpay.com/esim"
 
@@ -126,7 +126,7 @@ services:
       - "127.0.0.1:10003:10000"
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      NEXUS_CORE_URL: "http://nexus-core:10000"
+      NEXUS_CORE_URL: "http://xagent-core:10000"
       PORT: "10000"
       BASE_URL: "https://xagenpay.com/tg-bot"
 

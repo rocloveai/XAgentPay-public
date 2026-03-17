@@ -1,7 +1,7 @@
 # TC-004: Merchant Settlement
 
 ## Module
-`nexus_confirm_fulfillment` (MCP) / `POST /api/merchant/confirm-fulfillment` (REST) / Relayer / ChainWatcher
+`xagent_confirm_fulfillment` (MCP) / `POST /api/merchant/confirm-fulfillment` (REST) / Relayer / ChainWatcher
 
 ## Prerequisites
 - Payment in ESCROWED state
@@ -56,7 +56,7 @@
 
 **Steps:**
 1. Payment in SETTLED state
-2. Merchant calls `nexus_confirm_fulfillment` with `payment_id` and optional `fulfillment_proof`
+2. Merchant calls `xagent_confirm_fulfillment` with `payment_id` and optional `fulfillment_proof`
 
 **Expected:**
 - Payment transitions SETTLED -> COMPLETED
@@ -110,14 +110,14 @@
 
 ---
 
-### TC-004-06a: MCP Tool - nexus_confirm_fulfillment (ESCROWED)
+### TC-004-06a: MCP Tool - xagent_confirm_fulfillment (ESCROWED)
 
 **Priority:** P1
 **Type:** Functional
 
 **Steps:**
 1. Payment in ESCROWED state
-2. Call `nexus_confirm_fulfillment` via MCP with:
+2. Call `xagent_confirm_fulfillment` via MCP with:
    - `payment_id`: "PAY-xxx"
    - `fulfillment_proof`: "https://example.com/proof"
 
@@ -128,14 +128,14 @@
 
 ---
 
-### TC-004-06b: MCP Tool - nexus_confirm_fulfillment (SETTLED -> COMPLETED)
+### TC-004-06b: MCP Tool - xagent_confirm_fulfillment (SETTLED -> COMPLETED)
 
 **Priority:** P1
 **Type:** Functional
 
 **Steps:**
 1. Payment in SETTLED state
-2. Call `nexus_confirm_fulfillment` via MCP with `payment_id: "PAY-xxx"`
+2. Call `xagent_confirm_fulfillment` via MCP with `payment_id: "PAY-xxx"`
 
 **Expected:**
 - Payment transitions SETTLED -> COMPLETED
@@ -144,13 +144,13 @@
 
 ---
 
-### TC-004-07: MCP Tool - nexus_release_payment
+### TC-004-07: MCP Tool - xagent_release_payment
 
 **Priority:** P1
 **Type:** Functional
 
 **Steps:**
-1. Call `nexus_release_payment` with `payment_id: "PAY-xxx"` (ESCROWED)
+1. Call `xagent_release_payment` with `payment_id: "PAY-xxx"` (ESCROWED)
 
 **Expected:**
 - Relayer submits release tx
@@ -188,7 +188,7 @@
 **Type:** Error Handling
 
 **Steps:**
-1. Start nexus-core without `RELAYER_PRIVATE_KEY`
+1. Start xagent-core without `RELAYER_PRIVATE_KEY`
 2. Attempt fulfillment
 
 **Expected:**

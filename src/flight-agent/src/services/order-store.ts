@@ -1,4 +1,4 @@
-import type { NexusQuotePayload, Order, OrderStatus } from "../types.js";
+import type { XAgentQuotePayload, Order, OrderStatus } from "../types.js";
 import { isPoolInitialized } from "./db/pool.js";
 import {
   insertOrder,
@@ -22,7 +22,7 @@ function nowISO(): string {
 }
 
 export async function createOrder(
-  quotePayload: NexusQuotePayload,
+  quotePayload: XAgentQuotePayload,
 ): Promise<Order> {
   const payerWallet = quotePayload.context.payer_wallet;
 

@@ -72,7 +72,7 @@ key: process.env.MERCHANT_KEY
 // This automatically exposes tools via Stdio:
 // - nexus_create_quote
 // - nexus_verify_settlement
-// - nexus_confirm_fulfillment
+// - xagent_confirm_fulfillment
 server.start();
 console.log("XAgent Pay MCP Server running...");
 ```

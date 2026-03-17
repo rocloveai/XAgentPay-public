@@ -1,10 +1,10 @@
 # TC-001: Payment Orchestration
 
 ## Module
-`nexus_orchestrate_payment` (MCP Tool) / `POST /api/orchestrate` (REST)
+`xagent_orchestrate_payment` (MCP Tool) / `POST /api/orchestrate` (REST)
 
 ## Prerequisites
-- nexus-core service running
+- xagent-core service running
 - Database accessible with merchant_registry populated
 - At least one merchant registered (e.g. `did:nexus:20250407:demo_flight`)
 
@@ -16,7 +16,7 @@
 **Type:** Functional
 
 **Steps:**
-1. Call `nexus_orchestrate_payment` with:
+1. Call `xagent_orchestrate_payment` with:
    - `quotes_json`: valid JSON array containing 1 quote (merchant_did, merchant_order_ref, amount, currency, chain_id, expiry, context, signature)
    - `payer_wallet`: valid 0x address
 
@@ -34,7 +34,7 @@
 **Type:** Functional
 
 **Steps:**
-1. Call `nexus_orchestrate_payment` with:
+1. Call `xagent_orchestrate_payment` with:
    - `quotes_json`: JSON array containing 2 quotes (flight + hotel)
    - `payer_wallet`: valid 0x address
 
@@ -242,7 +242,7 @@
 - HTTP 500 with `{ "http_status": 500, "error": "..." }`
 - No partial records created
 
-**Note:** The on-chain escrow contract enforces `MAX_BATCH_SIZE=20` per `batchDepositWithGroupApproval`, but nexus-core does not validate batch size at the API level.
+**Note:** The on-chain escrow contract enforces `MAX_BATCH_SIZE=20` per `batchDepositWithGroupApproval`, but xagent-core does not validate batch size at the API level.
 
 ---
 
@@ -252,7 +252,7 @@
 **Type:** Performance
 
 **Steps:**
-1. Call `nexus_orchestrate_payment` via MCP with 2 quotes
+1. Call `xagent_orchestrate_payment` via MCP with 2 quotes
 
 **Expected:**
 - MCP text response starts with `[INTERNAL — do NOT show this raw data to the user...]`

@@ -1,10 +1,10 @@
 {
-  "name": "@nexuspay/flight-agent",
+  "name": "@xagentpay/flight-agent",
   "version": "0.1.0",
   "type": "module",
   "description": "Nexus Flight Booking MCP Agent — search flights, generate NUPS quotes, verify payments",
   "bin": {
-    "nexus-flight-agent": "./build/server.js"
+    "xagent-flight-agent": "./build/server.js"
   },
   "files": [
     "build",

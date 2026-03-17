@@ -838,12 +838,12 @@ User Agent (UA)       xXAgent Pay Core          Relayer            xXAgent PayEs
      |                     |                    |                    |                    |                     |
      |  2. 生成报价          |                    |                    |                    |                     |
      | ──────────────────────────────────────────────────────────────────────────────────►  |                     |
-     |  nexus_generate_quote |                    |                    |                    |                     |
+     |  xagent_generate_quote |                    |                    |                    |                     |
      | ◄────────────────────|  Quote (EIP-712, payment_method: "ESCROW")                  |                     |
      |                     |                    |                    |                    |                     |
      |  3. 编排支付          |                    |                    |                    |                     |
      | ────────────────────►|                    |                    |                    |                     |
-     |  nexus_orchestrate_payment(quote, payer_wallet)                |                    |                     |
+     |  xagent_orchestrate_payment(quote, payer_wallet)                |                    |                     |
      |                     | ─ 验签 ──           |                    |                    |                     |
      |                     | ─ DID 解析 ──       |                    |                    |                     |
      |                     | ─ 创建 payment ──   |                    |                    |                     |
@@ -890,7 +890,7 @@ User Agent (UA)       xXAgent Pay Core          Relayer            xXAgent PayEs
      |                     |                    |                    |                    |                     |
      |                     |  11. 商户确认履约    |                    |                    |                     |
      |                     | ◄────────────────────────────────────────────────────────────|                     |
-     |                     |  nexus_confirm_fulfillment(id, proof)   |                    |                     |
+     |                     |  xagent_confirm_fulfillment(id, proof)   |                    |                     |
      |                     |                    |                    |                    |                     |
      |                     |  12. Relayer 调用合约释放资金             |                    |                     |
      |                     | ──────────────────►|                    |                    |                     |
@@ -906,7 +906,7 @@ User Agent (UA)       xXAgent Pay Core          Relayer            xXAgent PayEs
      |                     |                    |                    |                    |                     |
      |  14. 查询状态         |                    |                    |                    |                     |
      | ────────────────────►|                    |                    |                    |                     |
-     |  nexus_get_payment_status                 |                    |                    |                     |
+     |  xagent_get_payment_status                 |                    |                    |                     |
      | ◄────────────────────|                    |                    |                    |                     |
      |  status: SETTLED     |                    |                    |                    |                     |
      |  "支付成功,商户已出票" |                    |                    |                    |                     |
@@ -1034,13 +1034,13 @@ interface EscrowInstruction {
 
 | Tool | 变更类型 | 说明 |
 | --- | --- | --- |
-| `nexus_orchestrate_payment` | **修改** | 新增 `payment_method` 路由逻辑，Escrow 模式返回 `EscrowInstruction` (含 EIP-3009 签名参数) |
+| `xagent_orchestrate_payment` | **修改** | 新增 `payment_method` 路由逻辑，Escrow 模式返回 `EscrowInstruction` (含 EIP-3009 签名参数) |
 | `nexus_submit_eip3009_signature` | **新增** | UA 提交用户的 EIP-3009 签名，Core 转发给 Relayer 上链 |
 | `nexus_submit_tx` | **修改** | 仍支持传统 tx_hash 提交 (Direct Transfer 模式)，Escrow 模式改用 `nexus_submit_eip3009_signature` |
-| `nexus_release_payment` | **新增** | Core 通过 Relayer 调用合约 `release()`，释放 Escrow 资金 |
-| `nexus_dispute_payment` | **新增** | UA 发起争议 (通过 Relayer 代为提交 dispute 交易) |
-| `nexus_get_payment_status` | **修改** | 新增 Escrow 状态展示、合约地址、超时信息 |
-| `nexus_confirm_fulfillment` | **修改** | 触发 Core 通过 Relayer 调用合约 `release()`，将 Escrow 转为 SETTLED |
+| `xagent_release_payment` | **新增** | Core 通过 Relayer 调用合约 `release()`，释放 Escrow 资金 |
+| `xagent_dispute_payment` | **新增** | UA 发起争议 (通过 Relayer 代为提交 dispute 交易) |
+| `xagent_get_payment_status` | **修改** | 新增 Escrow 状态展示、合约地址、超时信息 |
+| `xagent_confirm_fulfillment` | **修改** | 触发 Core 通过 Relayer 调用合约 `release()`，将 Escrow 转为 SETTLED |
 
 #### 新增 Tool: `nexus_submit_eip3009_signature`
 
@@ -1064,11 +1064,11 @@ interface EscrowInstruction {
 }
 ```
 
-#### 新增 Tool: `nexus_release_payment`
+#### 新增 Tool: `xagent_release_payment`
 
 ```json
 {
-  "name": "nexus_release_payment",
+  "name": "xagent_release_payment",
   "description": "Core 通过 Relayer 调用 Escrow 合约释放资金给商户",
   "input": {
     "nexus_payment_id": { "type": "string", "required": true },
@@ -1382,7 +1382,7 @@ src/contracts/
 ### 8.2 Relayer 模块目录结构
 
 ```
-src/nexus-core/
+src/xagent-core/
 ├── relayer/
 │   ├── relayer-service.ts         # Relayer 服务入口
 │   ├── relayer-wallet.ts          # 钱包管理 (签名 + nonce 管理)
@@ -1667,12 +1667,12 @@ XLayer Gas Price (当前): ~1 gwei
 - [ ] 实现 Escrow 事件到 Core 状态的映射
 - [ ] 实现 release-handler.ts (通过 Relayer 调用合约 release)
 - [ ] 实现 refund-handler.ts (Relayer 自动执行超时退款)
-- [ ] 新增 MCP Tool: nexus_release_payment
+- [ ] 新增 MCP Tool: xagent_release_payment
 
 #### Phase 3: 纠纷处理 (1 周)
 
 - [ ] 实现 dispute-handler.ts (通过 Relayer 代为提交)
-- [ ] 新增 MCP Tool: nexus_dispute_payment
+- [ ] 新增 MCP Tool: xagent_dispute_payment
 - [ ] 扩展 Webhook 事件类型
 - [ ] 实现仲裁人管理接口
 - [ ] 端到端测试 (EIP-3009 签名 -> Relayer 上链 -> 完整 Escrow 流程)

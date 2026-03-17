@@ -13,13 +13,13 @@
 
 ### 1.1 当前状态
 
-nexus-core 当前通过两种协议提供服务:
+xagent-core 当前通过两种协议提供服务:
 - **MCP (SSE)**: 有状态的长连接,要求客户端支持 Server-Sent Events
 - **HTTP (部分)**: 仅 `/api/orchestrate` (POST), `/api/checkout/:token` (GET/POST), `/api/merchant/confirm-fulfillment` (POST) 有 REST 端点
 
 ### 1.2 核心问题
 
-许多 LLM 工具平台(如 Claude Desktop 以外的客户端、API 直接调用、无头环境等)不支持 SSE 长连接,导致无法使用 MCP 协议。这限制了 nexus-core 的可访问性。
+许多 LLM 工具平台(如 Claude Desktop 以外的客户端、API 直接调用、无头环境等)不支持 SSE 长连接,导致无法使用 MCP 协议。这限制了 xagent-core 的可访问性。
 
 ### 1.3 安全挑战
 
@@ -43,7 +43,7 @@ stateless 模式下的主要安全挑战:
 ### 2.2 非目标
 
 - ❌ 替换 MCP 协议(MCP 仍然是首选方式)
-- ❌ 完全去中心化(仍然依赖 nexus-core 作为协调者)
+- ❌ 完全去中心化(仍然依赖 xagent-core 作为协调者)
 - ❌ 支持所有 MCP 高级特性(如 Resource subscriptions, 仅保留核心工具)
 
 ## 3. MCP 工具分析
@@ -52,15 +52,15 @@ stateless 模式下的主要安全挑战:
 
 | # | Tool | HTTP 等价端点 | 需要 Stateless | 优先级 |
 |---|------|--------------|--------------|--------|
-| 1 | `nexus_orchestrate_payment` | ✅ `POST /api/orchestrate` | ❌ 已有 | P0 |
-| 2 | `nexus_get_payment_status` | ❌ 无 | ✅ 需要 | P0 |
-| 3 | `nexus_confirm_deposit` | ✅ `POST /api/checkout/:token/confirm` | ⚠️ 部分(需要 API Key 版本) | P1 |
-| 4 | `nexus_release_payment` | ❌ 无 | ✅ 需要 | P1 |
-| 5 | `nexus_dispute_payment` | ❌ 无 | ✅ 需要 | P2 |
-| 6 | `nexus_resolve_dispute` | ❌ 无 | ✅ 需要 | P2 |
-| 7 | `nexus_confirm_fulfillment` | ✅ `POST /api/merchant/confirm-fulfillment` | ⚠️ 已有但需加强认证 | P0 |
+| 1 | `xagent_orchestrate_payment` | ✅ `POST /api/orchestrate` | ❌ 已有 | P0 |
+| 2 | `xagent_get_payment_status` | ❌ 无 | ✅ 需要 | P0 |
+| 3 | `xagent_confirm_deposit` | ✅ `POST /api/checkout/:token/confirm` | ⚠️ 部分(需要 API Key 版本) | P1 |
+| 4 | `xagent_release_payment` | ❌ 无 | ✅ 需要 | P1 |
+| 5 | `xagent_dispute_payment` | ❌ 无 | ✅ 需要 | P2 |
+| 6 | `xagent_resolve_dispute` | ❌ 无 | ✅ 需要 | P2 |
+| 7 | `xagent_confirm_fulfillment` | ✅ `POST /api/merchant/confirm-fulfillment` | ⚠️ 已有但需加强认证 | P0 |
 | 8 | `discover_agents` | ❌ 无 | ✅ 需要 | P3 |
-| 9 | `get_agent_skill` | ⚠️ `GET /skill.md` (仅 nexus-core 自己) | ✅ 需要 | P3 |
+| 9 | `get_agent_skill` | ⚠️ `GET /skill.md` (仅 xagent-core 自己) | ✅ 需要 | P3 |
 
 ### 3.2 工具分类
 
@@ -528,7 +528,7 @@ Cache: 5 min CDN cache (skill.md rarely changes)
 #### 6.1.1 新增文件
 
 ```
-src/nexus-core/src/
+src/xagent-core/src/
 ├── auth/
 │   ├── api-key.ts            # API Key 生成、验证、管理
 │   ├── rate-limiter.ts       # Token bucket 限流器
@@ -555,7 +555,7 @@ src/nexus-core/src/
 #### 6.1.2 修改文件
 
 ```
-src/nexus-core/src/
+src/xagent-core/src/
 ├── server.ts                 # 集成新的 REST router
 ├── services/
 │   ├── orchestrator.ts       # 添加 API Key 可选认证
@@ -612,7 +612,7 @@ Expires: 2027-02-26 (1 year)
 ### 6.3 认证中间件设计
 
 ```typescript
-// src/nexus-core/src/auth/middleware.ts
+// src/xagent-core/src/auth/middleware.ts
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { verifyAPIKey } from "./api-key.js";
@@ -691,7 +691,7 @@ export function requireScope(requiredScope: string) {
 ### 6.4 路由集成(server.ts)
 
 ```typescript
-// src/nexus-core/src/server.ts (新增代码片段)
+// src/xagent-core/src/server.ts (新增代码片段)
 
 import { createRESTRouter } from "./rest-api/router.js";
 
@@ -809,7 +809,7 @@ curl https://api.xagentpay.com/api/payments/PAY-xxx
 在每个 MCP 工具的描述中,添加 HTTP 等价端点的说明:
 
 ```markdown
-### `nexus_get_payment_status`
+### `xagent_get_payment_status`
 
 Check payment status by any identifier.
 

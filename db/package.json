@@ -1,5 +1,5 @@
 {
-  "name": "@nexuspay/db-seed",
+  "name": "@xagentpay/db-seed",
   "private": true,
   "type": "module",
   "scripts": {

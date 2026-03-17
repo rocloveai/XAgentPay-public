@@ -130,8 +130,8 @@ Both agents expose identical endpoint patterns:
 | GET | `/health` | None | Health check |
 | POST | `/webhook` | HMAC | Payment event webhook receiver |
 
-**Flight Agent MCP Tools:** `search_flights`, `nexus_generate_quote`, `nexus_check_status`
-**Hotel Agent MCP Tools:** `search_hotels`, `nexus_generate_quote`, `nexus_check_status`
+**Flight Agent MCP Tools:** `search_flights`, `xagent_generate_quote`, `xagent_check_status`
+**Hotel Agent MCP Tools:** `search_hotels`, `xagent_generate_quote`, `xagent_check_status`
 
 ---
 

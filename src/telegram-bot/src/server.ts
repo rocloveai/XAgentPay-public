@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import { loadConfig } from "./config.js";
 import { createLogger } from "./logger.js";
-import { NexusClient } from "./nexus-client.js";
+import { XAgentClient } from "./xagent-client.js";
 import { TelegramClient } from "./telegram-client.js";
 import { StatusPoller } from "./status-poller.js";
 import { renderOrderMessage } from "./message-renderer.js";
@@ -58,7 +58,7 @@ async function checkMerchantStatus(orderRef: string | null, kind: "flight" | "ho
     const res = await fetch(api, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tool: "nexus_check_status", arguments: { order_ref: orderRef } }),
+      body: JSON.stringify({ tool: "xagent_check_status", arguments: { order_ref: orderRef } }),
       signal: AbortSignal.timeout(12_000),
     });
     const data = (await res.json()) as { data?: { status?: string } };
@@ -152,7 +152,7 @@ const log = createLogger("Server");
 // ---------------------------------------------------------------------------
 
 const PaymentSchema = z.object({
-  nexus_payment_id: z.string(),
+  xagent_payment_id: z.string(),
   merchant_order_ref: z.string(),
   amount_display: z.string(),
   status: z.string(),
@@ -201,9 +201,9 @@ async function readBody(req: IncomingMessage): Promise<string> {
 // ---------------------------------------------------------------------------
 
 const config = loadConfig();
-const nexusClient = new NexusClient(config.nexusCoreUrl);
+const xagentClient = new XAgentClient(config.xagentCoreUrl);
 const telegramClient = new TelegramClient(config.telegramBotToken);
-const statusPoller = new StatusPoller(nexusClient, telegramClient, {
+const statusPoller = new StatusPoller(xagentClient, telegramClient, {
   pollIntervalMs: config.pollIntervalMs,
   pollBackoffMs: config.pollBackoffMs,
   maxPollCount: config.maxPollCount,
@@ -262,7 +262,7 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Payment notify — pushed by nexus-core on state changes (no polling needed)
+  // Payment notify — pushed by xagent-core on state changes (no polling needed)
   if (method === "POST" && url === "/api/payment-notify") {
     await handlePaymentNotify(req, res);
     return;
@@ -495,7 +495,7 @@ async function handleTelegramWebhook(
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/payment-notify — pushed by nexus-core on payment state changes
+// POST /api/payment-notify — pushed by xagent-core on payment state changes
 // ---------------------------------------------------------------------------
 
 const PaymentNotifySchema = z.object({
@@ -567,7 +567,7 @@ async function handlePaymentNotify(
 server.listen(config.port, async () => {
   log.info("Telegram bot server started", {
     port: config.port,
-    nexus_core_url: config.nexusCoreUrl,
+    xagent_core_url: config.xagentCoreUrl,
   });
 
   // If BASE_URL is set, register webhook for callback_query only.

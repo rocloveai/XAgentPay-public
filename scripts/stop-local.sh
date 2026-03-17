@@ -5,7 +5,7 @@ LOGS="$ROOT/logs"
 
 echo "停止本地服务..."
 
-for service in nexus-core flight-agent hotel-agent; do
+for service in xagent-core flight-agent hotel-agent; do
   pidfile="$LOGS/${service}.pid"
   if [ -f "$pidfile" ]; then
     pid=$(cat "$pidfile")

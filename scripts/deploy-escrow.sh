@@ -8,14 +8,14 @@
 #   3. Validate required variables
 #   4. Run forge script to deploy
 #   5. Extract deployed contract address
-#   6. Write ESCROW_CONTRACT to nexus-core .env
+#   6. Write ESCROW_CONTRACT to xagent-core .env
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONTRACTS_DIR="$PROJECT_ROOT/src/contracts"
-NEXUS_CORE_DIR="$PROJECT_ROOT/src/nexus-core"
+NEXUS_CORE_DIR="$PROJECT_ROOT/src/xagent-core"
 
 # ── Colors ──
 RED='\033[0;31m'
@@ -104,7 +104,7 @@ fi
 
 log "Deployed contract: $CONTRACT_ADDRESS"
 
-# ── Step 6: Write to nexus-core .env ──
+# ── Step 6: Write to xagent-core .env ──
 NEXUS_ENV="$NEXUS_CORE_DIR/.env"
 
 if [ -f "$NEXUS_ENV" ]; then

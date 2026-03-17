@@ -100,22 +100,22 @@ The merchant Server must expose order resources so that the LLM can "read" the c
 ```
 ### 4.2 MCP Tools (Capability Exposure)
 The merchant Server must register the following tools:
-#### Tool: `nexus_generate_quote`
+#### Tool: `xagent_generate_quote`
 * **Description:** "Generates a cryptographically signed xXAgent Pay quote. Required step before payment."
 * **Input Schema:** (Same as 3.1 SignQuoteInput)
-#### Tool: `nexus_check_status`
+#### Tool: `xagent_check_status`
 * **Description:** "Checks the blockchain settlement status of an order. Use this to confirm payment."
 * **Input Schema:** `{ "order_ref": "string" }`
 ### 4.3 MCP Prompts (System Instructions)
 The merchant Server should provide preset Prompts to guide general-purpose Clients (e.g., Claude) on how to interact.
-* **Prompt Name:** `nexus_checkout_flow`
+* **Prompt Name:** `xagent_checkout_flow`
 * **Content:**
 ```text
 You are facilitating a transaction using XAgent Pay.
 1. First, confirm the item details with the user.
-2. Call 'nexus_generate_quote' to create the payment payload.
+2. Call 'xagent_generate_quote' to create the payment payload.
 3. Display the payload to the user.
-4. If the user says they have paid, call 'nexus_check_status' to verify.
+4. If the user says they have paid, call 'xagent_check_status' to verify.
 5. Only release the goods/info after verification returns 'PAID'.
 ```
 ---
@@ -147,12 +147,12 @@ The following is the standard conversation flow conforming to the NAIS standard:
 | --- | --- | --- |
 | **User Agent** | Ask | "I want to buy the ticket to SG." |
 | **Merchant Agent** | **Think** | *Intent detected. Inventory check passed. Need payment.* |
-| **Merchant Agent** | **Call Tool** | `nexus_generate_quote({ ref: "TRIP-888", amount: 530 })` |
+| **Merchant Agent** | **Call Tool** | `xagent_generate_quote({ ref: "TRIP-888", amount: 530 })` |
 | **Merchant Agent** | Reply | "Here is the XAgent Payment Card. Please confirm." + **[UCP Checkout JSON]** |
 | **User Agent** | **Action** | *User signs & broadcasts on-chain.* |
 | **User Agent** | Reply | "Payment sent. ID is NEX-001." |
 | **Merchant Agent** | **Think** | *User claims payment. I must verify integrity.* |
-| **Merchant Agent** | **Call Tool** | `nexus_check_status({ ref: "TRIP-888" })` |
+| **Merchant Agent** | **Call Tool** | `xagent_check_status({ ref: "TRIP-888" })` |
 | **Merchant Agent** | Result | *Status: PAID. Logic: Release Ticket.* |
 | **Merchant Agent** | Reply | "Payment confirmed! Here is your e-ticket." |
 ---

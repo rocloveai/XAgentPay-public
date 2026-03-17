@@ -1,5 +1,5 @@
 {
-  "name": "@nexuspay/esim-agent",
+  "name": "@xagentpay/esim-agent",
   "version": "0.1.0",
   "type": "module",
   "description": "XAgent eSIM MCP Agent — search eSIM data plans, generate NUPS quotes, verify payments, deliver QR codes",

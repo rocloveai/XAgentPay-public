@@ -124,7 +124,7 @@ For escrow-related events (`payment.escrowed`, `payment.refunded`, `dispute.open
 
 ### 4.4 Implementation Status (v1.1.0 注记)
 
-以下 RFC-009 特性已在 `src/nexus-core/src/services/webhook-notifier.ts` 中实现：
+以下 RFC-009 特性已在 `src/xagent-core/src/services/webhook-notifier.ts` 中实现：
 - HMAC-SHA256 签名: `X-XAgent Pay-Signature` + `X-XAgent Pay-Timestamp` headers
 - 6 次重试 (exponential backoff: 10s, 30s, 2min, 10min, 30min)
 - `webhook_delivery_logs` 表记录投递历史
@@ -210,7 +210,7 @@ Verification Steps:
 If all retry attempts fail:
 - Log final failure in webhook_delivery_logs
 - Set payment.webhook_failed flag
-- Merchant can use nexus_get_payment_status MCP tool to poll
+- Merchant can use xagent_get_payment_status MCP tool to poll
 - Admin dashboard shows undelivered webhooks for manual review
 
 ## 8. Webhook Registration
@@ -279,7 +279,7 @@ app.post('/webhook/nexus', (req, res) => {
     case 'payment.escrowed':
       // Funds in escrow — begin fulfillment (deliver goods/service)
       await fulfillOrder(data.merchant_order_ref);
-      // Trigger escrow release via nexus-core
+      // Trigger escrow release via xagent-core
       await confirmFulfillment(data.nexus_payment_id, data.merchant_did);
       break;
     case 'payment.settled':

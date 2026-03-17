@@ -66,13 +66,13 @@ fi
 echo ""
 echo "[5/7] 构建前端..."
 # 用 Docker 构建前端避免在服务器安装 Node
-docker run --rm -v "$APP_DIR/src/nexus-website:/app" -w /app node:20-slim \
+docker run --rm -v "$APP_DIR/src/xagent-website:/app" -w /app node:20-slim \
   sh -c "npm install && npx vite build"
 
 # 部署静态文件
 rm -rf /var/www/xagenpay
 mkdir -p /var/www/xagenpay
-cp -r src/nexus-website/dist/* /var/www/xagenpay/
+cp -r src/xagent-website/dist/* /var/www/xagenpay/
 
 # ── Step 6: 启动后端服务 ──
 echo ""
