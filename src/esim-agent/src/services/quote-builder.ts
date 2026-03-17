@@ -109,6 +109,7 @@ export async function buildQuote(
     currency: params.currency,
     chain_id: 196,
     expiry,
+    payment_method: "ACP_JOB" as const,
     context,
     signature,
   };
