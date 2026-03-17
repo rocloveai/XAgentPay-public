@@ -38,10 +38,10 @@ CREATE TABLE IF NOT EXISTS hotel_templates (
 
 CREATE INDEX IF NOT EXISTS idx_hotel_city ON hotel_templates (city) WHERE active = TRUE;
 
--- orders: shared by both agents, distinguished by agent_type
+-- orders: shared by all agents, distinguished by agent_type
 CREATE TABLE IF NOT EXISTS orders (
   order_ref     TEXT PRIMARY KEY,
-  agent_type    TEXT NOT NULL CHECK (agent_type IN ('flight', 'hotel')),
+  agent_type    TEXT NOT NULL CHECK (agent_type IN ('flight', 'hotel', 'esim')),
   status        TEXT NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID', 'PAID', 'EXPIRED')),
   quote_payload JSONB NOT NULL,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
