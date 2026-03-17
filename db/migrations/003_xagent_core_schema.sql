@@ -1,5 +1,5 @@
--- 003_nexus_core_schema.sql
--- NexusPay Core tables: payments, payment_events, merchant_registry, webhook_delivery_logs
+-- 003_xagent_core_schema.sql
+-- XAgentPay Core tables: payments, payment_events, merchant_registry, webhook_delivery_logs
 -- Each statement ends with ";" on its own line (Neon HTTP driver constraint)
 
 -- payments: core payment records (12-state machine)

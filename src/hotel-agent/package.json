@@ -2,7 +2,7 @@
   "name": "@xagentpay/hotel-agent",
   "version": "0.1.0",
   "type": "module",
-  "description": "Nexus Hotel Booking MCP Agent — search hotels, generate NUPS quotes, verify payments",
+  "description": "XAgent Hotel Booking MCP Agent — search hotels, generate NUPS quotes, verify payments",
   "bin": {
     "xagent-hotel-agent": "./build/server.js"
   },

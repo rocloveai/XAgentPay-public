@@ -20,10 +20,10 @@ YAML frontmatter (machine-parseable metadata) + Markdown body (AI-readable docum
 
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
-| `name` | string | npm package name | `nexus-flight-agent` |
+| `name` | string | npm package name | `xagent-flight-agent` |
 | `version` | semver | Package version | `"0.1.0"` |
 | `description` | string | One-line description | `"Flight booking with XAgent Payment"` |
-| `merchant_did` | string | Nexus DID identifier | `"did:xagent:20250407:demo_flight"` |
+| `merchant_did` | string | XAgent DID identifier | `"did:xagent:20250407:demo_flight"` |
 | `protocol` | string | NUPS protocol version | `NUPS/1.5` |
 | `category` | string | Merchant category (dot-notation) | `travel.flights` |
 | `currencies` | string[] | Accepted currencies | `[USDC]` |
@@ -46,8 +46,8 @@ Every tool MUST declare its `role`:
 | Role | Purpose | Example |
 |------|---------|---------|
 | `search` | Discover available products/services | `search_flights`, `search_hotels` |
-| `quote` | Generate a NUPS payment quote | `nexus_generate_quote` |
-| `status` | Check payment/order status | `nexus_check_status` |
+| `quote` | Generate a NUPS payment quote | `xagent_generate_quote` |
+| `status` | Check payment/order status | `xagent_check_status` |
 | `action` | Post-payment actions (confirm, cancel, refund) | `confirm_booking` |
 
 A merchant agent MUST have at least one tool of each core role: `search`, `quote`, `status`.
@@ -91,7 +91,7 @@ HTTP management portal URL and capabilities.
 
 ```markdown
 ---
-name: nexus-<category>-agent
+name: xagent-<category>-agent
 version: "0.1.0"
 description: <One-line description> with XAgent Payment
 merchant_did: "did:xagent:<chain_id>:<merchant_id>"
@@ -102,9 +102,9 @@ chain_id: 20250407
 tools:
   - name: search_<items>
     role: search
-  - name: nexus_generate_quote
+  - name: xagent_generate_quote
     role: quote
-  - name: nexus_check_status
+  - name: xagent_check_status
     role: status
 ---
 
@@ -121,7 +121,7 @@ tools:
   "mcpServers": {
     "<agent-name>": {
       "command": "npx",
-      "args": ["-y", "@nexuspay/<agent-name>"],
+      "args": ["-y", "@xagentpay/<agent-name>"],
       "env": {
         "MERCHANT_DID": "did:xagent:20250407:<merchant_id>"
       }
@@ -172,7 +172,7 @@ tools:
 search_<items>({ ... })
 \```
 
-### `nexus_generate_quote` (role: quote)
+### `xagent_generate_quote` (role: quote)
 
 Generates a XAgent Payment (NUPS) quote for a selected offer.
 
@@ -184,7 +184,7 @@ Generates a XAgent Payment (NUPS) quote for a selected offer.
 
 **Returns:** NUPS quote payload.
 
-### `nexus_check_status` (role: status)
+### `xagent_check_status` (role: status)
 
 Checks the payment status of an order.
 
@@ -200,9 +200,9 @@ Checks the payment status of an order.
 
 1. **Discover** — <Gather user requirements>
 2. **Search** — Call `search_<items>`, present results
-3. **Quote** — Call `nexus_generate_quote` with selected offer_id
+3. **Quote** — Call `xagent_generate_quote` with selected offer_id
 4. **Pay** — User pays via XAgent Pay (on-chain USDC)
-5. **Verify** — Call `nexus_check_status`, confirm when `PAID`
+5. **Verify** — Call `xagent_check_status`, confirm when `PAID`
 
 ## Platform-Specific Rich Messaging
 
