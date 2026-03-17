@@ -7,7 +7,7 @@ async function main() {
     args: ["build/server.js"],
     env: {
       ...process.env,
-      MERCHANT_DID: "did:nexus:20250407:demo_flight",
+      MERCHANT_DID: "did:xagent:20250407:demo_flight",
       MERCHANT_SIGNER_PRIVATE_KEY: "0x1234567890123456789012345678901234567890123456789012345678901230", // Dummy key for testing
     }
   });
@@ -33,7 +33,7 @@ async function main() {
   console.log("Generating quote for flight:", flightId);
   try {
     const quoteRes = await client.callTool({
-      name: "nexus_generate_quote",
+      name: "xagent_generate_quote",
       arguments: {
         flight_offer_id: flightId,
         payer_wallet: "0x1234567890123456789012345678901234567890"

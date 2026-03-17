@@ -25,7 +25,7 @@
 "display_name": "xXAgent Pay (USDC)",
 "payload": {
 // --- A. 商业意图 (Business Intent) ---
-"merchant_did": "did:nexus:20250407:trip_com",
+"merchant_did": "did:xagent:20250407:trip_com",
 "merchant_order_ref": "TRIP-2026-888", // [关键] 商户ERP中的唯一单号
 "amount": "530000000", // 整数 (6位精度)
 "currency": "USDC", // XAgent Pay 内部资产标识

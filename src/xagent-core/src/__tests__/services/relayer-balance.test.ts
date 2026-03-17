@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ---------------------------------------------------------------------------
-// Mock viem — must be before NexusRelayer import
+// Mock viem — must be before XAgentRelayer import
 // ---------------------------------------------------------------------------
 
 const mockGetBalance = vi.fn();
@@ -28,10 +28,10 @@ vi.mock("viem/accounts", () => ({
   }),
 }));
 
-import { NexusRelayer } from "../../services/relayer.js";
-import type { NexusCoreConfig } from "../../config.js";
+import { XAgentRelayer } from "../../services/relayer.js";
+import type { XAgentCoreConfig } from "../../config.js";
 
-const TEST_CONFIG: NexusCoreConfig = {
+const TEST_CONFIG: XAgentCoreConfig = {
   databaseUrl: "",
   escrowContract: "0x1111111111111111111111111111111111111111",
   chainId: 20250407,
@@ -51,12 +51,12 @@ const TEST_CONFIG: NexusCoreConfig = {
   portalToken: "",
 };
 
-describe("NexusRelayer — balance methods", () => {
-  let relayer: NexusRelayer;
+describe("XAgentRelayer — balance methods", () => {
+  let relayer: XAgentRelayer;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    relayer = new NexusRelayer(TEST_CONFIG);
+    relayer = new XAgentRelayer(TEST_CONFIG);
   });
 
   describe("getAddress", () => {

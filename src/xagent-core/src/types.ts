@@ -1,5 +1,5 @@
 /**
- * xNexus Core — shared type definitions.
+ * XAgent Core — shared type definitions.
  *
  * Every subsequent phase imports from this file.
  */
@@ -111,9 +111,9 @@ export interface IsoMetadata {
 
 /**
  * NUPS Quote Payload — compatible with flight-agent/hotel-agent's existing type.
- * Kept in nexus-core so every consumer references one definition.
+ * Kept in xagent-core so every consumer references one definition.
  */
-export interface NexusQuotePayload {
+export interface XAgentQuotePayload {
   readonly merchant_did: string;
   readonly merchant_order_ref: string;
   readonly amount: string;
@@ -226,7 +226,7 @@ export interface PaymentRecord {
   readonly tx_hash: string | null;
   readonly block_number: number | null;
   readonly block_timestamp: string | null;
-  readonly quote_payload: NexusQuotePayload;
+  readonly quote_payload: XAgentQuotePayload;
   readonly iso_metadata: IsoMetadata | null;
   readonly expires_at: string;
   readonly settled_at: string | null;
@@ -410,7 +410,7 @@ export interface BatchDepositInstruction {
   };
   readonly user_action: "APPROVE_AND_SEND";
   readonly gas_paid_by: "USER";
-  /** EIP-712 signature over (groupId, entriesHash, totalAmount) by Nexus Core operator */
+  /** EIP-712 signature over (groupId, entriesHash, totalAmount) by XAgent Core operator */
   readonly xagent_group_sig: Hex;
   /** Address of the core operator that signed the group instruction */
   readonly core_operator_address: Address;
@@ -425,7 +425,7 @@ export interface PaymentRequired402 {
   readonly checkout_url: string;
   /** Full instruction for direct on-chain submission by User Agent */
   readonly instruction: BatchDepositInstruction;
-  /** EIP-712 signature over (groupId, entriesHash, totalAmount) by Nexus Core operator */
+  /** EIP-712 signature over (groupId, entriesHash, totalAmount) by XAgent Core operator */
   readonly xagent_group_sig: Hex;
   /** Address of the core operator that signed the group instruction */
   readonly core_operator_address: Address;
@@ -540,7 +540,7 @@ export interface CreatePaymentParams {
   readonly currency: string;
   readonly chain_id: number;
   readonly payment_method: PaymentMethod;
-  readonly quote_payload: NexusQuotePayload;
+  readonly quote_payload: XAgentQuotePayload;
   readonly iso_metadata: IsoMetadata | null;
   readonly expires_at: string;
 }

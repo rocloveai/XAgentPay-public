@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { NexusOrchestrator } from "../../services/orchestrator.js";
+import { XAgentOrchestrator } from "../../services/orchestrator.js";
 import { MockMerchantRepository } from "../mocks/mock-merchant-repo.js";
 import { MockPaymentRepository } from "../mocks/mock-payment-repo.js";
 import { MockEventRepository } from "../mocks/mock-event-repo.js";
 import { MockGroupRepository } from "../mocks/mock-group-repo.js";
 import { MockKVRepository } from "../mocks/mock-kv-repo.js";
-import { NexusError, SecurityError } from "../../errors.js";
+import { XAgentError, SecurityError } from "../../errors.js";
 import {
   makeTestQuote,
   TEST_FLIGHT_MERCHANT,
@@ -13,9 +13,9 @@ import {
   TEST_PAYER_WALLET,
   TEST_RELAYER_PRIVATE_KEY,
 } from "../fixtures.js";
-import type { NexusCoreConfig } from "../../config.js";
+import type { XAgentCoreConfig } from "../../config.js";
 
-const TEST_CONFIG: NexusCoreConfig = {
+const TEST_CONFIG: XAgentCoreConfig = {
   databaseUrl: "",
   escrowContract: "0x0000000000000000000000000000000000000001",
   chainId: 20250407,
@@ -36,13 +36,13 @@ const TEST_CONFIG: NexusCoreConfig = {
   baseUrl: "http://localhost:4000",
 };
 
-describe("NexusOrchestrator", () => {
+describe("XAgentOrchestrator", () => {
   let merchantRepo: MockMerchantRepository;
   let paymentRepo: MockPaymentRepository;
   let eventRepo: MockEventRepository;
   let groupRepo: MockGroupRepository;
   let kvRepo: MockKVRepository;
-  let orchestrator: NexusOrchestrator;
+  let orchestrator: XAgentOrchestrator;
 
   beforeEach(() => {
     merchantRepo = new MockMerchantRepository();
@@ -54,7 +54,7 @@ describe("NexusOrchestrator", () => {
 
     kvRepo = new MockKVRepository();
 
-    orchestrator = new NexusOrchestrator(
+    orchestrator = new XAgentOrchestrator(
       merchantRepo,
       paymentRepo,
       eventRepo,
@@ -71,12 +71,12 @@ describe("NexusOrchestrator", () => {
           quotes: [],
           payerWallet: TEST_PAYER_WALLET,
         }),
-      ).rejects.toThrow(NexusError);
+      ).rejects.toThrow(XAgentError);
     });
 
     it("throws for unknown merchant DID", async () => {
       const quote = makeTestQuote({
-        merchant_did: "did:nexus:unknown",
+        merchant_did: "did:xagent:unknown",
         expiry: Math.floor(Date.now() / 1000) + 600,
       });
 

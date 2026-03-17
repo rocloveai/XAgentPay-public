@@ -1,5 +1,5 @@
 /**
- * xNexus Core — Webhook Notifier.
+ * XAgent Core — Webhook Notifier.
  *
  * Sends HMAC-SHA256 signed webhook notifications to merchants on
  * payment state changes. Implements exponential backoff retry.
@@ -97,8 +97,8 @@ export class WebhookNotifier {
       const signature = createHmac("sha256", merchant.webhook_secret)
         .update(`${timestamp}.${body}`)
         .digest("hex");
-      headers["X-Nexus-Timestamp"] = timestamp;
-      headers["X-Nexus-Signature"] = `sha256=${signature}`;
+      headers["X-XAgent-Timestamp"] = timestamp;
+      headers["X-XAgent-Signature"] = `sha256=${signature}`;
     }
 
     try {

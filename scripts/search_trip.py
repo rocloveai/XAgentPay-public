@@ -107,21 +107,21 @@ results = {}
 
 # Outbound Flight
 results['outbound'] = call_mcp_tool(
-    "https://nexus-flight-agent-3xb1.onrender.com/sse", 
+    "https://xagent-flight-agent.onrender.com/sse", 
     "search_flights", 
     {"origin": "SIN", "destination": "PVG", "date": "2026-02-26", "passengers": 1}
 )
 
 # Return Flight
 results['return'] = call_mcp_tool(
-    "https://nexus-flight-agent-3xb1.onrender.com/sse", 
+    "https://xagent-flight-agent.onrender.com/sse", 
     "search_flights", 
     {"origin": "PVG", "destination": "SIN", "date": "2026-02-27", "passengers": 1}
 )
 
 # Hotel
 results['hotels'] = call_mcp_tool(
-    "https://nexus-hotel-agent-d2lj.onrender.com/sse", 
+    "https://xagent-hotel-agent.onrender.com/sse", 
     "search_hotels", 
     {"city": "Shanghai", "check_in": "2026-02-26", "check_out": "2026-02-27", "guests": 1}
 )

@@ -2,7 +2,7 @@
 name: xagent-esim
 version: "2.0.0"
 description: Global eSIM data plans for 190+ countries. Instant activation, pay with USDC on XLayer. Supports x402 payment protocol.
-merchant_did: "did:nexus:196:demo_esim"
+merchant_did: "did:xagent:196:demo_esim"
 protocol: NUPS/1.5
 category: telecom.esim
 currencies: [USDC]

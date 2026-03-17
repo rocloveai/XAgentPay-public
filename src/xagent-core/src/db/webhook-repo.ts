@@ -10,7 +10,7 @@ import { WEBHOOK_MAX_ATTEMPTS } from "../constants.js";
 function rowToLog(row: Record<string, unknown>): WebhookDeliveryLog {
   return {
     log_id: row.log_id as string,
-    xagent_payment_id: row.nexus_payment_id as string,
+    xagent_payment_id: row.xagent_payment_id as string,
     merchant_did: row.merchant_did as string,
     webhook_url: row.webhook_url as string,
     event_type: row.event_type as WebhookEventType,
@@ -29,7 +29,7 @@ export class NeonWebhookRepository implements WebhookRepository {
     const sql = getPool();
     const rows = await sql(
       `INSERT INTO webhook_delivery_logs (
-        log_id, nexus_payment_id, merchant_did,
+        log_id, xagent_payment_id, merchant_did,
         webhook_url, event_type, request_body
       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb)
       RETURNING *`,

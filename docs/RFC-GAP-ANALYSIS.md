@@ -29,7 +29,7 @@
 - W3C DID Document resolution (`verificationMethod`, `service`, `authentication`)
 - Key separation: `signer` (hot wallet) vs `paymentAddress` (cold/multisig)
 - EIP-1271 contract wallet support for signature verification
-- DID format: `did:nexus:<chain_id>:<unique_id>`
+- DID format: `did:xagent:<chain_id>:<unique_id>`
 
 ### Reality
 - DID is a plain string stored in `merchant_registry` PostgreSQL table

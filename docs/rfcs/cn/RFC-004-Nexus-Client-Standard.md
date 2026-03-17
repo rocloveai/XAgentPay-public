@@ -30,7 +30,7 @@ const ai = genkit({
 plugins: [
 // --- 1. 引入 XAgent Pay 插件 ---
 nexusSellerPlugin({
-merchantDid: process.env.MERCHANT_DID, // e.g. "did:nexus:trip_com"
+merchantDid: process.env.MERCHANT_DID, // e.g. "did:xagent:trip_com"
 privateKey: process.env.MERCHANT_KEY, // 你的私钥
 env: 'production' // 或 'sandbox'
 })
@@ -86,7 +86,7 @@ console.log("XAgent Pay MCP Server running...");
 import { XAgent PayClient } from '@nexus/seller-sdk';
 const nexus = new XAgent PayClient({
 privateKey: process.env.KEY,
-merchantDid: "did:nexus:trip_com"
+merchantDid: "did:xagent:trip_com"
 });
 // 场景：在返回 UCP Search 结果时注入支付方式
 app.post('/ucp/search', async (req, res) => {

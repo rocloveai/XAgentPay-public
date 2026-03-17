@@ -11,9 +11,9 @@ import {
   TEST_FLIGHT_MERCHANT,
   TEST_HOTEL_MERCHANT,
 } from "../fixtures.js";
-import type { NexusCoreConfig } from "../../config.js";
+import type { XAgentCoreConfig } from "../../config.js";
 
-const TEST_CONFIG: NexusCoreConfig = {
+const TEST_CONFIG: XAgentCoreConfig = {
   databaseUrl: "",
   escrowContract: "0x0000000000000000000000000000000000000001",
   chainId: 20250407,
@@ -85,12 +85,12 @@ describe("instruction-builder", () => {
       const p1 = makeTestPayment({
         amount: "530000000",
         amount_display: "530.00",
-        merchant_did: "did:nexus:20250407:demo_flight",
+        merchant_did: "did:xagent:20250407:demo_flight",
       });
       const p2 = makeTestPayment({
         amount: "100100000",
         amount_display: "100.10",
-        merchant_did: "did:nexus:20250407:demo_hotel",
+        merchant_did: "did:xagent:20250407:demo_hotel",
       });
       const group = makeTestGroup({
         total_amount: "630100000",
@@ -120,7 +120,7 @@ describe("instruction-builder", () => {
 
     it("includes precomputed bytes32 hash fields on payments", () => {
       const p1 = makeTestPayment({
-        merchant_did: "did:nexus:20250407:demo_flight",
+        merchant_did: "did:xagent:20250407:demo_flight",
       });
       const group = makeTestGroup({ payment_count: 1 });
 
@@ -144,12 +144,12 @@ describe("instruction-builder", () => {
       const p1 = makeTestPayment({
         amount: "100000",
         amount_display: "0.10",
-        merchant_did: "did:nexus:20250407:demo_flight",
+        merchant_did: "did:xagent:20250407:demo_flight",
       });
       const p2 = makeTestPayment({
         amount: "200000",
         amount_display: "0.20",
-        merchant_did: "did:nexus:20250407:demo_hotel",
+        merchant_did: "did:xagent:20250407:demo_hotel",
       });
       const group = makeTestGroup({
         total_amount: "300000",
@@ -176,7 +176,7 @@ describe("instruction-builder", () => {
 
     it("includes precomputed bytes32 hash fields on payments", () => {
       const p1 = makeTestPayment({
-        merchant_did: "did:nexus:20250407:demo_flight",
+        merchant_did: "did:xagent:20250407:demo_flight",
       });
       const group = makeTestGroup({ payment_count: 1 });
 
@@ -196,7 +196,7 @@ describe("instruction-builder", () => {
 
     it("computes context_hash from full context JSON (not summary)", () => {
       const p1 = makeTestPayment({
-        merchant_did: "did:nexus:20250407:demo_flight",
+        merchant_did: "did:xagent:20250407:demo_flight",
       });
       const group = makeTestGroup({ payment_count: 1 });
 
@@ -221,7 +221,7 @@ describe("instruction-builder", () => {
 
     it("does not include xagent_group_sig or core_operator_address", () => {
       const p1 = makeTestPayment({
-        merchant_did: "did:nexus:20250407:demo_flight",
+        merchant_did: "did:xagent:20250407:demo_flight",
       });
       const group = makeTestGroup({ payment_count: 1 });
 
@@ -239,7 +239,7 @@ describe("instruction-builder", () => {
 
     it("deposit_tx.abi references batchDepositWithGroupApproval", () => {
       const p1 = makeTestPayment({
-        merchant_did: "did:nexus:20250407:demo_flight",
+        merchant_did: "did:xagent:20250407:demo_flight",
       });
       const group = makeTestGroup({ payment_count: 1 });
 
@@ -259,7 +259,7 @@ describe("instruction-builder", () => {
 
     it("uses fixed gas_limit of 500000", () => {
       const p1 = makeTestPayment({
-        merchant_did: "did:nexus:20250407:demo_flight",
+        merchant_did: "did:xagent:20250407:demo_flight",
       });
       const group = makeTestGroup({ payment_count: 1 });
 

@@ -2,7 +2,7 @@
 name: xagent-flight
 version: "2.0.0"
 description: Flight booking MCP agent — search flights, generate NUPS quotes, verify on-chain payments. Supports x402 payment protocol.
-merchant_did: "did:nexus:196:demo_flight"
+merchant_did: "did:xagent:196:demo_flight"
 protocol: NUPS/1.5
 category: travel.flights
 currencies: [USDC]

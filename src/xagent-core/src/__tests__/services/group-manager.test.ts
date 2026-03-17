@@ -3,7 +3,7 @@ import { GroupManager } from "../../services/group-manager.js";
 import { MockGroupRepository } from "../mocks/mock-group-repo.js";
 import { MockPaymentRepository } from "../mocks/mock-payment-repo.js";
 import { MockEventRepository } from "../mocks/mock-event-repo.js";
-import { NexusError } from "../../errors.js";
+import { XAgentError } from "../../errors.js";
 import {
   makeTestQuote,
   TEST_FLIGHT_MERCHANT,
@@ -45,11 +45,11 @@ describe("GroupManager", () => {
 
     it("creates a group with two quotes (aggregated)", async () => {
       const flightQuote = makeTestQuote({
-        merchant_did: "did:nexus:20250407:demo_flight",
+        merchant_did: "did:xagent:20250407:demo_flight",
         amount: "530000000",
       });
       const hotelQuote = makeTestQuote({
-        merchant_did: "did:nexus:20250407:demo_hotel",
+        merchant_did: "did:xagent:20250407:demo_hotel",
         amount: "100100000",
       });
 
@@ -83,7 +83,7 @@ describe("GroupManager", () => {
           payerWallet: TEST_PAYER_WALLET,
           paymentMethod: "ESCROW_CONTRACT",
         }),
-      ).rejects.toThrow(NexusError);
+      ).rejects.toThrow(XAgentError);
     });
 
     it("throws for mismatched quotes/merchants", async () => {
@@ -96,7 +96,7 @@ describe("GroupManager", () => {
           payerWallet: TEST_PAYER_WALLET,
           paymentMethod: "ESCROW_CONTRACT",
         }),
-      ).rejects.toThrow(NexusError);
+      ).rejects.toThrow(XAgentError);
     });
   });
 
@@ -131,11 +131,11 @@ describe("GroupManager", () => {
 
     it("transitions all payments to ESCROWED", async () => {
       const flightQuote = makeTestQuote({
-        merchant_did: "did:nexus:20250407:demo_flight",
+        merchant_did: "did:xagent:20250407:demo_flight",
         amount: "100000",
       });
       const hotelQuote = makeTestQuote({
-        merchant_did: "did:nexus:20250407:demo_hotel",
+        merchant_did: "did:xagent:20250407:demo_hotel",
         amount: "200000",
       });
 

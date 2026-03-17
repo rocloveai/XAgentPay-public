@@ -128,7 +128,7 @@ describe("Portal", () => {
       expect(handled).toBe(true);
       expect(res.statusCode).toBe(200);
       expect(res.headers["Content-Type"]).toContain("text/html");
-      expect(res.body).toContain("Nexus Core");
+      expect(res.body).toContain("XAgent Core");
       expect(res.body).toContain("tailwind");
     });
   });

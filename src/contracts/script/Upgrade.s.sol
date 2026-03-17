@@ -2,11 +2,11 @@
 pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
-import {NexusPayEscrow} from "../src/NexusPayEscrow.sol";
+import {XAgentPayEscrow} from "../src/XAgentPayEscrow.sol";
 
 /**
  * @title Upgrade
- * @notice Upgrades NexusPayEscrow proxy to v4.0.0 and configures new storage.
+ * @notice Upgrades XAgentPayEscrow proxy to v4.0.0 and configures new storage.
  *
  * v4.0.0 adds:
  *   - arbitrationTimeout (H-01 fix)
@@ -36,10 +36,10 @@ contract Upgrade is Script {
         vm.startBroadcast(deployerPk);
 
         // 1. Deploy new implementation
-        NexusPayEscrow newImpl = new NexusPayEscrow();
+        XAgentPayEscrow newImpl = new XAgentPayEscrow();
 
         // 2. Upgrade proxy to new implementation
-        NexusPayEscrow proxy = NexusPayEscrow(proxyAddr);
+        XAgentPayEscrow proxy = XAgentPayEscrow(proxyAddr);
         proxy.upgradeToAndCall(address(newImpl), "");
 
         // 3. Configure new v4 storage (not in initialize, set via admin calls)
@@ -49,7 +49,7 @@ contract Upgrade is Script {
         proxy.setDefaultReleaseTimeout(RELEASE_TIMEOUT_MS);
         proxy.setDefaultDisputeWindow(DISPUTE_WINDOW_MS);
 
-        console.log("=== NexusPayEscrow v4.0.0 Upgrade Complete ===");
+        console.log("=== XAgentPayEscrow v4.0.0 Upgrade Complete ===");
         console.log("Proxy:", proxyAddr);
         console.log("New implementation:", address(newImpl));
         console.log("Version:", proxy.VERSION());

@@ -23,7 +23,7 @@ const MARKET_DEFAULTS = {
 
 const FLIGHT_MERCHANT: MerchantRecord = {
   ...MARKET_DEFAULTS,
-  merchant_did: "did:nexus:210425:demo_flight",
+  merchant_did: "did:xagent:210425:demo_flight",
   name: "Demo Flight Agent",
   signer_address: "0x0000000000000000000000000000000000000001",
   payment_address: "0x0000000000000000000000000000000000000002",
@@ -36,7 +36,7 @@ const FLIGHT_MERCHANT: MerchantRecord = {
 
 const HOTEL_MERCHANT: MerchantRecord = {
   ...MARKET_DEFAULTS,
-  merchant_did: "did:nexus:210425:demo_hotel",
+  merchant_did: "did:xagent:210425:demo_hotel",
   name: "Demo Hotel Agent",
   signer_address: "0x0000000000000000000000000000000000000003",
   payment_address: "0x0000000000000000000000000000000000000004",
@@ -49,7 +49,7 @@ const HOTEL_MERCHANT: MerchantRecord = {
 
 const INACTIVE_MERCHANT: MerchantRecord = {
   ...FLIGHT_MERCHANT,
-  merchant_did: "did:nexus:210425:inactive",
+  merchant_did: "did:xagent:210425:inactive",
   name: "Inactive Merchant",
   is_active: false,
 };
@@ -64,7 +64,7 @@ describe("MockMerchantRepository", () => {
   });
 
   it("findByDid returns correct record", async () => {
-    const found = await repo.findByDid("did:nexus:210425:demo_flight");
+    const found = await repo.findByDid("did:xagent:210425:demo_flight");
     expect(found).not.toBeNull();
     expect(found!.name).toBe("Demo Flight Agent");
     expect(found!.signer_address).toBe(
@@ -73,13 +73,13 @@ describe("MockMerchantRepository", () => {
   });
 
   it("findByDid returns null for unknown DID", async () => {
-    const found = await repo.findByDid("did:nexus:210425:unknown");
+    const found = await repo.findByDid("did:xagent:210425:unknown");
     expect(found).toBeNull();
   });
 
   it("findByDid returns null for inactive merchant", async () => {
     repo.seed(INACTIVE_MERCHANT);
-    const found = await repo.findByDid("did:nexus:210425:inactive");
+    const found = await repo.findByDid("did:xagent:210425:inactive");
     expect(found).toBeNull();
   });
 
@@ -93,12 +93,12 @@ describe("MockMerchantRepository", () => {
     const all = await repo.listAll();
     expect(all).toHaveLength(2);
     const dids = all.map((m) => m.merchant_did);
-    expect(dids).not.toContain("did:nexus:210425:inactive");
+    expect(dids).not.toContain("did:xagent:210425:inactive");
   });
 
   it("listAll returns merchants sorted by created_at", async () => {
     const all = await repo.listAll();
-    expect(all[0].merchant_did).toBe("did:nexus:210425:demo_flight");
-    expect(all[1].merchant_did).toBe("did:nexus:210425:demo_hotel");
+    expect(all[0].merchant_did).toBe("did:xagent:210425:demo_flight");
+    expect(all[1].merchant_did).toBe("did:xagent:210425:demo_hotel");
   });
 });

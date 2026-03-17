@@ -1,5 +1,5 @@
 /**
- * xNexus Core — Security module.
+ * XAgent Core — Security module.
  *
  * - EIP-712 quote signature verification
  * - Merchant DID resolution
@@ -12,7 +12,7 @@ import {
   type Address,
   type Hex,
 } from "viem";
-import type { NexusQuotePayload, MerchantRecord } from "../types.js";
+import type { XAgentQuotePayload, MerchantRecord } from "../types.js";
 import type { MerchantRepository } from "../db/interfaces/merchant-repo.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
 import { SecurityError } from "../errors.js";
@@ -21,15 +21,15 @@ import { SecurityError } from "../errors.js";
 // EIP-712 Domain & Types (must match merchant quote-builder.ts)
 // ---------------------------------------------------------------------------
 
-const NEXUS_DOMAIN = {
-  name: "NexusPay",
+const XAGENT_DOMAIN = {
+  name: "XAgentPay",
   version: "1",
   chainId: 196,
   verifyingContract: "0x0000000000000000000000000000000000000000" as Address,
 } as const;
 
-const NEXUS_QUOTE_TYPES = {
-  NexusQuote: [
+const XAGENT_QUOTE_TYPES = {
+  XAgentQuote: [
     { name: "merchant_did", type: "string" },
     { name: "merchant_order_ref", type: "string" },
     { name: "amount", type: "uint256" },
@@ -44,7 +44,7 @@ const NEXUS_QUOTE_TYPES = {
 // Quote hash (deterministic identifier)
 // ---------------------------------------------------------------------------
 
-export function computeQuoteHash(quote: NexusQuotePayload): string {
+export function computeQuoteHash(quote: XAgentQuotePayload): string {
   const payload = JSON.stringify({
     merchant_did: quote.merchant_did,
     merchant_order_ref: quote.merchant_order_ref,
@@ -67,8 +67,8 @@ export function computeQuoteHash(quote: NexusQuotePayload): string {
  * string amounts, so we must normalize back to strings before hashing.
  */
 function normalizeContext(
-  ctx: NexusQuotePayload["context"],
-): NexusQuotePayload["context"] {
+  ctx: XAgentQuotePayload["context"],
+): XAgentQuotePayload["context"] {
   return {
     summary: ctx.summary,
     line_items: ctx.line_items.map((item) => ({
@@ -87,7 +87,7 @@ function normalizeContext(
 // ---------------------------------------------------------------------------
 
 export async function verifyQuoteSignature(
-  quote: NexusQuotePayload,
+  quote: XAgentQuotePayload,
   merchant: MerchantRecord,
 ): Promise<void> {
   const normalizedCtx = normalizeContext(quote.context);
@@ -105,9 +105,9 @@ export async function verifyQuoteSignature(
 
   const valid = await verifyTypedData({
     address: merchant.signer_address as Address,
-    domain: NEXUS_DOMAIN,
-    types: NEXUS_QUOTE_TYPES,
-    primaryType: "NexusQuote",
+    domain: XAGENT_DOMAIN,
+    types: XAGENT_QUOTE_TYPES,
+    primaryType: "XAgentQuote",
     message,
     signature: quote.signature as Hex,
   });
@@ -122,9 +122,9 @@ export async function verifyQuoteSignature(
       const rawMessage = { ...message, context_hash: rawContextHash };
       const validRaw = await verifyTypedData({
         address: merchant.signer_address as Address,
-        domain: NEXUS_DOMAIN,
-        types: NEXUS_QUOTE_TYPES,
-        primaryType: "NexusQuote",
+        domain: XAGENT_DOMAIN,
+        types: XAGENT_QUOTE_TYPES,
+        primaryType: "XAgentQuote",
         message: rawMessage,
         signature: quote.signature as Hex,
       });
@@ -183,7 +183,7 @@ export async function checkNonceGuard(
 // Quote expiry check
 // ---------------------------------------------------------------------------
 
-export function checkQuoteExpiry(quote: NexusQuotePayload): void {
+export function checkQuoteExpiry(quote: XAgentQuotePayload): void {
   const nowS = Math.floor(Date.now() / 1000);
   if (quote.expiry <= nowS) {
     throw new SecurityError("Quote has expired", {

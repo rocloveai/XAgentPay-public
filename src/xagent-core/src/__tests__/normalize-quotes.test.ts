@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { normalizeQuotes } from "../normalize-quotes.js";
 
 const MOCK_QUOTE = {
-  merchant_did: "did:nexus:20250407:demo_flight",
+  merchant_did: "did:xagent:20250407:demo_flight",
   merchant_order_ref: "FLT-001",
   amount: "100000",
   currency: "USDC",
@@ -18,7 +18,7 @@ const MOCK_QUOTE = {
 };
 
 describe("normalizeQuotes", () => {
-  it("passes through raw NexusQuotePayload with correct types", () => {
+  it("passes through raw XAgentQuotePayload with correct types", () => {
     const result = normalizeQuotes([MOCK_QUOTE]);
     expect(result).toHaveLength(1);
     const q = result[0] as Record<string, unknown>;
@@ -32,12 +32,12 @@ describe("normalizeQuotes", () => {
       ucp: {
         version: "2026-01-11",
         payment_handlers: {
-          "urn:ucp:payment:nexus_v1": [
+          "urn:ucp:payment:xagent_v1": [
             {
-              id: "nexus_handler_1",
+              id: "xagent_handler_1",
               version: "v1",
               config: MOCK_QUOTE,
-              nexus_core: {
+              xagent_core: {
                 skill_url: "https://example.com/skill.md",
                 mcp_endpoint: "https://example.com/mcp",
               },
@@ -57,10 +57,10 @@ describe("normalizeQuotes", () => {
 
   it("extracts config from handler object", () => {
     const handler = {
-      id: "nexus_handler_1",
+      id: "xagent_handler_1",
       version: "v1",
       config: MOCK_QUOTE,
-      nexus_core: { mcp_endpoint: "https://example.com/mcp" },
+      xagent_core: { mcp_endpoint: "https://example.com/mcp" },
     };
 
     const result = normalizeQuotes([handler]);
@@ -74,7 +74,7 @@ describe("normalizeQuotes", () => {
     const ucpEnvelope = {
       ucp: {
         payment_handlers: {
-          "urn:ucp:payment:nexus_v1": [{ config: quote2 }],
+          "urn:ucp:payment:xagent_v1": [{ config: quote2 }],
         },
       },
     };
@@ -94,7 +94,7 @@ describe("normalizeQuotes", () => {
     const ucpEnvelope = {
       ucp: {
         payment_handlers: {
-          "urn:ucp:payment:nexus_v1": [
+          "urn:ucp:payment:xagent_v1": [
             { config: MOCK_QUOTE },
             { config: quote2 },
           ],

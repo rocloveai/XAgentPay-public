@@ -1,8 +1,8 @@
 /**
- * Shared test fixtures for Nexus Core tests.
+ * Shared test fixtures for XAgent Core tests.
  */
 import type {
-  NexusQuotePayload,
+  XAgentQuotePayload,
   MerchantRecord,
   PaymentGroupRecord,
   PaymentRecord,
@@ -36,7 +36,7 @@ const MARKET_DEFAULTS = {
 
 export const TEST_FLIGHT_MERCHANT: MerchantRecord = {
   ...MARKET_DEFAULTS,
-  merchant_did: "did:nexus:20250407:demo_flight",
+  merchant_did: "did:xagent:20250407:demo_flight",
   name: "Demo Flight Agent",
   signer_address: "0xdd31F8EcD2F5DE824238AB1A761212006A1E11b6",
   payment_address: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1",
@@ -49,7 +49,7 @@ export const TEST_FLIGHT_MERCHANT: MerchantRecord = {
 
 export const TEST_HOTEL_MERCHANT: MerchantRecord = {
   ...MARKET_DEFAULTS,
-  merchant_did: "did:nexus:20250407:demo_hotel",
+  merchant_did: "did:xagent:20250407:demo_hotel",
   name: "Demo Hotel Agent",
   signer_address: "0x5916667cfBD5f329c0A6474bf81d7F58c3BFB2C4",
   payment_address: "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd",
@@ -78,11 +78,11 @@ export const TEST_RELAYER_PRIVATE_KEY: Hex =
 let quoteCounter = 0;
 
 export function makeTestQuote(
-  overrides: Partial<NexusQuotePayload> = {},
-): NexusQuotePayload {
+  overrides: Partial<XAgentQuotePayload> = {},
+): XAgentQuotePayload {
   quoteCounter++;
   return {
-    merchant_did: "did:nexus:20250407:demo_flight",
+    merchant_did: "did:xagent:20250407:demo_flight",
     merchant_order_ref: `FLT-TEST-${quoteCounter}`,
     amount: "100000",
     currency: "USDC",
@@ -140,7 +140,7 @@ export function makeTestPayment(
     xagent_payment_id: `PAY-test-${paymentCounter}`,
     group_id: null,
     quote_hash: `0x${"cc".repeat(32)}`,
-    merchant_did: "did:nexus:20250407:demo_flight",
+    merchant_did: "did:xagent:20250407:demo_flight",
     merchant_order_ref: `FLT-TEST-${paymentCounter}`,
     payer_wallet: TEST_PAYER_WALLET,
     payment_address: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1",

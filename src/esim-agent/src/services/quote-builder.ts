@@ -23,14 +23,14 @@ const VERIFYING_CONTRACT =
   "0x0000000000000000000000000000000000000000" as Address;
 
 const XAGENT_DOMAIN = {
-  name: "NexusPay",
+  name: "XAgentPay",
   version: "1",
   chainId: 196,
   verifyingContract: VERIFYING_CONTRACT,
 } as const;
 
 const XAGENT_QUOTE_TYPES = {
-  NexusQuote: [
+  XAgentQuote: [
     { name: "merchant_did", type: "string" },
     { name: "merchant_order_ref", type: "string" },
     { name: "amount", type: "uint256" },
@@ -90,7 +90,7 @@ export async function buildQuote(
   const signature = await cachedAccount.signTypedData({
     domain: XAGENT_DOMAIN,
     types: XAGENT_QUOTE_TYPES,
-    primaryType: "NexusQuote",
+    primaryType: "XAgentQuote",
     message: {
       merchant_did: params.merchantDid,
       merchant_order_ref: params.orderRef,

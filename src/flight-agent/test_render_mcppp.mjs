@@ -4,7 +4,7 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 async function main() {
     console.log("Connecting to Render via SSE...");
     const transport = new SSEClientTransport(
-        new URL("https://nexus-flight-agent-3xb1.onrender.com/sse")
+        new URL("https://xagent-flight-agent-3xb1.onrender.com/sse")
     );
 
     const client = new Client(
@@ -22,10 +22,10 @@ async function main() {
     });
     console.log(searchRes.content[0].text);
 
-    console.log("\\n--- Calling nexus_generate_quote (Order Placement) ---");
+    console.log("\\n--- Calling xagent_generate_quote (Order Placement) ---");
     try {
         const quoteRes = await client.callTool({
-            name: "nexus_generate_quote",
+            name: "xagent_generate_quote",
             arguments: {
                 flight_offer_id: "demo_SIN_SHA_001",
                 payer_wallet: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1"

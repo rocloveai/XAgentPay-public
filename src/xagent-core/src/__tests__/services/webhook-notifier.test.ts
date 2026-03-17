@@ -49,7 +49,7 @@ describe("WebhookNotifier", () => {
 
       // Verify HMAC signature includes timestamp
       const body = options.body;
-      const timestamp = options.headers["X-Nexus-Timestamp"];
+      const timestamp = options.headers["X-XAgent-Timestamp"];
       expect(timestamp).toBeDefined();
       const expectedHmac = createHmac(
         "sha256",
@@ -57,7 +57,7 @@ describe("WebhookNotifier", () => {
       )
         .update(`${timestamp}.${body}`)
         .digest("hex");
-      expect(options.headers["X-Nexus-Signature"]).toBe(
+      expect(options.headers["X-XAgent-Signature"]).toBe(
         `sha256=${expectedHmac}`,
       );
     });
@@ -78,7 +78,7 @@ describe("WebhookNotifier", () => {
     it("skips merchant without webhook_url", async () => {
       const noWebhookMerchant = {
         ...TEST_FLIGHT_MERCHANT,
-        merchant_did: "did:nexus:20250407:no_webhook",
+        merchant_did: "did:xagent:20250407:no_webhook",
         webhook_url: null,
         webhook_secret: null,
       };
@@ -86,7 +86,7 @@ describe("WebhookNotifier", () => {
 
       const payment = makeTestPayment({
         status: "ESCROWED",
-        merchant_did: "did:nexus:20250407:no_webhook",
+        merchant_did: "did:xagent:20250407:no_webhook",
       });
       await notifier.notify(payment, "payment.escrowed");
 

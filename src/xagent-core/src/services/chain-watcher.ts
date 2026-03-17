@@ -1,7 +1,7 @@
 /**
- * xNexus Core — Chain Watcher.
+ * XAgent Core — Chain Watcher.
  *
- * Polls the NexusPayEscrow contract for on-chain events and drives
+ * Polls the XAgentPayEscrow contract for on-chain events and drives
  * payment state transitions via the StateMachine.
  *
  * Improvements over v1:
@@ -22,7 +22,7 @@ import {
   type Chain,
   type HttpTransport,
 } from "viem";
-import type { NexusCoreConfig } from "../config.js";
+import type { XAgentCoreConfig } from "../config.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
 import type { KVRepository } from "../db/interfaces/kv-repo.js";
 import { createLogger } from "../logger.js";
@@ -33,7 +33,7 @@ import type {
 } from "../types.js";
 import { XAGENT_PAY_ESCROW_EVENTS, XAGENT_PAY_ESCROW_ABI } from "../abi/xagent-pay-escrow.js";
 import { AGENTIC_COMMERCE_EVENTS } from "../abi/agentic-commerce.js";
-import { buildPlatonChain, type NexusRelayer, OnChainEscrowStatus } from "./relayer.js";
+import { buildPlatonChain, type XAgentRelayer, OnChainEscrowStatus } from "./relayer.js";
 import type { PaymentStateMachine } from "./state-machine.js";
 import type { GroupManager } from "./group-manager.js";
 import type { WebhookNotifier } from "./webhook-notifier.js";
@@ -104,14 +104,14 @@ export class ChainWatcher {
   private pollCount = 0;
 
   constructor(
-    private readonly config: NexusCoreConfig,
+    private readonly config: XAgentCoreConfig,
     private readonly paymentRepo: PaymentRepository,
     private readonly stateMachine: PaymentStateMachine,
     private readonly groupManager: GroupManager,
     private readonly webhookNotifier: WebhookNotifier | null = null,
     private readonly kvRepo: KVRepository | null = null,
     /** Optional relayer — enables auto-release after all-ESCROWED group */
-    private readonly relayer: NexusRelayer | null = null,
+    private readonly relayer: XAgentRelayer | null = null,
   ) {
     const chain = buildPlatonChain(config);
     this.client = createPublicClient({ chain, transport: http(config.rpcUrl) });

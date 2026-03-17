@@ -11,19 +11,19 @@
 Nexus DID 方法 (`did:nexus`) 是一种基于 EVM 区块链（如 XLayer, Ethereum）的去中心化标识符方案。它旨在为 AI Agent 商业网络（UCP）中的商户实体提供可验证的身份、支付路由和签名验证能力。本方法支持账户抽象（Account Abstraction），允许商户将“资金保管账户”（如 Gnosis Safe）与“高频签名账户”（如热钱包）分离。
 ## 1. Method Name (方法名称)
 本 DID 方法的名称为 `nexus`。
-DID 字符串必须以此前缀开头：`did:nexus:`。
+DID 字符串必须以此前缀开头：`did:xagent:`。
 ## 2. DID Syntax (语法规范)
 Nexus DID 采用简单的**三段式结构**，通过链上注册表（Registry Contract）解析。
 ### 2.1 ABNF 定义
 ```abnf
-nexus-did = "did:nexus:" chain-id ":" unique-id
+nexus-did = "did:xagent:" chain-id ":" unique-id
 chain-id = 1*DIGIT ; EVM Chain ID (e.g., 210425)
 unique-id = 1*id-char ; Merchant's unique registered name
 id-char = ALPHA / DIGIT / "_" / "-"
 ```
 ### 2.2 示例
-* **Trip.com (XLayer 主网):** `did:nexus:210425:trip_com`
-* **XAgent Pay OTC (本地开发网):** `did:nexus:31337:nexus_otc_01`
+* **Trip.com (XLayer 主网):** `did:xagent:210425:trip_com`
+* **XAgent Pay OTC (本地开发网):** `did:xagent:31337:nexus_otc_01`
 ---
 ## 3. DID Document (文档结构)
 当 User Agent 解析一个 `did:nexus` 时，它应当返回一个标准的 DID Document JSON。该文档由链上 `XAgent PayMerchantRegistry` 合约中的数据动态生成。
@@ -42,18 +42,18 @@ id-char = ALPHA / DIGIT / "_" / "-"
 "https://www.w3.org/ns/did/v1",
 "https://w3id.org/security/suites/secp256k1-2019/v1"
 ],
-"id": "did:nexus:210425:trip_com",
+"id": "did:xagent:210425:trip_com",
 // 1. 验证方法 (谁有权代表该商户签字？)
 // 支持 EOA 或 EIP-1271 合约
 "verificationMethod": [{
-"id": "did:nexus:210425:trip_com#key-1",
+"id": "did:xagent:210425:trip_com#key-1",
 "type": "EcdsaSecp256k1RecoveryMethod2020",
-"controller": "did:nexus:210425:trip_com",
+"controller": "did:xagent:210425:trip_com",
 "blockchainAccountId": "eip155:210425:0xSignerAddress..."
 }],
 // 2. 鉴权关系 (Authentication)
 "authentication": [
-"did:nexus:210425:trip_com#key-1"
+"did:xagent:210425:trip_com#key-1"
 ],
 // 3. 服务端点 (钱往哪打？元数据在哪？)
 "service": [

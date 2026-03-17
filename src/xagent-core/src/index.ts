@@ -1,5 +1,5 @@
 /**
- * xNexus Core — barrel export.
+ * XAgent Core — barrel export.
  */
 
 // Types
@@ -13,7 +13,7 @@ export type {
   PaymentGroupStatus,
   LineItem,
   IsoMetadata,
-  NexusQuotePayload,
+  XAgentQuotePayload,
   PaymentRecord,
   PaymentEvent,
   MerchantRecord,
@@ -51,12 +51,12 @@ export {
 } from "./constants.js";
 
 // Config
-export type { NexusCoreConfig } from "./config.js";
-export { loadNexusCoreConfig } from "./config.js";
+export type { XAgentCoreConfig } from "./config.js";
+export { loadXAgentCoreConfig } from "./config.js";
 
 // Errors
 export {
-  NexusError,
+  XAgentError,
   SecurityError,
   InvalidTransitionError,
   RelayerError,
@@ -85,7 +85,7 @@ export { initPool, getPool, isPoolInitialized } from "./db/pool.js";
 // Services
 export { PaymentStateMachine } from "./services/state-machine.js";
 export { GroupManager } from "./services/group-manager.js";
-export { NexusOrchestrator } from "./services/orchestrator.js";
+export { XAgentOrchestrator } from "./services/orchestrator.js";
 export { routePayment } from "./services/payment-router.js";
 export {
   verifyQuoteSignature,
@@ -101,7 +101,7 @@ export {
 } from "./services/instruction-builder.js";
 
 // Phase 3+4: Relayer, Chain Watcher, Timeout Handler, Webhook Notifier
-export { NexusRelayer } from "./services/relayer.js";
+export { XAgentRelayer } from "./services/relayer.js";
 export type { RelayerTxResult } from "./services/relayer.js";
 export { ChainWatcher } from "./services/chain-watcher.js";
 export { TimeoutHandler } from "./services/timeout-handler.js";

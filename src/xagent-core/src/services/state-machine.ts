@@ -1,5 +1,5 @@
 /**
- * xNexus Core — Payment state machine.
+ * XAgent Core — Payment state machine.
  *
  * Manages individual payment lifecycle transitions.
  */
@@ -8,7 +8,7 @@ import type {
   PaymentRecord,
   PaymentStatus,
   PaymentEventType,
-  NexusQuotePayload,
+  XAgentQuotePayload,
   PaymentMethod,
   IsoMetadata,
   CreatePaymentParams,
@@ -17,7 +17,7 @@ import type {
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
 import type { EventRepository } from "../db/interfaces/event-repo.js";
 import { VALID_TRANSITIONS, TERMINAL_STATUSES } from "../constants.js";
-import { InvalidTransitionError, NexusError } from "../errors.js";
+import { InvalidTransitionError, XAgentError } from "../errors.js";
 
 export interface CreatePaymentInput {
   readonly quoteHash: string;
@@ -31,7 +31,7 @@ export interface CreatePaymentInput {
   readonly currency: string;
   readonly chainId: number;
   readonly paymentMethod: PaymentMethod;
-  readonly quotePayload: NexusQuotePayload;
+  readonly quotePayload: XAgentQuotePayload;
   readonly isoMetadata: IsoMetadata | null;
   readonly expiresAt: string;
 }
@@ -114,7 +114,7 @@ export class PaymentStateMachine {
   async transition(input: TransitionInput): Promise<PaymentRecord> {
     const payment = await this.paymentRepo.findById(input.xagentPaymentId);
     if (!payment) {
-      throw new NexusError("PAYMENT_NOT_FOUND", "Payment not found", {
+      throw new XAgentError("PAYMENT_NOT_FOUND", "Payment not found", {
         xagentPaymentId: input.xagentPaymentId,
       });
     }
@@ -132,7 +132,7 @@ export class PaymentStateMachine {
       input.fields,
     );
     if (!updated) {
-      throw new NexusError("UPDATE_FAILED", "Status update failed", {
+      throw new XAgentError("UPDATE_FAILED", "Status update failed", {
         xagentPaymentId: input.xagentPaymentId,
       });
     }

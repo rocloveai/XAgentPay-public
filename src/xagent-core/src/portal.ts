@@ -1,5 +1,5 @@
 /**
- * xNexus Core — Portal Dashboard.
+ * XAgent Core — Portal Dashboard.
  *
  * Serves an HTML dashboard and JSON API endpoints for monitoring
  * payments, relayer status, and system health.
@@ -8,7 +8,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import type { PaymentRepository } from "./db/interfaces/payment-repo.js";
 import type { EventRepository } from "./db/interfaces/event-repo.js";
 import type { GroupRepository } from "./db/interfaces/group-repo.js";
-import type { NexusRelayer } from "./services/relayer.js";
+import type { XAgentRelayer } from "./services/relayer.js";
 import type { PaymentStatus } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -19,7 +19,7 @@ export interface PortalDeps {
   readonly paymentRepo: PaymentRepository;
   readonly eventRepo: EventRepository;
   readonly groupRepo: GroupRepository;
-  readonly relayer: NexusRelayer | null;
+  readonly relayer: XAgentRelayer | null;
   readonly escrowContract: string;
   readonly chainId: number;
   readonly version: string;

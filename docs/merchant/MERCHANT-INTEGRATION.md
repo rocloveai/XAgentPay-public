@@ -121,7 +121,7 @@ The agent maintains its own 3-state system (`UNPAID` → `PAID` / `EXPIRED`). Co
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MERCHANT_DID` | `did:nexus:20250407:demo_flight` / `demo_hotel` | Agent's merchant DID |
+| `MERCHANT_DID` | `did:xagent:20250407:demo_flight` / `demo_hotel` | Agent's merchant DID |
 | `PORTAL_PORT` | `3001` / `3002` | HTTP server port |
 | `DATABASE_URL` | `""` (in-memory) | PostgreSQL connection |
 | `NEXUS_WEBHOOK_SECRET` | `REDACTED_WEBHOOK_SECRET` / `REDACTED_WEBHOOK_SECRET` | HMAC webhook secret |

@@ -25,9 +25,9 @@ import { MockPaymentRepository } from "../mocks/mock-payment-repo.js";
 import { MockEventRepository } from "../mocks/mock-event-repo.js";
 import { MockGroupRepository } from "../mocks/mock-group-repo.js";
 import { MockKVRepository } from "../mocks/mock-kv-repo.js";
-import type { NexusCoreConfig } from "../../config.js";
+import type { XAgentCoreConfig } from "../../config.js";
 
-const TEST_CONFIG: NexusCoreConfig = {
+const TEST_CONFIG: XAgentCoreConfig = {
   databaseUrl: "",
   escrowContract: "0x1111111111111111111111111111111111111111",
   chainId: 20250407,

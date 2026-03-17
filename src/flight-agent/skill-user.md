@@ -2,7 +2,7 @@
 name: xagent-flight
 version: "0.1.0"
 description: Flight booking HTTP REST API — search flights, generate NUPS quotes, verify payments
-merchant_did: "did:nexus:196:demo_flight"
+merchant_did: "did:xagent:196:demo_flight"
 protocol: NUPS/1.5
 category: travel.flights
 currencies: [USDC]

@@ -1,5 +1,5 @@
 /**
- * xNexus Core — Checkout Page.
+ * XAgent Core — Checkout Page.
  *
  * Serves the checkout HTML page and API endpoints for MetaMask payment flow.
  * Users sign an EIP-3009 typed data message, then submit the
@@ -13,7 +13,7 @@ import type { PaymentStateMachine } from "./services/state-machine.js";
 import type { GroupManager } from "./services/group-manager.js";
 import type { WebhookNotifier } from "./services/webhook-notifier.js";
 import type { KVRepository } from "./db/interfaces/kv-repo.js";
-import type { NexusCoreConfig } from "./config.js";
+import type { XAgentCoreConfig } from "./config.js";
 import type { Hex } from "./types.js";
 import { createPublicClient, http } from "viem";
 import { createLogger } from "./logger.js";
@@ -31,7 +31,7 @@ export interface CheckoutDeps {
   readonly groupManager: GroupManager;
   readonly webhookNotifier: WebhookNotifier;
   readonly kvRepo: KVRepository | null;
-  readonly config: NexusCoreConfig;
+  readonly config: XAgentCoreConfig;
 }
 
 // ---------------------------------------------------------------------------
@@ -1015,7 +1015,7 @@ async function signAndPay() {
   }
 
   // ── Standard escrow flow ─────────────────────────────────────────────────
-  // Verify Nexus Core group signature exists
+  // Verify XAgent Core group signature exists
   if (!instr.xagent_group_sig || !instr.core_operator_address) {
     showError("Missing group signature from XAgent Core. Cannot proceed safely.");
     return;

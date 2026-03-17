@@ -23,7 +23,7 @@ YAML frontmatter (machine-parseable metadata) + Markdown body (AI-readable docum
 | `name` | string | npm package name | `nexus-flight-agent` |
 | `version` | semver | Package version | `"0.1.0"` |
 | `description` | string | One-line description | `"Flight booking with XAgent Payment"` |
-| `merchant_did` | string | Nexus DID identifier | `"did:nexus:20250407:demo_flight"` |
+| `merchant_did` | string | Nexus DID identifier | `"did:xagent:20250407:demo_flight"` |
 | `protocol` | string | NUPS protocol version | `NUPS/1.5` |
 | `category` | string | Merchant category (dot-notation) | `travel.flights` |
 | `currencies` | string[] | Accepted currencies | `[USDC]` |
@@ -94,7 +94,7 @@ HTTP management portal URL and capabilities.
 name: nexus-<category>-agent
 version: "0.1.0"
 description: <One-line description> with XAgent Payment
-merchant_did: "did:nexus:<chain_id>:<merchant_id>"
+merchant_did: "did:xagent:<chain_id>:<merchant_id>"
 protocol: NUPS/1.5
 category: <domain>.<subcategory>
 currencies: [USDC]
@@ -123,7 +123,7 @@ tools:
       "command": "npx",
       "args": ["-y", "@nexuspay/<agent-name>"],
       "env": {
-        "MERCHANT_DID": "did:nexus:20250407:<merchant_id>"
+        "MERCHANT_DID": "did:xagent:20250407:<merchant_id>"
       }
     }
   }
@@ -139,7 +139,7 @@ tools:
       "command": "node",
       "args": ["path/to/build/server.js"],
       "env": {
-        "MERCHANT_DID": "did:nexus:20250407:<merchant_id>"
+        "MERCHANT_DID": "did:xagent:20250407:<merchant_id>"
       }
     }
   }

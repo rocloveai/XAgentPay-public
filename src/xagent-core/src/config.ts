@@ -1,10 +1,10 @@
 /**
- * xNexus Core — environment configuration.
+ * XAgent Core — environment configuration.
  */
 
 export type TransportMode = "stdio" | "http";
 
-export interface NexusCoreConfig {
+export interface XAgentCoreConfig {
   readonly databaseUrl: string;
   readonly escrowContract: string;
   readonly chainId: number;
@@ -25,7 +25,7 @@ export interface NexusCoreConfig {
   readonly baseUrl: string;
   /**
    * Optional URL of the Telegram bot service's /api/payment-notify endpoint.
-   * When set, nexus-core pushes real-time payment state changes to the bot
+   * When set, xagent-core pushes real-time payment state changes to the bot
    * so the order card (sent by Eva) updates instantly without polling.
    * e.g. https://xagenpay.com/tg-bot/api/payment-notify
    */
@@ -44,7 +44,7 @@ export interface ConfigValidationError {
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 export function validateConfig(
-  config: NexusCoreConfig,
+  config: XAgentCoreConfig,
   mode: TransportMode,
 ): readonly ConfigValidationError[] {
   const errors: ConfigValidationError[] = [];
@@ -79,7 +79,7 @@ export function validateConfig(
 
 import { getAddress } from "viem";
 
-export function loadNexusCoreConfig(): NexusCoreConfig {
+export function loadXAgentCoreConfig(): XAgentCoreConfig {
   const escrowContract = process.env.ESCROW_CONTRACT ?? "0x0000000000000000000000000000000000000000";
   const usdcAddress = process.env.USDC_ADDRESS ?? "0xFF8dEe9983768D0399673014cf77826896F97e4d";
 

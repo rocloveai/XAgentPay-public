@@ -1,14 +1,14 @@
 /**
- * xNexus Core — Group Signer.
+ * XAgent Core — Group Signer.
  *
  * Signs a (groupId, entriesHash, totalAmount) tuple via EIP-712,
- * allowing downstream verification that Nexus Core approved the
+ * allowing downstream verification that XAgent Core approved the
  * payment entries (merchant addresses + amounts) in this group.
  *
  * Uses the same relayerPrivateKey as the relayer (= coreOperator).
  */
 import type { Address, Hex, GroupPaymentDetail } from "../types.js";
-import type { NexusCoreConfig } from "../config.js";
+import type { XAgentCoreConfig } from "../config.js";
 import { keccak256, encodeAbiParameters, parseAbiParameters } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
@@ -17,16 +17,16 @@ import { privateKeyToAccount } from "viem/accounts";
 // ---------------------------------------------------------------------------
 
 const EIP712_TYPES = {
-  NexusGroupApproval: [
+  XAgentGroupApproval: [
     { name: "groupId", type: "bytes32" },
     { name: "entriesHash", type: "bytes32" },
     { name: "totalAmount", type: "uint256" },
   ],
 } as const;
 
-function buildDomain(config: NexusCoreConfig) {
+function buildDomain(config: XAgentCoreConfig) {
   return {
-    name: "NexusPay",
+    name: "XAgentPay",
     version: "1",
     chainId: config.chainId,
     verifyingContract: config.escrowContract as Address,
@@ -42,7 +42,7 @@ function buildDomain(config: NexusCoreConfig) {
  * `(bytes32 paymentId, address merchant, uint256 amount,
  *   bytes32 orderRef, bytes32 merchantDid, bytes32 contextHash)`.
  *
- * The encoding matches the Solidity struct ordering in NexusPayEscrow.
+ * The encoding matches the Solidity struct ordering in XAgentPayEscrow.
  */
 export function computeEntriesHash(
   payments: readonly GroupPaymentDetail[],
@@ -77,14 +77,14 @@ export interface GroupSignatureResult {
 }
 
 /**
- * EIP-712 sign `NexusGroupApproval(groupId, entriesHash, totalAmount)`.
+ * EIP-712 sign `XAgentGroupApproval(groupId, entriesHash, totalAmount)`.
  * Returns the signature and the signer address (derived from relayerPrivateKey).
  */
 export async function signGroup(
   groupId: string,
   payments: readonly GroupPaymentDetail[],
   totalAmount: string,
-  config: NexusCoreConfig,
+  config: XAgentCoreConfig,
 ): Promise<GroupSignatureResult> {
   const account = privateKeyToAccount(config.relayerPrivateKey as Hex);
 
@@ -94,7 +94,7 @@ export async function signGroup(
   const signature = await account.signTypedData({
     domain: buildDomain(config),
     types: EIP712_TYPES,
-    primaryType: "NexusGroupApproval",
+    primaryType: "XAgentGroupApproval",
     message: {
       groupId: groupIdBytes32,
       entriesHash,
@@ -113,7 +113,7 @@ export async function signGroup(
 // ---------------------------------------------------------------------------
 
 /** Derive the core operator address from relayerPrivateKey. */
-export function getCoreOperatorAddress(config: NexusCoreConfig): Address {
+export function getCoreOperatorAddress(config: XAgentCoreConfig): Address {
   const account = privateKeyToAccount(config.relayerPrivateKey as Hex);
   return account.address as Address;
 }

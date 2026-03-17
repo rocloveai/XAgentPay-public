@@ -208,7 +208,7 @@ CREATE UNIQUE INDEX idx_payments_quote_hash
 #### 子功能 A.3: DID 解析器 (DID Resolver)
 
 **用户故事：**
-作为 xXAgent Pay Core，我需要将 `did:nexus:210425:demo_flight` 解析为链上注册的商户信息（signer 地址、payment 地址），确保资金流向经过验证的真实收款方。
+作为 xXAgent Pay Core，我需要将 `did:xagent:210425:demo_flight` 解析为链上注册的商户信息（signer 地址、payment 地址），确保资金流向经过验证的真实收款方。
 
 **实现逻辑（MVP 阶段）：**
 
@@ -1157,7 +1157,7 @@ UA 代用户发起争议（通过 Relayer 代为提交 dispute 交易）。
   "status": "SETTLED",
   "amount_display": "530.00",
   "currency": "USDC",
-  "merchant_did": "did:nexus:210425:demo_flight",
+  "merchant_did": "did:xagent:210425:demo_flight",
   "merchant_order_ref": "FLT-xxx",
   "settlement": { "tx_hash": "0x...", "block_number": 12345678 },
   "iso_end_to_end_id": "NEX-xxx",

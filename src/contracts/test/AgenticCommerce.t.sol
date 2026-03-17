@@ -27,7 +27,7 @@ contract AgenticCommerceTest is Test {
     uint16 internal constant FEE_BPS = 30; // 0.3%
     uint256 internal constant BUDGET = 100_000_000; // 100 USDC (6 decimals)
     uint256 internal constant EXPIRY_DELTA = 86400; // 24h from now
-    string internal constant DESCRIPTION = '{"merchant_did":"did:nexus:demo","order_ref":"ORD-001"}';
+    string internal constant DESCRIPTION = '{"merchant_did":"did:xagent:demo","order_ref":"ORD-001"}';
     bytes32 internal constant DELIVERABLE = keccak256("booking-confirmation-001");
 
     // -----------------------------------------------------------------------

@@ -62,7 +62,7 @@ Webhook 是连接 xXAgent Pay Core 与 Merchant Agent 的关键桥梁。
   "data": {
     "nexus_payment_id": "NEX-01JAXYZ-0001",
     "merchant_order_ref": "FLT-1708761234-abc123",
-    "merchant_did": "did:nexus:210425:demo_flight",
+    "merchant_did": "did:xagent:210425:demo_flight",
     "status": "SETTLED",
     "amount": "530000000",
     "amount_display": "530.00",
@@ -82,7 +82,7 @@ Webhook 是连接 xXAgent Pay Core 与 Merchant Agent 的关键桥梁。
       "remittance_info": "FLT-1708761234-abc123",
       "instructed_amount": "530.00",
       "instructed_currency": "USD",
-      "creditor_id": "did:nexus:210425:demo_flight",
+      "creditor_id": "did:xagent:210425:demo_flight",
       "settlement_asset": "DTI:4H95J0R2X"
     }
   }
@@ -104,7 +104,7 @@ For escrow-related events (`payment.escrowed`, `payment.refunded`, `dispute.open
   "data": {
     "nexus_payment_id": "PAY-01JAXYZ-0001",
     "merchant_order_ref": "FLT-1708761234-abc123",
-    "merchant_did": "did:nexus:20250407:demo_flight",
+    "merchant_did": "did:xagent:20250407:demo_flight",
     "status": "ESCROWED",
     "amount": "530000000",
     "amount_display": "530.00",

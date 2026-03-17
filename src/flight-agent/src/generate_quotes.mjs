@@ -7,15 +7,15 @@ const DEMO_DISCOUNT_AMOUNT = "0.10";
 const CHAIN_ID = 20250407;
 const VERIFYING_CONTRACT = "0x0000000000000000000000000000000000000000";
 
-const NEXUS_DOMAIN = {
-    name: "NexusPay",
+const XAGENT_DOMAIN = {
+    name: "XAgentPay",
     version: "1",
     chainId: CHAIN_ID,
     verifyingContract: VERIFYING_CONTRACT,
 };
 
-const NEXUS_QUOTE_TYPES = {
-    NexusQuote: [
+const XAGENT_QUOTE_TYPES = {
+    XAgentQuote: [
         { name: "merchant_did", type: "string" },
         { name: "merchant_order_ref", type: "string" },
         { name: "amount", type: "uint256" },
@@ -58,9 +58,9 @@ async function signQuote(merchantDid, privateKey, orderRef, amount, summary, lin
     });
 
     const signature = await walletClient.signTypedData({
-        domain: NEXUS_DOMAIN,
-        types: NEXUS_QUOTE_TYPES,
-        primaryType: "NexusQuote",
+        domain: XAGENT_DOMAIN,
+        types: XAGENT_QUOTE_TYPES,
+        primaryType: "XAgentQuote",
         message: {
             merchant_did: merchantDid,
             merchant_order_ref: orderRef,
@@ -87,11 +87,11 @@ async function signQuote(merchantDid, privateKey, orderRef, amount, summary, lin
 const payerWallet = "0x6c3103FFF34916Ef2df44CE952BcE610d7e23cB5";
 
 // Flight Merchant
-const FLIGHT_DID = "did:nexus:20250407:demo_flight";
+const FLIGHT_DID = "did:xagent:20250407:demo_flight";
 const FLIGHT_KEY = "0x3be84b4fa995ef7d87918aea8b0b1ad0cb88d66161b569c3fb55c8125cc31ba7";
 
 // Hotel Merchant
-const HOTEL_DID = "did:nexus:20250407:demo_hotel";
+const HOTEL_DID = "did:xagent:20250407:demo_hotel";
 const HOTEL_KEY = "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997";
 
 async function main() {

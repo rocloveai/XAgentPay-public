@@ -6,7 +6,7 @@ function makeLog(id: string): CreateWebhookLogParams {
   return {
     log_id: id,
     xagent_payment_id: "P-1",
-    merchant_did: "did:nexus:210425:demo_flight",
+    merchant_did: "did:xagent:210425:demo_flight",
     webhook_url: "http://localhost:3001/webhook",
     event_type: "payment.settled",
     request_body: { test: true },

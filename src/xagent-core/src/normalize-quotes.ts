@@ -1,7 +1,7 @@
 /**
- * xNexus Core — Quote normalizer.
+ * XAgent Core — Quote normalizer.
  *
- * Auto-extracts NexusQuotePayload from common wrong shapes that user agents
+ * Auto-extracts XAgentQuotePayload from common wrong shapes that user agents
  * may pass to xagent_orchestrate_payment.
  */
 
@@ -58,13 +58,13 @@ function coerceQuoteTypes(
 }
 
 /**
- * User agents may pass various shapes instead of the raw NexusQuotePayload:
+ * User agents may pass various shapes instead of the raw XAgentQuotePayload:
  *
  * 1. Raw quote (correct): { merchant_did, amount, signature, ... }
- * 2. Full UCP envelope: { ucp: { payment_handlers: { "urn:ucp:payment:nexus_v1": [{ config: QUOTE }] } } }
- * 3. Handler object: { config: QUOTE, nexus_core: { ... } }
+ * 2. Full UCP envelope: { ucp: { payment_handlers: { "urn:ucp:payment:xagent_v1": [{ config: QUOTE }] } } }
+ * 3. Handler object: { config: QUOTE, xagent_core: { ... } }
  *
- * This function normalizes all shapes to NexusQuotePayload[].
+ * This function normalizes all shapes to XAgentQuotePayload[].
  */
 export function normalizeQuotes(rawQuotes: unknown[]): unknown[] {
   const result: unknown[] = [];
@@ -77,7 +77,7 @@ export function normalizeQuotes(rawQuotes: unknown[]): unknown[] {
 
     const obj = item as Record<string, unknown>;
 
-    // Shape 1: Already a raw NexusQuotePayload (has merchant_did + signature)
+    // Shape 1: Already a raw XAgentQuotePayload (has merchant_did + signature)
     if (
       typeof obj.merchant_did === "string" &&
       typeof obj.signature === "string"
@@ -93,11 +93,11 @@ export function normalizeQuotes(rawQuotes: unknown[]): unknown[] {
         | Record<string, unknown>
         | undefined;
       if (handlers) {
-        const nexusHandlers = handlers["urn:ucp:payment:nexus_v1"] as
+        const xagentHandlers = handlers["urn:ucp:payment:xagent_v1"] as
           | unknown[]
           | undefined;
-        if (Array.isArray(nexusHandlers)) {
-          for (const handler of nexusHandlers) {
+        if (Array.isArray(xagentHandlers)) {
+          for (const handler of xagentHandlers) {
             if (handler && typeof handler === "object") {
               const h = handler as Record<string, unknown>;
               if (h.config && typeof h.config === "object") {
@@ -112,7 +112,7 @@ export function normalizeQuotes(rawQuotes: unknown[]): unknown[] {
       }
     }
 
-    // Shape 3: Handler object — { config: QUOTE, nexus_core: { ... } }
+    // Shape 3: Handler object — { config: QUOTE, xagent_core: { ... } }
     if (
       obj.config &&
       typeof obj.config === "object" &&

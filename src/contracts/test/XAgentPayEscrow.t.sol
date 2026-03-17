@@ -2,18 +2,18 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {NexusPayEscrow} from "../src/NexusPayEscrow.sol";
+import {XAgentPayEscrow} from "../src/XAgentPayEscrow.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import {MockUSDC} from "./mocks/MockUSDC.sol";
 
-contract NexusPayEscrowTest is Test {
+contract XAgentPayEscrowTest is Test {
     // -----------------------------------------------------------------------
     // State
     // -----------------------------------------------------------------------
 
     MockUSDC internal usdc;
-    NexusPayEscrow internal escrow;
+    XAgentPayEscrow internal escrow;
 
     // Actors
     address internal owner = address(this);
@@ -35,7 +35,7 @@ contract NexusPayEscrowTest is Test {
     uint16 internal constant FEE_BPS = 30; // 0.3%
     uint256 internal constant AMOUNT = 100_000_000; // 100 USDC (6 decimals)
     bytes32 internal constant ORDER_REF = keccak256("order-001");
-    bytes32 internal constant MERCHANT_DID = keccak256("did:nexus:merchant1");
+    bytes32 internal constant MERCHANT_DID = keccak256("did:xagent:merchant1");
     bytes32 internal constant CONTEXT_HASH = keccak256("flight-booking");
 
     // -----------------------------------------------------------------------
@@ -46,15 +46,15 @@ contract NexusPayEscrowTest is Test {
         usdc = new MockUSDC();
 
         // Deploy implementation
-        NexusPayEscrow impl = new NexusPayEscrow();
+        XAgentPayEscrow impl = new XAgentPayEscrow();
 
         // Deploy proxy with initialize calldata
         bytes memory initData = abi.encodeCall(
-            NexusPayEscrow.initialize,
+            XAgentPayEscrow.initialize,
             (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator)
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
-        escrow = NexusPayEscrow(address(proxy));
+        escrow = XAgentPayEscrow(address(proxy));
 
         // Set arbitration timeout (new storage, not in initialize)
         escrow.setArbitrationTimeout(ARBITRATION_TIMEOUT);
@@ -150,14 +150,14 @@ contract NexusPayEscrowTest is Test {
         uint16 _feeBps,
         address _feeRecipient,
         address _operator
-    ) internal returns (NexusPayEscrow) {
-        NexusPayEscrow impl = new NexusPayEscrow();
+    ) internal returns (XAgentPayEscrow) {
+        XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
-            NexusPayEscrow.initialize,
+            XAgentPayEscrow.initialize,
             (_usdc, _releaseTimeout, _disputeWindow, _feeBps, _feeRecipient, _operator)
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
-        return NexusPayEscrow(address(proxy));
+        return XAgentPayEscrow(address(proxy));
     }
 
     // =======================================================================
@@ -175,62 +175,62 @@ contract NexusPayEscrowTest is Test {
     }
 
     function test_initialize_revertsZeroUsdc() public {
-        NexusPayEscrow impl = new NexusPayEscrow();
+        XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
-            NexusPayEscrow.initialize,
+            XAgentPayEscrow.initialize,
             (address(0), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator)
         );
-        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         new ERC1967Proxy(address(impl), initData);
     }
 
     function test_initialize_revertsZeroFeeRecipient() public {
-        NexusPayEscrow impl = new NexusPayEscrow();
+        XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
-            NexusPayEscrow.initialize,
+            XAgentPayEscrow.initialize,
             (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, address(0), operator)
         );
-        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         new ERC1967Proxy(address(impl), initData);
     }
 
     function test_initialize_revertsZeroOperator() public {
-        NexusPayEscrow impl = new NexusPayEscrow();
+        XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
-            NexusPayEscrow.initialize,
+            XAgentPayEscrow.initialize,
             (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, address(0))
         );
-        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         new ERC1967Proxy(address(impl), initData);
     }
 
     function test_initialize_revertsFeeTooHigh() public {
-        NexusPayEscrow impl = new NexusPayEscrow();
+        XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
-            NexusPayEscrow.initialize,
+            XAgentPayEscrow.initialize,
             (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, 501, feeRecipient, operator)
         );
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.FeeTooHigh.selector, 501));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.FeeTooHigh.selector, 501));
         new ERC1967Proxy(address(impl), initData);
     }
 
     function test_initialize_revertsZeroReleaseTimeout() public {
-        NexusPayEscrow impl = new NexusPayEscrow();
+        XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
-            NexusPayEscrow.initialize,
+            XAgentPayEscrow.initialize,
             (address(usdc), 0, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator)
         );
-        vm.expectRevert(NexusPayEscrow.ZeroTimeout.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroTimeout.selector);
         new ERC1967Proxy(address(impl), initData);
     }
 
     function test_initialize_revertsZeroDisputeWindow() public {
-        NexusPayEscrow impl = new NexusPayEscrow();
+        XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
-            NexusPayEscrow.initialize,
+            XAgentPayEscrow.initialize,
             (address(usdc), RELEASE_TIMEOUT, 0, FEE_BPS, feeRecipient, operator)
         );
-        vm.expectRevert(NexusPayEscrow.ZeroTimeout.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroTimeout.selector);
         new ERC1967Proxy(address(impl), initData);
     }
 
@@ -240,7 +240,7 @@ contract NexusPayEscrowTest is Test {
 
     function test_upgradeToAndCall_succeeds() public {
         // Deploy a new implementation
-        NexusPayEscrow newImpl = new NexusPayEscrow();
+        XAgentPayEscrow newImpl = new XAgentPayEscrow();
 
         // Owner upgrades
         escrow.upgradeToAndCall(address(newImpl), "");
@@ -251,7 +251,7 @@ contract NexusPayEscrowTest is Test {
     }
 
     function test_upgrade_revertsNonOwner() public {
-        NexusPayEscrow newImpl = new NexusPayEscrow();
+        XAgentPayEscrow newImpl = new XAgentPayEscrow();
 
         vm.prank(stranger);
         vm.expectRevert();
@@ -266,7 +266,7 @@ contract NexusPayEscrowTest is Test {
     }
 
     function test_implementationCannotBeInitialized() public {
-        NexusPayEscrow impl = new NexusPayEscrow();
+        XAgentPayEscrow impl = new XAgentPayEscrow();
 
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         impl.initialize(
@@ -287,12 +287,12 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(payer), balBefore - AMOUNT);
         assertEq(usdc.balanceOf(address(escrow)), AMOUNT);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
         assertEq(e.payer, payer);
         assertEq(e.merchant, merchant);
         assertEq(e.amount, AMOUNT);
         assertEq(e.orderRef, ORDER_REF);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
     }
 
     function test_depositWithAuth_emitsEvent() public {
@@ -306,7 +306,7 @@ contract NexusPayEscrowTest is Test {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit NexusPayEscrow.Deposited(pid, payer, merchant, AMOUNT, ORDER_REF);
+        emit XAgentPayEscrow.Deposited(pid, payer, merchant, AMOUNT, ORDER_REF);
 
         vm.prank(relayer);
         escrow.depositWithAuthorization(
@@ -329,7 +329,7 @@ contract NexusPayEscrowTest is Test {
         );
 
         vm.prank(relayer);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.EscrowAlreadyExists.selector, pid));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.EscrowAlreadyExists.selector, pid));
         escrow.depositWithAuthorization(
             pid, payer, merchant, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH,
             0, validBefore, nonce2, v, r, s
@@ -346,7 +346,7 @@ contract NexusPayEscrowTest is Test {
         );
 
         vm.prank(relayer);
-        vm.expectRevert(NexusPayEscrow.ZeroAmount.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAmount.selector);
         escrow.depositWithAuthorization(
             pid, payer, merchant, 0, ORDER_REF, MERCHANT_DID, CONTEXT_HASH,
             0, validBefore, nonce, v, r, s
@@ -363,7 +363,7 @@ contract NexusPayEscrowTest is Test {
         );
 
         vm.prank(relayer);
-        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         escrow.depositWithAuthorization(
             pid, payer, address(0), AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH,
             0, validBefore, nonce, v, r, s
@@ -380,7 +380,7 @@ contract NexusPayEscrowTest is Test {
         );
 
         vm.prank(relayer);
-        vm.expectRevert(NexusPayEscrow.SelfPayment.selector);
+        vm.expectRevert(XAgentPayEscrow.SelfPayment.selector);
         escrow.depositWithAuthorization(
             pid, payer, payer, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH,
             0, validBefore, nonce, v, r, s
@@ -419,11 +419,11 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(payer), balBefore - AMOUNT);
         assertEq(usdc.balanceOf(address(escrow)), AMOUNT);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
         assertEq(e.payer, payer);
         assertEq(e.merchant, merchant);
         assertEq(e.amount, AMOUNT);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
     }
 
     function test_deposit_emitsEvent() public {
@@ -433,7 +433,7 @@ contract NexusPayEscrowTest is Test {
         usdc.approve(address(escrow), AMOUNT);
 
         vm.expectEmit(true, true, true, true);
-        emit NexusPayEscrow.Deposited(pid, payer, merchant, AMOUNT, ORDER_REF);
+        emit XAgentPayEscrow.Deposited(pid, payer, merchant, AMOUNT, ORDER_REF);
 
         escrow.deposit(pid, merchant, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
         vm.stopPrank();
@@ -445,7 +445,7 @@ contract NexusPayEscrowTest is Test {
 
         vm.startPrank(payer);
         usdc.approve(address(escrow), AMOUNT);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.EscrowAlreadyExists.selector, pid));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.EscrowAlreadyExists.selector, pid));
         escrow.deposit(pid, merchant, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
         vm.stopPrank();
     }
@@ -453,21 +453,21 @@ contract NexusPayEscrowTest is Test {
     function test_deposit_revertsZeroAmount() public {
         bytes32 pid = _paymentId("trad-zero");
         vm.prank(payer);
-        vm.expectRevert(NexusPayEscrow.ZeroAmount.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAmount.selector);
         escrow.deposit(pid, merchant, 0, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
     }
 
     function test_deposit_revertsZeroMerchant() public {
         bytes32 pid = _paymentId("trad-zm");
         vm.prank(payer);
-        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         escrow.deposit(pid, address(0), AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
     }
 
     function test_deposit_revertsSelfPayment() public {
         bytes32 pid = _paymentId("trad-self");
         vm.prank(payer);
-        vm.expectRevert(NexusPayEscrow.SelfPayment.selector);
+        vm.expectRevert(XAgentPayEscrow.SelfPayment.selector);
         escrow.deposit(pid, payer, AMOUNT, ORDER_REF, MERCHANT_DID, CONTEXT_HASH);
     }
 
@@ -490,8 +490,8 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(feeRecipient), fee);
         assertEq(usdc.balanceOf(address(escrow)), 0);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RELEASED);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.RELEASED);
     }
 
     function test_release_byCoreOperator() public {
@@ -501,8 +501,8 @@ contract NexusPayEscrowTest is Test {
         vm.prank(operator);
         escrow.release(pid);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RELEASED);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.RELEASED);
     }
 
     function test_release_emitsEvent() public {
@@ -513,7 +513,7 @@ contract NexusPayEscrowTest is Test {
         uint256 merchantAmount = AMOUNT - fee;
 
         vm.expectEmit(true, true, false, true);
-        emit NexusPayEscrow.Released(pid, merchant, merchantAmount, fee);
+        emit XAgentPayEscrow.Released(pid, merchant, merchantAmount, fee);
 
         vm.prank(merchant);
         escrow.release(pid);
@@ -542,7 +542,7 @@ contract NexusPayEscrowTest is Test {
         _depositTraditional(pid);
 
         vm.prank(stranger);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.NotCoreOrMerchant.selector, stranger));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.NotCoreOrMerchant.selector, stranger));
         escrow.release(pid);
     }
 
@@ -565,8 +565,8 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(payer), payerBalBefore + AMOUNT);
         assertEq(usdc.balanceOf(address(escrow)), 0);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.REFUNDED);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.REFUNDED);
     }
 
     function test_refund_emitsEvent() public {
@@ -576,7 +576,7 @@ contract NexusPayEscrowTest is Test {
         vm.warp(block.timestamp + RELEASE_TIMEOUT + 1);
 
         vm.expectEmit(true, true, false, true);
-        emit NexusPayEscrow.Refunded(pid, payer, AMOUNT);
+        emit XAgentPayEscrow.Refunded(pid, payer, AMOUNT);
 
         escrow.refund(pid);
     }
@@ -585,11 +585,11 @@ contract NexusPayEscrowTest is Test {
         bytes32 pid = _paymentId("ref-early");
         _depositTraditional(pid);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                NexusPayEscrow.ReleaseDeadlineNotReached.selector,
+                XAgentPayEscrow.ReleaseDeadlineNotReached.selector,
                 e.releaseDeadline,
                 block.timestamp
             )
@@ -608,9 +608,9 @@ contract NexusPayEscrowTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                NexusPayEscrow.InvalidStatus.selector,
-                NexusPayEscrow.EscrowStatus.RELEASED,
-                NexusPayEscrow.EscrowStatus.DEPOSITED
+                XAgentPayEscrow.InvalidStatus.selector,
+                XAgentPayEscrow.EscrowStatus.RELEASED,
+                XAgentPayEscrow.EscrowStatus.DEPOSITED
             )
         );
         escrow.refund(pid);
@@ -627,13 +627,13 @@ contract NexusPayEscrowTest is Test {
         bytes32 reason = keccak256("item not received");
 
         vm.expectEmit(true, true, false, true);
-        emit NexusPayEscrow.Disputed(pid, payer, reason);
+        emit XAgentPayEscrow.Disputed(pid, payer, reason);
 
         vm.prank(payer);
         escrow.dispute(pid, reason);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DISPUTED);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.DISPUTED);
     }
 
     function test_dispute_revertsAfterWindow() public {
@@ -642,12 +642,12 @@ contract NexusPayEscrowTest is Test {
 
         vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
 
         vm.prank(payer);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NexusPayEscrow.DisputeWindowExpired.selector,
+                XAgentPayEscrow.DisputeWindowExpired.selector,
                 e.disputeDeadline,
                 block.timestamp
             )
@@ -660,7 +660,7 @@ contract NexusPayEscrowTest is Test {
         _depositTraditional(pid);
 
         vm.prank(stranger);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.NotPayer.selector, stranger));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.NotPayer.selector, stranger));
         escrow.dispute(pid, keccak256("not my escrow"));
     }
 
@@ -674,9 +674,9 @@ contract NexusPayEscrowTest is Test {
         vm.prank(payer);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NexusPayEscrow.InvalidStatus.selector,
-                NexusPayEscrow.EscrowStatus.RELEASED,
-                NexusPayEscrow.EscrowStatus.DEPOSITED
+                XAgentPayEscrow.InvalidStatus.selector,
+                XAgentPayEscrow.EscrowStatus.RELEASED,
+                XAgentPayEscrow.EscrowStatus.DEPOSITED
             )
         );
         escrow.dispute(pid, keccak256("too late"));
@@ -699,8 +699,8 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(merchant), AMOUNT);
         assertEq(usdc.balanceOf(payer), usdc.balanceOf(payer)); // no change (already subtracted at deposit)
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RESOLVED_TO_MERCHANT);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.RESOLVED_TO_MERCHANT);
     }
 
     function test_resolve_fullPayer() public {
@@ -718,8 +718,8 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(payer), payerBalAfterDeposit + AMOUNT);
         assertEq(usdc.balanceOf(merchant), 0);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RESOLVED_TO_PAYER);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.RESOLVED_TO_PAYER);
     }
 
     function test_resolve_5050split() public {
@@ -740,8 +740,8 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(merchant), merchantAmount);
         assertEq(usdc.balanceOf(payer), payerBalAfterDeposit + payerAmount);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RESOLVED_SPLIT);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.RESOLVED_SPLIT);
     }
 
     function test_resolve_revertsInvalidBps() public {
@@ -752,7 +752,7 @@ contract NexusPayEscrowTest is Test {
         escrow.dispute(pid, keccak256("reason"));
 
         vm.prank(operator);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.InvalidBps.selector, 10_001));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.InvalidBps.selector, 10_001));
         escrow.resolve(pid, 10_001);
     }
 
@@ -764,7 +764,7 @@ contract NexusPayEscrowTest is Test {
         escrow.dispute(pid, keccak256("reason"));
 
         vm.prank(stranger);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.NotArbiter.selector, stranger));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.NotArbiter.selector, stranger));
         escrow.resolve(pid, 5_000);
     }
 
@@ -773,8 +773,8 @@ contract NexusPayEscrowTest is Test {
     // =======================================================================
 
     function test_getEscrow_returnsNoneForUnknown() public view {
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(keccak256("nonexistent"));
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.NONE);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(keccak256("nonexistent"));
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.NONE);
         assertEq(e.payer, address(0));
     }
 
@@ -822,14 +822,14 @@ contract NexusPayEscrowTest is Test {
         address newArbiter = makeAddr("newArbiter");
 
         vm.expectEmit(true, true, false, false);
-        emit NexusPayEscrow.ArbiterUpdated(operator, newArbiter);
+        emit XAgentPayEscrow.ArbiterUpdated(operator, newArbiter);
 
         escrow.setArbiter(newArbiter);
         assertEq(escrow.arbiter(), newArbiter);
     }
 
     function test_setArbiter_revertsZeroAddress() public {
-        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         escrow.setArbiter(address(0));
     }
 
@@ -837,14 +837,14 @@ contract NexusPayEscrowTest is Test {
         address newOp = makeAddr("newOp");
 
         vm.expectEmit(true, true, false, false);
-        emit NexusPayEscrow.CoreOperatorUpdated(operator, newOp);
+        emit XAgentPayEscrow.CoreOperatorUpdated(operator, newOp);
 
         escrow.setCoreOperator(newOp);
         assertEq(escrow.coreOperator(), newOp);
     }
 
     function test_setCoreOperator_revertsZeroAddress() public {
-        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         escrow.setCoreOperator(address(0));
     }
 
@@ -852,14 +852,14 @@ contract NexusPayEscrowTest is Test {
         uint256 newTimeout = 3600;
 
         vm.expectEmit(false, false, false, true);
-        emit NexusPayEscrow.ReleaseTimeoutUpdated(RELEASE_TIMEOUT, newTimeout);
+        emit XAgentPayEscrow.ReleaseTimeoutUpdated(RELEASE_TIMEOUT, newTimeout);
 
         escrow.setDefaultReleaseTimeout(newTimeout);
         assertEq(escrow.defaultReleaseTimeout(), newTimeout);
     }
 
     function test_setDefaultReleaseTimeout_revertsZero() public {
-        vm.expectRevert(NexusPayEscrow.ZeroTimeout.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroTimeout.selector);
         escrow.setDefaultReleaseTimeout(0);
     }
 
@@ -875,7 +875,7 @@ contract NexusPayEscrowTest is Test {
     }
 
     function test_setProtocolFeeBps_revertsAboveMax() public {
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.FeeTooHigh.selector, 501));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.FeeTooHigh.selector, 501));
         escrow.setProtocolFeeBps(501);
     }
 
@@ -886,7 +886,7 @@ contract NexusPayEscrowTest is Test {
     }
 
     function test_setProtocolFeeRecipient_revertsZero() public {
-        vm.expectRevert(NexusPayEscrow.ZeroAddress.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         escrow.setProtocolFeeRecipient(address(0));
     }
 
@@ -914,8 +914,8 @@ contract NexusPayEscrowTest is Test {
         bytes32 paymentId,
         address _merchant,
         uint256 amount
-    ) internal pure returns (NexusPayEscrow.BatchEntry memory) {
-        return NexusPayEscrow.BatchEntry({
+    ) internal pure returns (XAgentPayEscrow.BatchEntry memory) {
+        return XAgentPayEscrow.BatchEntry({
             paymentId: paymentId,
             merchant: _merchant,
             amount: amount,
@@ -926,7 +926,7 @@ contract NexusPayEscrowTest is Test {
     }
 
     function _batchDepositWithAuth(
-        NexusPayEscrow.BatchEntry[] memory entries,
+        XAgentPayEscrow.BatchEntry[] memory entries,
         uint256 totalAmount
     ) internal {
         bytes32 nonce = keccak256(abi.encodePacked("batch-nonce", totalAmount));
@@ -945,7 +945,7 @@ contract NexusPayEscrowTest is Test {
 
     function test_batchDeposit_singleEntry() public {
         bytes32 pid = _paymentId("batch-single");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         uint256 balBefore = usdc.balanceOf(payer);
@@ -954,11 +954,11 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(payer), balBefore - AMOUNT);
         assertEq(usdc.balanceOf(address(escrow)), AMOUNT);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
         assertEq(e.payer, payer);
         assertEq(e.merchant, merchant);
         assertEq(e.amount, AMOUNT);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
     }
 
     function test_batchDeposit_multipleEntries() public {
@@ -974,7 +974,7 @@ contract NexusPayEscrowTest is Test {
         uint256 amount3 = 20_000_000;  // 20 USDC
         uint256 total = amount1 + amount2 + amount3;
 
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](3);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](3);
         entries[0] = _buildBatchEntry(pid1, merchant, amount1);
         entries[1] = _buildBatchEntry(pid2, merchant2, amount2);
         entries[2] = _buildBatchEntry(pid3, merchant3, amount3);
@@ -987,28 +987,28 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(address(escrow)), total);
 
         // Verify each escrow entry
-        NexusPayEscrow.Escrow memory e1 = escrow.getEscrow(pid1);
+        XAgentPayEscrow.Escrow memory e1 = escrow.getEscrow(pid1);
         assertEq(e1.payer, payer);
         assertEq(e1.merchant, merchant);
         assertEq(e1.amount, amount1);
-        assertTrue(e1.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        assertTrue(e1.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
 
-        NexusPayEscrow.Escrow memory e2 = escrow.getEscrow(pid2);
+        XAgentPayEscrow.Escrow memory e2 = escrow.getEscrow(pid2);
         assertEq(e2.payer, payer);
         assertEq(e2.merchant, merchant2);
         assertEq(e2.amount, amount2);
-        assertTrue(e2.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        assertTrue(e2.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
 
-        NexusPayEscrow.Escrow memory e3 = escrow.getEscrow(pid3);
+        XAgentPayEscrow.Escrow memory e3 = escrow.getEscrow(pid3);
         assertEq(e3.payer, payer);
         assertEq(e3.merchant, merchant3);
         assertEq(e3.amount, amount3);
-        assertTrue(e3.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        assertTrue(e3.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
     }
 
     function test_batchDeposit_emitsBatchEvent() public {
         bytes32 pid = _paymentId("batch-event");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         bytes32 nonce = keccak256(abi.encodePacked("batch-nonce", AMOUNT));
@@ -1019,7 +1019,7 @@ contract NexusPayEscrowTest is Test {
         );
 
         vm.expectEmit(true, false, false, true);
-        emit NexusPayEscrow.BatchDeposited(payer, 1, AMOUNT);
+        emit XAgentPayEscrow.BatchDeposited(payer, 1, AMOUNT);
 
         vm.prank(payer);
         escrow.batchDepositWithAuthorization(
@@ -1035,7 +1035,7 @@ contract NexusPayEscrowTest is Test {
         uint256 amount2 = 40_000_000;
         uint256 total = amount1 + amount2;
 
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](2);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](2);
         entries[0] = _buildBatchEntry(pid1, merchant, amount1);
         entries[1] = _buildBatchEntry(pid2, merchant2, amount2);
 
@@ -1048,11 +1048,11 @@ contract NexusPayEscrowTest is Test {
 
         // Expect per-entry Deposited events
         vm.expectEmit(true, true, true, true);
-        emit NexusPayEscrow.Deposited(pid1, payer, merchant, amount1, ORDER_REF);
+        emit XAgentPayEscrow.Deposited(pid1, payer, merchant, amount1, ORDER_REF);
         vm.expectEmit(true, true, true, true);
-        emit NexusPayEscrow.Deposited(pid2, payer, merchant2, amount2, ORDER_REF);
+        emit XAgentPayEscrow.Deposited(pid2, payer, merchant2, amount2, ORDER_REF);
         vm.expectEmit(true, false, false, true);
-        emit NexusPayEscrow.BatchDeposited(payer, 2, total);
+        emit XAgentPayEscrow.BatchDeposited(payer, 2, total);
 
         vm.prank(payer);
         escrow.batchDepositWithAuthorization(
@@ -1061,10 +1061,10 @@ contract NexusPayEscrowTest is Test {
     }
 
     function test_batchDeposit_revertsEmptyBatch() public {
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](0);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](0);
 
         vm.prank(payer);
-        vm.expectRevert(NexusPayEscrow.EmptyBatch.selector);
+        vm.expectRevert(XAgentPayEscrow.EmptyBatch.selector);
         escrow.batchDepositWithAuthorization(
             entries, 0, 0, block.timestamp + 1 hours, keccak256("n"), 27, bytes32(0), bytes32(0)
         );
@@ -1072,7 +1072,7 @@ contract NexusPayEscrowTest is Test {
 
     function test_batchDeposit_revertsAmountMismatch() public {
         bytes32 pid = _paymentId("batch-mismatch");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         uint256 wrongTotal = AMOUNT + 1;
@@ -1085,7 +1085,7 @@ contract NexusPayEscrowTest is Test {
 
         vm.prank(payer);
         vm.expectRevert(
-            abi.encodeWithSelector(NexusPayEscrow.BatchAmountMismatch.selector, wrongTotal, AMOUNT)
+            abi.encodeWithSelector(XAgentPayEscrow.BatchAmountMismatch.selector, wrongTotal, AMOUNT)
         );
         escrow.batchDepositWithAuthorization(
             entries, wrongTotal, 0, validBefore, nonce, v, r, s
@@ -1094,7 +1094,7 @@ contract NexusPayEscrowTest is Test {
 
     function test_batchDeposit_revertsDuplicatePaymentId() public {
         bytes32 pid = _paymentId("batch-dup-pid");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](2);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](2);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT / 2);
         entries[1] = _buildBatchEntry(pid, makeAddr("merchant2"), AMOUNT / 2); // same paymentId
 
@@ -1106,7 +1106,7 @@ contract NexusPayEscrowTest is Test {
         );
 
         vm.prank(payer);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.EscrowAlreadyExists.selector, pid));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.EscrowAlreadyExists.selector, pid));
         escrow.batchDepositWithAuthorization(
             entries, AMOUNT, 0, validBefore, nonce, v, r, s
         );
@@ -1114,7 +1114,7 @@ contract NexusPayEscrowTest is Test {
 
     function test_batchDeposit_revertsZeroAmountEntry() public {
         bytes32 pid = _paymentId("batch-zero-amt");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, 0);
 
         bytes32 nonce = keccak256("zero-nonce");
@@ -1126,7 +1126,7 @@ contract NexusPayEscrowTest is Test {
         );
 
         vm.prank(payer);
-        vm.expectRevert(NexusPayEscrow.ZeroAmount.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroAmount.selector);
         escrow.batchDepositWithAuthorization(
             entries, 0, 0, validBefore, nonce, v, r, s
         );
@@ -1141,7 +1141,7 @@ contract NexusPayEscrowTest is Test {
         uint256 amount2 = 40_000_000;
         uint256 total = amount1 + amount2;
 
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](2);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](2);
         entries[0] = _buildBatchEntry(pid1, merchant, amount1);
         entries[1] = _buildBatchEntry(pid2, merchant2, amount2);
 
@@ -1157,15 +1157,15 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(merchant), merchantBalBefore + amount1 - fee);
 
         // Second entry still DEPOSITED
-        NexusPayEscrow.Escrow memory e2 = escrow.getEscrow(pid2);
-        assertTrue(e2.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        XAgentPayEscrow.Escrow memory e2 = escrow.getEscrow(pid2);
+        assertTrue(e2.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
     }
 
     function test_batchDeposit_fiveEntries() public {
         uint256 perAmount = 20_000_000; // 20 USDC each
         uint256 total = perAmount * 5;
 
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](5);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](5);
         for (uint256 i = 0; i < 5; i++) {
             entries[i] = _buildBatchEntry(
                 _paymentId(string(abi.encodePacked("batch5-", i))),
@@ -1182,9 +1182,9 @@ contract NexusPayEscrowTest is Test {
 
         // Verify each entry created
         for (uint256 i = 0; i < 5; i++) {
-            NexusPayEscrow.Escrow memory e = escrow.getEscrow(entries[i].paymentId);
+            XAgentPayEscrow.Escrow memory e = escrow.getEscrow(entries[i].paymentId);
             assertEq(e.amount, perAmount);
-            assertTrue(e.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+            assertTrue(e.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
         }
     }
 
@@ -1202,9 +1202,9 @@ contract NexusPayEscrowTest is Test {
         vm.prank(merchant);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NexusPayEscrow.InvalidStatus.selector,
-                NexusPayEscrow.EscrowStatus.REFUNDED,
-                NexusPayEscrow.EscrowStatus.DEPOSITED
+                XAgentPayEscrow.InvalidStatus.selector,
+                XAgentPayEscrow.EscrowStatus.REFUNDED,
+                XAgentPayEscrow.EscrowStatus.DEPOSITED
             )
         );
         escrow.release(pid);
@@ -1220,9 +1220,9 @@ contract NexusPayEscrowTest is Test {
         vm.warp(block.timestamp + RELEASE_TIMEOUT + 1);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NexusPayEscrow.InvalidStatus.selector,
-                NexusPayEscrow.EscrowStatus.RELEASED,
-                NexusPayEscrow.EscrowStatus.DEPOSITED
+                XAgentPayEscrow.InvalidStatus.selector,
+                XAgentPayEscrow.EscrowStatus.RELEASED,
+                XAgentPayEscrow.EscrowStatus.DEPOSITED
             )
         );
         escrow.refund(pid);
@@ -1238,9 +1238,9 @@ contract NexusPayEscrowTest is Test {
         vm.prank(payer);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NexusPayEscrow.InvalidStatus.selector,
-                NexusPayEscrow.EscrowStatus.RELEASED,
-                NexusPayEscrow.EscrowStatus.DEPOSITED
+                XAgentPayEscrow.InvalidStatus.selector,
+                XAgentPayEscrow.EscrowStatus.RELEASED,
+                XAgentPayEscrow.EscrowStatus.DEPOSITED
             )
         );
         escrow.dispute(pid, keccak256("too late"));
@@ -1253,9 +1253,9 @@ contract NexusPayEscrowTest is Test {
         vm.prank(operator);
         vm.expectRevert(
             abi.encodeWithSelector(
-                NexusPayEscrow.InvalidStatus.selector,
-                NexusPayEscrow.EscrowStatus.DEPOSITED,
-                NexusPayEscrow.EscrowStatus.DISPUTED
+                XAgentPayEscrow.InvalidStatus.selector,
+                XAgentPayEscrow.EscrowStatus.DEPOSITED,
+                XAgentPayEscrow.EscrowStatus.DISPUTED
             )
         );
         escrow.resolve(pid, 5_000);
@@ -1273,7 +1273,7 @@ contract NexusPayEscrowTest is Test {
     ) internal view returns (uint8 gv, bytes32 gr, bytes32 gs) {
         bytes32 domainSep = escrow.computeDomainSeparator();
         bytes32 structHash = keccak256(abi.encode(
-            escrow.NEXUS_GROUP_APPROVAL_TYPEHASH(),
+            escrow.XAGENT_GROUP_APPROVAL_TYPEHASH(),
             groupIdBytes32,
             entriesHash,
             totalAmount
@@ -1282,7 +1282,7 @@ contract NexusPayEscrowTest is Test {
         (gv, gr, gs) = vm.sign(signerPk, digest);
     }
 
-    function _computeEntriesHash(NexusPayEscrow.BatchEntry[] memory entries) internal pure returns (bytes32) {
+    function _computeEntriesHash(XAgentPayEscrow.BatchEntry[] memory entries) internal pure returns (bytes32) {
         bytes memory packed;
         for (uint256 i = 0; i < entries.length; i++) {
             packed = bytes.concat(packed, abi.encode(
@@ -1298,7 +1298,7 @@ contract NexusPayEscrowTest is Test {
     }
 
     function _batchDepositWithGroupApproval(
-        NexusPayEscrow.BatchEntry[] memory entries,
+        XAgentPayEscrow.BatchEntry[] memory entries,
         uint256 totalAmount,
         bytes32 groupIdBytes32
     ) internal {
@@ -1327,7 +1327,7 @@ contract NexusPayEscrowTest is Test {
 
     function test_batchDepositWithGroupApproval_single() public {
         bytes32 pid = _paymentId("grp-single");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         bytes32 groupId = keccak256("group-1");
@@ -1338,11 +1338,11 @@ contract NexusPayEscrowTest is Test {
         assertEq(usdc.balanceOf(payer), balBefore - AMOUNT);
         assertEq(usdc.balanceOf(address(escrow)), AMOUNT);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
         assertEq(e.payer, payer);
         assertEq(e.merchant, merchant);
         assertEq(e.amount, AMOUNT);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
     }
 
     function test_batchDepositWithGroupApproval_multi() public {
@@ -1353,7 +1353,7 @@ contract NexusPayEscrowTest is Test {
         uint256 amount2 = 40_000_000;
         uint256 total = amount1 + amount2;
 
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](2);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](2);
         entries[0] = _buildBatchEntry(pid1, merchant, amount1);
         entries[1] = _buildBatchEntry(pid2, merchant2, amount2);
 
@@ -1364,18 +1364,18 @@ contract NexusPayEscrowTest is Test {
 
         assertEq(usdc.balanceOf(payer), balBefore - total);
 
-        NexusPayEscrow.Escrow memory e1 = escrow.getEscrow(pid1);
+        XAgentPayEscrow.Escrow memory e1 = escrow.getEscrow(pid1);
         assertEq(e1.amount, amount1);
-        assertTrue(e1.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        assertTrue(e1.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
 
-        NexusPayEscrow.Escrow memory e2 = escrow.getEscrow(pid2);
+        XAgentPayEscrow.Escrow memory e2 = escrow.getEscrow(pid2);
         assertEq(e2.amount, amount2);
-        assertTrue(e2.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        assertTrue(e2.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
     }
 
     function test_batchDepositWithGroupApproval_invalidSig() public {
         bytes32 pid = _paymentId("grp-bad-sig");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         bytes32 groupId = keccak256("group-bad-sig");
@@ -1390,7 +1390,7 @@ contract NexusPayEscrowTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce);
 
         vm.prank(payer);
-        vm.expectRevert(NexusPayEscrow.InvalidGroupSignature.selector);
+        vm.expectRevert(XAgentPayEscrow.InvalidGroupSignature.selector);
         escrow.batchDepositWithGroupApproval(
             entries, AMOUNT, groupId,
             gv, gr, gs,
@@ -1400,7 +1400,7 @@ contract NexusPayEscrowTest is Test {
 
     function test_batchDepositWithGroupApproval_wrongSigner() public {
         bytes32 pid = _paymentId("grp-wrong-signer");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         bytes32 groupId = keccak256("group-wrong-signer");
@@ -1414,7 +1414,7 @@ contract NexusPayEscrowTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce);
 
         vm.prank(payer);
-        vm.expectRevert(NexusPayEscrow.InvalidGroupSignature.selector);
+        vm.expectRevert(XAgentPayEscrow.InvalidGroupSignature.selector);
         escrow.batchDepositWithGroupApproval(
             entries, AMOUNT, groupId,
             gv, gr, gs,
@@ -1424,7 +1424,7 @@ contract NexusPayEscrowTest is Test {
 
     function test_batchDepositWithGroupApproval_replayProtection() public {
         bytes32 pid1 = _paymentId("grp-replay-1");
-        NexusPayEscrow.BatchEntry[] memory entries1 = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries1 = new XAgentPayEscrow.BatchEntry[](1);
         entries1[0] = _buildBatchEntry(pid1, merchant, AMOUNT);
 
         bytes32 groupId = keccak256("group-replay");
@@ -1433,7 +1433,7 @@ contract NexusPayEscrowTest is Test {
 
         // Try to reuse the same groupId
         bytes32 pid2 = _paymentId("grp-replay-2");
-        NexusPayEscrow.BatchEntry[] memory entries2 = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries2 = new XAgentPayEscrow.BatchEntry[](1);
         entries2[0] = _buildBatchEntry(pid2, merchant, AMOUNT);
 
         bytes32 entriesHash = _computeEntriesHash(entries2);
@@ -1444,7 +1444,7 @@ contract NexusPayEscrowTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce);
 
         vm.prank(payer);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.GroupIdAlreadyUsed.selector, groupId));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.GroupIdAlreadyUsed.selector, groupId));
         escrow.batchDepositWithGroupApproval(
             entries2, AMOUNT, groupId,
             gv, gr, gs,
@@ -1454,7 +1454,7 @@ contract NexusPayEscrowTest is Test {
 
     function test_batchDepositWithGroupApproval_amountMismatch() public {
         bytes32 pid = _paymentId("grp-mismatch");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         bytes32 groupId = keccak256("group-mismatch");
@@ -1469,7 +1469,7 @@ contract NexusPayEscrowTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(payerPk, payer, address(escrow), wrongTotal, 0, validBefore, nonce);
 
         vm.prank(payer);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.BatchAmountMismatch.selector, wrongTotal, AMOUNT));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.BatchAmountMismatch.selector, wrongTotal, AMOUNT));
         escrow.batchDepositWithGroupApproval(
             entries, wrongTotal, groupId,
             gv, gr, gs,
@@ -1478,11 +1478,11 @@ contract NexusPayEscrowTest is Test {
     }
 
     function test_batchDepositWithGroupApproval_emptyBatch() public {
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](0);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](0);
         bytes32 groupId = keccak256("group-empty");
 
         vm.prank(payer);
-        vm.expectRevert(NexusPayEscrow.EmptyBatch.selector);
+        vm.expectRevert(XAgentPayEscrow.EmptyBatch.selector);
         escrow.batchDepositWithGroupApproval(
             entries, 0, groupId,
             27, bytes32(0), bytes32(0),
@@ -1491,7 +1491,7 @@ contract NexusPayEscrowTest is Test {
     }
 
     function test_batchDepositWithGroupApproval_batchTooLarge() public {
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](21);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](21);
         for (uint256 i = 0; i < 21; i++) {
             entries[i] = _buildBatchEntry(
                 _paymentId(string(abi.encodePacked("grp-large-", i))),
@@ -1503,7 +1503,7 @@ contract NexusPayEscrowTest is Test {
         bytes32 groupId = keccak256("group-large");
 
         vm.prank(payer);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.BatchTooLarge.selector, 21));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.BatchTooLarge.selector, 21));
         escrow.batchDepositWithGroupApproval(
             entries, 21_000_000, groupId,
             27, bytes32(0), bytes32(0),
@@ -1526,11 +1526,11 @@ contract NexusPayEscrowTest is Test {
         escrow.setRequireGroupSig(true);
 
         bytes32 pid = _paymentId("grp-blocked");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         vm.prank(payer);
-        vm.expectRevert(NexusPayEscrow.GroupSignatureRequired.selector);
+        vm.expectRevert(XAgentPayEscrow.GroupSignatureRequired.selector);
         escrow.batchDepositWithAuthorization(
             entries, AMOUNT, 0, block.timestamp + 1 hours, keccak256("n"), 27, bytes32(0), bytes32(0)
         );
@@ -1540,14 +1540,14 @@ contract NexusPayEscrowTest is Test {
         escrow.setRequireGroupSig(true);
 
         bytes32 pid = _paymentId("grp-allowed");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         bytes32 groupId = keccak256("group-allowed");
         _batchDepositWithGroupApproval(entries, AMOUNT, groupId);
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.DEPOSITED);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.DEPOSITED);
     }
 
     function test_setRequireGroupSig_onlyOwner() public {
@@ -1562,7 +1562,7 @@ contract NexusPayEscrowTest is Test {
         assertFalse(escrow.isGroupIdUsed(groupId));
 
         bytes32 pid = _paymentId("grp-used-check");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         _batchDepositWithGroupApproval(entries, AMOUNT, groupId);
@@ -1572,7 +1572,7 @@ contract NexusPayEscrowTest is Test {
 
     function test_groupApproval_events() public {
         bytes32 pid = _paymentId("grp-events");
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
 
         bytes32 groupId = keccak256("group-events");
@@ -1584,11 +1584,11 @@ contract NexusPayEscrowTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = _signTransferAuth(payerPk, payer, address(escrow), AMOUNT, 0, validBefore, nonce);
 
         vm.expectEmit(true, true, true, true);
-        emit NexusPayEscrow.Deposited(pid, payer, merchant, AMOUNT, ORDER_REF);
+        emit XAgentPayEscrow.Deposited(pid, payer, merchant, AMOUNT, ORDER_REF);
         vm.expectEmit(true, false, false, true);
-        emit NexusPayEscrow.BatchDeposited(payer, 1, AMOUNT);
+        emit XAgentPayEscrow.BatchDeposited(payer, 1, AMOUNT);
         vm.expectEmit(true, true, false, false);
-        emit NexusPayEscrow.GroupSigVerified(groupId, operator);
+        emit XAgentPayEscrow.GroupSigVerified(groupId, operator);
 
         vm.prank(payer);
         escrow.batchDepositWithGroupApproval(
@@ -1609,7 +1609,7 @@ contract NexusPayEscrowTest is Test {
         vm.prank(payer);
         escrow.dispute(pid, keccak256("reason"));
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
 
         // Warp past disputeDeadline + arbitrationTimeout
         vm.warp(e.disputeDeadline + ARBITRATION_TIMEOUT + 1);
@@ -1620,8 +1620,8 @@ contract NexusPayEscrowTest is Test {
 
         assertEq(usdc.balanceOf(payer), payerBalBefore + AMOUNT);
 
-        NexusPayEscrow.Escrow memory eAfter = escrow.getEscrow(pid);
-        assertTrue(eAfter.status == NexusPayEscrow.EscrowStatus.RESOLVED_TO_PAYER);
+        XAgentPayEscrow.Escrow memory eAfter = escrow.getEscrow(pid);
+        assertTrue(eAfter.status == XAgentPayEscrow.EscrowStatus.RESOLVED_TO_PAYER);
     }
 
     function test_refundUnresolvedDispute_tooEarly() public {
@@ -1631,14 +1631,14 @@ contract NexusPayEscrowTest is Test {
         vm.prank(payer);
         escrow.dispute(pid, keccak256("reason"));
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
 
         // Warp but not past the full timeout
         vm.warp(e.disputeDeadline + ARBITRATION_TIMEOUT - 1);
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                NexusPayEscrow.ArbitrationTimeoutNotReached.selector,
+                XAgentPayEscrow.ArbitrationTimeoutNotReached.selector,
                 e.disputeDeadline + ARBITRATION_TIMEOUT,
                 block.timestamp
             )
@@ -1652,9 +1652,9 @@ contract NexusPayEscrowTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                NexusPayEscrow.InvalidStatus.selector,
-                NexusPayEscrow.EscrowStatus.DEPOSITED,
-                NexusPayEscrow.EscrowStatus.DISPUTED
+                XAgentPayEscrow.InvalidStatus.selector,
+                XAgentPayEscrow.EscrowStatus.DEPOSITED,
+                XAgentPayEscrow.EscrowStatus.DISPUTED
             )
         );
         escrow.refundUnresolvedDispute(pid);
@@ -1663,14 +1663,14 @@ contract NexusPayEscrowTest is Test {
     function test_setArbitrationTimeout() public {
         uint256 newTimeout = 1_209_600; // 14 days
         vm.expectEmit(false, false, false, true);
-        emit NexusPayEscrow.ArbitrationTimeoutUpdated(ARBITRATION_TIMEOUT, newTimeout);
+        emit XAgentPayEscrow.ArbitrationTimeoutUpdated(ARBITRATION_TIMEOUT, newTimeout);
 
         escrow.setArbitrationTimeout(newTimeout);
         assertEq(escrow.arbitrationTimeout(), newTimeout);
     }
 
     function test_setArbitrationTimeout_revertsZero() public {
-        vm.expectRevert(NexusPayEscrow.ZeroTimeout.selector);
+        vm.expectRevert(XAgentPayEscrow.ZeroTimeout.selector);
         escrow.setArbitrationTimeout(0);
     }
 
@@ -1679,7 +1679,7 @@ contract NexusPayEscrowTest is Test {
     // =======================================================================
 
     function test_batchTooLarge() public {
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](21);
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](21);
         for (uint256 i = 0; i < 21; i++) {
             entries[i] = _buildBatchEntry(
                 _paymentId(string(abi.encodePacked("large-", i))),
@@ -1689,7 +1689,7 @@ contract NexusPayEscrowTest is Test {
         }
 
         vm.prank(payer);
-        vm.expectRevert(abi.encodeWithSelector(NexusPayEscrow.BatchTooLarge.selector, 21));
+        vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.BatchTooLarge.selector, 21));
         escrow.batchDepositWithAuthorization(
             entries, 21_000_000, 0, block.timestamp + 1 hours, keccak256("n"), 27, bytes32(0), bytes32(0)
         );
@@ -1709,8 +1709,8 @@ contract NexusPayEscrowTest is Test {
         vm.prank(operator);
         escrow.resolve(pid, 7_000); // 70% merchant, 30% payer
 
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
-        assertTrue(e.status == NexusPayEscrow.EscrowStatus.RESOLVED_SPLIT);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        assertTrue(e.status == XAgentPayEscrow.EscrowStatus.RESOLVED_SPLIT);
     }
 
     // =======================================================================
@@ -1722,7 +1722,7 @@ contract NexusPayEscrowTest is Test {
         _depositTraditional(pid);
 
         // Verify feeBps was snapshotted
-        NexusPayEscrow.Escrow memory e = escrow.getEscrow(pid);
+        XAgentPayEscrow.Escrow memory e = escrow.getEscrow(pid);
         assertEq(e.feeBps, FEE_BPS);
 
         // Change the protocol fee
@@ -1766,8 +1766,8 @@ contract NexusPayEscrowTest is Test {
 
     function test_entriesHash_crossLanguage() public pure {
         // Fixed input: single entry
-        NexusPayEscrow.BatchEntry[] memory entries = new NexusPayEscrow.BatchEntry[](1);
-        entries[0] = NexusPayEscrow.BatchEntry({
+        XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
+        entries[0] = XAgentPayEscrow.BatchEntry({
             paymentId: bytes32(uint256(0x01)),
             merchant: address(0x1234567890123456789012345678901234567890),
             amount: 100_000_000,

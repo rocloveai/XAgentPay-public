@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# deploy-escrow.sh — Deploy NexusPayEscrow to PlatON devnet via Foundry.
+# deploy-escrow.sh — Deploy XAgentPayEscrow to PlatON devnet via Foundry.
 #
 # Steps:
 #   1. Ensure forge is installed (install via foundryup if missing)
@@ -15,7 +15,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CONTRACTS_DIR="$PROJECT_ROOT/src/contracts"
-NEXUS_CORE_DIR="$PROJECT_ROOT/src/xagent-core"
+XAGENT_CORE_DIR="$PROJECT_ROOT/src/xagent-core"
 
 # ── Colors ──
 RED='\033[0;31m'
@@ -63,19 +63,19 @@ fi
 # ── Step 3: Validate required variables ──
 [ -n "${DEPLOYER_PRIVATE_KEY:-}" ] || error "DEPLOYER_PRIVATE_KEY is required"
 [ -n "${FEE_RECIPIENT:-}" ]        || error "FEE_RECIPIENT is required"
-[ -n "${NEXUS_OPERATOR:-}" ]       || error "NEXUS_OPERATOR is required"
+[ -n "${XAGENT_OPERATOR:-}" ]       || error "XAGENT_OPERATOR is required"
 
 RPC_URL="${RPC_URL:-https://devnet3openapi.platon.network/rpc}"
 log "RPC_URL: $RPC_URL"
 log "FEE_RECIPIENT: $FEE_RECIPIENT"
-log "NEXUS_OPERATOR: $NEXUS_OPERATOR"
+log "XAGENT_OPERATOR: $XAGENT_OPERATOR"
 
 # ── Step 4: Build & deploy ──
 cd "$CONTRACTS_DIR"
 log "Building contracts..."
 forge build
 
-log "Deploying NexusPayEscrow..."
+log "Deploying XAgentPayEscrow..."
 DEPLOY_OUTPUT=$(forge script script/Deploy.s.sol:Deploy \
   --rpc-url "$RPC_URL" \
   --broadcast \
@@ -88,7 +88,7 @@ DEPLOY_OUTPUT=$(forge script script/Deploy.s.sol:Deploy \
 echo "$DEPLOY_OUTPUT"
 
 # ── Step 5: Extract contract address ──
-# Look for "NexusPayEscrow deployed at: 0x..." in the output
+# Look for "XAgentPayEscrow deployed at: 0x..." in the output
 CONTRACT_ADDRESS=$(echo "$DEPLOY_OUTPUT" | sed -n 's/.*deployed at: \(0x[0-9a-fA-F]\{40\}\).*/\1/p' | head -1)
 
 if [ -z "$CONTRACT_ADDRESS" ]; then
@@ -98,28 +98,28 @@ fi
 
 if [ -z "$CONTRACT_ADDRESS" ]; then
   warn "Could not auto-extract contract address from output"
-  warn "Please manually set ESCROW_CONTRACT in $NEXUS_CORE_DIR/.env"
+  warn "Please manually set ESCROW_CONTRACT in $XAGENT_CORE_DIR/.env"
   exit 0
 fi
 
 log "Deployed contract: $CONTRACT_ADDRESS"
 
 # ── Step 6: Write to xagent-core .env ──
-NEXUS_ENV="$NEXUS_CORE_DIR/.env"
+XAGENT_ENV="$XAGENT_CORE_DIR/.env"
 
-if [ -f "$NEXUS_ENV" ]; then
+if [ -f "$XAGENT_ENV" ]; then
   # Update existing ESCROW_CONTRACT or append
-  if grep -q '^ESCROW_CONTRACT=' "$NEXUS_ENV"; then
-    sed -i.bak "s|^ESCROW_CONTRACT=.*|ESCROW_CONTRACT=$CONTRACT_ADDRESS|" "$NEXUS_ENV"
-    rm -f "$NEXUS_ENV.bak"
-    log "Updated ESCROW_CONTRACT in $NEXUS_ENV"
+  if grep -q '^ESCROW_CONTRACT=' "$XAGENT_ENV"; then
+    sed -i.bak "s|^ESCROW_CONTRACT=.*|ESCROW_CONTRACT=$CONTRACT_ADDRESS|" "$XAGENT_ENV"
+    rm -f "$XAGENT_ENV.bak"
+    log "Updated ESCROW_CONTRACT in $XAGENT_ENV"
   else
-    echo "ESCROW_CONTRACT=$CONTRACT_ADDRESS" >> "$NEXUS_ENV"
-    log "Appended ESCROW_CONTRACT to $NEXUS_ENV"
+    echo "ESCROW_CONTRACT=$CONTRACT_ADDRESS" >> "$XAGENT_ENV"
+    log "Appended ESCROW_CONTRACT to $XAGENT_ENV"
   fi
 else
-  echo "ESCROW_CONTRACT=$CONTRACT_ADDRESS" > "$NEXUS_ENV"
-  log "Created $NEXUS_ENV with ESCROW_CONTRACT"
+  echo "ESCROW_CONTRACT=$CONTRACT_ADDRESS" > "$XAGENT_ENV"
+  log "Created $XAGENT_ENV with ESCROW_CONTRACT"
 fi
 
 log "Deployment complete!"

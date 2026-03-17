@@ -78,8 +78,8 @@ async function run(): Promise<void> {
   await execStatements(loadSql("migrations/002_add_payer_wallet.sql"));
   console.log("  002_add_payer_wallet.sql applied");
 
-  await execStatements(loadSql("migrations/003_nexus_core_schema.sql"));
-  console.log("  003_nexus_core_schema.sql applied");
+  await execStatements(loadSql("migrations/003_xagent_core_schema.sql"));
+  console.log("  003_xagent_core_schema.sql applied");
 
   await execStatements(loadSql("migrations/004_escrow_fields.sql"));
   console.log("  004_escrow_fields.sql applied");

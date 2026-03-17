@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * xNexus Core — MCP Server.
+ * XAgent Core — MCP Server.
  *
  * Exposes payment orchestration as MCP tools.
  * Dual transport: stdio (default) + Streamable HTTP (stateless).
@@ -18,7 +18,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  loadNexusCoreConfig,
+  loadXAgentCoreConfig,
   validateConfig,
   type TransportMode,
 } from "./config.js";
@@ -29,16 +29,16 @@ import { NeonEventRepository } from "./db/event-repo.js";
 import { NeonGroupRepository } from "./db/group-repo.js";
 import { NeonWebhookRepository } from "./db/webhook-repo.js";
 import { NeonKVRepository } from "./db/kv-repo.js";
-import { NexusOrchestrator } from "./services/orchestrator.js";
+import { XAgentOrchestrator } from "./services/orchestrator.js";
 import { PaymentStateMachine } from "./services/state-machine.js";
 import { GroupManager } from "./services/group-manager.js";
-import { NexusRelayer } from "./services/relayer.js";
+import { XAgentRelayer } from "./services/relayer.js";
 import { ChainWatcher } from "./services/chain-watcher.js";
 import { TimeoutHandler } from "./services/timeout-handler.js";
 import { WebhookNotifier } from "./services/webhook-notifier.js";
 import { keccak256, toHex, encodeFunctionData, formatUnits } from "viem";
 import { XAGENT_PAY_ESCROW_ABI } from "./abi/xagent-pay-escrow.js";
-import type { NexusQuotePayload, Hex } from "./types.js";
+import type { XAgentQuotePayload, Hex } from "./types.js";
 import { handlePortalRequest, type PortalDeps } from "./portal.js";
 import { handleCheckoutRequest, type CheckoutDeps } from "./checkout.js";
 import { handleMarketRequest, startHealthChecker, type MarketDeps } from "./market.js";
@@ -51,7 +51,7 @@ import { normalizeQuotes } from "./normalize-quotes.js";
 import { createLogger } from "./logger.js";
 import { handleRestApiRequest, type RestApiDeps } from "./rest-api.js";
 
-const serverLog = createLogger("NexusCore");
+const serverLog = createLogger("XAgentCore");
 
 // ---------------------------------------------------------------------------
 // Debug ring buffer — keeps last N orchestration errors for diagnostics
@@ -67,14 +67,14 @@ interface DebugEntry {
 const DEBUG_RING_SIZE = 20;
 const debugErrors: DebugEntry[] = [];
 
-const config = loadNexusCoreConfig();
+const config = loadXAgentCoreConfig();
 const transportMode = (process.env.TRANSPORT ?? "stdio") as TransportMode;
 
 // Fail-fast: validate config
 const configErrors = validateConfig(config, transportMode);
 if (configErrors.length > 0) {
   for (const err of configErrors) {
-    console.error(`[NexusCore] Config error: ${err.field} — ${err.message}`);
+    console.error(`[XAgentCore] Config error: ${err.field} — ${err.message}`);
   }
   process.exit(1);
 }
@@ -135,7 +135,7 @@ const webhookNotifier = new WebhookNotifier(webhookRepo, merchantRepo);
 const kvRepo = config.databaseUrl ? new NeonKVRepository() : null;
 
 // Orchestrator
-const orchestrator = new NexusOrchestrator(
+const orchestrator = new XAgentOrchestrator(
   merchantRepo,
   paymentRepo,
   eventRepo,
@@ -145,12 +145,12 @@ const orchestrator = new NexusOrchestrator(
 );
 
 // Relayer (only if private key configured)
-let relayer: NexusRelayer | null = null;
+let relayer: XAgentRelayer | null = null;
 let watcher: ChainWatcher | null = null;
 let timeoutHandler: TimeoutHandler | null = null;
 
 if (config.relayerPrivateKey) {
-  relayer = new NexusRelayer(config);
+  relayer = new XAgentRelayer(config);
   watcher = new ChainWatcher(
     config,
     paymentRepo,
@@ -174,7 +174,7 @@ if (config.relayerPrivateKey) {
 // MCP Server
 // ---------------------------------------------------------------------------
 
-const NEXUS_CORE_VERSION = "0.5.0";
+const XAGENT_CORE_VERSION = "0.5.0";
 
 // Read skill.md files from disk (fallback to hardcoded string)
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -183,7 +183,7 @@ try {
   skillMdContent = readFileSync(join(__dirname, "..", "skill.md"), "utf-8");
 } catch {
   skillMdContent =
-    "# Nexus Core\n\nPayment orchestration MCP server. Use xagent_orchestrate_payment tool.";
+    "# XAgent Core\n\nPayment orchestration MCP server. Use xagent_orchestrate_payment tool.";
 }
 
 // Simplified user-agent-facing skill.md (returned in merchant 402 responses)
@@ -231,10 +231,10 @@ try {
 // McpServer factory — one instance per SSE connection (or one for stdio)
 // ---------------------------------------------------------------------------
 
-function createNexusCoreServer(): McpServer {
+function createXAgentCoreServer(): McpServer {
   const srv = new McpServer({
     name: "xagent-core",
-    version: NEXUS_CORE_VERSION,
+    version: XAGENT_CORE_VERSION,
   });
 
   // Tool: xagent_orchestrate_payment
@@ -246,7 +246,7 @@ function createNexusCoreServer(): McpServer {
         .array(z.record(z.unknown()))
         .optional()
         .describe(
-          "Array of NexusQuotePayload objects. Optional if quotes_json is provided.",
+          "Array of XAgentQuotePayload objects. Optional if quotes_json is provided.",
         ),
       quotes_json: z
         .string()
@@ -337,7 +337,7 @@ function createNexusCoreServer(): McpServer {
 
         const normalized = normalizeQuotes(rawQuotes);
         const result = await orchestrator.orchestratePayment({
-          quotes: normalized as NexusQuotePayload[],
+          quotes: normalized as XAgentQuotePayload[],
           payerWallet: payer_wallet,
         });
 
@@ -448,7 +448,7 @@ function createNexusCoreServer(): McpServer {
     "xagent_get_payment_status",
     "Check payment status by xagent_payment_id, merchant_order_ref, or group_id.",
     {
-      xagent_payment_id: z.string().optional().describe("Nexus payment ID"),
+      xagent_payment_id: z.string().optional().describe("XAgent payment ID"),
       merchant_order_ref: z
         .string()
         .optional()
@@ -510,7 +510,7 @@ function createNexusCoreServer(): McpServer {
     },
   );
 
-  // Tool: xagent_confirm_deposit (replaces nexus_submit_eip3009_signature)
+  // Tool: xagent_confirm_deposit (replaces xagent_submit_eip3009_signature)
   // Deposit is now submitted directly by the user via MetaMask.
   // This tool allows User Agent to confirm a tx hash after user submits.
   srv.tool(
@@ -578,7 +578,7 @@ function createNexusCoreServer(): McpServer {
     "xagent_release_payment",
     "Release escrowed funds to the merchant. Called by merchant agent after fulfillment.",
     {
-      payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+      payment_id: z.string().describe("XAgent payment ID (PAY-...)"),
     },
     async ({ payment_id }) => {
       try {
@@ -653,7 +653,7 @@ function createNexusCoreServer(): McpServer {
     "xagent_dispute_payment",
     "Open a dispute for an escrowed payment. Returns calldata for the payer to submit on-chain (only payer can call dispute on the contract).",
     {
-      payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+      payment_id: z.string().describe("XAgent payment ID (PAY-...)"),
       reason: z
         .string()
         .max(256)
@@ -763,7 +763,7 @@ function createNexusCoreServer(): McpServer {
     "xagent_resolve_dispute",
     "Resolve a disputed payment by splitting funds between merchant and payer. Only callable when payment is DISPUTE_OPEN.",
     {
-      payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+      payment_id: z.string().describe("XAgent payment ID (PAY-...)"),
       merchant_bps: z
         .number()
         .int()
@@ -874,7 +874,7 @@ function createNexusCoreServer(): McpServer {
     "xagent_confirm_fulfillment",
     "Confirm fulfillment of a payment. If ESCROWED, submits release to escrow contract (async — call again after SETTLED). If SETTLED, transitions to COMPLETED. Two-step process: ESCROWED→release→SETTLED, then call again for SETTLED→COMPLETED.",
     {
-      payment_id: z.string().describe("Nexus payment ID (PAY-...)"),
+      payment_id: z.string().describe("XAgent payment ID (PAY-...)"),
       fulfillment_proof: z
         .string()
         .optional()
@@ -998,7 +998,7 @@ function createNexusCoreServer(): McpServer {
   // Tool: discover_agents
   srv.tool(
     "discover_agents",
-    "Search and discover merchant agents in the Nexus marketplace. Returns agents ranked by stars, filterable by keyword and category.",
+    "Search and discover merchant agents in the XAgent marketplace. Returns agents ranked by stars, filterable by keyword and category.",
     {
       query: z
         .string()
@@ -1029,7 +1029,7 @@ function createNexusCoreServer(): McpServer {
     {
       merchant_did: z
         .string()
-        .describe("Merchant DID (e.g. 'did:nexus:20250407:demo_flight')"),
+        .describe("Merchant DID (e.g. 'did:xagent:20250407:demo_flight')"),
     },
     async (input) => {
       const result = await handleGetAgentSkill(merchantRepo, input);
@@ -1097,7 +1097,7 @@ async function main(): Promise<void> {
             const transport = new StreamableHTTPServerTransport({
               sessionIdGenerator: undefined,
             });
-            const mcpServer = createNexusCoreServer();
+            const mcpServer = createXAgentCoreServer();
             await mcpServer.connect(transport);
             await transport.handleRequest(req, res);
             // Transport is stateless — clean up after request
@@ -1148,7 +1148,7 @@ async function main(): Promise<void> {
 
               const normalized = normalizeQuotes(rawQuotes);
               const result = await orchestrator.orchestratePayment({
-                quotes: normalized as NexusQuotePayload[],
+                quotes: normalized as XAgentQuotePayload[],
                 payerWallet,
               });
 
@@ -1503,7 +1503,7 @@ async function main(): Promise<void> {
               JSON.stringify({
                 http_status: 200,
                 status: "ok",
-                version: NEXUS_CORE_VERSION,
+                version: XAGENT_CORE_VERSION,
                 transport: "streamable-http",
               }),
             );
@@ -1537,7 +1537,7 @@ async function main(): Promise<void> {
               JSON.stringify({
                 http_status: 200,
                 status: "ok",
-                version: NEXUS_CORE_VERSION,
+                version: XAGENT_CORE_VERSION,
                 transport: "streamable-http",
                 services: {
                   chain_watcher: watcher ? "running" : "disabled",
@@ -1604,7 +1604,7 @@ async function main(): Promise<void> {
             relayer,
             escrowContract: config.escrowContract,
             chainId: config.chainId,
-            version: NEXUS_CORE_VERSION,
+            version: XAGENT_CORE_VERSION,
             portalToken: config.portalToken,
           };
           const handled = await handlePortalRequest(portalDeps, req, res, url);
@@ -1645,7 +1645,7 @@ async function main(): Promise<void> {
       startHealthChecker({ merchantRepo, starRepo, config });
     });
   } else {
-    const mcpServer = createNexusCoreServer();
+    const mcpServer = createXAgentCoreServer();
     const transport = new StdioServerTransport();
     await mcpServer.connect(transport);
     serverLog.info("Connected via stdio transport");

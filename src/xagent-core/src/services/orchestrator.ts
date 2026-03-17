@@ -1,5 +1,5 @@
 /**
- * xNexus Core — Orchestrator.
+ * XAgent Core — Orchestrator.
  *
  * Top-level payment orchestration pipeline:
  * 1. Verify signatures + DID resolution
@@ -9,7 +9,7 @@
  * 5. Build aggregated escrow instruction
  */
 import type {
-  NexusQuotePayload,
+  XAgentQuotePayload,
   MerchantRecord,
   PaymentRecord,
   PaymentGroupRecord,
@@ -23,7 +23,7 @@ import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
 import type { EventRepository } from "../db/interfaces/event-repo.js";
 import type { GroupRepository } from "../db/interfaces/group-repo.js";
 import type { KVRepository } from "../db/interfaces/kv-repo.js";
-import type { NexusCoreConfig } from "../config.js";
+import type { XAgentCoreConfig } from "../config.js";
 import { randomBytes } from "node:crypto";
 import {
   verifyQuoteSignature,
@@ -40,11 +40,11 @@ import {
   buildACPJobInstruction,
 } from "./instruction-builder.js";
 import { signGroup } from "./group-signer.js";
-import { NexusError } from "../errors.js";
+import { XAgentError } from "../errors.js";
 import { keccak256, toHex } from "viem";
 
 export interface OrchestrateInput {
-  readonly quotes: readonly NexusQuotePayload[];
+  readonly quotes: readonly XAgentQuotePayload[];
   readonly payerWallet: string;
 }
 
@@ -63,7 +63,7 @@ export interface PaymentStatusResult {
   readonly groupPayments: readonly PaymentRecord[];
 }
 
-export class NexusOrchestrator {
+export class XAgentOrchestrator {
   private readonly groupManager: GroupManager;
 
   constructor(
@@ -72,7 +72,7 @@ export class NexusOrchestrator {
     private readonly eventRepo: EventRepository,
     private readonly groupRepo: GroupRepository,
     private readonly kvRepo: KVRepository | null,
-    private readonly config: NexusCoreConfig,
+    private readonly config: XAgentCoreConfig,
   ) {
     this.groupManager = new GroupManager(groupRepo, paymentRepo, eventRepo);
   }
@@ -83,7 +83,7 @@ export class NexusOrchestrator {
     const { quotes, payerWallet } = input;
 
     if (quotes.length === 0) {
-      throw new NexusError("EMPTY_QUOTES", "At least one quote is required");
+      throw new XAgentError("EMPTY_QUOTES", "At least one quote is required");
     }
 
     // Phase 1: Validate all quotes in parallel
@@ -224,7 +224,7 @@ export class NexusOrchestrator {
     group: PaymentGroupRecord,
     payments: readonly PaymentRecord[],
     merchants: readonly MerchantRecord[],
-    quotes: readonly NexusQuotePayload[],
+    quotes: readonly XAgentQuotePayload[],
   ): Promise<OrchestrateResult> {
     const acpInstruction = buildACPJobInstruction(
       group,

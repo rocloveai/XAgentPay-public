@@ -106,7 +106,7 @@
 **Type:** Functional
 
 **Steps:**
-1. Call `get_agent_skill` with `merchant_did: "did:nexus:20250407:demo_flight"`
+1. Call `get_agent_skill` with `merchant_did: "did:xagent:20250407:demo_flight"`
 
 **Expected:**
 - Returns full skill.md markdown content
@@ -120,7 +120,7 @@
 **Type:** Functional
 
 **Steps:**
-1. `GET /api/agents/did:nexus:20250407:demo_flight/skill`
+1. `GET /api/agents/did:xagent:20250407:demo_flight/skill`
 
 **Expected:**
 - HTTP 200
@@ -153,7 +153,7 @@
 1. `POST /api/market/register` with Bearer token and body:
    ```json
    {
-     "merchant_did": "did:nexus:20250407:test_agent",
+     "merchant_did": "did:xagent:20250407:test_agent",
      "name": "Test Agent",
      "description": "Test description",
      "category": "travel.test",

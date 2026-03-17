@@ -6,13 +6,13 @@ services:
     image: postgres:16-alpine
     restart: always
     environment:
-      POSTGRES_DB: nexuspay
-      POSTGRES_USER: nexuspay
+      POSTGRES_DB: xagentpay
+      POSTGRES_USER: xagentpay
       POSTGRES_PASSWORD: ${DB_PASSWORD:-REDACTED_DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nexuspay"]
+      test: ["CMD-SHELL", "pg_isready -U xagentpay"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,7 +31,7 @@ services:
     environment:
       TRANSPORT: http
       PORT: "10000"
-      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay?sslmode=disable
+      DATABASE_URL: postgresql://xagentpay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/xagentpay?sslmode=disable
       RELAYER_PRIVATE_KEY: ${RELAYER_PRIVATE_KEY}
       ESCROW_CONTRACT: "0x959028964e8a4e52d6AC716E621B68b3fa579A25"
       RPC_URL: "https://rpc.xlayer.tech"
@@ -59,13 +59,13 @@ services:
       TRANSPORT: http
       PORTAL_PORT: "10000"
       PORTAL_HOST: "0.0.0.0"
-      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay?sslmode=disable
+      DATABASE_URL: postgresql://xagentpay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/xagentpay?sslmode=disable
       DUFFEL_API_TOKEN: ${DUFFEL_API_TOKEN}
       MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_FLIGHT}
       MERCHANT_PAYMENT_ADDRESS: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
-      MERCHANT_DID: "did:nexus:20250407:demo_flight"
-      NEXUS_CORE_URL: "http://xagent-core:10000"
-      NEXUS_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
+      MERCHANT_DID: "did:xagent:20250407:demo_flight"
+      XAGENT_CORE_URL: "http://xagent-core:10000"
+      XAGENT_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
       PORTAL_BASE_URL: "https://xagenpay.com/flight"
 
   # ── Hotel Agent ──
@@ -83,14 +83,14 @@ services:
       TRANSPORT: http
       PORTAL_PORT: "10000"
       PORTAL_HOST: "0.0.0.0"
-      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay?sslmode=disable
+      DATABASE_URL: postgresql://xagentpay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/xagentpay?sslmode=disable
       AMADEUS_API_KEY: ${AMADEUS_API_KEY}
       AMADEUS_API_SECRET: ${AMADEUS_API_SECRET}
       MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_HOTEL}
       MERCHANT_PAYMENT_ADDRESS: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
-      MERCHANT_DID: "did:nexus:20250407:demo_hotel"
-      NEXUS_CORE_URL: "http://xagent-core:10000"
-      NEXUS_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
+      MERCHANT_DID: "did:xagent:20250407:demo_hotel"
+      XAGENT_CORE_URL: "http://xagent-core:10000"
+      XAGENT_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
       PORTAL_BASE_URL: "https://xagenpay.com/hotel"
 
   # ── eSIM Agent ──
@@ -108,12 +108,12 @@ services:
       TRANSPORT: http
       PORTAL_PORT: "10000"
       PORTAL_HOST: "0.0.0.0"
-      DATABASE_URL: postgresql://nexuspay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/nexuspay?sslmode=disable
+      DATABASE_URL: postgresql://xagentpay:${DB_PASSWORD:-REDACTED_DB_PASSWORD}@postgres:5432/xagentpay?sslmode=disable
       MERCHANT_SIGNER_PRIVATE_KEY: ${MERCHANT_SIGNER_PRIVATE_KEY_ESIM}
       MERCHANT_PAYMENT_ADDRESS: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
-      MERCHANT_DID: "did:nexus:196:demo_esim"
-      NEXUS_CORE_URL: "http://xagent-core:10000"
-      NEXUS_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
+      MERCHANT_DID: "did:xagent:196:demo_esim"
+      XAGENT_CORE_URL: "http://xagent-core:10000"
+      XAGENT_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
       PORTAL_BASE_URL: "https://xagenpay.com/esim"
 
   # ── Telegram Bot ──
@@ -126,7 +126,7 @@ services:
       - "127.0.0.1:10003:10000"
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      NEXUS_CORE_URL: "http://xagent-core:10000"
+      XAGENT_CORE_URL: "http://xagent-core:10000"
       PORT: "10000"
       BASE_URL: "https://xagenpay.com/tg-bot"
 

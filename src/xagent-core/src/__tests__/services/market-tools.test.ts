@@ -10,7 +10,7 @@ import type { MerchantRecord } from "../../types.js";
 function makeMerchant(overrides?: Partial<MerchantRecord>): MerchantRecord {
   const now = new Date().toISOString();
   return {
-    merchant_did: "did:nexus:20250407:test",
+    merchant_did: "did:xagent:20250407:test",
     name: "Test Agent",
     description: "A test agent for flights",
     signer_address: "0x1234567890abcdef1234567890abcdef12345678",
@@ -166,14 +166,14 @@ describe("market-tools", () => {
 
   describe("handleGetAgentSkill", () => {
     it("returns skill.md content with header", async () => {
-      merchantRepo.seed(makeMerchant({ merchant_did: "did:nexus:test" }));
+      merchantRepo.seed(makeMerchant({ merchant_did: "did:xagent:test" }));
       const skillContent = "---\nname: test\n---\n# My Skill\nHello world";
       vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
         new Response(skillContent, { status: 200 }),
       );
 
       const result = await handleGetAgentSkill(merchantRepo, {
-        merchant_did: "did:nexus:test",
+        merchant_did: "did:xagent:test",
       });
       expect(result.isError).toBeUndefined();
       expect(result.content[0].text).toContain("# Test Agent");
@@ -182,7 +182,7 @@ describe("market-tools", () => {
 
     it("returns error when merchant not found", async () => {
       const result = await handleGetAgentSkill(merchantRepo, {
-        merchant_did: "did:nexus:nope",
+        merchant_did: "did:xagent:nope",
       });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain("Agent not found");
@@ -190,37 +190,37 @@ describe("market-tools", () => {
 
     it("returns error when no skill_md_url", async () => {
       merchantRepo.seed(
-        makeMerchant({ merchant_did: "did:nexus:noskill", skill_md_url: null }),
+        makeMerchant({ merchant_did: "did:xagent:noskill", skill_md_url: null }),
       );
 
       const result = await handleGetAgentSkill(merchantRepo, {
-        merchant_did: "did:nexus:noskill",
+        merchant_did: "did:xagent:noskill",
       });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain("no skill.md URL");
     });
 
     it("returns error when fetch fails", async () => {
-      merchantRepo.seed(makeMerchant({ merchant_did: "did:nexus:test" }));
+      merchantRepo.seed(makeMerchant({ merchant_did: "did:xagent:test" }));
       vi.spyOn(globalThis, "fetch").mockRejectedValueOnce(
         new Error("Network error"),
       );
 
       const result = await handleGetAgentSkill(merchantRepo, {
-        merchant_did: "did:nexus:test",
+        merchant_did: "did:xagent:test",
       });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain("Network error");
     });
 
     it("returns error when fetch returns non-200", async () => {
-      merchantRepo.seed(makeMerchant({ merchant_did: "did:nexus:test" }));
+      merchantRepo.seed(makeMerchant({ merchant_did: "did:xagent:test" }));
       vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
         new Response("Not Found", { status: 404 }),
       );
 
       const result = await handleGetAgentSkill(merchantRepo, {
-        merchant_did: "did:nexus:test",
+        merchant_did: "did:xagent:test",
       });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain("HTTP 404");

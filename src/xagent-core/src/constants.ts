@@ -1,5 +1,5 @@
 /**
- * xNexus Core — constants and state machine transitions.
+ * XAgent Core — constants and state machine transitions.
  */
 import type { PaymentStatus } from "./types.js";
 

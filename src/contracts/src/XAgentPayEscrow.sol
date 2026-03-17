@@ -10,9 +10,9 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeab
 import {IERC3009} from "./interfaces/IERC3009.sol";
 
 /**
- * @title NexusPayEscrow
- * @author NexusPay Team
- * @notice Escrow contract for NexusPay payments.
+ * @title XAgentPayEscrow
+ * @author XAgentPay Team
+ * @notice Escrow contract for XAgentPay payments.
  *
  *   Flow: User signs EIP-3009 authorization off-chain →
  *         Relayer calls depositWithAuthorization →
@@ -25,7 +25,7 @@ import {IERC3009} from "./interfaces/IERC3009.sol";
  *     - dispute() by payer within disputeDeadline
  *     - resolve() by arbiter to split funds
  */
-contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradeable {
+contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     // -----------------------------------------------------------------------
@@ -37,11 +37,11 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     uint256 public constant MAX_BATCH_SIZE = 20;
 
     // EIP-712 constants for group signature verification
-    bytes32 public constant NEXUS_GROUP_APPROVAL_TYPEHASH =
-        keccak256("NexusGroupApproval(bytes32 groupId,bytes32 entriesHash,uint256 totalAmount)");
+    bytes32 public constant XAGENT_GROUP_APPROVAL_TYPEHASH =
+        keccak256("XAgentGroupApproval(bytes32 groupId,bytes32 entriesHash,uint256 totalAmount)");
     bytes32 public constant EIP712_DOMAIN_TYPEHASH =
         keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
-    bytes32 public constant DOMAIN_NAME_HASH = keccak256("NexusPay");
+    bytes32 public constant DOMAIN_NAME_HASH = keccak256("XAgentPay");
     bytes32 public constant DOMAIN_VERSION_HASH = keccak256("1");
 
     // -----------------------------------------------------------------------
@@ -231,7 +231,7 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
      * @param _defaultDisputeWindow  Default seconds (from deposit) within which payer can dispute
      * @param _protocolFeeBps        Protocol fee in basis points (max 500 = 5%)
      * @param _protocolFeeRecipient  Address receiving protocol fees
-     * @param _nexusOperator         Address acting as both arbiter and coreOperator initially
+     * @param _xagentOperator         Address acting as both arbiter and coreOperator initially
      */
     function initialize(
         address _usdc,
@@ -239,13 +239,13 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
         uint256 _defaultDisputeWindow,
         uint16 _protocolFeeBps,
         address _protocolFeeRecipient,
-        address _nexusOperator
+        address _xagentOperator
     ) external initializer {
         _transferOwnership(msg.sender);
 
         if (_usdc == address(0)) revert ZeroAddress();
         if (_protocolFeeRecipient == address(0)) revert ZeroAddress();
-        if (_nexusOperator == address(0)) revert ZeroAddress();
+        if (_xagentOperator == address(0)) revert ZeroAddress();
         if (_protocolFeeBps > MAX_FEE_BPS) revert FeeTooHigh(_protocolFeeBps);
         if (_defaultReleaseTimeout == 0) revert ZeroTimeout();
         if (_defaultDisputeWindow == 0) revert ZeroTimeout();
@@ -255,8 +255,8 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
         defaultDisputeWindow = _defaultDisputeWindow;
         protocolFeeBps = _protocolFeeBps;
         protocolFeeRecipient = _protocolFeeRecipient;
-        arbiter = _nexusOperator;
-        coreOperator = _nexusOperator;
+        arbiter = _xagentOperator;
+        coreOperator = _xagentOperator;
     }
 
     // -----------------------------------------------------------------------
@@ -399,7 +399,7 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     // -----------------------------------------------------------------------
 
     /**
-     * @notice Batch deposit using approve+transferFrom with on-chain NexusCore
+     * @notice Batch deposit using approve+transferFrom with on-chain XAgentCore
      *         group-signature verification. Use this on chains where USDC does
      *         NOT implement EIP-3009 transferWithAuthorization (e.g. XLayer).
      *
@@ -611,7 +611,7 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     // -----------------------------------------------------------------------
 
     /**
-     * @notice Batch deposit with on-chain verification of the Nexus Core
+     * @notice Batch deposit with on-chain verification of the XAgent Core
      *         group signature. Prevents MITM tampering of entries.
      */
     function batchDepositWithGroupApproval(
@@ -802,7 +802,7 @@ contract NexusPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgradea
     ) internal view {
         bytes32 entriesHash = _computeEntriesHash(entries);
         bytes32 structHash = keccak256(abi.encode(
-            NEXUS_GROUP_APPROVAL_TYPEHASH,
+            XAGENT_GROUP_APPROVAL_TYPEHASH,
             groupIdBytes32,
             entriesHash,
             totalAmount

@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
-  loadNexusCoreConfig,
+  loadXAgentCoreConfig,
   validateConfig,
-  type NexusCoreConfig,
+  type XAgentCoreConfig,
   type TransportMode,
 } from "../config.js";
 
-function makeConfig(overrides: Partial<NexusCoreConfig> = {}): NexusCoreConfig {
+function makeConfig(overrides: Partial<XAgentCoreConfig> = {}): XAgentCoreConfig {
   return {
     databaseUrl: "postgres://localhost/test",
     escrowContract: "0x1111111111111111111111111111111111111111",

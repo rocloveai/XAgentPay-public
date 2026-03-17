@@ -1,8 +1,8 @@
 /**
- * xNexus Core — Relayer service.
+ * XAgent Core — Relayer service.
  *
  * Submits EIP-3009 deposit / release / refund transactions to the
- * NexusPayEscrow contract on behalf of users.
+ * XAgentPayEscrow contract on behalf of users.
  */
 import {
   createPublicClient,
@@ -17,7 +17,7 @@ import {
   type HttpTransport,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import type { NexusCoreConfig } from "../config.js";
+import type { XAgentCoreConfig } from "../config.js";
 import { XAGENT_PAY_ESCROW_ABI } from "../abi/xagent-pay-escrow.js";
 import {
   AGENTIC_COMMERCE_ABI,
@@ -35,7 +35,7 @@ export interface RelayerTxResult {
   readonly status: "success" | "reverted";
 }
 
-/** On-chain EscrowStatus enum values from NexusPayEscrow.sol */
+/** On-chain EscrowStatus enum values from XAgentPayEscrow.sol */
 export const OnChainEscrowStatus = {
   NONE: 0,
   DEPOSITED: 1,
@@ -54,7 +54,7 @@ export type OnChainEscrowStatusValue =
 // PlatON chain definition (shared by relayer + chain-watcher)
 // ---------------------------------------------------------------------------
 
-export function buildPlatonChain(config: NexusCoreConfig): Chain {
+export function buildPlatonChain(config: XAgentCoreConfig): Chain {
   return defineChain({
     id: config.chainId,
     name: config.chainName,
@@ -94,17 +94,17 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
-// NexusRelayer
+// XAgentRelayer
 // ---------------------------------------------------------------------------
 
-export class NexusRelayer {
+export class XAgentRelayer {
   private readonly publicClient: PublicClient<HttpTransport, Chain>;
   private readonly walletClient: WalletClient<HttpTransport, Chain, Account>;
   private readonly escrowAddress: Hex;
   private readonly acpAddress: Hex | null;
   private readonly autoEvaluatorAddress: Hex | null;
 
-  constructor(config: NexusCoreConfig) {
+  constructor(config: XAgentCoreConfig) {
     if (!config.relayerPrivateKey) {
       throw new RelayerError("RELAYER_PRIVATE_KEY is not configured");
     }

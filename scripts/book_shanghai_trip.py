@@ -91,19 +91,19 @@ def call_mcp_tool(sse_url, tool_name, arguments, max_retries=3):
     return None
 
 def extract_config(quote_data):
-    return quote_data['ucp']['payment_handlers']['urn:ucp:payment:nexus_v1'][0]['config']
+    return quote_data['ucp']['payment_handlers']['urn:ucp:payment:xagent_v1'][0]['config']
 
 def main():
     print("Searching outbound flights...")
-    flights_out = call_rest("https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool", "search_flights", 
+    flights_out = call_rest("https://xagent-flight-agent-3xb1.onrender.com/api/v1/call-tool", "search_flights", 
         {"origin": "SIN", "destination": "PVG", "date": "2026-02-27", "passengers": 1})
     
     print("Searching return flights...")
-    flights_ret = call_rest("https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool", "search_flights", 
+    flights_ret = call_rest("https://xagent-flight-agent-3xb1.onrender.com/api/v1/call-tool", "search_flights", 
         {"origin": "PVG", "destination": "SIN", "date": "2026-02-28", "passengers": 1})
         
     print("Searching hotels...")
-    hotels = call_rest("https://nexus-hotel-agent-d2lj.onrender.com/api/v1/call-tool", "search_hotels", 
+    hotels = call_rest("https://xagent-hotel-agent-d2lj.onrender.com/api/v1/call-tool", "search_hotels", 
         {"city": "Shanghai", "check_in": "2026-02-27", "check_out": "2026-02-28", "guests": 1})
 
     if not flights_out or 'offers' not in flights_out or len(flights_out['offers']) == 0:
@@ -132,11 +132,11 @@ def main():
     print(f"Total budget: ${total}")
 
     print("Generating quotes...")
-    q1_data = call_rest("https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool", "nexus_generate_quote", 
+    q1_data = call_rest("https://xagent-flight-agent-3xb1.onrender.com/api/v1/call-tool", "xagent_generate_quote", 
         {"flight_offer_id": out_offer['offer_id'], "payer_wallet": WALLET})
-    q2_data = call_rest("https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool", "nexus_generate_quote", 
+    q2_data = call_rest("https://xagent-flight-agent-3xb1.onrender.com/api/v1/call-tool", "xagent_generate_quote", 
         {"flight_offer_id": ret_offer['offer_id'], "payer_wallet": WALLET})
-    q3_data = call_rest("https://nexus-hotel-agent-d2lj.onrender.com/api/v1/call-tool", "nexus_generate_quote", 
+    q3_data = call_rest("https://xagent-hotel-agent-d2lj.onrender.com/api/v1/call-tool", "xagent_generate_quote", 
         {"hotel_offer_id": hotel_offer['offer_id'], "payer_wallet": WALLET})
 
     q1 = extract_config(q1_data)
@@ -146,7 +146,7 @@ def main():
     quotes = [q1, q2, q3]
     
     print("Orchestrating payment in Core...")
-    payment_result = call_mcp_tool("https://api.nexus-mvp.topos.one/sse", "nexus_orchestrate_payment", {
+    payment_result = call_mcp_tool("https://api.xagenpay.com/sse", "xagent_orchestrate_payment", {
         "quotes_json": json.dumps(quotes),
         "payer_wallet": WALLET
     })

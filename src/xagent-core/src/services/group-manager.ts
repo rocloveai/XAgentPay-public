@@ -1,5 +1,5 @@
 /**
- * xNexus Core — Group manager.
+ * XAgent Core — Group manager.
  *
  * Manages PaymentGroup lifecycle: creation, status aggregation.
  */
@@ -8,7 +8,7 @@ import type {
   PaymentGroupRecord,
   PaymentGroupStatus,
   PaymentRecord,
-  NexusQuotePayload,
+  XAgentQuotePayload,
   MerchantRecord,
   PaymentMethod,
 } from "../types.js";
@@ -16,11 +16,11 @@ import type { GroupRepository } from "../db/interfaces/group-repo.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
 import type { EventRepository } from "../db/interfaces/event-repo.js";
 import { PaymentStateMachine } from "./state-machine.js";
-import { NexusError } from "../errors.js";
+import { XAgentError } from "../errors.js";
 import { USDC_DECIMALS } from "../constants.js";
 
 export interface CreateGroupInput {
-  readonly quotes: readonly NexusQuotePayload[];
+  readonly quotes: readonly XAgentQuotePayload[];
   readonly merchants: readonly MerchantRecord[];
   readonly quoteHashes: readonly string[];
   readonly payerWallet: string;
@@ -72,10 +72,10 @@ export class GroupManager {
       input;
 
     if (quotes.length === 0) {
-      throw new NexusError("EMPTY_QUOTES", "At least one quote is required");
+      throw new XAgentError("EMPTY_QUOTES", "At least one quote is required");
     }
     if (quotes.length !== merchants.length) {
-      throw new NexusError(
+      throw new XAgentError(
         "MISMATCH",
         "Quotes and merchants arrays must have equal length",
       );

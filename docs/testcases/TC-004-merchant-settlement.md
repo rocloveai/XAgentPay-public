@@ -21,7 +21,7 @@
    ```json
    {
      "nexus_payment_id": "PAY-xxx",
-     "merchant_did": "did:nexus:20250407:demo_flight"
+     "merchant_did": "did:xagent:20250407:demo_flight"
    }
    ```
 
@@ -72,7 +72,7 @@
 
 **Steps:**
 1. Payment belongs to `demo_flight`
-2. Call confirm-fulfillment with `merchant_did: "did:nexus:20250407:demo_hotel"`
+2. Call confirm-fulfillment with `merchant_did: "did:xagent:20250407:demo_hotel"`
 
 **Expected:**
 - HTTP 403 with `{ "http_status": 403, "error": "merchant_did does not match payment" }`

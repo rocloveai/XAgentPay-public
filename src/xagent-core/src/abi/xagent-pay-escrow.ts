@@ -1,5 +1,5 @@
 /**
- * NexusPayEscrow contract ABI — events and functions used by Relayer and Chain Watcher.
+ * XAgentPayEscrow contract ABI — events and functions used by Relayer and Chain Watcher.
  */
 import { parseAbi } from "viem";
 

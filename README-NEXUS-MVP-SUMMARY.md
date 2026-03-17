@@ -13,8 +13,8 @@
 | **nexuspay-db** | PostgreSQL | 新加坡，free plan，库名 `nexuspay` |
 | **xagent-website** | static (Vite) | 前端，`src/xagent-website`，需 `VITE_NEXUS_CORE_URL` |
 | **xagent-core** | Docker | 支付编排 MCP 服务，端口 10000，健康检查 `/health`，需 DATABASE_URL / RELAYER_PRIVATE_KEY / ESCROW_CONTRACT / RPC_URL / PORTAL_TOKEN / BASE_URL |
-| **nexus-hotel-agent** | Docker | 酒店预订商户 Agent，Amadeus API，`did:nexus:20250407:demo_hotel` |
-| **nexus-flight-agent** | Docker | 机票商户 Agent，Duffel API，`did:nexus:20250407:demo_flight` |
+| **nexus-hotel-agent** | Docker | 酒店预订商户 Agent，Amadeus API，`did:xagent:20250407:demo_hotel` |
+| **nexus-flight-agent** | Docker | 机票商户 Agent，Duffel API，`did:xagent:20250407:demo_flight` |
 | **nexus-telegram-bot** | Docker | Telegram 机器人，健康检查 `/health`，需 TELEGRAM_BOT_TOKEN / NEXUS_CORE_URL / BASE_URL |
 
 ## 代码结构

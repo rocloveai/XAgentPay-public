@@ -122,7 +122,7 @@ def call_mcp_tool(sse_url, tool_name, arguments, max_retries=3):
 
 quotes = [
   {
-    "merchant_did": "did:nexus:20250407:demo_flight",
+    "merchant_did": "did:xagent:20250407:demo_flight",
     "merchant_order_ref": "FLT-SINNRT-FEB-001",
     "amount": "100000",
     "currency": "USDC",
@@ -142,7 +142,7 @@ quotes = [
     "signature": "0xaff33c41389af6f1ab1ae99f7651102085eead1a5c480eb0faf2f45a55f863fb664e01970299591144074a6db0da9c25dc7a5f36b4738fb78035e422b9edc2a71c"
   },
   {
-    "merchant_did": "did:nexus:20250407:demo_flight",
+    "merchant_did": "did:xagent:20250407:demo_flight",
     "merchant_order_ref": "FLT-NRTSIN-FEB-001",
     "amount": "100000",
     "currency": "USDC",
@@ -162,7 +162,7 @@ quotes = [
     "signature": "0x39f2bc06d88dcfa2581c626f95ab1339ac5917b9feffa2c29222083690d3583a2eeaeb7e3db47bb8b3753a49ae545d69a26c95cb20e0a2061b86d9cf7cc4c71f1c"
   },
   {
-    "merchant_did": "did:nexus:20250407:demo_hotel",
+    "merchant_did": "did:xagent:20250407:demo_hotel",
     "merchant_order_ref": "HTL-TYO-FEB-001",
     "amount": "100000",
     "currency": "USDC",
@@ -186,8 +186,8 @@ quotes = [
 payer_wallet = "0x6c3103FFF34916Ef2df44CE952BcE610d7e23cB5"
 
 result = call_mcp_tool(
-    "https://api.nexus-mvp.topos.one/sse",
-    "nexus_orchestrate_payment",
+    "https://api.xagenpay.com/sse",
+    "xagent_orchestrate_payment",
     {
         "quotes_json": json.dumps(quotes),
         "payer_wallet": payer_wallet

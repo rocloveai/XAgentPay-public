@@ -3,7 +3,7 @@
 #
 # Usage:
 #   export NEON_URL="postgresql://neondb_owner:...@...neon.tech/neondb?sslmode=require"
-#   export RENDER_URL="postgresql://nexuspay:...@...render.com/nexuspay"
+#   export RENDER_URL="postgresql://xagentpay:...@...render.com/xagentpay"
 #   bash scripts/migrate-to-render.sh
 #
 # Steps:
@@ -22,7 +22,7 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MIGRATIONS_DIR="$SCRIPT_DIR/../db/migrations"
-DUMP_FILE="/tmp/nexuspay_neon_dump.sql"
+DUMP_FILE="/tmp/xagentpay_neon_dump.sql"
 
 echo "=== Step 1: Run migrations on Render DB ==="
 for f in "$MIGRATIONS_DIR"/*.sql; do

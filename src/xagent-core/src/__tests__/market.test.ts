@@ -3,7 +3,7 @@ import { handleMarketRequest, type MarketDeps } from "../market.js";
 import { MockMerchantRepository } from "./mocks/mock-merchant-repo.js";
 import { MockStarRepository } from "./mocks/mock-star-repo.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { NexusCoreConfig } from "../config.js";
+import type { XAgentCoreConfig } from "../config.js";
 import type { MerchantRecord } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ function makeRes(): MockRes {
   return res;
 }
 
-function makeConfig(overrides?: Partial<NexusCoreConfig>): NexusCoreConfig {
+function makeConfig(overrides?: Partial<XAgentCoreConfig>): XAgentCoreConfig {
   return {
     databaseUrl: "",
     escrowContract: "0x0000000000000000000000000000000000000000",
@@ -84,7 +84,7 @@ function makeConfig(overrides?: Partial<NexusCoreConfig>): NexusCoreConfig {
 function makeMerchant(overrides?: Partial<MerchantRecord>): MerchantRecord {
   const now = new Date().toISOString();
   return {
-    merchant_did: "did:nexus:20250407:test",
+    merchant_did: "did:xagent:20250407:test",
     name: "Test Agent",
     description: "A test agent",
     signer_address: "0x1234567890abcdef1234567890abcdef12345678",
@@ -168,21 +168,21 @@ describe("Market", () => {
     const data = JSON.parse(res.body);
     expect(data.agents).toHaveLength(1);
     expect(data.total).toBe(1);
-    expect(data.agents[0].merchant_did).toBe("did:nexus:20250407:test");
+    expect(data.agents[0].merchant_did).toBe("did:xagent:20250407:test");
   });
 
   it("GET /api/market/agents with category filter", async () => {
     merchantRepo.seed([
       makeMerchant({
-        merchant_did: "did:nexus:hotel",
+        merchant_did: "did:xagent:hotel",
         category: "travel.hotels",
       }),
       makeMerchant({
-        merchant_did: "did:nexus:flight",
+        merchant_did: "did:xagent:flight",
         category: "travel.flights",
       }),
       makeMerchant({
-        merchant_did: "did:nexus:food",
+        merchant_did: "did:xagent:food",
         category: "food.delivery",
       }),
     ]);
@@ -212,10 +212,10 @@ describe("Market", () => {
   it("GET /api/market/agents excludes merchants without skill_md_url", async () => {
     merchantRepo.seed([
       makeMerchant({
-        merchant_did: "did:nexus:with_skill",
+        merchant_did: "did:xagent:with_skill",
         skill_md_url: "https://example.com/skill.md",
       }),
-      makeMerchant({ merchant_did: "did:nexus:no_skill", skill_md_url: null }),
+      makeMerchant({ merchant_did: "did:xagent:no_skill", skill_md_url: null }),
     ]);
     const { req, url } = makeReq("GET", "/api/market/agents");
     const res = makeRes();
@@ -223,7 +223,7 @@ describe("Market", () => {
 
     const data = JSON.parse(res.body);
     expect(data.agents).toHaveLength(1);
-    expect(data.agents[0].merchant_did).toBe("did:nexus:with_skill");
+    expect(data.agents[0].merchant_did).toBe("did:xagent:with_skill");
   });
 
   // -----------------------------------------------------------------------
@@ -231,10 +231,10 @@ describe("Market", () => {
   // -----------------------------------------------------------------------
 
   it("GET /api/market/agents/:merchantDid returns agent detail", async () => {
-    merchantRepo.seed(makeMerchant({ merchant_did: "did:nexus:20250407:abc" }));
+    merchantRepo.seed(makeMerchant({ merchant_did: "did:xagent:20250407:abc" }));
     const { req, url } = makeReq(
       "GET",
-      "/api/market/agents/did:nexus:20250407:abc",
+      "/api/market/agents/did:xagent:20250407:abc",
     );
     const res = makeRes();
     const handled = await handleMarketRequest(
@@ -247,11 +247,11 @@ describe("Market", () => {
     expect(handled).toBe(true);
     expect(res.statusCode).toBe(200);
     const data = JSON.parse(res.body);
-    expect(data.agent.merchant_did).toBe("did:nexus:20250407:abc");
+    expect(data.agent.merchant_did).toBe("did:xagent:20250407:abc");
   });
 
   it("GET /api/market/agents/:merchantDid returns 404 for nonexistent", async () => {
-    const { req, url } = makeReq("GET", "/api/market/agents/did:nexus:noexist");
+    const { req, url } = makeReq("GET", "/api/market/agents/did:xagent:noexist");
     const res = makeRes();
     const handled = await handleMarketRequest(
       deps,
@@ -272,7 +272,7 @@ describe("Market", () => {
 
   it("POST /api/market/register creates merchant with valid body", async () => {
     const body = JSON.stringify({
-      merchant_did: "did:nexus:20250407:new",
+      merchant_did: "did:xagent:20250407:new",
       name: "My Agent",
       description: "Test description",
       category: "travel.hotels",
@@ -301,7 +301,7 @@ describe("Market", () => {
     expect(res.statusCode).toBe(201);
     const data = JSON.parse(res.body);
     expect(data.agent.name).toBe("My Agent");
-    expect(data.agent.merchant_did).toBe("did:nexus:20250407:new");
+    expect(data.agent.merchant_did).toBe("did:xagent:20250407:new");
   });
 
   it("POST /api/market/register returns 400 on missing fields", async () => {
@@ -324,7 +324,7 @@ describe("Market", () => {
 
   it("POST /api/market/register returns 401 without auth", async () => {
     const body = JSON.stringify({
-      merchant_did: "did:nexus:20250407:new",
+      merchant_did: "did:xagent:20250407:new",
       name: "My Agent",
       description: "Test",
       category: "general",
@@ -401,7 +401,7 @@ describe("Market", () => {
   // -----------------------------------------------------------------------
 
   const VALID_WALLET = "0x1234567890abcdef1234567890abcdef12345678";
-  const MERCHANT_DID = "did:nexus:20250407:test";
+  const MERCHANT_DID = "did:xagent:20250407:test";
 
   it("POST /star adds star and returns 201", async () => {
     const body = JSON.stringify({ wallet_address: VALID_WALLET });
@@ -557,7 +557,7 @@ describe("Market", () => {
 
   it("Agent listing includes star_count field", async () => {
     merchantRepo.seed(makeMerchant());
-    await starRepo.addStar("did:nexus:20250407:test", VALID_WALLET);
+    await starRepo.addStar("did:xagent:20250407:test", VALID_WALLET);
     const { req, url } = makeReq("GET", "/api/market/agents");
     const res = makeRes();
     await handleMarketRequest(deps, req, res as unknown as ServerResponse, url);

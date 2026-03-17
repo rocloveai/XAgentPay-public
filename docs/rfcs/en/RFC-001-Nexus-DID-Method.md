@@ -11,19 +11,19 @@
 The Nexus DID method (`did:nexus`) is a decentralized identifier scheme based on EVM blockchains (such as XLayer, Ethereum). It is designed to provide verifiable identity, payment routing, and signature verification capabilities for merchant entities in the AI Agent commerce network (UCP). This method supports Account Abstraction, allowing merchants to separate their "custody account" (e.g., Gnosis Safe) from their "high-frequency signing account" (e.g., hot wallet).
 ## 1. Method Name
 The name of this DID method is `nexus`.
-DID strings must begin with the prefix: `did:nexus:`.
+DID strings must begin with the prefix: `did:xagent:`.
 ## 2. DID Syntax
 The Nexus DID uses a simple **three-segment structure**, resolved through an on-chain registry contract.
 ### 2.1 ABNF Definition
 ```abnf
-nexus-did = "did:nexus:" chain-id ":" unique-id
+nexus-did = "did:xagent:" chain-id ":" unique-id
 chain-id = 1*DIGIT ; EVM Chain ID (e.g., 210425)
 unique-id = 1*id-char ; Merchant's unique registered name
 id-char = ALPHA / DIGIT / "_" / "-"
 ```
 ### 2.2 Examples
-* **Trip.com (XLayer Mainnet):** `did:nexus:210425:trip_com`
-* **XAgent Pay OTC (Local Devnet):** `did:nexus:31337:nexus_otc_01`
+* **Trip.com (XLayer Mainnet):** `did:xagent:210425:trip_com`
+* **XAgent Pay OTC (Local Devnet):** `did:xagent:31337:nexus_otc_01`
 ---
 ## 3. DID Document
 When a User Agent resolves a `did:nexus`, it should return a standard DID Document JSON. This document is dynamically generated from data in the on-chain `XAgent PayMerchantRegistry` contract.
@@ -42,18 +42,18 @@ The on-chain registry contains the following fields, mapped to the DID Document:
 "https://www.w3.org/ns/did/v1",
 "https://w3id.org/security/suites/secp256k1-2019/v1"
 ],
-"id": "did:nexus:210425:trip_com",
+"id": "did:xagent:210425:trip_com",
 // 1. Verification Methods (Who is authorized to sign on behalf of this merchant?)
 // Supports EOA or EIP-1271 contracts
 "verificationMethod": [{
-"id": "did:nexus:210425:trip_com#key-1",
+"id": "did:xagent:210425:trip_com#key-1",
 "type": "EcdsaSecp256k1RecoveryMethod2020",
-"controller": "did:nexus:210425:trip_com",
+"controller": "did:xagent:210425:trip_com",
 "blockchainAccountId": "eip155:210425:0xSignerAddress..."
 }],
 // 2. Authentication Relationship
 "authentication": [
-"did:nexus:210425:trip_com#key-1"
+"did:xagent:210425:trip_com#key-1"
 ],
 // 3. Service Endpoints (Where do funds go? Where is the metadata?)
 "service": [

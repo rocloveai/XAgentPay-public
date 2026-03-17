@@ -5,7 +5,7 @@ import {
   getCoreOperatorAddress,
 } from "../../services/group-signer.js";
 import type { GroupPaymentDetail, Address, Hex } from "../../types.js";
-import type { NexusCoreConfig } from "../../config.js";
+import type { XAgentCoreConfig } from "../../config.js";
 import { TEST_RELAYER_PRIVATE_KEY } from "../fixtures.js";
 import { verifyTypedData } from "viem";
 import { keccak256, toHex } from "viem";
@@ -14,7 +14,7 @@ import { keccak256, toHex } from "viem";
 // Test config
 // ---------------------------------------------------------------------------
 
-const TEST_CONFIG: NexusCoreConfig = {
+const TEST_CONFIG: XAgentCoreConfig = {
   databaseUrl: "",
   escrowContract: "0x0000000000000000000000000000000000000001",
   chainId: 20250407,
@@ -41,7 +41,7 @@ const TEST_CONFIG: NexusCoreConfig = {
 
 function makePaymentDetail(index: number): GroupPaymentDetail {
   const pid = `PAY-test-${index}`;
-  const did = `did:nexus:20250407:merchant_${index}`;
+  const did = `did:xagent:20250407:merchant_${index}`;
   const ref = `ORD-${index}`;
   const context = { summary: `Item ${index}`, line_items: [] };
 
@@ -92,7 +92,7 @@ describe("group-signer", () => {
     });
 
     it("matches Solidity _computeEntriesHash for fixed inputs (cross-language)", () => {
-      // Fixed inputs matching test_entriesHash_crossLanguage in NexusPayEscrow.t.sol
+      // Fixed inputs matching test_entriesHash_crossLanguage in XAgentPayEscrow.t.sol
       const payment: GroupPaymentDetail = {
         xagent_payment_id: "fixed",
         merchant_did: "fixed",
@@ -180,19 +180,19 @@ describe("group-signer", () => {
       const isValid = await verifyTypedData({
         address: signerAddress,
         domain: {
-          name: "xNexus",
+          name: "XAgentPay",
           version: "1",
           chainId: TEST_CONFIG.chainId,
           verifyingContract: TEST_CONFIG.escrowContract as Address,
         },
         types: {
-          NexusGroupApproval: [
+          XAgentGroupApproval: [
             { name: "groupId", type: "bytes32" },
             { name: "entriesHash", type: "bytes32" },
             { name: "totalAmount", type: "uint256" },
           ],
         },
-        primaryType: "NexusGroupApproval",
+        primaryType: "XAgentGroupApproval",
         message: {
           groupId: groupIdBytes32,
           entriesHash,

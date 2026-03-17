@@ -30,7 +30,7 @@ const ai = genkit({
 plugins: [
 // --- 1. Import XAgent Pay Plugin ---
 nexusSellerPlugin({
-merchantDid: process.env.MERCHANT_DID, // e.g. "did:nexus:trip_com"
+merchantDid: process.env.MERCHANT_DID, // e.g. "did:xagent:trip_com"
 privateKey: process.env.MERCHANT_KEY, // Your private key
 env: 'production' // Or 'sandbox'
 })
@@ -86,7 +86,7 @@ For existing Web2 systems (such as Express/NestJS-based UCP adapter layers), we 
 import { XAgent PayClient } from '@nexus/seller-sdk';
 const nexus = new XAgent PayClient({
 privateKey: process.env.KEY,
-merchantDid: "did:nexus:trip_com"
+merchantDid: "did:xagent:trip_com"
 });
 // Scenario: Inject payment methods when returning UCP Search results
 app.post('/ucp/search', async (req, res) => {

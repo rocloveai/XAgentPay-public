@@ -3,21 +3,21 @@ version: "3.9"
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: nexuspay-db-local
+    container_name: xagentpay-db-local
     restart: unless-stopped
     environment:
-      POSTGRES_USER: nexuspay
-      POSTGRES_PASSWORD: nexuspay_local
-      POSTGRES_DB: nexuspay
+      POSTGRES_USER: xagentpay
+      POSTGRES_PASSWORD: xagentpay_local
+      POSTGRES_DB: xagentpay
     ports:
       - "5432:5432"
     volumes:
-      - nexuspay_pg_data:/var/lib/postgresql/data
+      - xagentpay_pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U nexuspay -d nexuspay"]
+      test: ["CMD-SHELL", "pg_isready -U xagentpay -d xagentpay"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  nexuspay_pg_data:
+  xagentpay_pg_data:

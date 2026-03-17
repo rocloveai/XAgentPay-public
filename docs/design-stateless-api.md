@@ -299,7 +299,7 @@ GET /api/payments/:id
   OR
 GET /api/payments?group_id=grp_xxx
   OR
-GET /api/payments?merchant_order_ref=FLT-123&merchant_did=did:nexus:...
+GET /api/payments?merchant_order_ref=FLT-123&merchant_did=did:xagent:...
 
 Response (HTTP 200):
 {
@@ -308,7 +308,7 @@ Response (HTTP 200):
     "status": "ESCROWED",
     "amount_display": "0.10",
     "currency": "USDC",
-    "merchant_did": "did:nexus:...",
+    "merchant_did": "did:xagent:...",
     "merchant_order_ref": "FLT-123",
     "created_at": "2026-02-26T10:00:00Z",
     "escrowed_at": "2026-02-26T10:05:00Z",
@@ -341,7 +341,7 @@ Idempotency-Key: rel_<uuid>
 
 Request:
 {
-  "merchant_did": "did:nexus:...",  // 必须匹配 API Key 所属 merchant
+  "merchant_did": "did:xagent:...",  // 必须匹配 API Key 所属 merchant
   "payment_id": "PAY-xxx"           // 路径参数,也可在 body 重复(验证)
 }
 
@@ -449,7 +449,7 @@ Response (HTTP 200):
 {
   "agents": [
     {
-      "merchant_did": "did:nexus:20250407:demo_flight",
+      "merchant_did": "did:xagent:20250407:demo_flight",
       "name": "Demo Flight Agent",
       "description": "Book flights with USDC",
       "category": "travel.flights",
@@ -472,7 +472,7 @@ Auth: Public
 ```http
 GET /api/agents/:did/skill
   OR
-GET /api/agents/did:nexus:20250407:demo_flight/skill
+GET /api/agents/did:xagent:20250407:demo_flight/skill
 
 Response (HTTP 200):
 Content-Type: text/markdown
@@ -595,12 +595,12 @@ COMMENT ON COLUMN merchant_api_keys.scopes IS 'Permissions: payment:read, paymen
 
 ```bash
 # CLI tool for merchants
-npm run nexus-cli -- create-api-key --merchant did:nexus:20250407:demo_flight --tier standard
+npm run nexus-cli -- create-api-key --merchant did:xagent:20250407:demo_flight --tier standard
 
 # Output:
 ✅ API Key created successfully
 
-Merchant: did:nexus:20250407:demo_flight
+Merchant: did:xagent:20250407:demo_flight
 API Key: nak_live_3kTyx9j2Lm4Qp6Rn_8hV2Zq1Wc5X
 Tier: standard (60 req/min)
 Scopes: payment:read, payment:release
@@ -790,7 +790,7 @@ curl -X POST https://api.xagentpay.com/api/payments/PAY-xxx/release \
   -H "Authorization: Bearer $NEXUS_API_KEY" \
   -H "Idempotency-Key: rel_$(uuidgen)" \
   -H "Content-Type: application/json" \
-  -d '{"merchant_did": "did:nexus:20250407:demo_flight"}'
+  -d '{"merchant_did": "did:xagent:20250407:demo_flight"}'
 ```
 
 #### Example: Get Payment Status (Public)
@@ -817,7 +817,7 @@ Check payment status by any identifier.
 ```http
 GET /api/payments/:id
 GET /api/payments?group_id=grp_xxx
-GET /api/payments?merchant_order_ref=FLT-123&merchant_did=did:nexus:...
+GET /api/payments?merchant_order_ref=FLT-123&merchant_did=did:xagent:...
 ```
 
 No authentication required. Public endpoint.
@@ -838,7 +838,7 @@ No authentication required. Public endpoint.
   "status": 200,
   "duration_ms": 42,
   "auth_tier": "standard",
-  "merchant_did": "did:nexus:...",
+  "merchant_did": "did:xagent:...",
   "idempotency_key": "rel_xxx",
   "is_replay": false,
   "timestamp": "2026-02-26T10:00:00Z"

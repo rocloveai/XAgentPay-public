@@ -18,7 +18,7 @@ UPDATE merchant_registry SET
   chain_id = 196,
   is_verified = TRUE,
   updated_at = NOW()
-WHERE merchant_did = 'did:nexus:196:demo_hotel';
+WHERE merchant_did = 'did:xagent:196:demo_hotel';
 
 UPDATE merchant_registry SET
   description = 'AI-powered flight booking with USDC payments on XLayer. Search and book flights globally.',
@@ -36,4 +36,4 @@ UPDATE merchant_registry SET
   chain_id = 196,
   is_verified = TRUE,
   updated_at = NOW()
-WHERE merchant_did = 'did:nexus:196:demo_flight';
+WHERE merchant_did = 'did:xagent:196:demo_flight';

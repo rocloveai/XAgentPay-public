@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { MockPaymentRepository } from "../mocks/mock-payment-repo.js";
-import type { CreatePaymentParams, NexusQuotePayload } from "../../types.js";
+import type { CreatePaymentParams, XAgentQuotePayload } from "../../types.js";
 
-const QUOTE: NexusQuotePayload = {
-  merchant_did: "did:nexus:210425:demo_flight",
+const QUOTE: XAgentQuotePayload = {
+  merchant_did: "did:xagent:210425:demo_flight",
   merchant_order_ref: "FLT-001",
   amount: "530000000",
   currency: "USDC",
@@ -22,7 +22,7 @@ function makeParams(
   return {
     xagent_payment_id: "NEX-001",
     quote_hash: "0xhash1",
-    merchant_did: "did:nexus:210425:demo_flight",
+    merchant_did: "did:xagent:210425:demo_flight",
     merchant_order_ref: "FLT-001",
     payer_wallet: "0xpayer",
     payment_address: "0xmerchant",

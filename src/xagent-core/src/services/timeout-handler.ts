@@ -1,12 +1,12 @@
 /**
- * xNexus Core — Timeout Handler.
+ * XAgent Core — Timeout Handler.
  *
  * Periodically scans for expired escrows and submits on-chain refunds
  * via the Relayer. Also delegates to StateMachine.runTimeoutSweep()
  * for AWAITING_TX expirations.
  */
 import type { Hex } from "viem";
-import { type NexusRelayer, OnChainEscrowStatus } from "./relayer.js";
+import { type XAgentRelayer, OnChainEscrowStatus } from "./relayer.js";
 import type { PaymentRepository } from "../db/interfaces/payment-repo.js";
 import type { PaymentStateMachine } from "./state-machine.js";
 import type { GroupManager } from "./group-manager.js";
@@ -18,7 +18,7 @@ export class TimeoutHandler {
   private readonly intervalMs: number;
 
   constructor(
-    private readonly relayer: NexusRelayer,
+    private readonly relayer: XAgentRelayer,
     private readonly paymentRepo: PaymentRepository,
     private readonly stateMachine: PaymentStateMachine,
     private readonly groupManager: GroupManager,

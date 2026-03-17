@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { PaymentStateMachine } from "../../services/state-machine.js";
 import { MockPaymentRepository } from "../mocks/mock-payment-repo.js";
 import { MockEventRepository } from "../mocks/mock-event-repo.js";
-import { InvalidTransitionError, NexusError } from "../../errors.js";
+import { InvalidTransitionError, XAgentError } from "../../errors.js";
 import { makeTestQuote, TEST_PAYER_WALLET } from "../fixtures.js";
 
 describe("PaymentStateMachine", () => {
@@ -128,7 +128,7 @@ describe("PaymentStateMachine", () => {
           toStatus: "AWAITING_TX",
           eventType: "PAYMENT_FINALIZED",
         }),
-      ).rejects.toThrow(NexusError);
+      ).rejects.toThrow(XAgentError);
     });
   });
 

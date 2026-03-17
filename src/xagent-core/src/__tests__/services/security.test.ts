@@ -63,7 +63,7 @@ describe("security", () => {
 
     it("throws SecurityError when merchant not found", async () => {
       await expect(
-        resolveMerchantDid("did:nexus:unknown", merchantRepo),
+        resolveMerchantDid("did:xagent:unknown", merchantRepo),
       ).rejects.toThrow(SecurityError);
     });
   });

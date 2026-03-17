@@ -9,7 +9,7 @@ import type {
   PaymentGroupRecord,
 } from "../types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { NexusOrchestrator } from "../services/orchestrator.js";
+import type { XAgentOrchestrator } from "../services/orchestrator.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -18,7 +18,7 @@ import type { NexusOrchestrator } from "../services/orchestrator.js";
 function makeMerchant(overrides?: Partial<MerchantRecord>): MerchantRecord {
   const now = new Date().toISOString();
   return {
-    merchant_did: "did:nexus:20250407:test",
+    merchant_did: "did:xagent:20250407:test",
     name: "Test Agent",
     description: "A test agent for flights",
     signer_address: "0x1234567890abcdef1234567890abcdef12345678",
@@ -53,7 +53,7 @@ function makePayment(overrides?: Partial<PaymentRecord>): PaymentRecord {
     xagent_payment_id: "PAY-TEST-001",
     group_id: "GRP-TEST-001",
     quote_hash: "0xabc",
-    merchant_did: "did:nexus:20250407:test",
+    merchant_did: "did:xagent:20250407:test",
     merchant_order_ref: "FLT-001",
     payer_wallet: "0x1111111111111111111111111111111111111111",
     payment_address: "0x2222222222222222222222222222222222222222",
@@ -67,7 +67,7 @@ function makePayment(overrides?: Partial<PaymentRecord>): PaymentRecord {
     block_number: 12345,
     block_timestamp: now,
     quote_payload: {
-      merchant_did: "did:nexus:20250407:test",
+      merchant_did: "did:xagent:20250407:test",
       merchant_order_ref: "FLT-001",
       amount: "100000",
       currency: "USDC",
@@ -172,7 +172,7 @@ describe("rest-api", () => {
   let merchantRepo: MockMerchantRepository;
   let paymentRepo: MockPaymentRepository;
   let starRepo: MockStarRepository;
-  let orchestrator: NexusOrchestrator;
+  let orchestrator: XAgentOrchestrator;
   let deps: RestApiDeps;
 
   beforeEach(() => {
@@ -183,7 +183,7 @@ describe("rest-api", () => {
     // Mock orchestrator with getPaymentStatus
     orchestrator = {
       getPaymentStatus: vi.fn(),
-    } as unknown as NexusOrchestrator;
+    } as unknown as XAgentOrchestrator;
 
     deps = {
       orchestrator,
@@ -302,7 +302,7 @@ describe("rest-api", () => {
       expect(body.payment.iso_metadata).toBeUndefined();
       // Should include basic fields
       expect(body.payment.xagent_payment_id).toBe("PAY-TEST-001");
-      expect(body.payment.merchant_did).toBe("did:nexus:20250407:test");
+      expect(body.payment.merchant_did).toBe("did:xagent:20250407:test");
     });
   });
 
@@ -373,8 +373,8 @@ describe("rest-api", () => {
   describe("GET /api/agents", () => {
     it("returns all agents as JSON", async () => {
       merchantRepo.seed([
-        makeMerchant({ merchant_did: "did:nexus:20250407:a", name: "Agent A" }),
-        makeMerchant({ merchant_did: "did:nexus:20250407:b", name: "Agent B" }),
+        makeMerchant({ merchant_did: "did:xagent:20250407:a", name: "Agent A" }),
+        makeMerchant({ merchant_did: "did:xagent:20250407:b", name: "Agent B" }),
       ]);
 
       const req = mockReq("GET", "/api/agents");
@@ -394,12 +394,12 @@ describe("rest-api", () => {
     it("filters by query", async () => {
       merchantRepo.seed([
         makeMerchant({
-          merchant_did: "did:nexus:20250407:flight",
+          merchant_did: "did:xagent:20250407:flight",
           name: "FlightBot",
           description: "Book flights",
         }),
         makeMerchant({
-          merchant_did: "did:nexus:20250407:hotel",
+          merchant_did: "did:xagent:20250407:hotel",
           name: "HotelBot",
           description: "Book hotels",
         }),
@@ -418,12 +418,12 @@ describe("rest-api", () => {
     it("filters by category", async () => {
       merchantRepo.seed([
         makeMerchant({
-          merchant_did: "did:nexus:20250407:flight",
+          merchant_did: "did:xagent:20250407:flight",
           name: "Flight",
           category: "travel.flights",
         }),
         makeMerchant({
-          merchant_did: "did:nexus:20250407:food",
+          merchant_did: "did:xagent:20250407:food",
           name: "Food",
           category: "food.delivery",
         }),
@@ -469,10 +469,10 @@ describe("rest-api", () => {
 
     it("includes star counts", async () => {
       merchantRepo.seed([
-        makeMerchant({ merchant_did: "did:nexus:20250407:popular" }),
+        makeMerchant({ merchant_did: "did:xagent:20250407:popular" }),
       ]);
-      await starRepo.addStar("did:nexus:20250407:popular", "0x1111");
-      await starRepo.addStar("did:nexus:20250407:popular", "0x2222");
+      await starRepo.addStar("did:xagent:20250407:popular", "0x1111");
+      await starRepo.addStar("did:xagent:20250407:popular", "0x2222");
 
       const req = mockReq("GET", "/api/agents");
       const res = mockRes();
@@ -491,14 +491,14 @@ describe("rest-api", () => {
   describe("GET /api/agents/:did/skill", () => {
     it("returns skill.md content as markdown", async () => {
       merchantRepo.seed(
-        makeMerchant({ merchant_did: "did:nexus:20250407:test" }),
+        makeMerchant({ merchant_did: "did:xagent:20250407:test" }),
       );
       const skillContent = "---\nname: test\n---\n# My Skill";
       vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
         new Response(skillContent, { status: 200 }),
       );
 
-      const req = mockReq("GET", "/api/agents/did:nexus:20250407:test/skill");
+      const req = mockReq("GET", "/api/agents/did:xagent:20250407:test/skill");
       const res = mockRes();
       const url = new URL(req.url!, "http://localhost:3000");
       await handleRestApiRequest(deps, req, res, url);
@@ -509,7 +509,7 @@ describe("rest-api", () => {
     });
 
     it("returns 404 for unknown agent", async () => {
-      const req = mockReq("GET", "/api/agents/did:nexus:20250407:nope/skill");
+      const req = mockReq("GET", "/api/agents/did:xagent:20250407:nope/skill");
       const res = mockRes();
       const url = new URL(req.url!, "http://localhost:3000");
       await handleRestApiRequest(deps, req, res, url);
@@ -522,14 +522,14 @@ describe("rest-api", () => {
     it("returns 404 when no skill_md_url", async () => {
       merchantRepo.seed(
         makeMerchant({
-          merchant_did: "did:nexus:20250407:noskill",
+          merchant_did: "did:xagent:20250407:noskill",
           skill_md_url: null,
         }),
       );
 
       const req = mockReq(
         "GET",
-        "/api/agents/did:nexus:20250407:noskill/skill",
+        "/api/agents/did:xagent:20250407:noskill/skill",
       );
       const res = mockRes();
       const url = new URL(req.url!, "http://localhost:3000");
@@ -542,13 +542,13 @@ describe("rest-api", () => {
 
     it("returns 502 when upstream fetch fails", async () => {
       merchantRepo.seed(
-        makeMerchant({ merchant_did: "did:nexus:20250407:test" }),
+        makeMerchant({ merchant_did: "did:xagent:20250407:test" }),
       );
       vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
         new Response("Not Found", { status: 404 }),
       );
 
-      const req = mockReq("GET", "/api/agents/did:nexus:20250407:test/skill");
+      const req = mockReq("GET", "/api/agents/did:xagent:20250407:test/skill");
       const res = mockRes();
       const url = new URL(req.url!, "http://localhost:3000");
       await handleRestApiRequest(deps, req, res, url);

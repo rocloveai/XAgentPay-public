@@ -47,7 +47,7 @@ curl "https://api.xagenpay.com/api/agents?query=hotel&category=travel&limit=10"
   "http_status": 200,
   "agents": [
     {
-      "merchant_did": "did:nexus:196:demo_flight",
+      "merchant_did": "did:xagent:196:demo_flight",
       "name": "Demo Flight Agent",
       "description": "Search and book flights with USDC escrow payments",
       "category": "travel.flights",
@@ -91,7 +91,7 @@ curl "https://api.xagenpay.com/api/agents?query=hotel&category=travel&limit=10"
 ## Step 2 — Get Agent Detail
 
 ```bash
-curl "https://api.xagenpay.com/api/agents/did:nexus:196:demo_flight"
+curl "https://api.xagenpay.com/api/agents/did:xagent:196:demo_flight"
 ```
 
 Returns the same agent object as the list endpoint, for a single merchant.
@@ -110,7 +110,7 @@ curl "https://xagenpay.com/flight/skill-user.md"
 **Option B — Via XAgent Pay proxy:**
 
 ```bash
-curl "https://api.xagenpay.com/api/agents/did:nexus:196:demo_flight/skill"
+curl "https://api.xagenpay.com/api/agents/did:xagent:196:demo_flight/skill"
 ```
 
 The agent's skill file will tell you how to search for services, get quotes, and the response format containing UCP payment data.

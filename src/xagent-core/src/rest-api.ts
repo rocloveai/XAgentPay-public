@@ -1,17 +1,17 @@
 /**
- * xNexus Core — Stateless REST API routes.
+ * XAgent Core — Stateless REST API routes.
  *
  * Pure HTTP endpoints for LLM tools that cannot use MCP SSE transport.
  * All endpoints are stateless — no session or cookie required.
  */
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { NexusOrchestrator } from "./services/orchestrator.js";
+import type { XAgentOrchestrator } from "./services/orchestrator.js";
 import type { MerchantRepository } from "./db/interfaces/merchant-repo.js";
 import type { PaymentRepository } from "./db/interfaces/payment-repo.js";
 import type { StarRepository } from "./db/interfaces/star-repo.js";
 import type { KVRepository } from "./db/interfaces/kv-repo.js";
 import type { MerchantRecord, Hex } from "./types.js";
-import type { NexusRelayer } from "./services/relayer.js";
+import type { XAgentRelayer } from "./services/relayer.js";
 import { createLogger } from "./logger.js";
 import { keccak256, toHex } from "viem";
 
@@ -22,13 +22,13 @@ const log = createLogger("REST-API");
 // ---------------------------------------------------------------------------
 
 export interface RestApiDeps {
-  readonly orchestrator: NexusOrchestrator;
+  readonly orchestrator: XAgentOrchestrator;
   readonly merchantRepo: MerchantRepository;
   readonly paymentRepo: PaymentRepository;
   readonly starRepo: StarRepository;
   readonly kvRepo: KVRepository | null;
   readonly portalToken: string;
-  readonly relayer: NexusRelayer | null;
+  readonly relayer: XAgentRelayer | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -218,9 +218,9 @@ export async function handleRestApiRequest(
   }
 
   // --- GET /api/agents/:did/skill ---
-  // DID format: did:nexus:20250407:demo_flight (contains colons)
+  // DID format: did:xagent:20250407:demo_flight (contains colons)
   const agentSkillMatch = url.pathname.match(
-    /^\/api\/agents\/(did:nexus:[^/]+)\/skill$/,
+    /^\/api\/agents\/(did:xagent:[^/]+)\/skill$/,
   );
   if (agentSkillMatch && req.method === "GET") {
     return handleAgentSkill(deps, res, agentSkillMatch[1]);

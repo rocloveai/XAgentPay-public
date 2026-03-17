@@ -1,9 +1,9 @@
 databases:
-  - name: nexuspay-db
+  - name: xagentpay-db
     region: singapore
     plan: free
-    databaseName: nexuspay
-    user: nexuspay
+    databaseName: xagentpay
+    user: xagentpay
 
 services:
   - type: web
@@ -20,7 +20,7 @@ services:
         source: /*
         destination: /index.html
     envVars:
-      - key: VITE_NEXUS_CORE_URL
+      - key: VITE_XAGENT_CORE_URL
         sync: false
 
   - type: web
@@ -38,7 +38,7 @@ services:
         value: "10000"
       - key: DATABASE_URL
         fromDatabase:
-          name: nexuspay-db
+          name: xagentpay-db
           property: connectionString
       - key: RELAYER_PRIVATE_KEY
         sync: false
@@ -57,10 +57,10 @@ services:
       - key: BASE_URL
         sync: false
       - key: TELEGRAM_NOTIFY_URL
-        value: "https://nexus-telegram-bot-8fzu.onrender.com/api/payment-notify"
+        value: "https://xagent-telegram-bot-8fzu.onrender.com/api/payment-notify"
 
   - type: web
-    name: nexus-hotel-agent
+    name: xagent-hotel-agent
     region: singapore
     runtime: docker
     dockerfilePath: src/hotel-agent/Dockerfile
@@ -76,7 +76,7 @@ services:
         value: "0.0.0.0"
       - key: DATABASE_URL
         fromDatabase:
-          name: nexuspay-db
+          name: xagentpay-db
           property: connectionString
       - key: AMADEUS_API_KEY
         sync: false
@@ -87,16 +87,16 @@ services:
       - key: MERCHANT_PAYMENT_ADDRESS
         value: "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd"
       - key: MERCHANT_DID
-        value: "did:nexus:196:demo_hotel"
-      - key: NEXUS_CORE_URL
+        value: "did:xagent:196:demo_hotel"
+      - key: XAGENT_CORE_URL
         value: "https://api.xagenpay.com"
-      - key: NEXUS_WEBHOOK_SECRET
+      - key: XAGENT_WEBHOOK_SECRET
         value: "REDACTED_WEBHOOK_SECRET"
       - key: PORTAL_BASE_URL
-        value: "https://nexus-hotel-agent-d2lj.onrender.com"
+        value: "https://xagent-hotel-agent-d2lj.onrender.com"
 
   - type: web
-    name: nexus-flight-agent
+    name: xagent-flight-agent
     region: singapore
     runtime: docker
     dockerfilePath: src/flight-agent/Dockerfile
@@ -112,7 +112,7 @@ services:
         value: "0.0.0.0"
       - key: DATABASE_URL
         fromDatabase:
-          name: nexuspay-db
+          name: xagentpay-db
           property: connectionString
       - key: DUFFEL_API_TOKEN
         sync: false
@@ -121,16 +121,16 @@ services:
       - key: MERCHANT_PAYMENT_ADDRESS
         value: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1"
       - key: MERCHANT_DID
-        value: "did:nexus:196:demo_flight"
-      - key: NEXUS_CORE_URL
+        value: "did:xagent:196:demo_flight"
+      - key: XAGENT_CORE_URL
         value: "https://api.xagenpay.com"
-      - key: NEXUS_WEBHOOK_SECRET
+      - key: XAGENT_WEBHOOK_SECRET
         value: "REDACTED_WEBHOOK_SECRET"
       - key: PORTAL_BASE_URL
-        value: "https://nexus-flight-agent-3xb1.onrender.com"
+        value: "https://xagent-flight-agent-3xb1.onrender.com"
 
   - type: web
-    name: nexus-telegram-bot
+    name: xagent-telegram-bot
     region: singapore
     runtime: docker
     dockerfilePath: src/telegram-bot/Dockerfile
@@ -140,7 +140,7 @@ services:
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         value: "REDACTED_ORDERS_BOT_TOKEN"
-      - key: NEXUS_CORE_URL
+      - key: XAGENT_CORE_URL
         value: "https://api.xagenpay.com"
       - key: PORT
         value: "10000"
@@ -162,6 +162,6 @@ services:
       - key: TG_BOT_TOKEN
         sync: false
       - key: FLIGHT_API
-        value: "https://nexus-flight-agent-3xb1.onrender.com/api/v1/call-tool"
+        value: "https://xagent-flight-agent-3xb1.onrender.com/api/v1/call-tool"
       - key: HOTEL_API
-        value: "https://nexus-hotel-agent-d2lj.onrender.com/api/v1/call-tool"
+        value: "https://xagent-hotel-agent-d2lj.onrender.com/api/v1/call-tool"

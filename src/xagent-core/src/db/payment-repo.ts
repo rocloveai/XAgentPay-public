@@ -4,14 +4,14 @@ import type {
   PaymentRecord,
   PaymentStatus,
   PaymentMethod,
-  NexusQuotePayload,
+  XAgentQuotePayload,
   IsoMetadata,
   CreatePaymentParams,
 } from "../types.js";
 
 function rowToPayment(row: Record<string, unknown>): PaymentRecord {
   return {
-    xagent_payment_id: row.nexus_payment_id as string,
+    xagent_payment_id: row.xagent_payment_id as string,
     group_id: (row.group_id as string) ?? null,
     quote_hash: row.quote_hash as string,
     merchant_did: row.merchant_did as string,
@@ -28,7 +28,7 @@ function rowToPayment(row: Record<string, unknown>): PaymentRecord {
     block_number: row.block_number != null ? Number(row.block_number) : null,
     block_timestamp:
       row.block_timestamp != null ? String(row.block_timestamp) : null,
-    quote_payload: row.quote_payload as unknown as NexusQuotePayload,
+    quote_payload: row.quote_payload as unknown as XAgentQuotePayload,
     iso_metadata: (row.iso_metadata as unknown as IsoMetadata) ?? null,
     expires_at: String(row.expires_at),
     settled_at: row.settled_at != null ? String(row.settled_at) : null,
@@ -86,7 +86,7 @@ export class NeonPaymentRepository implements PaymentRepository {
     const now = new Date().toISOString();
     const rows = await sql(
       `INSERT INTO payments (
-        nexus_payment_id, group_id, quote_hash, merchant_did, merchant_order_ref,
+        xagent_payment_id, group_id, quote_hash, merchant_did, merchant_order_ref,
         payer_wallet, payment_address, amount, amount_display,
         currency, chain_id, status, payment_method,
         quote_payload, iso_metadata, expires_at,
@@ -122,7 +122,7 @@ export class NeonPaymentRepository implements PaymentRepository {
   async findById(xagentPaymentId: string): Promise<PaymentRecord | null> {
     const sql = getPool();
     const rows = await sql(
-      `SELECT * FROM payments WHERE nexus_payment_id = $1`,
+      `SELECT * FROM payments WHERE xagent_payment_id = $1`,
       [xagentPaymentId],
     );
     return rows.length > 0 ? rowToPayment(rows[0]) : null;
@@ -221,7 +221,7 @@ export class NeonPaymentRepository implements PaymentRepository {
 
     const rows = await sql(
       `UPDATE payments SET ${setClauses.join(", ")}
-       WHERE nexus_payment_id = $${paramIdx}
+       WHERE xagent_payment_id = $${paramIdx}
        RETURNING *`,
       values,
     );

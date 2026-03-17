@@ -1,5 +1,5 @@
 /**
- * xNexus Core — Agent Marketplace.
+ * XAgent Core — Agent Marketplace.
  *
  * Serves the marketplace HTML page and JSON API endpoints for
  * browsing, registering, and discovering merchant agent skills.
@@ -10,7 +10,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { MerchantRepository } from "./db/interfaces/merchant-repo.js";
 import type { StarRepository } from "./db/interfaces/star-repo.js";
-import type { NexusCoreConfig } from "./config.js";
+import type { XAgentCoreConfig } from "./config.js";
 import type { AgentHealthStatus, MerchantRecord } from "./types.js";
 import { createLogger } from "./logger.js";
 
@@ -23,7 +23,7 @@ const marketLog = createLogger("Market");
 export interface MarketDeps {
   readonly merchantRepo: MerchantRepository;
   readonly starRepo: StarRepository;
-  readonly config: NexusCoreConfig;
+  readonly config: XAgentCoreConfig;
 }
 
 // ---------------------------------------------------------------------------
@@ -495,7 +495,7 @@ curl -X POST ${baseUrl}/api/market/register \\
   -H "Authorization: Bearer $PORTAL_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "merchant_did": "did:nexus:20250407:my_agent",
+    "merchant_did": "did:xagent:20250407:my_agent",
     "name": "My Hotel Agent",
     "description": "AI hotel booking with payment",
     "category": "travel.hotels",

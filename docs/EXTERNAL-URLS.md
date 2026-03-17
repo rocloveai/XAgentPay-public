@@ -169,4 +169,4 @@ Both agents expose identical endpoint patterns:
 | Payment ID | `PAY-*` | `PAY-abc123def` |
 | Group ID | `GRP-*` / `grp_*` | `GRP-20250302-xyz` |
 | Checkout Token | `tok_*` / `GRP-*` / `grp_*` | `tok_abc123` |
-| Merchant DID | `did:nexus:<chainId>:<name>` | `did:nexus:20250407:demo_flight` |
+| Merchant DID | `did:xagent:<chainId>:<name>` | `did:xagent:20250407:demo_flight` |

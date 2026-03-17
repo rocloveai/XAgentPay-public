@@ -1,5 +1,5 @@
 /**
- * xNexus Core — Instruction builder.
+ * XAgent Core — Instruction builder.
  *
  * Builds payment instructions for User Agent:
  * - Direct transfer instructions
@@ -22,7 +22,7 @@ import type {
   ACPJobInstruction,
   ACPJobDetail,
 } from "../types.js";
-import type { NexusCoreConfig } from "../config.js";
+import type { XAgentCoreConfig } from "../config.js";
 import {
   PLATON_DEVNET_USDC_ADDRESS,
   USDC_DECIMALS,
@@ -47,7 +47,7 @@ const ERC20_TRANSFER_ABI = parseAbi([
 export function buildDirectTransferInstruction(
   payment: PaymentRecord,
   merchant: MerchantRecord,
-  config: NexusCoreConfig,
+  config: XAgentCoreConfig,
 ): PaymentInstruction {
   const data = encodeFunctionData({
     abi: ERC20_TRANSFER_ABI,
@@ -73,7 +73,7 @@ export function buildDirectTransferInstruction(
       gas_limit: "100000",
     },
     xagent_payment_id: payment.xagent_payment_id,
-    memo: `xNexus: ${payment.merchant_order_ref}`,
+    memo: `XAgent: ${payment.merchant_order_ref}`,
   };
 }
 
@@ -84,7 +84,7 @@ export function buildDirectTransferInstruction(
 export function buildEscrowInstruction(
   payment: PaymentRecord,
   merchant: MerchantRecord,
-  config: NexusCoreConfig,
+  config: XAgentCoreConfig,
   payerWallet: string,
 ): EscrowInstruction {
   const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
@@ -162,7 +162,7 @@ export function buildGroupEscrowInstruction(
   group: PaymentGroupRecord,
   payments: readonly PaymentRecord[],
   merchants: readonly MerchantRecord[],
-  config: NexusCoreConfig,
+  config: XAgentCoreConfig,
 ): GroupEscrowInstruction {
   const nonce = `0x${randomBytes(32).toString("hex")}` as Hex;
   const now = Math.floor(Date.now() / 1000);
@@ -253,7 +253,7 @@ export function buildBatchDepositInstruction(
   group: PaymentGroupRecord,
   payments: readonly PaymentRecord[],
   merchants: readonly MerchantRecord[],
-  config: NexusCoreConfig,
+  config: XAgentCoreConfig,
 ): UnsignedBatchDepositInstruction {
   const paymentDetails: GroupPaymentDetail[] = payments.map((p, i) => ({
     xagent_payment_id: p.xagent_payment_id,
@@ -317,7 +317,7 @@ export function buildACPJobInstruction(
   group: PaymentGroupRecord,
   payments: readonly PaymentRecord[],
   merchants: readonly MerchantRecord[],
-  config: NexusCoreConfig,
+  config: XAgentCoreConfig,
 ): ACPJobInstruction {
   if (!config.acpContract) {
     throw new Error("ACP_CONTRACT is not configured");

@@ -65,7 +65,7 @@ The file uses **YAML frontmatter** followed by a **Markdown body**, separated by
 | `name` | string | Valid npm package name | Agent package identifier |
 | `version` | string | Semantic Versioning (semver) | Current package version |
 | `description` | string | Max 200 chars | One-line human-readable description |
-| `merchant_did` | string | `did:nexus:<chain_id>:<id>` format | Nexus DID of the merchant |
+| `merchant_did` | string | `did:xagent:<chain_id>:<id>` format | Nexus DID of the merchant |
 | `protocol` | string | `NUPS/<version>` | NUPS protocol version supported |
 | `category` | string | `<domain>.<subcategory>` | Merchant category (see Section 3.7) |
 | `currencies` | string[] | ISO 4217 or token symbols | Accepted payment currencies |
@@ -270,7 +270,7 @@ A `skill.md` file is valid if:
 name: nexus-coffee-agent
 version: "0.1.0"
 description: Coffee ordering with XAgent Payment
-merchant_did: "did:nexus:210425:demo_coffee"
+merchant_did: "did:xagent:210425:demo_coffee"
 protocol: NUPS/1.5
 category: food.delivery
 currencies: [USDC]

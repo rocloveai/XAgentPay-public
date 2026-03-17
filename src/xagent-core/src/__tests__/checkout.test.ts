@@ -10,7 +10,7 @@ import { makeTestPayment, makeTestGroup, makeTestQuote } from "./fixtures.js";
 import { PaymentStateMachine } from "../services/state-machine.js";
 import { GroupManager } from "../services/group-manager.js";
 import type { WebhookNotifier } from "../services/webhook-notifier.js";
-import type { NexusCoreConfig } from "../config.js";
+import type { XAgentCoreConfig } from "../config.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 // ---------------------------------------------------------------------------
@@ -83,7 +83,7 @@ function makeMockWebhookNotifier(): WebhookNotifier {
 // Test config
 // ---------------------------------------------------------------------------
 
-const testConfig: NexusCoreConfig = {
+const testConfig: XAgentCoreConfig = {
   databaseUrl: "",
   escrowContract: "0xC1aF5ea6e661cB815DB166549178314E6BCfc3CF",
   chainId: 20250407,
@@ -142,7 +142,7 @@ describe("Checkout", () => {
       xagent_payment_id: "PAY-checkout-1",
       group_id: GROUP_ID,
       quote_hash: "0x" + "aa".repeat(32),
-      merchant_did: "did:nexus:20250407:demo_flight",
+      merchant_did: "did:xagent:20250407:demo_flight",
       merchant_order_ref: "FLT-CHECKOUT-1",
       payer_wallet: "0x1234567890abcdef1234567890abcdef12345678",
       payment_address: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1",
@@ -172,7 +172,7 @@ describe("Checkout", () => {
       payments: [
         {
           xagent_payment_id: "PAY-checkout-1",
-          merchant_did: "did:nexus:20250407:demo_flight",
+          merchant_did: "did:xagent:20250407:demo_flight",
           merchant_order_ref: "FLT-CHECKOUT-1",
           merchant_address: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1",
           amount_uint256: "200000",

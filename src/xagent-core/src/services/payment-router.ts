@@ -1,10 +1,10 @@
 /**
- * xNexus Core — Payment router.
+ * XAgent Core — Payment router.
  *
  * Decides which payment method to use for a given quote.
  * MVP: Always routes to ESCROW_CONTRACT.
  */
-import type { PaymentMethod, NexusQuotePayload } from "../types.js";
+import type { PaymentMethod, XAgentQuotePayload } from "../types.js";
 
 export interface RouteDecision {
   readonly method: PaymentMethod;
@@ -17,9 +17,9 @@ export interface RouteDecision {
  * dropped when quotes are forwarded between agents.
  */
 const ACP_MERCHANT_DIDS = new Set([
-  "did:nexus:196:demo_esim",
-  "did:nexus:20250407:demo_flight",
-  "did:nexus:20250407:demo_hotel",
+  "did:xagent:196:demo_esim",
+  "did:xagent:20250407:demo_flight",
+  "did:xagent:20250407:demo_hotel",
 ]);
 
 /**
@@ -29,7 +29,7 @@ const ACP_MERCHANT_DIDS = new Set([
  *  2. Merchant is configured for ACP in ACP_MERCHANT_DIDS
  * Otherwise defaults to ESCROW_CONTRACT.
  */
-export function routePayment(quote: NexusQuotePayload): RouteDecision {
+export function routePayment(quote: XAgentQuotePayload): RouteDecision {
   if (
     quote.payment_method === "ACP_JOB" ||
     ACP_MERCHANT_DIDS.has(quote.merchant_did)

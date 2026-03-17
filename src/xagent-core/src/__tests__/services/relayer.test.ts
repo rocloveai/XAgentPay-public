@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Hex } from "viem";
 
 // ---------------------------------------------------------------------------
-// Mock viem — must be before NexusRelayer import
+// Mock viem — must be before XAgentRelayer import
 // ---------------------------------------------------------------------------
 
 const mockWriteContract = vi.fn();
@@ -28,15 +28,15 @@ vi.mock("viem/accounts", () => ({
   }),
 }));
 
-import { NexusRelayer, RETRY_DELAYS_MS } from "../../services/relayer.js";
+import { XAgentRelayer, RETRY_DELAYS_MS } from "../../services/relayer.js";
 import { RelayerError } from "../../errors.js";
-import type { NexusCoreConfig } from "../../config.js";
+import type { XAgentCoreConfig } from "../../config.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const TEST_CONFIG: NexusCoreConfig = {
+const TEST_CONFIG: XAgentCoreConfig = {
   databaseUrl: "",
   escrowContract: "0x1111111111111111111111111111111111111111",
   chainId: 20250407,
@@ -62,8 +62,8 @@ const TX_HASH = "0x" + "ff".repeat(32);
 // Tests
 // ---------------------------------------------------------------------------
 
-describe("NexusRelayer", () => {
-  let relayer: NexusRelayer;
+describe("XAgentRelayer", () => {
+  let relayer: XAgentRelayer;
   let originalDelays: number[];
 
   beforeEach(() => {
@@ -73,7 +73,7 @@ describe("NexusRelayer", () => {
     RETRY_DELAYS_MS[0] = 0;
     RETRY_DELAYS_MS[1] = 0;
     RETRY_DELAYS_MS[2] = 0;
-    relayer = new NexusRelayer(TEST_CONFIG);
+    relayer = new XAgentRelayer(TEST_CONFIG);
   });
 
   afterEach(() => {
@@ -85,7 +85,7 @@ describe("NexusRelayer", () => {
 
   it("throws if RELAYER_PRIVATE_KEY is missing", () => {
     expect(
-      () => new NexusRelayer({ ...TEST_CONFIG, relayerPrivateKey: "" }),
+      () => new XAgentRelayer({ ...TEST_CONFIG, relayerPrivateKey: "" }),
     ).toThrow(RelayerError);
   });
 

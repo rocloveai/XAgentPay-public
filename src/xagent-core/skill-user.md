@@ -26,7 +26,7 @@ curl -X POST https://api.xagenpay.com/api/orchestrate \
   -d '{
     "quotes": [
       {
-        "merchant_did": "did:nexus:196:demo_flight",
+        "merchant_did": "did:xagent:196:demo_flight",
         "merchant_order_ref": "FLT-001",
         "amount": "100000",
         "currency": "USDC",
@@ -71,7 +71,7 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
     "payments": [
       {
         "nexus_payment_id": "PAY-...",
-        "merchant_did": "did:nexus:196:demo_flight",
+        "merchant_did": "did:xagent:196:demo_flight",
         "merchant_order_ref": "FLT-001",
         "merchant_address": "0x...",
         "amount_uint256": "100000",
@@ -193,7 +193,7 @@ Response (HTTP 200):
     "status": "ESCROWED",
     "amount_display": "0.10",
     "currency": "USDC",
-    "merchant_did": "did:nexus:...",
+    "merchant_did": "did:xagent:...",
     "merchant_order_ref": "FLT-123",
     "tx_hash": "0x..."
   },
@@ -224,7 +224,7 @@ Response (HTTP 200):
   "http_status": 200,
   "agents": [
     {
-      "merchant_did": "did:nexus:196:demo_flight",
+      "merchant_did": "did:xagent:196:demo_flight",
       "name": "Demo Flight Agent",
       "description": "Book flights with USDC",
       "category": "travel.flights",
@@ -246,7 +246,7 @@ Response (HTTP 200):
 Fetch the full skill.md content for a specific merchant agent. Returns `text/markdown`.
 
 ```bash
-curl https://api.xagenpay.com/api/agents/did:nexus:196:demo_flight/skill
+curl https://api.xagenpay.com/api/agents/did:xagent:196:demo_flight/skill
 ```
 
 ### Rate Limits

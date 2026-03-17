@@ -25,7 +25,7 @@ This is the standard JSON returned by the Merchant Agent via UCP.
 "display_name": "xXAgent Pay (USDC)",
 "payload": {
 // --- A. Business Intent ---
-"merchant_did": "did:nexus:20250407:trip_com",
+"merchant_did": "did:xagent:20250407:trip_com",
 "merchant_order_ref": "TRIP-2026-888", // [KEY] Merchant ERP unique order number
 "amount": "530000000", // Integer (6-decimal precision)
 "currency": "USDC", // XAgent Pay internal asset identifier

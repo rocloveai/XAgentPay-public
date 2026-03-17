@@ -2,7 +2,7 @@
 name: xagent-hotel
 version: "2.0.0"
 description: Hotel booking MCP agent — search hotels, generate NUPS quotes, verify on-chain payments. Supports x402 payment protocol.
-merchant_did: "did:nexus:196:demo_hotel"
+merchant_did: "did:xagent:196:demo_hotel"
 protocol: NUPS/1.5
 category: travel.hotels
 currencies: [USDC]

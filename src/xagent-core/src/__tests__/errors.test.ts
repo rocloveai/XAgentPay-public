@@ -1,30 +1,30 @@
 import { describe, it, expect } from "vitest";
 import {
-  NexusError,
+  XAgentError,
   SecurityError,
   InvalidTransitionError,
   RelayerError,
   ChainError,
 } from "../errors.js";
 
-describe("NexusError", () => {
+describe("XAgentError", () => {
   it("stores code, message, and context", () => {
-    const err = new NexusError("TEST_CODE", "something broke", { key: "val" });
+    const err = new XAgentError("TEST_CODE", "something broke", { key: "val" });
     expect(err.code).toBe("TEST_CODE");
     expect(err.message).toBe("something broke");
     expect(err.context).toEqual({ key: "val" });
-    expect(err.name).toBe("NexusError");
+    expect(err.name).toBe("XAgentError");
   });
 
   it("defaults context to empty object", () => {
-    const err = new NexusError("X", "msg");
+    const err = new XAgentError("X", "msg");
     expect(err.context).toEqual({});
   });
 
   it("is an instance of Error", () => {
-    const err = new NexusError("X", "msg");
+    const err = new XAgentError("X", "msg");
     expect(err).toBeInstanceOf(Error);
-    expect(err).toBeInstanceOf(NexusError);
+    expect(err).toBeInstanceOf(XAgentError);
   });
 });
 
@@ -33,7 +33,7 @@ describe("SecurityError", () => {
     const err = new SecurityError("bad sig");
     expect(err.code).toBe("SECURITY_ERROR");
     expect(err.name).toBe("SecurityError");
-    expect(err).toBeInstanceOf(NexusError);
+    expect(err).toBeInstanceOf(XAgentError);
     expect(err).toBeInstanceOf(SecurityError);
   });
 });
@@ -54,9 +54,9 @@ describe("InvalidTransitionError", () => {
     expect(err.context.from).toBe("A");
   });
 
-  it("is an instance of NexusError", () => {
+  it("is an instance of XAgentError", () => {
     const err = new InvalidTransitionError("A", "B");
-    expect(err).toBeInstanceOf(NexusError);
+    expect(err).toBeInstanceOf(XAgentError);
     expect(err).toBeInstanceOf(InvalidTransitionError);
   });
 });
@@ -66,7 +66,7 @@ describe("RelayerError", () => {
     const err = new RelayerError("out of gas");
     expect(err.code).toBe("RELAYER_ERROR");
     expect(err.name).toBe("RelayerError");
-    expect(err).toBeInstanceOf(NexusError);
+    expect(err).toBeInstanceOf(XAgentError);
   });
 });
 
@@ -75,6 +75,6 @@ describe("ChainError", () => {
     const err = new ChainError("rpc timeout");
     expect(err.code).toBe("CHAIN_ERROR");
     expect(err.name).toBe("ChainError");
-    expect(err).toBeInstanceOf(NexusError);
+    expect(err).toBeInstanceOf(XAgentError);
   });
 });

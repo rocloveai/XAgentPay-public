@@ -2,7 +2,7 @@
   "name": "@xagentpay/xagent-core",
   "version": "0.2.0",
   "type": "module",
-  "description": "NexusPay Core — payment orchestration, multi-merchant aggregated checkout",
+  "description": "XAgentPay Core — payment orchestration, multi-merchant aggregated checkout",
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
   "bin": {

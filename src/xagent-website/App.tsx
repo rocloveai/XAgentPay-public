@@ -633,7 +633,7 @@ const MARKET_SKILL_URL = `${API_URL}/skill-market.md`;
 
 const CHAIN_NAMES: Record<number, string> = {
   196: "XLayer Mainnet",
-  20250407: "Nexus Devnet",
+  20250407: "XAgent Devnet",
   1: "Ethereum",
   137: "Polygon",
 };
@@ -708,7 +708,7 @@ const MarketPage = ({ lang }: { lang: Language }) => {
   const tf = t.list.form as Record<string, any>;
   const validators: Record<string, (v: string) => string> = {
     skill_md_url: (v) => !v ? tf.errors.required : !/^https?:\/\/.+/.test(v) ? tf.errors.invalidUrl : '',
-    merchant_did: (v) => !v ? tf.errors.required : !/^did:nexus:\d+:\w+$/.test(v) ? tf.errors.invalidDid : '',
+    merchant_did: (v) => !v ? tf.errors.required : !/^did:xagent:\d+:\w+$/.test(v) ? tf.errors.invalidDid : '',
     name: (v) => !v ? tf.errors.required : (v.length < 2 || v.length > 100) ? tf.errors.nameLength : '',
     description: (v) => !v ? tf.errors.required : (v.length < 10 || v.length > 500) ? tf.errors.descLength : '',
     category: (v) => !v ? tf.errors.required : '',

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# xNexus MVP — 本地完整启动脚本
+# XAgentPay — 本地完整启动脚本
 # 用法: ./scripts/start-local.sh
 # 停止: ./scripts/stop-local.sh
 # ============================================================
@@ -32,8 +32,8 @@ check_secrets() {
     echo ""
     echo "  从 Render Dashboard 复制以下值："
     echo "  xagent-core:         RELAYER_PRIVATE_KEY"
-    echo "  nexus-flight-agent: MERCHANT_SIGNER_PRIVATE_KEY, DUFFEL_API_TOKEN"
-    echo "  nexus-hotel-agent:  MERCHANT_SIGNER_PRIVATE_KEY, AMADEUS_API_KEY, AMADEUS_API_SECRET"
+    echo "  xagent-flight-agent: MERCHANT_SIGNER_PRIVATE_KEY, DUFFEL_API_TOKEN"
+    echo "  xagent-hotel-agent:  MERCHANT_SIGNER_PRIVATE_KEY, AMADEUS_API_KEY, AMADEUS_API_SECRET"
     echo ""
     read -p "已填写完毕？继续启动？[y/N] " confirm
     [[ "$confirm" =~ ^[Yy]$ ]] || exit 0
@@ -48,7 +48,7 @@ start_postgres() {
   
   info "等待 PostgreSQL 就绪..."
   local retries=30
-  while ! docker compose exec -T postgres pg_isready -U nexuspay -d nexuspay -q 2>/dev/null; do
+  while ! docker compose exec -T postgres pg_isready -U xagentpay -d xagentpay -q 2>/dev/null; do
     retries=$((retries - 1))
     [ $retries -le 0 ] && error "PostgreSQL 启动超时"
     sleep 1
@@ -62,7 +62,7 @@ run_migrations() {
   for sql_file in "$ROOT/db/migrations/"*.sql; do
     local name
     name=$(basename "$sql_file")
-    docker compose exec -T postgres psql -U nexuspay -d nexuspay \
+    docker compose exec -T postgres psql -U xagentpay -d xagentpay \
       -f "/dev/stdin" < "$sql_file" > /dev/null 2>&1 && \
       echo "  ✓ $name" || echo "  ~ $name (已存在，跳过)"
   done
@@ -138,8 +138,8 @@ register_merchants() {
   sleep 3
 
   register_one \
-    "did:nexus:20250407:demo_flight" \
-    "Nexus Flight Agent" \
+    "did:xagent:20250407:demo_flight" \
+    "XAgent Flight Agent" \
     "Search and book flights across Asia-Pacific routes with USDC escrow payments" \
     "travel.flights" \
     "0xdd31F8EcD2F5DE824238AB1A761212006A1E11b6" \
@@ -147,8 +147,8 @@ register_merchants() {
     "3001" "FLT"
 
   register_one \
-    "did:nexus:20250407:demo_hotel" \
-    "Nexus Hotel Agent" \
+    "did:xagent:20250407:demo_hotel" \
+    "XAgent Hotel Agent" \
     "Search and book hotels across Asia-Pacific cities with USDC escrow payments" \
     "travel.hotels" \
     "0x5916667cfBD5f329c0A6474bf81d7F58c3BFB2C4" \
@@ -159,7 +159,7 @@ register_merchants() {
 # ── MAIN ─────────────────────────────────────────────────────
 echo ""
 echo "╔══════════════════════════════════════════╗"
-echo "║     xNexus MVP — 本地开发环境启动        ║"
+echo "║     XAgentPay — 本地开发环境启动          ║"
 echo "╚══════════════════════════════════════════╝"
 echo ""
 
@@ -203,7 +203,7 @@ echo "║  停止所有: ./scripts/stop-local.sh                       ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 info "启动 xagent-website (Vite dev server, port 3000)..."
-nohup bash -c "cd \"$ROOT/src/xagent-website\" && VITE_NEXUS_CORE_URL=http://localhost:4000 npm run dev" \
+nohup bash -c "cd \"$ROOT/src/xagent-website\" && VITE_XAGENT_CORE_URL=http://localhost:4000 npm run dev" \
   > "$LOGS/xagent-website.log" 2>&1 &
 echo $! > "$LOGS/xagent-website.pid"
 echo "  PID=$(cat "$LOGS/xagent-website.pid")  日志: $LOGS/xagent-website.log"

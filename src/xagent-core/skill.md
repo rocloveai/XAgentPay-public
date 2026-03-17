@@ -76,7 +76,7 @@ The `config` object is a `XAgent PayQuotePayload` with these required fields:
 
 ```
 nexus_orchestrate_payment({
-  quotes_json: "[{\"merchant_did\":\"did:nexus:196:demo_flight\",\"merchant_order_ref\":\"FLT-001\",\"amount\":\"100000\",\"currency\":\"USDC\",\"chain_id\":196,\"expiry\":9999999999,\"context\":{\"summary\":\"Flight\",\"line_items\":[]},\"signature\":\"0x...\"}]",
+  quotes_json: "[{\"merchant_did\":\"did:xagent:196:demo_flight\",\"merchant_order_ref\":\"FLT-001\",\"amount\":\"100000\",\"currency\":\"USDC\",\"chain_id\":196,\"expiry\":9999999999,\"context\":{\"summary\":\"Flight\",\"line_items\":[]},\"signature\":\"0x...\"}]",
   payer_wallet: "0xUserWalletAddress"
 })
 ```
@@ -214,7 +214,7 @@ Fetch the full skill.md content for a specific merchant agent.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `merchant_did` | string | Yes | Merchant DID (e.g. `did:nexus:196:demo_flight`) |
+| `merchant_did` | string | Yes | Merchant DID (e.g. `did:xagent:196:demo_flight`) |
 
 ---
 

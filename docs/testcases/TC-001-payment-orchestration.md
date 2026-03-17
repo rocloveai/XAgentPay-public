@@ -6,7 +6,7 @@
 ## Prerequisites
 - xagent-core service running
 - Database accessible with merchant_registry populated
-- At least one merchant registered (e.g. `did:nexus:20250407:demo_flight`)
+- At least one merchant registered (e.g. `did:xagent:20250407:demo_flight`)
 
 ---
 
@@ -160,7 +160,7 @@
 **Type:** Negative
 
 **Steps:**
-1. Call with `merchant_did`: `"did:nexus:20250407:nonexistent"`
+1. Call with `merchant_did`: `"did:xagent:20250407:nonexistent"`
 
 **Expected:**
 - Error: merchant not found
