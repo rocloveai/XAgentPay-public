@@ -18,6 +18,8 @@ export interface RouteDecision {
  */
 const ACP_MERCHANT_DIDS = new Set([
   "did:nexus:196:demo_esim",
+  "did:nexus:20250407:demo_flight",
+  "did:nexus:20250407:demo_hotel",
 ]);
 
 /**
