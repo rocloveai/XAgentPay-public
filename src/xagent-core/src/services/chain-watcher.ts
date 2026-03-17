@@ -83,8 +83,8 @@ const STATUS_TO_WEBHOOK: Readonly<Record<string, string>> = {
 // ChainWatcher
 // ---------------------------------------------------------------------------
 
-/** Smaller range avoids XLayer RPC timeouts on eth_getLogs */
-const MAX_BLOCK_RANGE = 200n;
+/** Smaller range avoids XLayer RPC timeouts on eth_getLogs (XLayer max = 100) */
+const MAX_BLOCK_RANGE = 99n;
 /** How many getLogs retries before giving up on a range */
 const GETLOGS_MAX_RETRIES = 3;
 /** How often to run the chain-state reconciliation sweep (every N poll ticks) */
