@@ -34,16 +34,12 @@ export function loadConfig(): Config {
   const paymentAddress =
     process.env.MERCHANT_PAYMENT_ADDRESS ||
     "0xac9d5239b597f8903da93b9b8d92e6cff564e989";
-  const signerPrivateKey =
-    process.env.MERCHANT_SIGNER_PRIVATE_KEY ||
-    "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997";
+  const signerPrivateKey = process.env.MERCHANT_SIGNER_PRIVATE_KEY ?? "";
   const xagentCoreUrl =
     process.env.XAGENT_CORE_URL || "https://api.xagenpay.com";
   const portalBaseUrl =
     process.env.PORTAL_BASE_URL || "https://xagenpay.com/hotel";
-  const relayerPrivateKey =
-    process.env.RELAYER_PRIVATE_KEY ||
-    "0x__REDACTED_RELAYER_PRIVATE_KEY__";
+  const relayerPrivateKey = process.env.RELAYER_PRIVATE_KEY ?? "";
   const x402PriceAtomic =
     process.env.X402_PRICE_ATOMIC || "100000"; // 0.10 USDC
 

@@ -139,7 +139,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: TELEGRAM_BOT_TOKEN
-        value: "REDACTED_ORDERS_BOT_TOKEN"
+        sync: false
       - key: XAGENT_CORE_URL
         value: "https://api.xagenpay.com"
       - key: PORT
