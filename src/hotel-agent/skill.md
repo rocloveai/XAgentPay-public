@@ -19,9 +19,9 @@ tools:
     role: search+quote+x402
   - name: search_hotels
     role: search
-  - name: nexus_generate_quote
+  - name: xagent_generate_quote
     role: quote+x402
-  - name: nexus_check_status
+  - name: xagent_check_status
     role: status
 ---
 
@@ -86,7 +86,7 @@ Search available hotels. Use `search_and_quote` instead for faster flow.
 
 ---
 
-### `nexus_generate_quote` (role: quote)
+### `xagent_generate_quote` (role: quote)
 
 Generate a NUPS quote for a selected hotel offer. Use `search_and_quote` instead for faster flow.
 
@@ -99,7 +99,7 @@ Generate a NUPS quote for a selected hotel offer. Use `search_and_quote` instead
 
 ---
 
-### `nexus_check_status` (role: status)
+### `xagent_check_status` (role: status)
 
 Checks the payment status of a hotel order.
 
@@ -115,8 +115,8 @@ Checks the payment status of a hotel order.
 
 **Fast path (recommended):**
 1. **Search + Quote** — Call `search_and_quote` with city, dates, and payer wallet. Returns hotels + ready-to-use quote.
-2. **Pay** — Call `nexus_orchestrate_payment` on XAgent Pay Core with the `QUOTE_JSON` from step 1. Multiple quotes from different merchants can be combined into a single call.
-3. **Verify** — Call `nexus_check_status` to verify. Only confirm booking when status is `PAID`.
+2. **Pay** — Call `xagent_orchestrate_payment` on XAgent Pay Core with the `QUOTE_JSON` from step 1. Multiple quotes from different merchants can be combined into a single call.
+3. **Verify** — Call `xagent_check_status` to verify. Only confirm booking when status is `PAID`.
 
 ## x402 Payment Protocol
 

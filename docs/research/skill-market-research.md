@@ -83,7 +83,7 @@ SkillsMP 当前为开源社区项目，无直接收入模式。技能由 GitHub 
 
 ### 3.1 供给侧（商户）
 
-- 标准化 Skill 开发模板 + 脚手架工具（`create-nexus-skill`）
+- 标准化 Skill 开发模板 + 脚手架工具（`create-xagent-skill`）
 - 商户只需提供商品目录 / API，xXAgent Pay 帮助封装成支付 Skill
 - 认证体系：DID 注册 → 支付能力验证 → Webhook 测试通过 → 上架
 - 技能开发外包服务（xXAgent Pay 团队或认证开发者）

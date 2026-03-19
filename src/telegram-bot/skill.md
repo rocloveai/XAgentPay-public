@@ -93,7 +93,7 @@ category: notification.telegram
 1. Search flights → SHOW results → WAIT for Roc to select
 2. Search hotels  → SHOW results → WAIT for Roc to select
 3. SHOW full price summary → ask "确认支付吗？" → WAIT for "确认"
-4. Call nexus_orchestrate_payment → get groupId + checkoutUrl
+4. Call xagent_orchestrate_payment → get groupId + checkoutUrl
 5. Call POST /start-order-panel with chatId=REDACTED_CHAT_ID and YOUR botToken
 6. Reply to Roc: "✅ 订单卡片已发送，正在为您支付…" (1-2 lines max)
 7. Submit payment transactions (agent-pay/build-tx flow)

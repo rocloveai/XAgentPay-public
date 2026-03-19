@@ -19,9 +19,9 @@ tools:
     role: search+quote+x402
   - name: search_esim_plans
     role: search
-  - name: nexus_generate_quote
+  - name: xagent_generate_quote
     role: quote+x402
-  - name: nexus_check_status
+  - name: xagent_check_status
     role: status
 ---
 
@@ -82,7 +82,7 @@ Search available eSIM data plans by country. Use `search_and_quote` instead for 
 
 ---
 
-### `nexus_generate_quote` (role: quote)
+### `xagent_generate_quote` (role: quote)
 
 Generate a NUPS quote for a selected eSIM plan. Use `search_and_quote` instead for faster flow.
 
@@ -95,7 +95,7 @@ Generate a NUPS quote for a selected eSIM plan. Use `search_and_quote` instead f
 
 ---
 
-### `nexus_check_status` (role: status)
+### `xagent_check_status` (role: status)
 
 Checks the payment status of an eSIM order. If paid, returns the eSIM activation QR code.
 
@@ -111,8 +111,8 @@ Checks the payment status of an eSIM order. If paid, returns the eSIM activation
 
 **Fast path (recommended):**
 1. **Search + Quote** — Call `search_and_quote` with country and payer wallet. Returns plans + ready-to-use quote.
-2. **Pay** — Call `nexus_orchestrate_payment` on XAgent Pay Core with the `QUOTE_JSON` from step 1.
-3. **Verify** — Call `nexus_check_status` to verify. When status is `PAID`, the response includes the eSIM activation QR code.
+2. **Pay** — Call `xagent_orchestrate_payment` on XAgent Pay Core with the `QUOTE_JSON` from step 1.
+3. **Verify** — Call `xagent_check_status` to verify. When status is `PAID`, the response includes the eSIM activation QR code.
 
 ## x402 Payment Protocol
 

@@ -1,5 +1,5 @@
 ---
-name: nexus-marketplace
+name: xagent-marketplace
 version: "0.5.0"
 description: xXAgent Pay Marketplace — discover merchant agents and get their skill files
 protocol: NUPS/1.5
@@ -59,7 +59,7 @@ curl "https://api.xagenpay.com/api/agents?query=hotel&category=travel&limit=10"
       "stars": 5,
       "tools": [
         { "name": "search_flights", "role": "search" },
-        { "name": "nexus_generate_quote", "role": "quote" }
+        { "name": "xagent_generate_quote", "role": "quote" }
       ]
     }
   ],
@@ -127,7 +127,7 @@ curl -X POST https://xagenpay.com/flight/api/search \
 ```
 
 The merchant response includes a UCP payment block with a signed quote. Extract the quote from:
-`response.ucp.payment_handlers["urn:ucp:payment:nexus_v1"][0].config`
+`response.ucp.payment_handlers["urn:ucp:payment:xagent_v1"][0].config`
 
 ## Step 5 — Pay with XAgent Pay Core
 

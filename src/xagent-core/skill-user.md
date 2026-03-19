@@ -43,7 +43,7 @@ curl -X POST https://api.xagenpay.com/api/orchestrate \
 ### How to extract quotes from merchant responses
 
 The quote you need is at:
-`response.ucp.payment_handlers["urn:ucp:payment:nexus_v1"][0].config`
+`response.ucp.payment_handlers["urn:ucp:payment:xagent_v1"][0].config`
 
 Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `chain_id`, `expiry`, `context`, `signature`.
 
@@ -52,7 +52,7 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
 ```json
 {
   "http_status": 402,
-  "nexus_version": "0.5.0",
+  "xagent_version": "0.5.0",
   "group_id": "grp_...",
   "status": "PAYMENT_REQUIRED",
   "checkout_url": "https://api.xagenpay.com/checkout/tok_...",
@@ -70,7 +70,7 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
     "total_amount_display": "0.10",
     "payments": [
       {
-        "nexus_payment_id": "PAY-...",
+        "xagent_payment_id": "PAY-...",
         "merchant_did": "did:xagent:196:demo_flight",
         "merchant_order_ref": "FLT-001",
         "merchant_address": "0x...",
@@ -87,10 +87,10 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
     "deposit_tx": { "to": "0x...", "abi": "function batchDepositWithAuthorization(...)", "value": "0", "gas_limit": "350000" },
     "user_action": "SIGN_AND_SEND",
     "gas_paid_by": "USER",
-    "nexus_group_sig": "0x...EIP-712 signature...",
+    "xagent_group_sig": "0x...EIP-712 signature...",
     "core_operator_address": "0x..."
   },
-  "nexus_group_sig": "0x...EIP-712 signature...",
+  "xagent_group_sig": "0x...EIP-712 signature...",
   "core_operator_address": "0x..."
 }
 ```
@@ -103,9 +103,9 @@ Required fields: `merchant_did`, `merchant_order_ref`, `amount`, `currency`, `ch
 | `checkout_url` | Token-protected URL (valid 1 hour). Open in browser for MetaMask checkout. |
 | `instruction.eip3009_sign_data` | EIP-3009 typed data — user signs via `eth_signTypedData_v4` |
 | `instruction.deposit_tx` | ABI and target for `batchDepositWithAuthorization` — user submits tx (pays gas) |
-| `instruction.payments[].payment_id_bytes32` | Precomputed `keccak256(nexus_payment_id)` for on-chain `BatchEntry` |
+| `instruction.payments[].payment_id_bytes32` | Precomputed `keccak256(xagent_payment_id)` for on-chain `BatchEntry` |
 | `instruction.payments[].context_hash` | Precomputed `keccak256(JSON.stringify(context))` — matches on-chain exactly |
-| `instruction.nexus_group_sig` | EIP-712 signature over `(groupId, entriesHash, totalAmount)` by XAgent Pay Core operator |
+| `instruction.xagent_group_sig` | EIP-712 signature over `(groupId, entriesHash, totalAmount)` by XAgent Pay Core operator |
 | `instruction.core_operator_address` | Address of the signing operator — verify before submitting |
 
 ## Step 2 — Pay
@@ -119,7 +119,7 @@ Direct the user to open `checkout_url` in their browser. The checkout page handl
 Use the `instruction` object to construct the transaction directly:
 1. Present `instruction.eip3009_sign_data` to the user's wallet via `eth_signTypedData_v4`
 2. Submit `instruction.deposit_tx` on-chain (user pays gas)
-3. Verify `instruction.nexus_group_sig` against `instruction.core_operator_address` before submitting
+3. Verify `instruction.xagent_group_sig` against `instruction.core_operator_address` before submitting
 
 This path is suitable when the agent has direct access to wallet signing (e.g. via MPC wallet, AA wallet, or user-delegated signing).
 
@@ -189,7 +189,7 @@ Response (HTTP 200):
 {
   "http_status": 200,
   "payment": {
-    "nexus_payment_id": "PAY-xxx",
+    "xagent_payment_id": "PAY-xxx",
     "status": "ESCROWED",
     "amount_display": "0.10",
     "currency": "USDC",
@@ -204,7 +204,7 @@ Response (HTTP 200):
     "payment_count": 1
   },
   "group_payments": [
-    { "nexus_payment_id": "PAY-xxx", "status": "ESCROWED", "amount_display": "0.10" }
+    { "xagent_payment_id": "PAY-xxx", "status": "ESCROWED", "amount_display": "0.10" }
   ]
 }
 ```
@@ -233,7 +233,7 @@ Response (HTTP 200):
       "currencies": ["USDC"],
       "health_status": "ONLINE",
       "stars": 5,
-      "tools": [{ "name": "nexus_generate_quote", "role": "quote" }]
+      "tools": [{ "name": "xagent_generate_quote", "role": "quote" }]
     }
   ],
   "total": 1,
@@ -261,9 +261,9 @@ X-RateLimit-Reset: 1709712460
 
 ## Security
 
-### Group Signature (`nexus_group_sig`)
+### Group Signature (`xagent_group_sig`)
 
-Every `BatchDepositInstruction` includes an EIP-712 signature from the XAgent Pay Core operator over `XAgent PayGroupApproval(groupId, entriesHash, totalAmount)`. This prevents MITM tampering of the payments array (merchant addresses and amounts). Clients should verify `nexus_group_sig` and `core_operator_address` before submitting transactions.
+Every `BatchDepositInstruction` includes an EIP-712 signature from the XAgent Pay Core operator over `XAgent PayGroupApproval(groupId, entriesHash, totalAmount)`. This prevents MITM tampering of the payments array (merchant addresses and amounts). Clients should verify `xagent_group_sig` and `core_operator_address` before submitting transactions.
 
 ### Precomputed Hashes
 

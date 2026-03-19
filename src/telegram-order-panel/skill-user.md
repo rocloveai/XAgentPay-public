@@ -15,7 +15,7 @@ https://xagenpay.com/tg-bot
 
 ## When to Use
 
-**Always call `/start-order-panel` immediately after `nexus_orchestrate_payment` succeeds**, before showing any text summary to the user. This gives the user a visual, interactive order card with a direct payment link and live status.
+**Always call `/start-order-panel` immediately after `xagent_orchestrate_payment` succeeds**, before showing any text summary to the user. This gives the user a visual, interactive order card with a direct payment link and live status.
 
 ## Endpoint
 

@@ -121,14 +121,14 @@ Search available hotels without generating a quote.
 
 ---
 
-### `nexus_check_status`
+### `xagent_check_status`
 
 Check payment status for a hotel order.
 
 ```bash
 curl -X POST https://xagenpay.com/hotel/api/v1/call-tool \
   -H "Content-Type: application/json" \
-  -d '{"tool": "nexus_check_status", "arguments": {"order_ref": "HTL-abc123"}}'
+  -d '{"tool": "xagent_check_status", "arguments": {"order_ref": "HTL-abc123"}}'
 ```
 
 | Name | Type | Required | Description |
@@ -191,7 +191,7 @@ Content-Type: application/json
     "deposit_tx": { "to": "0x9590...", "abi": "...", "value": "0", "gas_limit": "500000" },
     "user_action": "APPROVE_AND_SEND"
   },
-  "nexus_group_sig": "0x...",
+  "xagent_group_sig": "0x...",
   "core_operator_address": "0x..."
 }
 ```
@@ -280,7 +280,7 @@ Wait for this transaction to be mined before proceeding.
 
 ### Step 5 — Confirm Transaction (4B path only)
 
-After transaction 2 (deposit) is mined, submit its `tx_hash` to nexus-core:
+After transaction 2 (deposit) is mined, submit its `tx_hash` to xagent-core:
 
 ```bash
 POST https://api.xagenpay.com/api/checkout/<group_id>/confirm
@@ -295,7 +295,7 @@ Content-Type: application/json
 
 ```bash
 POST https://xagenpay.com/hotel/api/v1/call-tool
-{"tool": "nexus_check_status", "arguments": {"order_ref": "<merchant_order_ref from quote>"}}
+{"tool": "xagent_check_status", "arguments": {"order_ref": "<merchant_order_ref from quote>"}}
 ```
 
 Status `PAID` means the booking is confirmed.
