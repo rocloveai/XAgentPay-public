@@ -2,11 +2,15 @@
 
 > AI Agents autonomously discover services, negotiate payments, and settle on-chain — no human clicks required.
 
+## Why XAgent Pay?
+
+Today's AI agents can browse, reason, and plan — but they can't pay. When an AI agent books a flight or reserves a hotel, a human must still click "confirm" and enter card details. **XAgent Pay removes this bottleneck** by giving AI agents the ability to settle payments autonomously on-chain, with cryptographic guarantees that the service was delivered.
+
 **XAgent Pay** is a payment orchestration protocol that enables AI Agents to transact with each other using on-chain USDC settlement on **XLayer Mainnet**. It implements three payment standards:
 
-- **NUPS** (Nexus Unified Payment Standard) — structured quote-to-settlement pipeline
-- **x402** — HTTP-native on-chain payment (Coinbase standard)
-- **ERC-8183** — Agentic Commerce with verifiable task delivery
+- **NUPS** (XAgent Unified Payment Standard) — structured quote-to-settlement pipeline
+- **x402** — HTTP-native on-chain payment ([Coinbase standard](https://github.com/coinbase/x402))
+- **ERC-8183** — Agentic Commerce Protocol with verifiable task delivery
 
 ## Live Demo
 
@@ -19,41 +23,40 @@
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        User / AI Agent                          │
-│                    (Claude, ChatGPT, etc.)                       │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ MCP Protocol / REST API
-┌──────────────────────────▼──────────────────────────────────────┐
-│                      XAgent Core                                │
-│                                                                 │
-│  ┌──────────┐  ┌──────────────┐  ┌───────────┐  ┌───────────┐  │
-│  │Orchestrat│  │Chain Watcher │  │  Relayer  │  │ Checkout  │  │
-│  │   or     │  │(Event Poll)  │  │(TX Submit)│  │  (Web UI) │  │
-│  └────┬─────┘  └──────┬───────┘  └─────┬─────┘  └───────────┘  │
-│       │               │                │                        │
-│  ┌────▼───────────────▼────────────────▼────┐                   │
-│  │         PostgreSQL (State Machine)        │                   │
-│  └───────────────────────────────────────────┘                   │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ Webhook
-┌──────────────────────────▼──────────────────────────────────────┐
-│                    Merchant Agents                               │
-│                                                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
-│  │Flight Agent │  │ Hotel Agent │  │ eSIM Agent  │             │
-│  │ (Duffel)   │  │ (Amadeus)  │  │ (Airalo)   │             │
-│  └─────────────┘  └─────────────┘  └─────────────┘             │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ On-chain Settlement
-┌──────────────────────────▼──────────────────────────────────────┐
-│                  XLayer Mainnet (Chain ID: 196)                  │
-│                                                                 │
-│  ┌────────────────────┐  ┌────────────────────┐  ┌──────────┐  │
-│  │XAgentPayEscrow     │  │AgenticCommerce     │  │  USDC    │  │
-│  │(Batch Deposit)     │  │(ERC-8183 Jobs)     │  │          │  │
-│  └────────────────────┘  └────────────────────┘  └──────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────┐
+│                    User / AI Agent                         │
+│                 (Claude, ChatGPT, etc.)                    │
+└─────────────────────────┬─────────────────────────────────┘
+                          │ MCP Protocol / REST API
+┌─────────────────────────▼─────────────────────────────────┐
+│                     XAgent Core                            │
+│                                                            │
+│  ┌────────────┐ ┌─────────────┐ ┌─────────┐ ┌──────────┐ │
+│  │Orchestrator│ │ChainWatcher │ │ Relayer │ │ Checkout │ │
+│  └─────┬──────┘ └──────┬──────┘ └────┬────┘ └──────────┘ │
+│        │               │             │                    │
+│  ┌─────▼───────────────▼─────────────▼──────┐             │
+│  │       PostgreSQL (State Machine)          │             │
+│  └───────────────────────────────────────────┘             │
+└─────────────────────────┬─────────────────────────────────┘
+                          │ Webhook
+┌─────────────────────────▼─────────────────────────────────┐
+│                   Merchant Agents                          │
+│                                                            │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐          │
+│  │Flight Agent │ │ Hotel Agent │ │ eSIM Agent  │          │
+│  │  (Duffel)   │ │  (Amadeus)  │ │  (Airalo)   │          │
+│  └─────────────┘ └─────────────┘ └─────────────┘          │
+└─────────────────────────┬─────────────────────────────────┘
+                          │ On-chain Settlement
+┌─────────────────────────▼─────────────────────────────────┐
+│               XLayer Mainnet (Chain ID: 196)               │
+│                                                            │
+│  ┌──────────────┐ ┌──────────────────┐ ┌──────┐           │
+│  │XAgentPay     │ │AgenticCommerce   │ │ USDC │           │
+│  │Escrow        │ │(ERC-8183 Jobs)   │ │      │           │
+│  └──────────────┘ └──────────────────┘ └──────┘           │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ## Three Payment Paths
@@ -68,7 +71,12 @@ User → approve USDC → batchDepositApprove() → ESCROWED → auto-release() 
 
 ### 2. x402 Protocol
 
-HTTP 402 Payment Required — AI agent receives payment instruction in HTTP response, pays, then retries.
+HTTP-native payment standard by Coinbase. When an AI agent calls a paid API, the server returns `HTTP 402 Payment Required` with an on-chain payment instruction. The agent signs an EIP-3009 USDC authorization, attaches it to the retry request, and the server verifies + settles on-chain before fulfilling.
+
+```
+Agent → GET /api/search → 402 { paymentRequired: { amount, recipient } }
+Agent → sign EIP-3009 → retry with X-PAYMENT header → 200 OK (fulfilled)
+```
 
 ### 3. ERC-8183 Agentic Commerce (New)
 
