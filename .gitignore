@@ -46,3 +46,12 @@ apps/user-agent/src/test-chat.ts
 logs/
 README-NEXUS-MVP-SUMMARY.md
 ISSUES.md
+
+# Root-level test/debug scripts (internal use only)
+test-balance.mjs
+test-rpc.mjs
+
+# One-time data scripts with credentials (use env vars, never hardcode)
+scripts/check_keys.mjs
+scripts/sync_orders.mjs
+scripts/check_merchants.mjs

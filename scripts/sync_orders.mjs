@@ -1,6 +1,12 @@
 import { neon } from '@neondatabase/serverless';
 
-const DATABASE_URL = "postgresql://neondb_owner:npg_ozD4dLXYFg1Q@ep-floral-snow-a1hxha0q-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+// Load DATABASE_URL from environment — never hardcode credentials here.
+// Usage: DATABASE_URL="postgresql://..." node scripts/sync_orders.mjs
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  console.error("Error: DATABASE_URL environment variable is required");
+  process.exit(1);
+}
 const sql = neon(DATABASE_URL);
 
 const quotes = [

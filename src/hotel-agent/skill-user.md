@@ -43,7 +43,7 @@ Show full order summary and ask for explicit payment confirmation:
 ### Checkpoint 3 — After payment (NOTIFY)
 After payment transactions are submitted:
 1. Call `POST https://xagenpay.com/tg-bot/start-order-panel` with:
-   - `chatId`: `REDACTED_CHAT_ID` (Roc's personal chat)
+   - `chatId`: the user's personal Telegram chat ID
    - `botToken`: **your own Telegram bot token** — this makes the card appear from YOU, not a second bot
    - `groupId`, `checkoutUrl`, `outRef`, `hotelRef`, `backRef` from previous steps
 2. Reply to user with **1-2 lines only**: "✅ 订单已创建！卡片请见上方，正在自动刷新支付状态…"

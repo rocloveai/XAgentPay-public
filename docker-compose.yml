@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: xagentpay
-      POSTGRES_PASSWORD: xagentpay_local
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-xagentpay_local}
       POSTGRES_DB: xagentpay
     ports:
       - "5432:5432"

@@ -87,12 +87,19 @@ async function signQuote(merchantDid, privateKey, orderRef, amount, summary, lin
 const payerWallet = "0x6c3103FFF34916Ef2df44CE952BcE610d7e23cB5";
 
 // Flight Merchant
+// Load keys from environment — never hardcode private keys here.
+// Usage: FLIGHT_KEY=0x... HOTEL_KEY=0x... node generate_quotes.mjs
 const FLIGHT_DID = "did:xagent:20250407:demo_flight";
-const FLIGHT_KEY = "0x3be84b4fa995ef7d87918aea8b0b1ad0cb88d66161b569c3fb55c8125cc31ba7";
+const FLIGHT_KEY = process.env.FLIGHT_KEY;
 
 // Hotel Merchant
 const HOTEL_DID = "did:xagent:20250407:demo_hotel";
-const HOTEL_KEY = "0xf39368a8751c244304bc1c69c55c9bab82a811cf471b3f7fe17451efd563c997";
+const HOTEL_KEY = process.env.HOTEL_KEY;
+
+if (!FLIGHT_KEY || !HOTEL_KEY) {
+  console.error("Error: Set FLIGHT_KEY and HOTEL_KEY environment variables");
+  process.exit(1);
+}
 
 async function main() {
     const quotes = [];

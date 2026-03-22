@@ -10,8 +10,8 @@ https://xagenpay.com/tg-bot
 
 ## CRITICAL RULES
 
-1. **ALWAYS use `chatId: REDACTED_CHAT_ID`** — Roc's personal chat. NEVER use a group chat.
-2. **NEVER use `REDACTED_GROUP_CHAT_ID`** or any negative chat ID (groups are not allowed).
+1. **ALWAYS use the user's personal `chatId`** — NEVER use a group chat.
+2. **NEVER use a negative chat ID** (groups are not allowed).
 
 ## When to Use
 
@@ -100,7 +100,7 @@ After payment:
 
 ## Important Notes
 
-- **Always use `chatId: REDACTED_CHAT_ID`** (Roc's personal chat) — NEVER use the group chat `REDACTED_GROUP_CHAT_ID` or any negative chat ID
+- **Always use the user's personal `chatId`** — NEVER use any group chat ID (no negative chat IDs)
 - **Base URL**: `https://xagenpay.com/tg-bot`
 - After calling `/start-order-panel`, tell the user: "订单卡片已发送到你的 Telegram，请查看并点击支付按钮完成支付"
 - Do NOT also send a manual text summary — the card replaces that

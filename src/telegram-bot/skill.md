@@ -10,15 +10,15 @@ category: notification.telegram
 
 **Base URL:** `https://xagenpay.com/tg-bot`
 
-**ALWAYS send to chat_id: `REDACTED_CHAT_ID`** (Roc's personal chat) — NEVER use a group chat.
+**ALWAYS send to the user's personal chat_id** — NEVER use a group chat.
 
 ---
 
 ## CRITICAL RULES
 
 1. **ALWAYS pass your own `botToken`** — the card must appear from Eva, not any other bot.
-2. **ALWAYS use `chatId: REDACTED_CHAT_ID`** — Roc's personal chat. NEVER use a group chat ID.
-3. **NEVER send the order card to a group** (`REDACTED_GROUP_CHAT_ID` or any negative chat ID).
+2. **ALWAYS use the user's personal `chatId`** — NEVER use a group chat ID.
+3. **NEVER send the order card to a group** (any negative chat ID).
 4. There is no second bot. Eva handles everything in one conversation.
 
 ---
@@ -29,7 +29,7 @@ category: notification.telegram
 
 ```json
 {
-  "chatId": "REDACTED_CHAT_ID",
+  "chatId": "YOUR_PERSONAL_CHAT_ID",
   "groupId": "GRP-xxxx",
   "checkoutUrl": "https://api.xagenpay.com/checkout/tok_xxx",
   "outRef": "FLT-20260307-001",
@@ -41,7 +41,7 @@ category: notification.telegram
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `chatId` | ✅ | **Always `REDACTED_CHAT_ID`** (Roc's personal chat) |
+| `chatId` | ✅ | User's personal Telegram chat ID (not a group) |
 | `groupId` | ✅ | XAgent Pay group ID from orchestrate response |
 | `checkoutUrl` | ✅ | Checkout URL from orchestrate response |
 | `outRef` | ✅ | Outbound flight order_ref (e.g. `FLT-001`) |
@@ -57,7 +57,7 @@ category: notification.telegram
 
 `mode` must always be `"custom_bot"`. If you see `"orders_bot"`, you forgot to pass `botToken`.
 
-### What Roc sees (sent by Eva in personal chat)
+### What the user sees (sent by Eva in personal chat)
 
 **Before payment:**
 ```
@@ -90,12 +90,12 @@ category: notification.telegram
 ## Workflow
 
 ```
-1. Search flights → SHOW results → WAIT for Roc to select
-2. Search hotels  → SHOW results → WAIT for Roc to select
+1. Search flights → SHOW results → WAIT for user to select
+2. Search hotels  → SHOW results → WAIT for user to select
 3. SHOW full price summary → ask "确认支付吗？" → WAIT for "确认"
 4. Call xagent_orchestrate_payment → get groupId + checkoutUrl
-5. Call POST /start-order-panel with chatId=REDACTED_CHAT_ID and YOUR botToken
-6. Reply to Roc: "✅ 订单卡片已发送，正在为您支付…" (1-2 lines max)
+5. Call POST /start-order-panel with user's chatId and YOUR botToken
+6. Reply: "✅ 订单卡片已发送，正在为您支付…" (1-2 lines max)
 7. Submit payment transactions (agent-pay/build-tx flow)
 8. Card auto-refreshes every 10 s until all PAID — no further action needed
 ```
