@@ -40,3 +40,9 @@ src/contracts/lib
 temp-mcp/
 list_models.js
 apps/user-agent/src/test-chat.ts
+
+# Internal / sensitive
+.claude/
+logs/
+README-NEXUS-MVP-SUMMARY.md
+ISSUES.md
