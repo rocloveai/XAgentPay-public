@@ -1,0 +1,57 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Build outputs
+dist
+build
+.next
+out
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Editor & OS
+.DS_Store
+.vscode
+.idea
+*.swp
+*.swo
+
+# Foundry
+src/contracts/cache
+src/contracts/out
+src/contracts/lib
+
+# Project specific
+/tmp
+*.png
+!apps/web-portal/public/bg-hero.png
+temp-mcp/
+list_models.js
+apps/user-agent/src/test-chat.ts
+
+# Internal / sensitive
+.claude/
+logs/
+README-NEXUS-MVP-SUMMARY.md
+ISSUES.md
+
+# Root-level test/debug scripts (internal use only)
+test-balance.mjs
+test-rpc.mjs
+
+# One-time data scripts with credentials (use env vars, never hardcode)
+scripts/check_keys.mjs
+scripts/sync_orders.mjs
+scripts/check_merchants.mjs

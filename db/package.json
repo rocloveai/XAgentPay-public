@@ -1,0 +1,14 @@
+{
+  "name": "@xagentpay/db-seed",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "tsx seed.ts"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

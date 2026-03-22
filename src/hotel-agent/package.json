@@ -1,0 +1,32 @@
+{
+  "name": "@xagentpay/hotel-agent",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "XAgent Hotel Booking MCP Agent — search hotels, generate NUPS quotes, verify payments",
+  "bin": {
+    "xagent-hotel-agent": "./build/server.js"
+  },
+  "files": [
+    "build",
+    "skill.md",
+    "server.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/server.js",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@xagentpay/x402": "file:../shared/x402",
+    "pg": "^8.13.0",
+    "viem": "^2.46.3",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "@types/node": "^22.13.4",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "flight-agent": {
+      "command": "node",
+      "args": ["src/flight-agent/build/server.js"],
+      "env": {
+        "DUFFEL_API_TOKEN": "duffel_test_your_token_here",
+        "MERCHANT_DID": "did:xagent:20250407:demo_flight"
+      }
+    },
+    "hotel-agent": {
+      "command": "node",
+      "args": ["src/hotel-agent/build/server.js"],
+      "env": {
+        "MERCHANT_DID": "did:xagent:20250407:demo_hotel"
+      }
+    },
+    "flight-agent-npx": {
+      "command": "npx",
+      "args": ["-y", "@xagentpay/flight-agent"],
+      "env": {
+        "DUFFEL_API_TOKEN": "duffel_test_your_token_here",
+        "MERCHANT_DID": "did:xagent:20250407:demo_flight"
+      }
+    },
+    "hotel-agent-npx": {
+      "command": "npx",
+      "args": ["-y", "@xagentpay/hotel-agent"],
+      "env": {
+        "MERCHANT_DID": "did:xagent:20250407:demo_hotel"
+      }
+    }
+  }
+}

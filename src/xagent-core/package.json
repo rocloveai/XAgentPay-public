@@ -1,0 +1,36 @@
+{
+  "name": "@xagentpay/xagent-core",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "XAgentPay Core — payment orchestration, multi-merchant aggregated checkout",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "bin": {
+    "xagent-core": "./build/server.js"
+  },
+  "files": [
+    "build"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node build/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "pg": "^8.13.0",
+    "viem": "^2.46.3",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.0",
+    "@types/node": "^22.13.4",
+    "@vitest/coverage-v8": "^3.0.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.0"
+  }
+}
