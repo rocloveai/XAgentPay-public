@@ -25,39 +25,43 @@ Today's AI agents can browse, reason, and plan — but they can't pay. When an A
 ```
 ┌───────────────────────────────────────────────────────────┐
 │                    User / AI Agent                         │
-│                 (Claude, ChatGPT, etc.)                    │
-└─────────────────────────┬─────────────────────────────────┘
-                          │ MCP Protocol / REST API
-┌─────────────────────────▼─────────────────────────────────┐
-│                     XAgent Core                            │
-│                                                            │
-│  ┌────────────┐ ┌─────────────┐ ┌─────────┐ ┌──────────┐ │
-│  │Orchestrator│ │ChainWatcher │ │ Relayer │ │ Checkout │ │
-│  └─────┬──────┘ └──────┬──────┘ └────┬────┘ └──────────┘ │
-│        │               │             │                    │
-│  ┌─────▼───────────────▼─────────────▼──────┐             │
-│  │       PostgreSQL (State Machine)          │             │
-│  └───────────────────────────────────────────┘             │
-└─────────────────────────┬─────────────────────────────────┘
-                          │ Webhook
-┌─────────────────────────▼─────────────────────────────────┐
-│                   Merchant Agents                          │
-│                                                            │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐          │
-│  │Flight Agent │ │ Hotel Agent │ │ eSIM Agent  │          │
-│  │  (Duffel)   │ │  (Amadeus)  │ │  (Airalo)   │          │
-│  └─────────────┘ └─────────────┘ └─────────────┘          │
-└─────────────────────────┬─────────────────────────────────┘
-                          │ On-chain Settlement
-┌─────────────────────────▼─────────────────────────────────┐
-│               XLayer Mainnet (Chain ID: 196)               │
-│                                                            │
-│  ┌──────────────┐ ┌──────────────────┐ ┌──────┐           │
-│  │XAgentPay     │ │AgenticCommerce   │ │ USDC │           │
-│  │Escrow        │ │(ERC-8183 Jobs)   │ │      │           │
-│  └──────────────┘ └──────────────────┘ └──────┘           │
-└───────────────────────────────────────────────────────────┘
+│              (Lark, Claude, ChatGPT, etc.)                 │
+└──────┬────────────────────────────────┬────────────────────┘
+       │ ① search_and_quote (MCP/REST)  │ ② xagent_orchestrate_payment
+       │                                │    (MCP/REST)
+┌──────▼──────────────────────┐  ┌──────▼─────────────────────────────┐
+│      Merchant Agents        │  │           XAgent Core               │
+│                             │  │                                      │
+│  ┌──────────┐ ┌──────────┐  │  │  ┌────────────┐  ┌──────────────┐  │
+│  │  Flight  │ │  Hotel   │  │  │  │Orchestrator│  │ ChainWatcher │  │
+│  │  Agent   │ │  Agent   │  │  │  └─────┬──────┘  └──────┬───────┘  │
+│  └──────────┘ └──────────┘  │  │        │                │          │
+│  ┌──────────┐               │  │  ┌─────▼────────────────▼───────┐  │
+│  │   eSIM   │  x402: agent  │  │  │   PostgreSQL (State Machine) │  │
+│  │  Agent   │◄──calls API──►│  │  └──────────────────────────────┘  │
+│  └──────────┘  402→pay→retry│  │  ┌──────────┐  ┌───────────────┐  │
+│                             │  │  │  Relayer │  │   Checkout    │  │
+└──────┬──────────────────────┘  │  └──────────┘  └───────────────┘  │
+       │ ③ Webhook (deliver)     └──────────────────────┬─────────────┘
+       └──────────────────────────────────────────────── │
+                                                         │ On-chain Settlement
+                          ┌──────────────────────────────▼──────────────┐
+                          │          XLayer Mainnet (Chain ID: 196)      │
+                          │                                               │
+                          │  ┌───────────────┐  ┌──────────────────┐    │
+                          │  │ XAgentPay     │  │ AgenticCommerce  │    │
+                          │  │ Escrow        │  │ (ERC-8183 Jobs)  │    │
+                          │  └───────────────┘  └──────────────────┘    │
+                          │  ┌───────────────┐  ┌──────────────────┐    │
+                          │  │ AutoEvaluator │  │      USDC        │    │
+                          │  └───────────────┘  └──────────────────┘    │
+                          └───────────────────────────────────────────────┘
 ```
+
+**Three payment paths coexist:**
+- **NUPS Escrow** — ① quote → ② orchestrate → checkout → escrow → ③ deliver → auto-release
+- **x402** — agent calls merchant API → `402 Payment Required` → pays on-chain → retries → fulfilled
+- **ERC-8183 ACP** — ② orchestrate → `batchCreateAndFund()` → job escrow → ③ deliver → AutoEvaluator → `complete()`
 
 ## Three Payment Paths
 
@@ -196,17 +200,18 @@ docker compose up -d --build
 
 ## End-to-End Flow (ERC-8183)
 
-1. **User** initiates order via Telegram Bot (Eva)
-2. **XAgent Core** orchestrates quotes from merchant agents
-3. **User** opens checkout page, connects MetaMask
-4. **User** approves USDC + calls `createAndFund()` on AgenticCommerce
-5. **ChainWatcher** detects `JobCreated` event → status = `JOB_FUNDED`
-6. **Webhook** notifies merchant agent
-7. **Merchant Agent** constructs deliverable → calls `/api/acp/submit-deliverable`
-8. **Relayer** calls `AgenticCommerce.submit()` → status = `JOB_SUBMITTED`
-9. **ChainWatcher** detects `JobSubmitted` → triggers `AutoEvaluator.evaluate()`
-10. **AutoEvaluator** calls `complete()` → funds released to provider
-11. **Status** = `JOB_COMPLETED` — verifiable on-chain settlement
+1. **User** sends request via AI Agent (Lark, Claude, etc.)
+2. **AI Agent** calls `search_and_quote` on each merchant agent — flight, hotel, eSIM respond with signed quotes
+3. **AI Agent** calls `xagent_orchestrate_payment` on XAgent Core → receives checkout URL
+4. **User** opens checkout page, connects wallet (OKX Wallet / MetaMask)
+5. **User** approves USDC + calls `batchCreateAndFund()` on AgenticCommerce — one tx, multiple jobs
+6. **ChainWatcher** detects `JobCreated` events → status = `JOB_FUNDED`
+7. **Webhook** notifies each merchant agent
+8. **Merchant Agent** constructs deliverable → calls `/api/acp/submit-deliverable`
+9. **Relayer** calls `AgenticCommerce.submit()` → status = `JOB_SUBMITTED`
+10. **ChainWatcher** detects `JobSubmitted` → triggers `AutoEvaluator.evaluate()`
+11. **AutoEvaluator** calls `complete()` → funds released to provider
+12. **Status** = `JOB_COMPLETED` — verifiable on-chain settlement
 
 ## License
 
