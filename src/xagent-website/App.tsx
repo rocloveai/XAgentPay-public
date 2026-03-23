@@ -56,7 +56,7 @@ const Navbar = ({ lang, setLang, page, setPage, setMarketTab, theme, setTheme }:
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setPage('home')}>
-            <img src="/LOGO.png" alt="XAgent Pay" className="w-8 h-8 object-contain" />
+            <img src="/LOGO.png" alt="XAgent Pay" className="w-10 h-10 object-contain" />
             <div className="flex flex-col">
               <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{t.logo}</h2>
               <span className="text-[10px] font-bold text-primary tracking-widest leading-none">{t.label}</span>
@@ -584,7 +584,7 @@ const Footer = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => v
         <div className="grid md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-2 flex flex-col gap-6">
             <div className="flex items-center gap-3">
-              <img src="/LOGO.png" alt="XAgent Pay" className="w-8 h-8 object-contain" />
+              <img src="/LOGO.png" alt="XAgent Pay" className="w-10 h-10 object-contain" />
               <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white transition-colors">{nav.logo}</h2>
             </div>
             <p className="text-slate-600 dark:text-slate-400 max-w-xs transition-colors">{t.slogan}</p>

@@ -504,11 +504,7 @@ tailwind.config = {
 <!-- Header -->
 <header class="flex items-center justify-between">
   <div class="flex items-center gap-3">
-    <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center shadow-lg">
-      <svg fill="none" height="24" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24" width="24">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-      </svg>
-    </div>
+    <img src="https://xagenpay.com/LOGO.png" alt="XAgent Pay" class="w-10 h-10 object-contain" />
     <div>
       <h1 class="text-xl font-bold tracking-tight dark:text-white text-slate-900">XAgent Pay</h1>
       <p class="text-[10px] text-primary font-bold tracking-[0.2em] uppercase leading-none">Checkout</p>
