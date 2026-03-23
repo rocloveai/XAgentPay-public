@@ -6,11 +6,12 @@
 
 Today's AI agents can browse, reason, and plan — but they can't pay. When an AI agent books a flight or reserves a hotel, a human must still click "confirm" and enter card details. **XAgent Pay removes this bottleneck** by giving AI agents the ability to settle payments autonomously on-chain, with cryptographic guarantees that the service was delivered.
 
-**XAgent Pay** is a payment orchestration protocol that enables AI Agents to transact with each other using on-chain USDC settlement on **XLayer Mainnet**. It implements three payment standards:
+**XAgent Pay** is a payment orchestration protocol that enables AI Agents to transact with each other using on-chain USDC settlement on **XLayer Mainnet**. It is built on two complementary layers:
 
-- **NUPS** (XAgent Unified Payment Standard) — structured quote-to-settlement pipeline
-- **x402** — HTTP-native on-chain payment ([Coinbase standard](https://github.com/coinbase/x402))
-- **ERC-8183** — Agentic Commerce Protocol with verifiable task delivery
+- **x402** ([Coinbase standard](https://github.com/coinbase/x402)) — HTTP payment signaling layer. Defines how an agent discovers payment requirements: a service returns `HTTP 402` with payment metadata, the agent signs an EIP-3009 authorization and retries. x402 is a *communication protocol*, not a settlement workflow.
+- **ERC-8183 Agentic Commerce Protocol** — On-chain settlement workflow standard. Defines the complete job lifecycle (fund → deliver → evaluate → complete) with cryptographic escrow and third-party verification. x402 can serve as the *signaling trigger* for an ERC-8183 settlement.
+
+XAgent Pay implements both, plus its own **NUPS Group Escrow** for multi-merchant batch payments.
 
 ## Live Demo
 
@@ -58,47 +59,62 @@ Today's AI agents can browse, reason, and plan — but they can't pay. When an A
                           └───────────────────────────────────────────────┘
 ```
 
-**Three payment paths coexist:**
-- **NUPS Escrow** — ① quote → ② orchestrate → checkout → escrow → ③ deliver → auto-release
-- **x402** — agent calls merchant API → `402 Payment Required` → pays on-chain → retries → fulfilled
-- **ERC-8183 ACP** — ② orchestrate → `batchCreateAndFund()` → job escrow → ③ deliver → AutoEvaluator → `complete()`
+**Two layers, three implementations:**
+- **x402 (HTTP signaling)** — agent calls merchant API → `402 Payment Required` → signs EIP-3009 → retries → fulfilled directly on-chain
+- **ERC-8183 (settlement workflow)** — `batchCreateAndFund()` → job escrow → deliver → AutoEvaluator verifies → `complete()` → funds released
+- **NUPS Group Escrow** — ① quote → ② orchestrate → checkout → multi-sig escrow → ③ deliver → auto-release
 
-## Three Payment Paths
+## Payment Standards
 
-### 1. NUPS + Escrow (Default)
+### x402 — HTTP Payment Signaling Layer
 
-Traditional escrow flow — funds locked in `XAgentPayEscrow`, auto-released after merchant fulfillment.
+x402 is a **communication protocol**, not a settlement workflow. It standardizes how a service communicates "you need to pay before I respond."
 
-```
-User → approve USDC → batchDepositApprove() → ESCROWED → auto-release() → SETTLED
-```
-
-### 2. x402 Protocol
-
-HTTP-native payment standard by Coinbase. When an AI agent calls a paid API, the server returns `HTTP 402 Payment Required` with an on-chain payment instruction. The agent signs an EIP-3009 USDC authorization, attaches it to the retry request, and the server verifies + settles on-chain before fulfilling.
+When an AI agent calls a paid API endpoint:
 
 ```
-Agent → GET /api/search → 402 { paymentRequired: { amount, recipient } }
-Agent → sign EIP-3009 → retry with X-PAYMENT header → 200 OK (fulfilled)
+Agent → GET /api/search_and_quote
+     ← 402 { amount: "100000", payTo: "0x...", network: "eip155:196" }
+
+Agent → signs EIP-3009 USDC authorization
+     → retry with X-PAYMENT: { signature, ... }
+     ← 200 OK + result
 ```
 
-### 3. ERC-8183 Agentic Commerce (New)
+Settlement is immediate — an EIP-3009 signed transfer, no escrow, no job lifecycle. x402 can also serve as the **signaling trigger** for an ERC-8183 job: the 402 response instructs the agent to create an on-chain job instead of a direct transfer.
 
-Job-based escrow with **third-party Evaluator verification**:
+### ERC-8183 — Agentic Commerce Workflow Standard
+
+ERC-8183 is a **smart contract workflow standard** for verifiable job-based commerce. Unlike x402's direct transfer, ERC-8183 holds funds in escrow until an independent Evaluator confirms delivery.
 
 ```
-User → approve USDC → createAndFund() → JOB_FUNDED
-                                            ↓
-                                   Agent submits deliverable
-                                            ↓
-                                       JOB_SUBMITTED
-                                            ↓
-                                   AutoEvaluator.evaluate()
-                                            ↓
-                                      JOB_COMPLETED → funds released to provider
+User → approve USDC → batchCreateAndFund() → JOB_FUNDED
+                                                   ↓
+                                        Agent delivers service
+                                                   ↓
+                                        submit()→ JOB_SUBMITTED
+                                                   ↓
+                                        AutoEvaluator.evaluate()
+                                                   ↓
+                                        complete() → JOB_COMPLETED
+                                                   ↓
+                                        Funds released to provider
 ```
 
-**Key Innovation**: Unlike self-attestation (merchant says "I delivered"), ERC-8183 requires an independent Evaluator to verify the deliverable before releasing funds. This creates a **trustless, verifiable task delivery** mechanism for AI-to-AI commerce.
+**Key innovation**: ERC-8183 requires an independent `AutoEvaluator` to verify the deliverable on-chain before releasing funds — creating trustless, verifiable AI-to-AI commerce.
+
+### NUPS Group Escrow — Multi-Merchant Batch Settlement
+
+XAgent Pay's native escrow for bundling multiple merchant payments into a single user transaction. Quotes from multiple agents are aggregated, signed, and settled together via `XAgentPayEscrow`.
+
+```
+Agent A quote + Agent B quote + Agent C quote
+→ xagent_orchestrate_payment()
+→ batchDepositApprove() [one tx, one approval]
+→ funds escrowed per merchant
+→ each merchant delivers → auto-release()
+→ SETTLED
+```
 
 ## Deployed Contracts (XLayer Mainnet)
 
