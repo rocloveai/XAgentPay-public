@@ -60,7 +60,7 @@ async function registerWithXAgentCore() {
       merchant_did: config.merchantDid,
       name: "XAgent eSIM",
       description: "Global eSIM data plans for 190+ countries. Instant activation with USDC payments on XLayer. Search plans, purchase eSIMs, and get QR codes for instant activation.",
-      category: "telecom.esim",
+      category: "travel.esim",
       signer_address: signerAddress,
       payment_address: config.paymentAddress,
       skill_md_url: `${config.portalBaseUrl}/skill.md`,
