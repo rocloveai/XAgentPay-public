@@ -50,7 +50,7 @@ function getFallbackFlights(params: SearchParams): FlightOffer[] {
       arrival_time: `${baseDate}T12:45:00`,
       duration: "PT3H15M",
       cabin_class: "economy",
-      price: { amount: "320.00", currency: "USD" },
+      price: { amount: "1.00", currency: "USD" },
     },
     {
       offer_id: `demo_${params.origin}_${params.destination}_002`,
@@ -62,7 +62,7 @@ function getFallbackFlights(params: SearchParams): FlightOffer[] {
       arrival_time: `${baseDate}T14:00:00`,
       duration: "PT2H45M",
       cabin_class: "economy",
-      price: { amount: "480.00", currency: "USD" },
+      price: { amount: "2.00", currency: "USD" },
     },
     {
       offer_id: `demo_${params.origin}_${params.destination}_003`,
@@ -74,7 +74,7 @@ function getFallbackFlights(params: SearchParams): FlightOffer[] {
       arrival_time: `${baseDate}T17:30:00`,
       duration: "PT2H30M",
       cabin_class: "economy",
-      price: { amount: "520.00", currency: "USD" },
+      price: { amount: "3.00", currency: "USD" },
     },
   ];
 }
