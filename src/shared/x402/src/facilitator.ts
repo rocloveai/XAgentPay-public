@@ -356,6 +356,13 @@ export async function settleEIP3009Payment(
 
   const payer = eip3009Data.authorization.from;
 
+  // DEMO_MODE: skip on-chain balance check and actual settlement
+  if (process.env.DEMO_MODE === "true") {
+    const fakeTx = `0xdemo${Date.now().toString(16)}${Math.random().toString(16).slice(2, 18)}` as Hex;
+    console.error(`[x402 Facilitator] DEMO_MODE: simulated settlement ${fakeTx}`);
+    return { success: true, transaction: fakeTx, network, payer };
+  }
+
   // Re-verify before settling
   const verification = await verifyEIP3009Payment(payload, requirements);
   if (!verification.isValid) {
