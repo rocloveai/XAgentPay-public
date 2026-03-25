@@ -272,16 +272,32 @@ async function handleStatelessCall(
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers":
           "Content-Type, PAYMENT-SIGNATURE, X-PAYMENT",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       });
       res.end();
       return true;
     }
 
+    let args: any;
+    if (req.method === "GET") {
+      // Support GET with query params: ?country=Thailand&data_gb=5
+      args = {
+        country: reqUrl.searchParams.get("country") || "",
+        data_gb: reqUrl.searchParams.has("data_gb")
+          ? parseFloat(reqUrl.searchParams.get("data_gb")!)
+          : undefined,
+        days: reqUrl.searchParams.has("days")
+          ? parseInt(reqUrl.searchParams.get("days")!)
+          : undefined,
+      };
+    } else {
+      // POST with JSON body
+      const rawBody = await readBody(req);
+      args = JSON.parse(rawBody);
+    }
+
     // Free search — no payment required
     try {
-      const rawBody = await readBody(req);
-      const args = JSON.parse(rawBody);
       const result = await handleSearchPlans(statelessOfferCache, args);
       sendJson(res, 200, {
         plans: result.data,

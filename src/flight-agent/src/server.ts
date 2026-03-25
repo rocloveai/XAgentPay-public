@@ -280,16 +280,29 @@ async function handleStatelessCall(
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers":
           "Content-Type, PAYMENT-SIGNATURE, X-PAYMENT",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       });
       res.end();
       return true;
     }
 
+    let args: any;
+    if (req.method === "GET") {
+      // Support GET with query params: ?origin=SIN&destination=BKK&date=2026-03-26&passengers=1
+      args = {
+        origin: reqUrl.searchParams.get("origin") || "",
+        destination: reqUrl.searchParams.get("destination") || "",
+        date: reqUrl.searchParams.get("date") || "",
+        passengers: parseInt(reqUrl.searchParams.get("passengers") || "1"),
+      };
+    } else {
+      // POST with JSON body
+      const rawBody = await readBody(req);
+      args = JSON.parse(rawBody);
+    }
+
     // Free search — no payment required
     try {
-      const rawBody = await readBody(req);
-      const args = JSON.parse(rawBody);
       const result = await handleSearchFlights(statelessOfferCache, args);
       sendJson(res, 200, {
         flights: result.data,

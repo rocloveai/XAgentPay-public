@@ -296,16 +296,29 @@ async function handleStatelessCall(
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers":
           "Content-Type, PAYMENT-SIGNATURE, X-PAYMENT",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       });
       res.end();
       return true;
     }
 
+    let args: any;
+    if (req.method === "GET") {
+      // Support GET with query params: ?city=Bangkok&checkin=2026-03-26&checkout=2026-03-28&guests=1
+      args = {
+        city: reqUrl.searchParams.get("city") || "",
+        check_in: reqUrl.searchParams.get("checkin") || reqUrl.searchParams.get("check_in") || "",
+        check_out: reqUrl.searchParams.get("checkout") || reqUrl.searchParams.get("check_out") || "",
+        guests: parseInt(reqUrl.searchParams.get("guests") || "1"),
+      };
+    } else {
+      // POST with JSON body
+      const rawBody = await readBody(req);
+      args = JSON.parse(rawBody);
+    }
+
     // Free search — no payment required
     try {
-      const rawBody = await readBody(req);
-      const args = JSON.parse(rawBody);
       const result = await handleSearchHotels(statelessOfferCache, args);
       sendJson(res, 200, {
         hotels: result.data,
