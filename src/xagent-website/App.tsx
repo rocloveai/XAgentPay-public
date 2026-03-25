@@ -1029,7 +1029,7 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
                         {/* Currencies + Payment protocol tag — same row */}
                         {(() => {
                           const hasX402 = agent.skill_tools.some(t => (t as any).payment === 'x402');
-                          const hasERC8183 = agent.category?.startsWith('travel.') && !hasX402;
+                          const hasERC8183 = agent.skill_tools.some(t => (t as any).payment === 'ERC-8183');
                           return (
                             <div className="flex flex-wrap gap-1.5 items-center">
                               {agent.currencies.map((c, j) => (
@@ -1043,7 +1043,7 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
 
                         {/* Tools */}
                         <div className="flex flex-wrap gap-2">
-                          {agent.skill_tools.filter(t => !['MCP','Available','Supported'].includes(t.name)).map((tool, j) => (
+                          {agent.skill_tools.filter(t => !['MCP','Available','Supported','x402','ERC-8183','ERC8183'].includes(t.name)).map((tool, j) => (
                             <span key={j} className="px-2 py-1 rounded bg-primary/10 text-[10px] font-mono text-primary border border-primary/20 transition-colors">{tool.name.replace(/^nexus_/, 'xagent_')}</span>
                           ))}
                         </div>
