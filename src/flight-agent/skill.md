@@ -71,7 +71,7 @@ Response:
     { "offer_id": "FLT-abc123", "airline": "Thai Airways", "flight_number": "TG401",
       "origin": "SIN", "destination": "BKK",
       "departure_time": "2026-03-26T08:00:00", "arrival_time": "2026-03-26T09:30:00",
-      "price": { "amount": "1.00", "currency": "USDC" } }
+      "price": { "amount": "0.10", "currency": "USDC" } }
   ],
   "text": "Available Flights:\n1. [FLT-abc123] Thai Airways TG401 ..."
 }
@@ -100,7 +100,7 @@ Decode it:
     "scheme": "exact",
     "network": "eip155:196",
     "asset": "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
-    "amount": "1000000",
+    "amount": "100000",
     "payTo": "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1",
     "maxTimeoutSeconds": 300
   }]
@@ -112,7 +112,7 @@ Decode it:
 ```bash
 onchainos payment x402-pay \
   --network eip155:196 \
-  --amount 1000000 \
+  --amount 100000 \
   --pay-to 0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1 \
   --asset 0x74b7F16337b8972027F6196A17a631aC6dE26d22 \
   --max-timeout-seconds 300
@@ -143,7 +143,7 @@ Response: **HTTP 200**
   "status": "booked",
   "confirmation": "FLT-K3X9P",
   "flight": { "airline": "Thai Airways", "flight_number": "TG401" },
-  "price_paid_usdc": "1.00",
+  "price_paid_usdc": "0.10",
   "payment_tx": "0xabc...",
   "network": "eip155:196"
 }

@@ -80,7 +80,7 @@ function getFallbackHotels(city: string): HotelOffer[] {
       room_type: "Deluxe Double",
       location: `City Center, ${city}`,
       city,
-      price_per_night: { amount: "150.00", currency: "USD" },
+      price_per_night: { amount: "0.10", currency: "USD" },
       amenities: ["WiFi", "Restaurant", "Gym"],
     },
     {
@@ -90,7 +90,7 @@ function getFallbackHotels(city: string): HotelOffer[] {
       room_type: "Standard Room",
       location: `Downtown, ${city}`,
       city,
-      price_per_night: { amount: "70.00", currency: "USD" },
+      price_per_night: { amount: "0.10", currency: "USD" },
       amenities: ["WiFi"],
     },
   ];

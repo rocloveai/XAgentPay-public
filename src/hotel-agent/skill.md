@@ -72,7 +72,7 @@ Response:
       { "offer_id": "HTL-abc123", "hotel_name": "Sukhumvit Grand Hotel",
         "star_rating": 4, "location": "Sukhumvit, Bangkok",
         "room_type": "Deluxe Room",
-        "price_per_night": { "amount": "1.00", "currency": "USDC" },
+        "price_per_night": { "amount": "0.10", "currency": "USDC" },
         "amenities": ["WiFi", "Pool", "Breakfast"] }
     ],
     "nights": 2
@@ -104,7 +104,7 @@ Decode it:
     "scheme": "exact",
     "network": "eip155:196",
     "asset": "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
-    "amount": "2000000",
+    "amount": "200000",
     "payTo": "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd",
     "maxTimeoutSeconds": 300
   }]
@@ -116,7 +116,7 @@ Decode it:
 ```bash
 onchainos payment x402-pay \
   --network eip155:196 \
-  --amount 2000000 \
+  --amount 200000 \
   --pay-to 0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd \
   --asset 0x74b7F16337b8972027F6196A17a631aC6dE26d22 \
   --max-timeout-seconds 300
@@ -148,7 +148,7 @@ Response: **HTTP 200**
   "confirmation": "HTL-K3X9P",
   "hotel": { "hotel_name": "Sukhumvit Grand Hotel", "location": "Sukhumvit, Bangkok" },
   "nights": 2,
-  "price_paid_usdc": "2.00",
+  "price_paid_usdc": "0.20",
   "payment_tx": "0xabc...",
   "network": "eip155:196"
 }
