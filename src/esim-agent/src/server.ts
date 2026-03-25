@@ -17,6 +17,15 @@ import {
   sendJson,
 } from "./portal.js";
 import { privateKeyToAccount } from "viem/accounts";
+import {
+  extractX402Payment,
+  buildPaymentRequired,
+  buildPaymentRequiredResult,
+  buildPaidToolResult,
+  processX402Payment,
+  formatUsdcAmount,
+  type X402ToolConfig,
+} from "@xagentpay/x402";
 import type { EsimPlan } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -333,11 +342,21 @@ function createMcpServer(): McpServer {
     version: "2.0.0",
   });
 
-  // ── Tool: search_esim_plans ───────────────────────────────────────────────
+  // ── x402 config for search tools ─────────────────────────────────────────
+  const x402Config: X402ToolConfig = {
+    toolName: "search_esim_plans",
+    priceUsdcAtomic: config.x402PriceAtomic,
+    payTo: config.paymentAddress,
+    resourceDescription: "eSIM plan search results (x402 pay-per-search)",
+    signerPrivateKey: config.relayerPrivateKey,
+  };
+
+  // ── Tool: search_esim_plans (x402 hard gate) ─────────────────────────────
 
   srv.tool(
     "search_esim_plans",
-    "Search available eSIM data plans by country. Returns a list of plans with data allowance, validity, network, and pricing.",
+    "Search available eSIM data plans by country. Returns a list of plans with data allowance, validity, network, and pricing. " +
+      `Requires x402 payment of ${formatUsdcAmount(config.x402PriceAtomic)} USDC in _meta['x402/payment'].`,
     {
       country: z
         .string()
@@ -354,24 +373,33 @@ function createMcpServer(): McpServer {
         .optional()
         .describe("Minimum data allowance in GB (optional filter)"),
     },
-    async ({ country, days, data_gb }) => {
+    async ({ country, days, data_gb }, extra) => {
+      const payment = extractX402Payment(
+        (extra as any)?._meta ?? (extra as any)?.meta,
+      );
+      if (!payment) {
+        return buildPaymentRequiredResult(buildPaymentRequired(x402Config));
+      }
+      const payResult = await processX402Payment(payment, x402Config);
+      if ("error" in payResult) {
+        return buildPaymentRequiredResult(payResult.error);
+      }
       const result = await handleSearchPlans(sessionOfferCache, {
         country,
         days,
         data_gb,
       });
-      return {
-        content: [{ type: "text" as const, text: result.text }],
-      };
+      return buildPaidToolResult(result.text, payResult.settled);
     },
   );
 
-  // ── Tool: search_and_quote (FAST PATH) ──────────────────────────────────
+  // ── Tool: search_and_quote (x402 + ERC-8183 combined) ───────────────────
 
   srv.tool(
     "search_and_quote",
     "Search eSIM plans AND generate a signed ERC-8183 quote in ONE call. " +
-      "Returns plan options with a payment quote for checkout.",
+      "Returns plan options with a payment quote for checkout. " +
+      `Requires x402 payment of ${formatUsdcAmount(config.x402PriceAtomic)} USDC in _meta['x402/payment'] for the search step.`,
     {
       country: z
         .string()
@@ -401,8 +429,22 @@ function createMcpServer(): McpServer {
         ),
     },
     async ({ country, days, data_gb, payer_wallet, offer_index }, extra) => {
+      const payment = extractX402Payment(
+        (extra as any)?._meta ?? (extra as any)?.meta,
+      );
+      if (!payment) {
+        return buildPaymentRequiredResult(
+          buildPaymentRequired({ ...x402Config, toolName: "search_and_quote" }),
+        );
+      }
+      const payResult = await processX402Payment(payment, {
+        ...x402Config,
+        toolName: "search_and_quote",
+      });
+      if ("error" in payResult) {
+        return buildPaymentRequiredResult(payResult.error);
+      }
       try {
-        // Step 1: Always search for plans first (search is free)
         const result = await handleSearchAndQuote(sessionOfferCache, {
           country,
           days,
@@ -410,10 +452,7 @@ function createMcpServer(): McpServer {
           payer_wallet,
           offer_index,
         });
-
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-        };
+        return buildPaidToolResult(result.text, payResult.settled);
       } catch (err: any) {
         return {
           content: [{ type: "text" as const, text: `Error: ${err.message}` }],

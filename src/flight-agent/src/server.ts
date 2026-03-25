@@ -17,6 +17,15 @@ import {
   sendJson,
 } from "./portal.js";
 import { privateKeyToAccount } from "viem/accounts";
+import {
+  extractX402Payment,
+  buildPaymentRequired,
+  buildPaymentRequiredResult,
+  buildPaidToolResult,
+  processX402Payment,
+  formatUsdcAmount,
+  type X402ToolConfig,
+} from "@xagentpay/x402";
 import type { FlightOffer } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -338,11 +347,21 @@ function createMcpServer(): McpServer {
     version: "2.0.0",
   });
 
-  // ── Tool: search_flights ────────────────────────────────────────────────────
+  // ── x402 config for search tools ─────────────────────────────────────────
+  const x402Config: X402ToolConfig = {
+    toolName: "search_flights",
+    priceUsdcAtomic: config.x402PriceAtomic,
+    payTo: config.paymentAddress,
+    resourceDescription: "Flight search results (x402 pay-per-search)",
+    signerPrivateKey: config.relayerPrivateKey,
+  };
+
+  // ── Tool: search_flights (x402 hard gate) ──────────────────────────────────
 
   srv.tool(
     "search_flights",
-    "Search available flights between airports. Returns a list of flight offers with prices.",
+    "Search available flights between airports. Returns a list of flight offers with prices. " +
+      `Requires x402 payment of ${formatUsdcAmount(config.x402PriceAtomic)} USDC in _meta['x402/payment'].`,
     {
       origin: z
         .string()
@@ -359,25 +378,34 @@ function createMcpServer(): McpServer {
         .default(1)
         .describe("Number of passengers (1-9)"),
     },
-    async ({ origin, destination, date, passengers }) => {
+    async ({ origin, destination, date, passengers }, extra) => {
+      const payment = extractX402Payment(
+        (extra as any)?._meta ?? (extra as any)?.meta,
+      );
+      if (!payment) {
+        return buildPaymentRequiredResult(buildPaymentRequired(x402Config));
+      }
+      const payResult = await processX402Payment(payment, x402Config);
+      if ("error" in payResult) {
+        return buildPaymentRequiredResult(payResult.error);
+      }
       const result = await handleSearchFlights(sessionOfferCache, {
         origin,
         destination,
         date,
         passengers,
       });
-      return {
-        content: [{ type: "text" as const, text: result.text }],
-      };
+      return buildPaidToolResult(result.text, payResult.settled);
     },
   );
 
-  // ── Tool: search_and_quote (FAST PATH) ──────────────────────────────────
+  // ── Tool: search_and_quote (x402 + ERC-8183 combined) ───────────────────
 
   srv.tool(
     "search_and_quote",
     "Search flights AND generate a signed ERC-8183 quote in ONE call. " +
-      "Returns flight options with a payment quote for checkout.",
+      "Returns flight options with a payment quote for checkout. " +
+      `Requires x402 payment of ${formatUsdcAmount(config.x402PriceAtomic)} USDC in _meta['x402/payment'] for the search step.`,
     {
       origin: z
         .string()
@@ -410,6 +438,22 @@ function createMcpServer(): McpServer {
       { origin, destination, date, passengers, payer_wallet, offer_index },
       extra,
     ) => {
+      // x402 hard gate for search step
+      const payment = extractX402Payment(
+        (extra as any)?._meta ?? (extra as any)?.meta,
+      );
+      if (!payment) {
+        return buildPaymentRequiredResult(
+          buildPaymentRequired({ ...x402Config, toolName: "search_and_quote" }),
+        );
+      }
+      const payResult = await processX402Payment(payment, {
+        ...x402Config,
+        toolName: "search_and_quote",
+      });
+      if ("error" in payResult) {
+        return buildPaymentRequiredResult(payResult.error);
+      }
       try {
         const result = await handleSearchAndQuote(sessionOfferCache, {
           origin,
@@ -420,9 +464,7 @@ function createMcpServer(): McpServer {
           offer_index,
         });
 
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-        };
+        return buildPaidToolResult(result.text, payResult.settled);
       } catch (err: any) {
         return {
           content: [{ type: "text" as const, text: `Error: ${err.message}` }],
