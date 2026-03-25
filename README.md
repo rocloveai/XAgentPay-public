@@ -1,120 +1,134 @@
 # XAgent Pay — The Settlement Layer for Agentic Commerce
 
-> AI Agents autonomously discover services, negotiate payments, and settle on-chain — no human clicks required.
+> AI Agents autonomously discover services, pay on-chain, and get confirmations — no human clicks required.
 
-## Why XAgent Pay?
+## What Is XAgent Pay?
 
-Today's AI agents can browse, reason, and plan — but they can't pay. When an AI agent books a flight or reserves a hotel, a human must still click "confirm" and enter card details. **XAgent Pay removes this bottleneck** by giving AI agents the ability to settle payments autonomously on-chain, with cryptographic guarantees that the service was delivered.
+Today's AI agents can browse, reason, and plan — but they can't pay. When an AI agent books a flight or reserves a hotel, a human must still click "confirm" and enter card details. **XAgent Pay removes this bottleneck** by giving AI agents the ability to pay autonomously on-chain, with cryptographic guarantees.
 
-**XAgent Pay** is a payment orchestration protocol that enables AI Agents to transact with each other using on-chain USDC settlement on **XLayer Mainnet**. It is built on two complementary layers:
+XAgent Pay is a payment infrastructure protocol for AI agents built on **XLayer Mainnet**. It implements the **x402 HTTP payment standard** (OKX Onchain OS compatible) and the **ERC-8183 Agentic Commerce Protocol**, plus its own **NUPS Group Escrow** for multi-merchant batch settlements.
 
-- **x402** ([Coinbase standard](https://github.com/coinbase/x402)) — HTTP payment signaling layer. Defines how an agent discovers payment requirements: a service returns `HTTP 402` with payment metadata, the agent signs an EIP-3009 authorization and retries. x402 is a *communication protocol*, not a settlement workflow.
-- **ERC-8183 Agentic Commerce Protocol** — On-chain settlement workflow standard. Defines the complete job lifecycle (fund → deliver → evaluate → complete) with cryptographic escrow and third-party verification. x402 can serve as the *signaling trigger* for an ERC-8183 settlement.
+### Proven Demo
 
-XAgent Pay implements both, plus its own **NUPS Group Escrow** for multi-merchant batch payments.
+An OKX AI Agent (Eva) completed a full Bangkok travel itinerary autonomously:
 
-## Live Demo
+| Item | Confirmation | Status |
+|------|-------------|--------|
+| ✈️ Singapore → Bangkok (Mar 26) | FLT-MN68FHA8 | ✅ Booked |
+| 🏨 Bangkok Hotel (2 nights) | HTL-MN68FJL1 | ✅ Booked |
+| ✈️ Bangkok → Singapore (Mar 28) | FLT-MN68FOH3 | ✅ Booked |
+| 📱 Thailand eSIM 5GB | ESIM-MN68FQAL | ✅ Activated |
 
-| Service | URL |
-|---------|-----|
-| Website | https://xagenpay.com |
-| Core API | https://xagenpay.com/api/health |
-| Agent Marketplace | https://xagenpay.com (Market tab) |
+Swap tx (OKB→USDC): [`0xeace52f0...`](https://www.oklink.com/xlayer/tx/0xeace52f0a194782c82a8ae4727a1d8e3f1bdf48eecd83b801d49b57651d19c3f)
+
+---
+
+## Live Services
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| Website | https://xagenpay.com | Agent Marketplace |
+| Core API | https://xagenpay.com/api/health | Payment orchestration |
+| ✈️ Flight Agent | https://xagenpay.com/flight/skill.md | Search + book flights |
+| 🏨 Hotel Agent | https://xagenpay.com/hotel/skill.md | Search + book hotels |
+| 📱 eSIM Agent | https://xagenpay.com/esim/skill.md | Search + activate eSIMs |
+
+---
 
 ## Architecture
 
 ```
-┌───────────────────────────────────────────────────────────┐
-│                    User / AI Agent                         │
-│              (Lark, Claude, ChatGPT, etc.)                 │
-└──────┬────────────────────────────────┬────────────────────┘
-       │ ① search_and_quote (MCP/REST)  │ ② xagent_orchestrate_payment
-       │                                │    (MCP/REST)
-┌──────▼──────────────────────┐  ┌──────▼─────────────────────────────┐
-│      Merchant Agents        │  │           XAgent Core               │
-│                             │  │                                      │
-│  ┌──────────┐ ┌──────────┐  │  │  ┌────────────┐  ┌──────────────┐  │
-│  │  Flight  │ │  Hotel   │  │  │  │Orchestrator│  │ ChainWatcher │  │
-│  │  Agent   │ │  Agent   │  │  │  └─────┬──────┘  └──────┬───────┘  │
-│  └──────────┘ └──────────┘  │  │        │                │          │
-│  ┌──────────┐               │  │  ┌─────▼────────────────▼───────┐  │
-│  │   eSIM   │  x402: agent  │  │  │   PostgreSQL (State Machine) │  │
-│  │  Agent   │◄──calls API──►│  │  └──────────────────────────────┘  │
-│  └──────────┘  402→pay→retry│  │  ┌──────────┐  ┌───────────────┐  │
-│                             │  │  │  Relayer │  │   Checkout    │  │
-└──────┬──────────────────────┘  │  └──────────┘  └───────────────┘  │
-       │ ③ Webhook (deliver)     └──────────────────────┬─────────────┘
-       └──────────────────────────────────────────────── │
-                                                         │ On-chain Settlement
-                          ┌──────────────────────────────▼──────────────┐
-                          │          XLayer Mainnet (Chain ID: 196)      │
-                          │                                               │
-                          │  ┌───────────────┐  ┌──────────────────┐    │
-                          │  │ XAgentPay     │  │ AgenticCommerce  │    │
-                          │  │ Escrow        │  │ (ERC-8183 Jobs)  │    │
-                          │  └───────────────┘  └──────────────────┘    │
-                          │  ┌───────────────┐  ┌──────────────────┐    │
-                          │  │ AutoEvaluator │  │      USDC        │    │
-                          │  └───────────────┘  └──────────────────┘    │
-                          └───────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    User / AI Agent                       │
+│          (OKX Onchain OS, Claude, etc.)                  │
+└──────┬──────────────────────────────────────────────────┘
+       │
+       │  ① search (FREE)  →  GET /api/search
+       │  ② purchase       →  POST /api/purchase
+       │                      ← HTTP 402 + base64 payment requirement
+       │  ③ sign EIP-3009  →  onchainos payment x402-pay
+       │  ④ retry          →  POST /api/purchase + PAYMENT-SIGNATURE header
+       │                      ← HTTP 200 + confirmation
+       │
+┌──────▼──────────────────────────────────────────────────┐
+│                  Merchant Agents                          │
+│                                                          │
+│   Flight Agent              Hotel Agent                  │
+│   /flight/api/search        /hotel/api/search            │
+│   /flight/api/purchase      /hotel/api/purchase          │
+│                                                          │
+│   eSIM Agent                XAgent Core (NUPS)           │
+│   /esim/api/search          /api/orchestrate             │
+│   /esim/api/purchase        /api/checkout                │
+└──────────────────────────────┬──────────────────────────┘
+                               │ On-chain Settlement
+                ┌──────────────▼──────────────────────┐
+                │      XLayer Mainnet (Chain ID 196)   │
+                │                                      │
+                │  USDC EIP-3009 transferWithAuth       │
+                │  XAgentPayEscrow (NUPS batch)         │
+                │  AgenticCommerce (ERC-8183 jobs)      │
+                └──────────────────────────────────────┘
 ```
 
-**Two layers, three implementations:**
-- **x402 (HTTP signaling)** — agent calls merchant API → `402 Payment Required` → signs EIP-3009 → retries → fulfilled directly on-chain
-- **ERC-8183 (settlement workflow)** — `batchCreateAndFund()` → job escrow → deliver → AutoEvaluator verifies → `complete()` → funds released
-- **NUPS Group Escrow** — ① quote → ② orchestrate → checkout → multi-sig escrow → ③ deliver → auto-release
+---
 
 ## Payment Standards
 
-### x402 — HTTP Payment Signaling Layer
+### x402 — HTTP Payment Protocol (Primary)
 
-x402 is a **communication protocol**, not a settlement workflow. It standardizes how a service communicates "you need to pay before I respond."
-
-When an AI agent calls a paid API endpoint:
+x402 is the **OKX Onchain OS compatible** payment signaling layer. Any AI agent with x402 support can pay autonomously:
 
 ```
-Agent → GET /api/search_and_quote
-     ← 402 { amount: "100000", payTo: "0x...", network: "eip155:196" }
+1. Agent → POST /api/purchase   (no payment header)
+        ← HTTP 402
+           base64({ x402Version:2, accepts:[{
+             scheme:"exact", network:"eip155:196",
+             asset:"0x74b7...", amount:"500000",
+             payTo:"0xac9d...", maxTimeoutSeconds:300
+           }]})
 
-Agent → signs EIP-3009 USDC authorization
-     → retry with X-PAYMENT: { signature, ... }
-     ← 200 OK + result
+2. Agent runs: onchainos payment x402-pay \
+     --network eip155:196 --amount 500000 \
+     --pay-to 0xac9d... --asset 0x74b7...
+   → { signature: "0x...", authorization: {...} }
+
+3. Agent → POST /api/purchase
+   Header: PAYMENT-SIGNATURE: base64({...decoded_402, payload:{signature,authorization}})
+        ← HTTP 200 { confirmation: "FLT-MN68FHA8", payment_tx: "0x..." }
 ```
 
-Settlement is immediate — an EIP-3009 signed transfer, no escrow, no job lifecycle. x402 can also serve as the **signaling trigger** for an ERC-8183 job: the 402 response instructs the agent to create an on-chain job instead of a direct transfer.
+Settlement is immediate — EIP-3009 `transferWithAuthorization` moves USDC from payer to merchant in one on-chain transaction.
 
-### ERC-8183 — Agentic Commerce Workflow Standard
+### ERC-8183 — Agentic Commerce Protocol
 
-ERC-8183 is a **smart contract workflow standard** for verifiable job-based commerce. Unlike x402's direct transfer, ERC-8183 holds funds in escrow until an independent Evaluator confirms delivery.
+On-chain escrow with independent verification. Funds are held until an `AutoEvaluator` confirms delivery:
 
 ```
-User → approve USDC → batchCreateAndFund() → JOB_FUNDED
-                                                   ↓
-                                        Agent delivers service
-                                                   ↓
-                                        submit()→ JOB_SUBMITTED
-                                                   ↓
-                                        AutoEvaluator.evaluate()
-                                                   ↓
-                                        complete() → JOB_COMPLETED
-                                                   ↓
-                                        Funds released to provider
+approve USDC → batchCreateAndFund() → JOB_FUNDED
+                                          ↓
+                              Merchant delivers service
+                                          ↓
+                              submit(deliverable) → JOB_SUBMITTED
+                                          ↓
+                              AutoEvaluator.evaluate()
+                                          ↓
+                              complete() → JOB_COMPLETED → funds released
 ```
-
-**Key innovation**: ERC-8183 requires an independent `AutoEvaluator` to verify the deliverable on-chain before releasing funds — creating trustless, verifiable AI-to-AI commerce.
 
 ### NUPS Group Escrow — Multi-Merchant Batch Settlement
 
-XAgent Pay's native escrow for bundling multiple merchant payments into a single user transaction. Quotes from multiple agents are aggregated, signed, and settled together via `XAgentPayEscrow`.
+Bundle multiple merchant payments into a single user transaction:
 
 ```
-Agent A quote + Agent B quote + Agent C quote
+Flight quote + Hotel quote + eSIM quote
 → xagent_orchestrate_payment()
-→ batchDepositApprove() [one tx, one approval]
-→ funds escrowed per merchant
+→ batchDepositApprove() [one tx]
 → each merchant delivers → auto-release()
 → SETTLED
 ```
+
+---
 
 ## Deployed Contracts (XLayer Mainnet)
 
@@ -125,109 +139,117 @@ Agent A quote + Agent B quote + Agent C quote
 | AutoEvaluator | `0x49C11b686f45B0220B9d2Ce2B971049D9118e76a` | [View](https://www.oklink.com/xlayer/address/0x49C11b686f45B0220B9d2Ce2B971049D9118e76a) |
 | USDC | `0x74b7F16337b8972027F6196A17a631aC6dE26d22` | [View](https://www.oklink.com/xlayer/address/0x74b7F16337b8972027F6196A17a631aC6dE26d22) |
 
+---
+
+## OKX Onchain OS — Quick Start
+
+Add any agent as an MCP server in OKX Onchain OS:
+
+```json
+{
+  "mcpServers": {
+    "xagent-flight": { "url": "https://xagenpay.com/flight/mcp" },
+    "xagent-hotel":  { "url": "https://xagenpay.com/hotel/mcp" },
+    "xagent-esim":   { "url": "https://xagenpay.com/esim/mcp" }
+  }
+}
+```
+
+Available tools per agent:
+
+| Agent | Free Tools | Paid Tools (x402) |
+|-------|-----------|-------------------|
+| Flight | `search_and_quote`, `search_flights` | `purchase_flight` |
+| Hotel | `search_and_quote`, `search_hotels` | `purchase_hotel` |
+| eSIM | `search_and_quote`, `search_esim_plans` | `purchase_esim` |
+
+### Demo Prices (XLayer Mainnet)
+
+| Service | Price |
+|---------|-------|
+| Flight (each leg) | 0.10–0.30 USDC |
+| Hotel (per night) | 0.10 USDC |
+| eSIM (5GB/30d) | 0.50 USDC |
+
+---
+
+## REST API
+
+Each agent also exposes direct HTTP endpoints (no MCP required):
+
+```bash
+# Flight search (free)
+GET https://xagenpay.com/flight/api/search?origin=SIN&destination=BKK&date=2026-03-26&passengers=1
+
+# Hotel search (free)
+GET https://xagenpay.com/hotel/api/search?city=Bangkok&checkin=2026-03-26&checkout=2026-03-28&guests=1
+
+# eSIM search (free)
+GET https://xagenpay.com/esim/api/search?country=Thailand&data_gb=5
+
+# Purchase (x402 — returns 402 first, then 200 with PAYMENT-SIGNATURE)
+POST https://xagenpay.com/flight/api/purchase/flights
+POST https://xagenpay.com/hotel/api/purchase/hotels
+POST https://xagenpay.com/esim/api/purchase/esim
+```
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Smart Contracts | Solidity (Foundry) |
-| Backend | TypeScript, Node.js |
-| Protocol | MCP (Model Context Protocol) |
+| Backend | TypeScript, Node.js, Docker |
+| Protocol | MCP (Model Context Protocol) + x402 HTTP |
 | Database | PostgreSQL |
 | Frontend | React + Vite + Tailwind CSS |
 | Blockchain | XLayer Mainnet (EVM, Chain ID 196) |
-| Settlement | USDC (ERC-20) |
-| Standards | EIP-712, EIP-3009, ISO 20022, ERC-8183 |
+| Payment Token | USDC (EIP-3009 `transferWithAuthorization`) |
+| Standards | x402, EIP-712, EIP-3009, ERC-8183 |
+
+---
 
 ## Project Structure
 
 ```
 src/
 ├── contracts/           # Solidity smart contracts (Foundry)
-│   ├── src/
-│   │   ├── XAgentPayEscrow.sol      # Batch escrow with dispute resolution
-│   │   ├── AgenticCommerce.sol       # ERC-8183 job-based escrow
-│   │   └── AutoEvaluator.sol         # Automated deliverable verification
-│   └── test/
-├── xagent-core/         # Payment orchestration engine
 │   └── src/
-│       ├── server.ts                 # MCP + HTTP dual transport
-│       ├── services/
-│       │   ├── orchestrator.ts       # Quote → Payment → Settlement
-│       │   ├── chain-watcher.ts      # On-chain event monitoring
-│       │   ├── relayer.ts            # TX submission (escrow + ACP)
-│       │   └── state-machine.ts      # 16-state payment lifecycle
-│       ├── checkout.ts               # Web checkout (MetaMask)
-│       └── rest-api.ts               # REST endpoints
-├── flight-agent/        # Flight booking merchant (Duffel API)
-├── hotel-agent/         # Hotel booking merchant (Amadeus API)
-├── esim-agent/          # eSIM data plans merchant
-├── telegram-bot/        # Telegram bot interface (Eva)
-├── telegram-order-panel/# Order management panel
+│       ├── XAgentPayEscrow.sol       # NUPS batch escrow
+│       ├── AgenticCommerce.sol        # ERC-8183 job-based escrow
+│       └── AutoEvaluator.sol          # Automated deliverable verification
+├── xagent-core/         # Payment orchestration engine (NUPS)
+│   └── src/
+│       ├── services/orchestrator.ts   # Quote → Payment → Settlement
+│       ├── services/chain-watcher.ts  # On-chain event monitoring
+│       ├── services/relayer.ts        # TX submission
+│       └── checkout.ts                # Web checkout (MetaMask / OKX Wallet)
+├── shared/x402/         # x402 HTTP payment library (shared)
+│   └── src/
+│       ├── facilitator.ts             # EIP-3009 verify + settle
+│       ├── http.ts                    # HTTP 402 build + parse
+│       └── middleware.ts              # MCP x402 middleware
+├── flight-agent/        # Flight booking merchant (x402)
+├── hotel-agent/         # Hotel booking merchant (x402)
+├── esim-agent/          # eSIM data plans merchant (x402)
+├── telegram-bot/        # Telegram bot interface
 └── xagent-website/      # Marketing website + Agent Marketplace
 ```
 
-## MCP Tools
+---
 
-XAgent Core exposes 9 MCP tools for AI agents:
+## End-to-End Flow (x402)
 
-| Tool | Description |
-|------|-------------|
-| `xagent_orchestrate_payment` | Create payment from NUPS quotes |
-| `xagent_get_payment_status` | Query payment/group status |
-| `xagent_list_agents` | Discover merchant agents |
-| `xagent_get_agent_skill` | Get agent capability descriptor |
-| `xagent_register_merchant` | Register a new merchant agent |
-| `xagent_get_merchant_payments` | Query merchant's payment history |
-| `xagent_resolve_dispute` | Resolve escrow disputes |
-| `xagent_star_agent` | Star/unstar agents |
-| `xagent_get_agent_stars` | Get agent star counts |
+1. **Agent** calls `GET /api/search` — free, no payment
+2. **Agent** picks an offer, calls `POST /api/purchase` — server returns HTTP 402 with payment requirement
+3. **Agent** runs `onchainos payment x402-pay` — signs EIP-3009 USDC authorization
+4. **Agent** assembles `PAYMENT-SIGNATURE` header and replays the purchase request
+5. **Server** verifies signature, calls `transferWithAuthorization` on XLayer USDC
+6. **Server** waits for on-chain confirmation, returns HTTP 200 with confirmation number
+7. **Agent** returns booking details to user — fully autonomous, no human clicks
 
-## Quick Start
-
-### Prerequisites
-
-- Node.js 20+
-- PostgreSQL 16+
-- XLayer RPC access (`https://rpc.xlayer.tech`)
-
-### Development
-
-```bash
-# Install dependencies
-cd src/xagent-core && npm install
-
-# Start in HTTP mode
-TRANSPORT=http \
-DATABASE_URL=postgresql://... \
-RELAYER_PRIVATE_KEY=0x... \
-ESCROW_CONTRACT=0x959028964e8a4e52d6AC716E621B68b3fa579A25 \
-ACP_CONTRACT=0x6DE4FA2B5fd0746E773C4CFEa152e5252bBCbB33 \
-AUTO_EVALUATOR_CONTRACT=0x49C11b686f45B0220B9d2Ce2B971049D9118e76a \
-npm start
-```
-
-### Docker Deployment
-
-```bash
-cd deploy
-cp .env.example .env  # Fill in credentials
-docker compose up -d --build
-```
-
-## End-to-End Flow (ERC-8183)
-
-1. **User** sends request via AI Agent (Lark, Claude, etc.)
-2. **AI Agent** calls `search_and_quote` on each merchant agent — flight, hotel, eSIM respond with signed quotes
-3. **AI Agent** calls `xagent_orchestrate_payment` on XAgent Core → receives checkout URL
-4. **User** opens checkout page, connects wallet (OKX Wallet / MetaMask)
-5. **User** approves USDC + calls `batchCreateAndFund()` on AgenticCommerce — one tx, multiple jobs
-6. **ChainWatcher** detects `JobCreated` events → status = `JOB_FUNDED`
-7. **Webhook** notifies each merchant agent
-8. **Merchant Agent** constructs deliverable → calls `/api/acp/submit-deliverable`
-9. **Relayer** calls `AgenticCommerce.submit()` → status = `JOB_SUBMITTED`
-10. **ChainWatcher** detects `JobSubmitted` → triggers `AutoEvaluator.evaluate()`
-11. **AutoEvaluator** calls `complete()` → funds released to provider
-12. **Status** = `JOB_COMPLETED` — verifiable on-chain settlement
+---
 
 ## License
 
