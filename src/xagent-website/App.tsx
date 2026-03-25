@@ -1035,6 +1035,18 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
                           </div>
                         )}
 
+                        {/* Payment protocol tag */}
+                        {(() => {
+                          const hasX402 = agent.skill_tools.some(t => (t as any).payment === 'x402');
+                          const hasERC8183 = agent.category?.startsWith('travel.') && !hasX402;
+                          return (hasX402 || hasERC8183) ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {hasX402 && <span className="px-2 py-0.5 rounded bg-purple-500/10 text-[10px] font-bold text-purple-500 border border-purple-500/20">x402</span>}
+                              {hasERC8183 && <span className="px-2 py-0.5 rounded bg-green-500/10 text-[10px] font-bold text-green-500 border border-green-500/20">ERC-8183</span>}
+                            </div>
+                          ) : null;
+                        })()}
+
                         {/* Tools */}
                         <div className="flex flex-wrap gap-2">
                           {agent.skill_tools.filter(t => !['MCP','Available','Supported'].includes(t.name)).map((tool, j) => (
