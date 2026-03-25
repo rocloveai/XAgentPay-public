@@ -71,7 +71,7 @@ Response:
     { "offer_id": "ESIM-abc123", "country": "Thailand", "country_code": "TH",
       "data_gb": 5, "days": 15, "network": "AIS/DTAC",
       "provider": "Airalo",
-      "price": { "amount": "12.00", "currency": "USDC" } }
+      "price": { "amount": "0.50", "currency": "USDC" } }
   ],
   "text": "eSIM Plans for Thailand:\n1. [ESIM-abc123]\n   Thailand (TH) | 5GB / 15 days ..."
 }
@@ -100,7 +100,7 @@ Decode it:
     "scheme": "exact",
     "network": "eip155:196",
     "asset": "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
-    "amount": "12000000",
+    "amount": "500000",
     "payTo": "0xac9d5239b597f8903da93b9b8d92e6cff564e989",
     "maxTimeoutSeconds": 300
   }]
@@ -112,7 +112,7 @@ Decode it:
 ```bash
 onchainos payment x402-pay \
   --network eip155:196 \
-  --amount 12000000 \
+  --amount 500000 \
   --pay-to 0xac9d5239b597f8903da93b9b8d92e6cff564e989 \
   --asset 0x74b7F16337b8972027F6196A17a631aC6dE26d22 \
   --max-timeout-seconds 300
@@ -143,7 +143,7 @@ Response: **HTTP 200**
   "status": "activated",
   "confirmation": "ESIM-K3X9P",
   "plan": { "country": "Thailand", "data_gb": 5, "days": 15, "provider": "Airalo" },
-  "price_paid_usdc": "12.00",
+  "price_paid_usdc": "0.50",
   "payment_tx": "0xabc...",
   "network": "eip155:196"
 }
