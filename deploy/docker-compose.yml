@@ -116,22 +116,6 @@ services:
       XAGENT_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
       PORTAL_BASE_URL: "https://xagenpay.com/esim"
 
-  # ── Destination Info Agent (x402) ──
-  destination-info-agent:
-    build:
-      context: ../src
-      dockerfile: destination-info-agent/Dockerfile
-    restart: always
-    ports:
-      - "127.0.0.1:10006:10000"
-    environment:
-      PORTAL_PORT: "10000"
-      PORTAL_HOST: "0.0.0.0"
-      MERCHANT_PAYMENT_ADDRESS: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
-      RELAYER_PRIVATE_KEY: ${RELAYER_PRIVATE_KEY:?RELAYER_PRIVATE_KEY is required}
-      X402_PRICE_ATOMIC: "10000"
-      PORTAL_BASE_URL: "https://xagenpay.com/destination"
-
   # ── Telegram Bot ──
   telegram-bot:
     build:

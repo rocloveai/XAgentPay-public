@@ -25,6 +25,9 @@ import {
   processX402Payment,
   formatUsdcAmount,
   type X402ToolConfig,
+  buildHTTP402Body,
+  extractHTTPPayment,
+  processHTTPPayment,
 } from "@xagentpay/x402";
 import type { EsimPlan } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -615,6 +618,75 @@ async function handleStatelessCall(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<boolean> {
+  const reqUrl = new URL(req.url ?? "/", "http://localhost");
+
+  // ── x402 HTTP search endpoint (OKX OnchainOS x402 compatible) ─────────────
+  if (
+    reqUrl.pathname === "/api/search" ||
+    reqUrl.pathname === "/api/search/esim"
+  ) {
+    // CORS preflight
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers":
+          "Content-Type, PAYMENT-SIGNATURE, X-PAYMENT",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+      });
+      res.end();
+      return true;
+    }
+
+    const httpConfig = {
+      toolName: "search_esim_plans",
+      priceUsdcAtomic: config.x402PriceAtomic,
+      payTo: config.paymentAddress,
+      resourceDescription: "Search eSIM data plans — 0.01 USDC per query",
+      signerPrivateKey: config.relayerPrivateKey,
+    };
+    const http402Body = buildHTTP402Body(httpConfig);
+
+    const payment = extractHTTPPayment(
+      req.headers as Record<string, string | undefined>,
+    );
+    if (!payment) {
+      res.writeHead(402, {
+        "Content-Type": "text/plain",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.end(http402Body);
+      return true;
+    }
+
+    const payResult = await processHTTPPayment(payment, httpConfig);
+    if (!payResult.success) {
+      console.error(`[eSIM] HTTP x402 payment failed: ${payResult.error}`);
+      res.writeHead(402, {
+        "Content-Type": "text/plain",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.end(http402Body);
+      return true;
+    }
+
+    // Payment verified — run eSIM plan search
+    try {
+      const rawBody = await readBody(req);
+      const args = JSON.parse(rawBody);
+      const result = await handleSearchPlans(statelessOfferCache, args);
+      sendJson(res, 200, {
+        plans: result.data,
+        text: result.text,
+        payment_tx: payResult.settled.transaction,
+        network: "eip155:196",
+      });
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message });
+    }
+    return true;
+  }
+
+  // ── existing stateless handler ─────────────────────────────────────────────
   try {
     const rawBody = await readBody(req);
     const { tool, arguments: args } = JSON.parse(rawBody);

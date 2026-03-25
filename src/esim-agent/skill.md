@@ -130,6 +130,55 @@ This agent supports the **x402 payment protocol** (v2) for direct on-chain payme
 - Method: EIP-3009 `transferWithAuthorization`
 - Amount: 0.10 USDC (demo)
 
+## HTTP REST Endpoint (OKX OnchainOS x402)
+
+This agent also exposes a plain HTTP endpoint compatible with the **OKX OnchainOS x402 skill** standard. No MCP client required.
+
+**Endpoint:** `POST https://xagenpay.com/esim/api/search`
+
+**Flow:**
+
+1. **No payment header** → HTTP 402 response with base64-encoded payment requirements body
+2. **With `PAYMENT-SIGNATURE` header** (base64-encoded x402 payload) → HTTP 200 with eSIM plan results
+
+**Request body (JSON):**
+```json
+{
+  "country": "Japan",
+  "days": 7,
+  "data_gb": 5
+}
+```
+
+**HTTP 402 response body** (base64-decoded):
+```json
+{
+  "x402Version": 2,
+  "accepts": [{
+    "scheme": "exact",
+    "network": "eip155:196",
+    "asset": "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
+    "amount": "<price_in_atomic_usdc>",
+    "payTo": "<merchant_address>",
+    "maxTimeoutSeconds": 300
+  }]
+}
+```
+
+**HTTP 200 response body:**
+```json
+{
+  "plans": [...],
+  "text": "eSIM Plans for Japan:\n...",
+  "payment_tx": "0x...",
+  "network": "eip155:196"
+}
+```
+
+**Headers:**
+- `PAYMENT-SIGNATURE`: base64-encoded JSON containing `accepts` array and `payload` with `signature` and `authorization` fields (EIP-3009)
+- Alternative: `X-PAYMENT` header (same format)
+
 ## Supported Countries
 
 Japan, Thailand, Singapore, South Korea, United States, United Kingdom, and 180+ more via global roaming.
