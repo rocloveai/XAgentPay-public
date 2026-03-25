@@ -348,14 +348,17 @@ async function handleStatelessCall(
 
     const payment = extractHTTPPayment(req.headers as any);
     if (!payment) {
-      res.writeHead(402, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" });
+      console.error("[purchase_esim] No payment header found. Headers:", JSON.stringify(Object.keys(req.headers)));
+      res.writeHead(402, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*", "X-402-Reason": "no-payment-header" });
       res.end(http402Body);
       return true;
     }
 
+    console.error("[purchase_esim] Payment header found, processing...");
     const payResult = await processHTTPPayment(payment, httpConfig);
     if (!payResult.success) {
-      res.writeHead(402, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" });
+      console.error("[purchase_esim] Payment failed:", payResult.error);
+      res.writeHead(402, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*", "X-402-Reason": payResult.error ?? "payment-failed" });
       res.end(http402Body);
       return true;
     }
