@@ -1026,25 +1026,19 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
 
                         <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed transition-colors">{agent.description}</p>
 
-                        {/* Currencies */}
-                        {agent.currencies.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {agent.currencies.map((c, j) => (
-                              <span key={j} className="px-2 py-0.5 rounded bg-cyan-500/10 text-[10px] font-bold text-cyan-500 border border-cyan-500/20">{c}</span>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Payment protocol tag */}
+                        {/* Currencies + Payment protocol tag — same row */}
                         {(() => {
                           const hasX402 = agent.skill_tools.some(t => (t as any).payment === 'x402');
                           const hasERC8183 = agent.category?.startsWith('travel.') && !hasX402;
-                          return (hasX402 || hasERC8183) ? (
-                            <div className="flex flex-wrap gap-1.5">
+                          return (
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                              {agent.currencies.map((c, j) => (
+                                <span key={j} className="px-2 py-0.5 rounded bg-cyan-500/10 text-[10px] font-bold text-cyan-500 border border-cyan-500/20">{c}</span>
+                              ))}
                               {hasX402 && <span className="px-2 py-0.5 rounded bg-purple-500/10 text-[10px] font-bold text-purple-500 border border-purple-500/20">x402</span>}
                               {hasERC8183 && <span className="px-2 py-0.5 rounded bg-green-500/10 text-[10px] font-bold text-green-500 border border-green-500/20">ERC-8183</span>}
                             </div>
-                          ) : null;
+                          );
                         })()}
 
                         {/* Tools */}

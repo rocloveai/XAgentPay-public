@@ -107,6 +107,48 @@ const DESTINATION_DATA: Record<string, {
   },
 };
 
+// ── Mock itinerary data ───────────────────────────────────────────────────
+
+const ITINERARY_TEMPLATES: Record<string, {
+  highlights: string[];
+  dayPlans: Record<number, string[]>;
+}> = {
+  singapore: {
+    highlights: ["Gardens by the Bay", "Marina Bay Sands", "Sentosa Island", "Chinatown", "Little India", "Clarke Quay"],
+    dayPlans: {
+      1: ["Morning: Merlion Park & Marina Bay waterfront", "Afternoon: Gardens by the Bay (Cloud Forest + Flower Dome)", "Evening: Marina Bay Sands SkyPark observation deck", "Dinner: Hawker food at Maxwell Food Centre"],
+      2: ["Morning: Chinatown (Buddha Tooth Relic Temple)", "Afternoon: Little India & Arab Street", "Evening: Clarke Quay rooftop bars"],
+      3: ["Morning: Sentosa Island (Universal Studios or beaches)", "Afternoon: VivoCity shopping", "Evening: Night Safari at Singapore Zoo"],
+      4: ["Morning: Botanic Gardens (UNESCO Heritage)", "Afternoon: Orchard Road shopping", "Evening: Lau Pa Sat hawker centre"],
+      5: ["Morning: Pulau Ubin island day trip", "Afternoon: East Coast Park cycling", "Evening: Departure or rest"],
+    },
+  },
+  japan: {
+    highlights: ["Shibuya Crossing", "Mount Fuji", "Kyoto temples", "Osaka food scene", "Akihabara", "Nara deer park"],
+    dayPlans: {
+      1: ["Morning: Arrive Tokyo, check in Shinjuku", "Afternoon: Meiji Shrine & Harajuku", "Evening: Shibuya Crossing & dinner"],
+      2: ["Morning: Tsukiji Outer Market breakfast", "Afternoon: Asakusa & Senso-ji Temple", "Evening: Tokyo Skytree views"],
+      3: ["Morning: Akihabara electronics & anime", "Afternoon: Imperial Palace East Garden", "Evening: Ginza luxury shopping"],
+      4: ["Day trip: Mount Fuji (Hakone route)", "Afternoon: Hakone hot springs (onsen)", "Evening: Return Tokyo"],
+      5: ["Shinkansen to Kyoto", "Afternoon: Fushimi Inari Shrine", "Evening: Gion district walk"],
+      6: ["Morning: Arashiyama bamboo grove", "Afternoon: Kinkaku-ji (Golden Pavilion)", "Evening: Nishiki Market street food"],
+      7: ["Day trip to Nara (deer park + Todai-ji)", "Evening: Osaka for dinner (Dotonbori)"],
+    },
+  },
+  thailand: {
+    highlights: ["Grand Palace", "Phi Phi Islands", "Chiang Mai temples", "Floating markets", "Elephant sanctuary", "Night markets"],
+    dayPlans: {
+      1: ["Morning: Grand Palace & Wat Phra Kaew", "Afternoon: Wat Pho (reclining Buddha)", "Evening: Khao San Road area"],
+      2: ["Morning: Chatuchak Weekend Market (weekends)", "Afternoon: Jim Thompson House", "Evening: Chao Phraya river cruise dinner"],
+      3: ["Morning: Floating market day trip (Amphawa)", "Afternoon: Maeklong Railway Market", "Evening: Street food at Or Tor Kor Market"],
+      4: ["Fly to Chiang Mai", "Afternoon: Doi Suthep temple", "Evening: Sunday Walking Street night market"],
+      5: ["Morning: Elephant Nature Park (ethical sanctuary)", "Afternoon: Old City temples walk", "Evening: Thai cooking class"],
+      6: ["Fly to Phuket or Krabi", "Afternoon: Beach & snorkeling", "Evening: Seafood by the beach"],
+      7: ["Island hopping: Phi Phi Islands", "Evening: Patong Beach or rest"],
+    },
+  },
+};
+
 function normalizeDestination(raw: string): string {
   return raw.toLowerCase().trim();
 }
@@ -150,12 +192,28 @@ function createMcpServer(): McpServer {
     version: "1.0.0",
   });
 
-  // ── x402 Payment Configuration ──────────────────────────────────────────
+  // ── x402 Payment Configurations ──────────────────────────────────────────
   const x402Config: X402ToolConfig = {
     toolName: "get_destination_info",
     priceUsdcAtomic: config.x402PriceAtomic,
     payTo: config.paymentAddress,
     resourceDescription: "Travel destination info (visa, weather, tips)",
+    signerPrivateKey: config.relayerPrivateKey,
+  };
+
+  const x402WeatherConfig: X402ToolConfig = {
+    toolName: "get_weather_forecast",
+    priceUsdcAtomic: config.x402PriceAtomic,
+    payTo: config.paymentAddress,
+    resourceDescription: "Monthly weather forecast for travel destination",
+    signerPrivateKey: config.relayerPrivateKey,
+  };
+
+  const x402ItineraryConfig: X402ToolConfig = {
+    toolName: "plan_itinerary",
+    priceUsdcAtomic: String(Number(config.x402PriceAtomic) * 5), // 0.05 USDC for itinerary
+    payTo: config.paymentAddress,
+    resourceDescription: "AI-generated day-by-day travel itinerary",
     signerPrivateKey: config.relayerPrivateKey,
   };
 
@@ -202,6 +260,139 @@ function createMcpServer(): McpServer {
         info;
 
       return buildPaidToolResult(paidText, payResult.settled);
+    },
+  );
+
+  // ── Tool: get_weather_forecast (x402 hard gate) ──────────────────────────
+
+  srv.tool(
+    "get_weather_forecast",
+    "Get detailed monthly weather forecast for a travel destination. " +
+      "Returns temperature range, rainfall, and travel suitability for each month. " +
+      "Powered by x402 protocol — requires 0.01 USDC payment in _meta['x402/payment'].",
+    {
+      destination: z
+        .string()
+        .describe("Destination city or country (e.g. Singapore, Japan, Thailand)"),
+      month: z
+        .string()
+        .optional()
+        .describe("Specific month (e.g. 'March'). Omit for full year overview."),
+    },
+    async ({ destination, month }, extra) => {
+      const payment = extractX402Payment(
+        (extra as any)?._meta ?? (extra as any)?.meta,
+      );
+      if (!payment) {
+        return buildPaymentRequiredResult(buildPaymentRequired(x402WeatherConfig));
+      }
+      const payResult = await processX402Payment(payment, x402WeatherConfig);
+      if ("error" in payResult) {
+        return buildPaymentRequiredResult(payResult.error);
+      }
+
+      const key = normalizeDestination(destination);
+      const data = DESTINATION_DATA[key];
+      if (!data) {
+        const available = Object.keys(DESTINATION_DATA).join(", ");
+        return buildPaidToolResult(
+          `Destination "${destination}" not found. Available: ${available}.`,
+          payResult.settled,
+        );
+      }
+
+      const lines: string[] = [];
+      const destTitle = destination.charAt(0).toUpperCase() + destination.slice(1);
+      lines.push(`🌤️ Weather Forecast — ${destTitle}`);
+
+      if (month) {
+        const m = month.toLowerCase().slice(0, 3);
+        const w = data.weather[m];
+        lines.push(w ? `\n${month}: ${w}` : `\nNo data for month: ${month}`);
+      } else {
+        lines.push("\n📅 Full Year Overview:");
+        const monthNames: Record<string, string> = {
+          jan: "January", feb: "February", mar: "March", apr: "April",
+          may: "May", jun: "June", jul: "July", aug: "August",
+          sep: "September", oct: "October", nov: "November", dec: "December",
+        };
+        for (const [k, label] of Object.entries(monthNames)) {
+          if (data.weather[k]) lines.push(`  ${label}: ${data.weather[k]}`);
+        }
+      }
+      lines.push(`\n✅ x402 settled | TX: ${payResult.settled.transaction}`);
+
+      return buildPaidToolResult(lines.join("\n"), payResult.settled);
+    },
+  );
+
+  // ── Tool: plan_itinerary (x402 hard gate, 0.05 USDC) ─────────────────────
+
+  srv.tool(
+    "plan_itinerary",
+    "Generate a day-by-day travel itinerary for a destination. " +
+      "Includes must-see highlights, activity schedule, food recommendations, and local tips. " +
+      "Powered by x402 protocol — requires 0.05 USDC payment in _meta['x402/payment'].",
+    {
+      destination: z
+        .string()
+        .describe("Destination city or country (e.g. Singapore, Japan, Thailand)"),
+      days: z
+        .number()
+        .min(1)
+        .max(7)
+        .describe("Number of days (1–7)"),
+      interests: z
+        .string()
+        .optional()
+        .describe("Travel interests, e.g. 'food, temples, beaches, shopping'"),
+    },
+    async ({ destination, days, interests }, extra) => {
+      const payment = extractX402Payment(
+        (extra as any)?._meta ?? (extra as any)?.meta,
+      );
+      if (!payment) {
+        return buildPaymentRequiredResult(buildPaymentRequired(x402ItineraryConfig));
+      }
+      const payResult = await processX402Payment(payment, x402ItineraryConfig);
+      if ("error" in payResult) {
+        return buildPaymentRequiredResult(payResult.error);
+      }
+
+      const key = normalizeDestination(destination);
+      const template = ITINERARY_TEMPLATES[key];
+      if (!template) {
+        const available = Object.keys(ITINERARY_TEMPLATES).join(", ");
+        return buildPaidToolResult(
+          `Destination "${destination}" not found. Available: ${available}.`,
+          payResult.settled,
+        );
+      }
+
+      const destTitle = destination.charAt(0).toUpperCase() + destination.slice(1);
+      const lines: string[] = [];
+      lines.push(`🗺️ ${days}-Day Itinerary — ${destTitle}`);
+      if (interests) lines.push(`🎯 Tailored for: ${interests}`);
+      lines.push(`\n✨ Highlights: ${template.highlights.slice(0, 4).join(", ")}`);
+      lines.push("");
+
+      for (let d = 1; d <= days; d++) {
+        lines.push(`📅 Day ${d}:`);
+        const plan = template.dayPlans[d] ?? template.dayPlans[1];
+        plan.forEach(item => lines.push(`  • ${item}`));
+        lines.push("");
+      }
+
+      const destData = DESTINATION_DATA[key];
+      if (destData) {
+        lines.push(`💡 Reminders:`);
+        destData.tips.slice(0, 3).forEach(tip => lines.push(`  • ${tip}`));
+        lines.push(`\n💱 Currency: ${destData.currency}`);
+      }
+
+      lines.push(`\n✅ x402 settled (0.05 USDC) | TX: ${payResult.settled.transaction}`);
+
+      return buildPaidToolResult(lines.join("\n"), payResult.settled);
     },
   );
 
