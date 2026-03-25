@@ -2,12 +2,12 @@
 name: xagent-hotel
 version: "2.0.0"
 description: Hotel booking agent — search free, purchase with x402 payment on XLayer
-merchant_did: "did:xagent:196:demo_hotel"
+merchant_did: "did:xagent:20250407:demo_hotel"
 protocol: x402/2
 category: travel.hotels
 currencies: [USDC]
 chain_id: 196
-payment_address: "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd"
+payment_address: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
 x402:
   version: 2
   scheme: exact
@@ -105,7 +105,7 @@ Decode it:
     "network": "eip155:196",
     "asset": "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
     "amount": "200000",
-    "payTo": "0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd",
+    "payTo": "0xac9d5239b597f8903da93b9b8d92e6cff564e989",
     "maxTimeoutSeconds": 300
   }]
 }
@@ -117,7 +117,7 @@ Decode it:
 onchainos payment x402-pay \
   --network eip155:196 \
   --amount 200000 \
-  --pay-to 0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd \
+  --pay-to 0xac9d5239b597f8903da93b9b8d92e6cff564e989 \
   --asset 0x74b7F16337b8972027F6196A17a631aC6dE26d22 \
   --max-timeout-seconds 300
 ```
@@ -189,6 +189,6 @@ Tokyo, Singapore, Shanghai, Bangkok, Hong Kong, and other major Asia-Pacific des
 |-------|-------|
 | Network | XLayer Mainnet (eip155:196) |
 | Payment Token | USDC `0x74b7F16337b8972027F6196A17a631aC6dE26d22` |
-| Merchant | `0xB030C3a17DD68C17c0EE8F1001326e0C029f0ADd` |
+| Merchant | `0xac9d5239b597f8903da93b9b8d92e6cff564e989` |
 | Method | EIP-3009 `transferWithAuthorization` |
-| Price | Nightly rate × nights (typically 1 USDC/night (demo)) |
+| Price | 0.10 USDC/night × nights (demo) |

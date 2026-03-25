@@ -2,12 +2,12 @@
 name: xagent-flight
 version: "2.0.0"
 description: Flight booking agent — search free, purchase with x402 payment on XLayer
-merchant_did: "did:xagent:196:demo_flight"
+merchant_did: "did:xagent:20250407:demo_flight"
 protocol: x402/2
 category: travel.flights
 currencies: [USDC]
 chain_id: 196
-payment_address: "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1"
+payment_address: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
 x402:
   version: 2
   scheme: exact
@@ -101,7 +101,7 @@ Decode it:
     "network": "eip155:196",
     "asset": "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
     "amount": "100000",
-    "payTo": "0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1",
+    "payTo": "0xac9d5239b597f8903da93b9b8d92e6cff564e989",
     "maxTimeoutSeconds": 300
   }]
 }
@@ -113,7 +113,7 @@ Decode it:
 onchainos payment x402-pay \
   --network eip155:196 \
   --amount 100000 \
-  --pay-to 0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1 \
+  --pay-to 0xac9d5239b597f8903da93b9b8d92e6cff564e989 \
   --asset 0x74b7F16337b8972027F6196A17a631aC6dE26d22 \
   --max-timeout-seconds 300
 ```
@@ -185,6 +185,6 @@ PVG (Shanghai Pudong), HKG (Hong Kong), and connecting routes.
 |-------|-------|
 | Network | XLayer Mainnet (eip155:196) |
 | Payment Token | USDC `0x74b7F16337b8972027F6196A17a631aC6dE26d22` |
-| Merchant | `0xA1c249A993f31e6c27bC8886caCEc3f9f3b7a9D1` |
+| Merchant | `0xac9d5239b597f8903da93b9b8d92e6cff564e989` |
 | Method | EIP-3009 `transferWithAuthorization` |
-| Price | Exact flight price (varies, typically 1–3 USDC (demo)) |
+| Price | Exact flight price (0.10–0.30 USDC demo) |

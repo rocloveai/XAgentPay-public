@@ -4,7 +4,7 @@ version: "2.0.0"
 description: Global eSIM agent — search free, purchase with x402 payment on XLayer
 merchant_did: "did:xagent:196:demo_esim"
 protocol: x402/2
-category: telecom.esim
+category: travel.esim
 currencies: [USDC]
 chain_id: 196
 payment_address: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
@@ -186,4 +186,4 @@ Japan, Thailand, Singapore, South Korea, United States, United Kingdom, and 180+
 | Payment Token | USDC `0x74b7F16337b8972027F6196A17a631aC6dE26d22` |
 | Merchant | `0xac9d5239b597f8903da93b9b8d92e6cff564e989` |
 | Method | EIP-3009 `transferWithAuthorization` |
-| Price | Exact plan price (typically 5–30 USDC) |
+| Price | 0.50 USDC (demo) |
