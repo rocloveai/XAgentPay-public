@@ -1028,8 +1028,10 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
 
                         {/* Currencies + Payment protocol tag — same row */}
                         {(() => {
-                          const hasX402 = agent.skill_tools.some(t => (t as any).payment === 'x402');
-                          const hasERC8183 = agent.skill_tools.some(t => (t as any).payment === 'ERC-8183');
+                          const isTravel = agent.category?.startsWith('travel.');
+                          const isTravelInfo = agent.category === 'travel.info';
+                          const hasX402 = isTravel || agent.skill_tools.some(t => (t as any).payment === 'x402');
+                          const hasERC8183 = (isTravel && !isTravelInfo) || agent.skill_tools.some(t => (t as any).payment === 'ERC-8183');
                           return (
                             <div className="flex flex-wrap gap-1.5 items-center">
                               {agent.currencies.map((c, j) => (
