@@ -5,10 +5,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 import { loadConfig } from "./config.js";
 import { searchEsimPlans } from "./services/esim-search.js";
-import { buildQuote } from "./services/quote-builder.js";
-import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
 import { initPool, closePool } from "./services/db/pool.js";
-import { startReconciler, stopReconciler } from "./services/reconciler.js";
 import {
   startPortal,
   registerMcpHandler,
@@ -23,7 +20,6 @@ import {
   buildPaymentRequiredResult,
   buildPaidToolResult,
   processX402Payment,
-  formatUsdcAmount,
   type X402ToolConfig,
   buildHTTP402Body,
   extractHTTPPayment,
@@ -41,12 +37,6 @@ if (config.databaseUrl) {
 } else {
   console.error("Warning: DATABASE_URL not set. Using in-memory storage only.");
 }
-
-// Start reconciler (checks for UNPAID orders that xagent-core shows as paid)
-startReconciler({
-  xagentCoreUrl: config.xagentCoreUrl,
-  merchantDid: config.merchantDid,
-});
 
 // Auto-register with xagent-core so webhooks work immediately on startup
 async function registerWithXAgentCore() {
@@ -122,217 +112,34 @@ async function handleSearchPlans(
     : `eSIM Plans for ${plans[0]?.country ?? country}:\n`;
 
   return {
-    text: header + lines.join("\n\n"),
-    data: plans,
-  };
-}
-
-async function handleGenerateQuote(
-  cache: Map<string, EsimPlan>,
-  {
-    esim_offer_id,
-    payer_wallet,
-  }: {
-    esim_offer_id: string;
-    payer_wallet: string;
-  },
-) {
-  const plan = cache.get(esim_offer_id);
-  if (!plan) {
-    throw new Error(
-      `eSIM plan "${esim_offer_id}" not found. Please search for plans first.`,
-    );
-  }
-
-  const orderRef = newOrderRef();
-  // eSIM is a digital product — no tax
-  const totalAmount = plan.price.amount;
-
-  const quote = await buildQuote({
-    merchantDid: config.merchantDid,
-    orderRef,
-    amount: totalAmount,
-    currency: "USDC",
-    summary: `eSIM ${plan.country} ${plan.data_gb}GB/${plan.days}d (${plan.network})`,
-    lineItems: [
-      {
-        name: `eSIM ${plan.country} ${plan.data_gb}GB ${plan.days}-day plan`,
-        qty: 1,
-        amount: plan.price.amount,
-      },
-    ],
-    payerWallet: payer_wallet,
-    signerPrivateKey: config.signerPrivateKey,
-  });
-
-  const order = await createOrder(quote);
-
-  const ucpCheckoutResponse = {
-    ucp: {
-      version: "2026-01-11",
-      payment_handlers: {
-        "urn:ucp:payment:xagent_v1": [
-          {
-            id: "xagent_handler_1",
-            version: "v1",
-            config: quote,
-            xagent_core: {
-              skill_url: `${config.xagentCoreUrl}/skill-user.md`,
-              mcp_endpoint: `${config.xagentCoreUrl}/mcp`,
-              orchestrate_url: `${config.xagentCoreUrl}/api/orchestrate`,
-              orchestrate_body: {
-                quotes: [quote],
-                payer_wallet,
-              },
-              prompt:
-                "REQUIRED: To complete this payment, POST the orchestrate_body to orchestrate_url. " +
-                "The response contains a checkout_url — present ONLY that URL to the user. " +
-                "Do NOT construct URLs yourself or show raw JSON to the user. " +
-                "If you have multiple xagent_v1 quotes, combine all config objects into the quotes array before calling orchestrate.",
-            },
-          },
-        ],
-      },
-    },
-    id: order.order_ref,
-    status: "ready_for_complete",
-    currency: "USDC",
-    totals: [
-      {
-        type: "total",
-        amount: quote.amount,
-      },
-    ],
-  };
-
-  const quoteJson = JSON.stringify(quote);
-
-  return {
     text:
-      `[QUOTE] eSIM ${plan.country} ${plan.data_gb}GB/${plan.days}d | ${(Number(quote.amount) / 1e6).toFixed(2)} USDC | ref:${order.order_ref}\n` +
-      `QUOTE_JSON: ${quoteJson}\n` +
-      `PAYER: ${payer_wallet}\n\n` +
-      `Collect all QUOTE_JSON values, then call:\n` +
-      `xagent_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
-    data: ucpCheckoutResponse,
-    order_ref: order.order_ref,
+      header +
+      lines.join("\n\n") +
+      "\n\nTo purchase an eSIM: call purchase_esim(plan_id=\"<offer_id>\", payer_wallet=\"<wallet>\")",
+    data: plans,
   };
 }
 
 async function handleSearchAndQuote(
   cache: Map<string, EsimPlan>,
-  {
-    country,
-    days,
-    data_gb,
-    payer_wallet,
-    offer_index,
-  }: {
-    country: string;
-    days?: number;
-    data_gb?: number;
-    payer_wallet: string;
-    offer_index?: number;
-  },
+  args: { country: string; days?: number; data_gb?: number },
 ) {
-  // Step 1: Search
-  const { plans, error } = await searchEsimPlans({ country, days, data_gb });
-
-  if (plans.length === 0) {
-    throw new Error(error ?? "No eSIM plans found for this country.");
-  }
-
-  for (const plan of plans) {
-    cache.set(plan.offer_id, plan);
-  }
-
-  // Step 2: Auto-quote the selected (or cheapest) plan
-  const idx = offer_index ?? 0;
-  const selected =
-    idx >= 0 && idx < plans.length
-      ? plans[idx]
-      : [...plans].sort(
-          (a, b) => parseFloat(a.price.amount) - parseFloat(b.price.amount),
-        )[0];
-
-  const orderRef = newOrderRef();
-  const totalAmount = selected.price.amount; // no tax for digital product
-
-  const quote = await buildQuote({
-    merchantDid: config.merchantDid,
-    orderRef,
-    amount: totalAmount,
-    currency: "USDC",
-    summary: `eSIM ${selected.country} ${selected.data_gb}GB/${selected.days}d (${selected.network})`,
-    lineItems: [
-      {
-        name: `eSIM ${selected.country} ${selected.data_gb}GB ${selected.days}-day plan`,
-        qty: 1,
-        amount: selected.price.amount,
-      },
-    ],
-    payerWallet: payer_wallet,
-    signerPrivateKey: config.signerPrivateKey,
-  });
-
-  // Fire-and-forget order creation
-  createOrder(quote).catch((err) =>
-    console.error(`createOrder failed for ${orderRef}:`, err.message),
-  );
-  const quoteJson = JSON.stringify(quote);
-
-  // Build compact options list + selected quote
-  const optionLines = plans.map(
-    (p, i) =>
-      `${i === idx ? "→" : " "} ${i + 1}. ${p.country} ${p.data_gb}GB/${p.days}d ${p.price.amount} ${p.price.currency} (${p.network})`,
-  );
-
-  return {
-    text:
-      `eSIM Plans for ${selected.country}:\n` +
-      optionLines.join("\n") +
-      `\n\n[QUOTE] eSIM ${selected.country} ${selected.data_gb}GB/${selected.days}d | ${(Number(quote.amount) / 1e6).toFixed(2)} USDC | ref:${orderRef}\n` +
-      `QUOTE_JSON: ${quoteJson}\n` +
-      `PAYER: ${payer_wallet}\n\n` +
-      `To select a different plan, call search_and_quote again with offer_index=N.\n` +
-      `When all quotes are ready, call:\n` +
-      `xagent_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
-    data: { plans, selectedIndex: idx, quote },
-    order_ref: orderRef,
-  };
+  return handleSearchPlans(cache, args);
 }
 
-async function handleCheckStatus({ order_ref }: { order_ref: string }) {
-  const order = await getOrder(order_ref);
-  if (!order) {
-    throw new Error(`Order "${order_ref}" not found.`);
+async function handlePurchaseEsim(
+  cache: Map<string, EsimPlan>,
+  { plan_id, payer_wallet }: { plan_id: string; payer_wallet: string },
+): Promise<{ text: string; priceAtomic: string; plan: EsimPlan }> {
+  const plan = cache.get(plan_id);
+  if (!plan) {
+    throw new Error(`eSIM plan "${plan_id}" not found. Please search for plans first.`);
   }
-
-  let text =
-    `Order Status\n` +
-    `Ref: ${order.order_ref}\n` +
-    `Status: ${order.status}\n` +
-    `Amount: ${order.quote_payload.amount} ${order.quote_payload.currency}\n` +
-    `Summary: ${order.quote_payload.context.summary}\n` +
-    `Created: ${order.created_at}\n` +
-    `Updated: ${order.updated_at}`;
-
-  // If PAID, include QR code delivery info
-  if (order.status === "PAID" && order.qr_data_url && order.activation_code) {
-    text +=
-      `\n\n✅ eSIM Activated!\n` +
-      `📱 Scan the QR code below to install your eSIM:\n\n` +
-      `QR Code (data URL): ${order.qr_data_url}\n\n` +
-      `Activation Code: ${order.activation_code}\n\n` +
-      `Instructions:\n` +
-      `1. Open your phone Settings → Mobile Data → Add eSIM\n` +
-      `2. Scan the QR code or enter the activation code manually\n` +
-      `3. Enable the eSIM data plan and enjoy your trip!`;
-  }
-
+  const priceAtomic = String(Math.round(parseFloat(plan.price.amount) * 1_000_000));
   return {
-    text,
-    data: order,
+    text: `${plan.provider} ${plan.data_gb}GB ${plan.country} | ${plan.days} days | ${plan.price.amount} USDC`,
+    priceAtomic,
+    plan,
   };
 }
 
@@ -345,252 +152,86 @@ function createMcpServer(): McpServer {
     version: "2.0.0",
   });
 
-  // ── x402 config for search tools ─────────────────────────────────────────
-  const x402Config: X402ToolConfig = {
-    toolName: "search_esim_plans",
-    priceUsdcAtomic: config.x402PriceAtomic,
-    payTo: config.paymentAddress,
-    resourceDescription: "eSIM plan search results (x402 pay-per-search)",
-    signerPrivateKey: config.relayerPrivateKey,
-  };
-
-  // ── Tool: search_esim_plans (x402 hard gate) ─────────────────────────────
-
-  srv.tool(
-    "search_esim_plans",
-    "Search available eSIM data plans by country. Returns a list of plans with data allowance, validity, network, and pricing. " +
-      `Requires x402 payment of ${formatUsdcAmount(config.x402PriceAtomic)} USDC in _meta['x402/payment'].`,
-    {
-      country: z
-        .string()
-        .describe("Country name or code (e.g. 'Japan', 'JP', 'Thailand', 'US')"),
-      days: z
-        .number()
-        .int()
-        .min(1)
-        .optional()
-        .describe("Minimum validity in days (optional filter)"),
-      data_gb: z
-        .number()
-        .min(0.5)
-        .optional()
-        .describe("Minimum data allowance in GB (optional filter)"),
-    },
-    async ({ country, days, data_gb }, extra) => {
-      const payment = extractX402Payment(
-        (extra as any)?._meta ?? (extra as any)?.meta,
-      );
-      if (!payment) {
-        return buildPaymentRequiredResult(buildPaymentRequired(x402Config));
-      }
-      const payResult = await processX402Payment(payment, x402Config);
-      if ("error" in payResult) {
-        return buildPaymentRequiredResult(payResult.error);
-      }
-      const result = await handleSearchPlans(sessionOfferCache, {
-        country,
-        days,
-        data_gb,
-      });
-      return buildPaidToolResult(result.text, payResult.settled);
-    },
-  );
-
-  // ── Tool: search_and_quote (x402 + ERC-8183 combined) ───────────────────
+  // ── Tool: search_and_quote (FREE) ─────────────────────────────────────────
 
   srv.tool(
     "search_and_quote",
-    "Search eSIM plans AND generate a signed ERC-8183 quote in ONE call. " +
-      "Returns plan options with a payment quote for checkout. " +
-      `Requires x402 payment of ${formatUsdcAmount(config.x402PriceAtomic)} USDC in _meta['x402/payment'] for the search step.`,
+    "Search available eSIM data plans by country. Returns a list of plans with data allowance, validity, network, and pricing. FREE — no payment required for search.",
     {
-      country: z
-        .string()
-        .describe("Country name or code (e.g. 'Japan', 'JP', 'Thailand', 'US')"),
-      days: z
-        .number()
-        .int()
-        .min(1)
-        .optional()
-        .describe("Minimum validity in days (optional filter)"),
-      data_gb: z
-        .number()
-        .min(0.5)
-        .optional()
-        .describe("Minimum data allowance in GB (optional filter)"),
-      payer_wallet: z
-        .string()
-        .regex(/^0x[a-fA-F0-9]{40}$/)
-        .describe("Payer's EVM wallet address (0x...)"),
-      offer_index: z
-        .number()
-        .int()
-        .min(0)
-        .optional()
-        .describe(
-          "Zero-based index of the plan to quote (default: 0 = cheapest). Use this to pick a different plan after seeing options.",
-        ),
+      country: z.string().describe("Country name or code (e.g. 'Japan', 'JP', 'Thailand', 'US')"),
+      days: z.number().int().min(1).optional().describe("Minimum validity in days (optional filter)"),
+      data_gb: z.number().min(0.5).optional().describe("Minimum data allowance in GB (optional filter)"),
     },
-    async ({ country, days, data_gb, payer_wallet, offer_index }, extra) => {
-      const payment = extractX402Payment(
-        (extra as any)?._meta ?? (extra as any)?.meta,
-      );
-      if (!payment) {
-        return buildPaymentRequiredResult(
-          buildPaymentRequired({ ...x402Config, toolName: "search_and_quote" }),
-        );
+    async ({ country, days, data_gb }) => {
+      const result = await handleSearchPlans(sessionOfferCache, { country, days, data_gb });
+      return { content: [{ type: "text" as const, text: result.text }] };
+    },
+  );
+
+  // ── Tool: search_esim_plans (FREE) ────────────────────────────────────────
+
+  srv.tool(
+    "search_esim_plans",
+    "Search available eSIM data plans by country. Returns plans with offer IDs. FREE — no payment required.",
+    {
+      country: z.string().describe("Country name or code (e.g. 'Japan', 'JP', 'Thailand', 'US')"),
+      days: z.number().int().min(1).optional().describe("Minimum validity in days (optional filter)"),
+      data_gb: z.number().min(0.5).optional().describe("Minimum data allowance in GB (optional filter)"),
+    },
+    async ({ country, days, data_gb }) => {
+      const result = await handleSearchPlans(sessionOfferCache, { country, days, data_gb });
+      return { content: [{ type: "text" as const, text: result.text }] };
+    },
+  );
+
+  // ── Tool: purchase_esim (x402 payment) ───────────────────────────────────
+
+  srv.tool(
+    "purchase_esim",
+    "Purchase an eSIM plan with x402 payment. Requires x402 EIP-3009 payment in _meta['x402/payment'] for the exact plan price in USDC. First call returns payment requirements; include payment on second call to activate eSIM.",
+    {
+      plan_id: z.string().describe("eSIM plan offer ID from search_and_quote results"),
+      payer_wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/).describe("Payer's EVM wallet address (0x...)"),
+    },
+    async ({ plan_id, payer_wallet }, extra) => {
+      let info: Awaited<ReturnType<typeof handlePurchaseEsim>>;
+      try {
+        info = await handlePurchaseEsim(sessionOfferCache, { plan_id, payer_wallet });
+      } catch (err: any) {
+        return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
       }
-      const payResult = await processX402Payment(payment, {
-        ...x402Config,
-        toolName: "search_and_quote",
-      });
+
+      const purchaseConfig: X402ToolConfig = {
+        toolName: "purchase_esim",
+        priceUsdcAtomic: info.priceAtomic,
+        payTo: config.paymentAddress,
+        resourceDescription: info.text,
+        signerPrivateKey: config.relayerPrivateKey,
+      };
+
+      const payment = extractX402Payment((extra as any)?._meta ?? (extra as any)?.meta);
+      if (!payment) {
+        return buildPaymentRequiredResult(buildPaymentRequired(purchaseConfig));
+      }
+
+      const payResult = await processX402Payment(payment, purchaseConfig);
       if ("error" in payResult) {
         return buildPaymentRequiredResult(payResult.error);
       }
-      try {
-        const result = await handleSearchAndQuote(sessionOfferCache, {
-          country,
-          days,
-          data_gb,
-          payer_wallet,
-          offer_index,
-        });
-        return buildPaidToolResult(result.text, payResult.settled);
-      } catch (err: any) {
-        return {
-          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
-          isError: true,
-        };
-      }
+
+      const confirmNum = `ESIM-${Date.now().toString(36).toUpperCase()}`;
+      return buildPaidToolResult(
+        `✅ eSIM Activated!\n` +
+        `${info.plan.provider} - ${info.plan.data_gb}GB for ${info.plan.country}\n` +
+        `Validity: ${info.plan.days} days\n` +
+        `Price paid: ${info.plan.price.amount} USDC\n` +
+        `TX: ${payResult.settled.transaction}\n` +
+        `Activation code: [mock QR code would appear here]\n` +
+        `Confirmation: ${confirmNum}\n` +
+        `Payer: ${payer_wallet}`,
+        payResult.settled,
+      );
     },
-  );
-
-  // ── Tool: xagent_generate_quote ─────────────────────────────────────────
-
-  srv.tool(
-    "xagent_generate_quote",
-    "Generates a signed ERC-8183 quote for a selected eSIM plan. " +
-      "Use search_and_quote instead for faster flow.",
-    {
-      esim_offer_id: z
-        .string()
-        .describe("The offer_id from search_esim_plans results"),
-      payer_wallet: z
-        .string()
-        .regex(/^0x[a-fA-F0-9]{40}$/)
-        .describe("Payer's EVM wallet address (0x...)"),
-    },
-    async ({ esim_offer_id, payer_wallet }, extra) => {
-      try {
-        const result = await handleGenerateQuote(sessionOfferCache, {
-          esim_offer_id,
-          payer_wallet,
-        });
-
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-        };
-      } catch (err: any) {
-        return {
-          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // ── Tool: xagent_check_status ──────────────────────────────────────────────
-
-  srv.tool(
-    "xagent_check_status",
-    "Checks the payment status of an eSIM order. If paid, returns the eSIM QR code for activation.",
-    {
-      order_ref: z.string().describe("The order reference (e.g. ESIM-...)"),
-    },
-    async ({ order_ref }) => {
-      try {
-        const result = await handleCheckStatus({ order_ref });
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-        };
-      } catch (err: any) {
-        return {
-          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // ── Resource: order state ─────────────────────────────────────────────────
-
-  srv.resource(
-    "order-state",
-    "xagent://orders/{order_ref}/state",
-    { description: "Current state of an eSIM order (RFC-003 compliant)" },
-    async (uri) => {
-      const orderRef = uri.pathname.split("/")[2] ?? "";
-      const order = await getOrder(orderRef);
-
-      if (!order) {
-        return {
-          contents: [
-            {
-              uri: uri.href,
-              mimeType: "application/json",
-              text: JSON.stringify({ error: "Order not found" }),
-            },
-          ],
-        };
-      }
-
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: "application/json",
-            text: JSON.stringify({
-              order_ref: order.order_ref,
-              payment_status: order.status,
-              xagent_payment_id: null,
-              last_updated: order.updated_at,
-              qr_data_url: order.qr_data_url ?? null,
-              activation_code: order.activation_code ?? null,
-            }),
-          },
-        ],
-      };
-    },
-  );
-
-  // ── Prompt: checkout flow ─────────────────────────────────────────────────
-
-  srv.prompt(
-    "xagent_checkout_flow",
-    "Guided flow for searching eSIM plans and generating a XAgent payment quote.",
-    {},
-    async () => ({
-      messages: [
-        {
-          role: "assistant" as const,
-          content: {
-            type: "text" as const,
-            text: [
-              "You are facilitating an eSIM purchase transaction using XAgent Protocol.",
-              "",
-              "Follow this workflow:",
-              "1. Ask the user which country they need an eSIM for and how long they will stay.",
-              "2. Call 'search_esim_plans' with the country name.",
-              "3. Present the available eSIM plans clearly to the user (data, days, price).",
-              "4. When the user selects a plan, call 'xagent_generate_quote' with the offer_id.",
-              "5. Display the NUPS payment payload to the user.",
-              "6. If the user says they have paid, call 'xagent_check_status' to verify.",
-              "7. Once status is 'PAID', show them the QR code and activation instructions.",
-            ].join("\n"),
-          },
-        },
-      ],
-    }),
   );
 
   return srv;
@@ -620,7 +261,7 @@ async function handleStatelessCall(
 ): Promise<boolean> {
   const reqUrl = new URL(req.url ?? "/", "http://localhost");
 
-  // ── x402 HTTP search endpoint (OKX OnchainOS x402 compatible) ─────────────
+  // ── HTTP search endpoint (FREE — no x402 gate) ────────────────────────────
   if (
     reqUrl.pathname === "/api/search" ||
     reqUrl.pathname === "/api/search/esim"
@@ -637,39 +278,7 @@ async function handleStatelessCall(
       return true;
     }
 
-    const httpConfig = {
-      toolName: "search_esim_plans",
-      priceUsdcAtomic: config.x402PriceAtomic,
-      payTo: config.paymentAddress,
-      resourceDescription: "Search eSIM data plans — 0.01 USDC per query",
-      signerPrivateKey: config.relayerPrivateKey,
-    };
-    const http402Body = buildHTTP402Body(httpConfig);
-
-    const payment = extractHTTPPayment(
-      req.headers as Record<string, string | undefined>,
-    );
-    if (!payment) {
-      res.writeHead(402, {
-        "Content-Type": "text/plain",
-        "Access-Control-Allow-Origin": "*",
-      });
-      res.end(http402Body);
-      return true;
-    }
-
-    const payResult = await processHTTPPayment(payment, httpConfig);
-    if (!payResult.success) {
-      console.error(`[eSIM] HTTP x402 payment failed: ${payResult.error}`);
-      res.writeHead(402, {
-        "Content-Type": "text/plain",
-        "Access-Control-Allow-Origin": "*",
-      });
-      res.end(http402Body);
-      return true;
-    }
-
-    // Payment verified — run eSIM plan search
+    // Free search — no payment required
     try {
       const rawBody = await readBody(req);
       const args = JSON.parse(rawBody);
@@ -677,12 +286,73 @@ async function handleStatelessCall(
       sendJson(res, 200, {
         plans: result.data,
         text: result.text,
-        payment_tx: payResult.settled.transaction,
         network: "eip155:196",
       });
     } catch (err: any) {
       sendJson(res, 400, { error: err.message });
     }
+    return true;
+  }
+
+  // ── HTTP purchase endpoint (x402 payment gate) ────────────────────────────
+  if (
+    reqUrl.pathname === "/api/purchase" ||
+    reqUrl.pathname === "/api/purchase/esim"
+  ) {
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers":
+          "Content-Type, PAYMENT-SIGNATURE, X-PAYMENT",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+      });
+      res.end();
+      return true;
+    }
+
+    const rawBody = await readBody(req);
+    const args = JSON.parse(rawBody);
+
+    let info: Awaited<ReturnType<typeof handlePurchaseEsim>>;
+    try {
+      info = await handlePurchaseEsim(statelessOfferCache, args);
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message });
+      return true;
+    }
+
+    const httpConfig = {
+      toolName: "purchase_esim",
+      priceUsdcAtomic: info.priceAtomic,
+      payTo: config.paymentAddress,
+      resourceDescription: info.text,
+      signerPrivateKey: config.relayerPrivateKey,
+    };
+    const http402Body = buildHTTP402Body(httpConfig);
+
+    const payment = extractHTTPPayment(req.headers as any);
+    if (!payment) {
+      res.writeHead(402, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" });
+      res.end(http402Body);
+      return true;
+    }
+
+    const payResult = await processHTTPPayment(payment, httpConfig);
+    if (!payResult.success) {
+      res.writeHead(402, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" });
+      res.end(http402Body);
+      return true;
+    }
+
+    const confirmNum = `ESIM-${Date.now().toString(36).toUpperCase()}`;
+    sendJson(res, 200, {
+      status: "activated",
+      confirmation: confirmNum,
+      plan: info.plan,
+      price_paid_usdc: (Number(info.priceAtomic) / 1e6).toFixed(2),
+      payment_tx: payResult.settled.transaction,
+      network: "eip155:196",
+    });
     return true;
   }
 
@@ -696,10 +366,18 @@ async function handleStatelessCall(
       result = await handleSearchPlans(statelessOfferCache, args);
     } else if (tool === "search_and_quote") {
       result = await handleSearchAndQuote(statelessOfferCache, args);
-    } else if (tool === "xagent_generate_quote") {
-      result = await handleGenerateQuote(statelessOfferCache, args);
-    } else if (tool === "xagent_check_status") {
-      result = await handleCheckStatus(args);
+    } else if (tool === "purchase_esim") {
+      const info = await handlePurchaseEsim(statelessOfferCache, args);
+      sendJson(res, 402, {
+        message: "Payment required",
+        offer: info.text,
+        price_usdc: (Number(info.priceAtomic) / 1e6).toFixed(2),
+        price_atomic: info.priceAtomic,
+        pay_to: config.paymentAddress,
+        network: "eip155:196",
+        asset: "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
+      });
+      return true;
     } else {
       sendJson(res, 400, { error: `Unknown tool: ${tool}` });
       return true;
@@ -740,7 +418,6 @@ async function startHttpMode() {
 }
 
 process.on("SIGTERM", () => {
-  stopReconciler();
   closePool().catch(() => {});
 });
 

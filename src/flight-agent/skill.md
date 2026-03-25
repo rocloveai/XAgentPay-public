@@ -1,9 +1,9 @@
 ---
 name: xagent-flight
 version: "2.0.0"
-description: Flight booking MCP agent — search flights, generate NUPS quotes, verify on-chain payments. Supports x402 payment protocol.
+description: Flight booking MCP agent — search flights for free, purchase with x402 payment. Pure x402 protocol.
 merchant_did: "did:xagent:196:demo_flight"
-protocol: NUPS/1.5
+protocol: x402/2
 category: travel.flights
 currencies: [USDC]
 chain_id: 196
@@ -13,21 +13,19 @@ x402:
   network: "eip155:196"
   asset: "0x74b7F16337b8972027F6196A17a631aC6dE26d22"
   assetTransferMethod: eip3009
-  description: "Supports x402 payment protocol. Tools accept payment via _meta['x402/payment']."
+  description: "x402 payment on purchase_flight only. Search is free."
 tools:
   - name: search_and_quote
-    role: search+quote+x402
+    role: search (free)
   - name: search_flights
-    role: search
-  - name: xagent_generate_quote
-    role: quote+x402
-  - name: xagent_check_status
-    role: status
+    role: search (free)
+  - name: purchase_flight
+    role: purchase+x402
 ---
 
 # XAgent Pay Flight Agent — MCP Skill
 
-Flight booking merchant agent powered by XAgent Pay. Searches flights across popular Asia-Pacific routes (PVG, NRT, SIN, HKG, BKK), generates NUPS payment quotes, and verifies on-chain payments.
+Flight booking merchant agent powered by XAgent Pay. Searches flights across popular Asia-Pacific routes (PVG, NRT, SIN, HKG, BKK) for free, then purchases with direct x402 on-chain payment.
 
 > For HTTP REST API docs (no MCP client required), see [skill-user.md](https://xagenpay.com/flight/skill-user.md).
 
@@ -47,9 +45,9 @@ Transport: **Streamable HTTP** (stateless, single `POST /mcp` per request).
 
 ## Available Tools
 
-### `search_and_quote` (role: search+quote+x402) — Recommended
+### `search_and_quote` (FREE) — Recommended starting point
 
-Search flights AND generate a NUPS quote in one call. Fastest way to get a flight quote. Supports **x402 payment protocol** — include `_meta["x402/payment"]` with a signed EIP-3009 `transferWithAuthorization` to pay and receive the booking confirmation instantly.
+Search available flights between airports. Returns a list of flight offers with prices and offer IDs. **No payment required.**
 
 **Parameters:**
 
@@ -59,21 +57,19 @@ Search flights AND generate a NUPS quote in one call. Fastest way to get a fligh
 | `destination` | string | Yes | IATA airport code for arrival (e.g. `NRT`, `PVG`) |
 | `date` | string | Yes | Departure date in `YYYY-MM-DD` format |
 | `passengers` | number | No | Number of passengers, 1-9. Default: `1` |
-| `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
-| `offer_index` | number | No | Zero-based index of flight to quote (default: `0`). Call again with a different index to re-quote |
 
-**Returns:** All available flights + a ready-to-use `QUOTE_JSON` for the selected flight.
+**Returns:** All available flights with offer IDs and prices. Instructions to call `purchase_flight` with a chosen offer.
 
 **Example:**
 ```
-search_and_quote({ origin: "SIN", destination: "PVG", date: "2026-04-01", payer_wallet: "0x..." })
+search_and_quote({ origin: "SIN", destination: "PVG", date: "2026-04-01" })
 ```
 
 ---
 
-### `search_flights` (role: search)
+### `search_flights` (FREE)
 
-Search available flights. Use `search_and_quote` instead for faster flow.
+Search available flights. Same as `search_and_quote`. No payment required.
 
 **Parameters:**
 
@@ -86,64 +82,50 @@ Search available flights. Use `search_and_quote` instead for faster flow.
 
 ---
 
-### `xagent_generate_quote` (role: quote)
+### `purchase_flight` (x402 payment required)
 
-Generate a NUPS quote for a selected flight offer. Use `search_and_quote` instead for faster flow.
+Purchase a flight ticket using x402 EIP-3009 on-chain payment. The payment amount equals the exact flight price in USDC.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `flight_offer_id` | string | Yes | The `offer_id` from `search_flights` results |
+| `offer_id` | string | Yes | Flight offer ID from `search_and_quote` results |
 | `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
+
+**Flow:**
+1. First call (no payment) → returns `PaymentRequired` (402) with exact USDC amount
+2. Sign EIP-3009 `transferWithAuthorization` for the exact price
+3. Second call with `_meta["x402/payment"]` → agent verifies, settles on-chain, returns booking confirmation + TX hash
+
+**Returns:** Booking confirmation with flight details, TX hash, and confirmation number.
 
 ---
 
-### `xagent_check_status` (role: status)
+## Booking Workflow
 
-Checks the payment status of a flight order.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `order_ref` | string | Yes | The order reference (e.g. `FLT-...`) |
-
-**Returns:** Order status (`UNPAID` / `PAID` / `EXPIRED`), amount, summary, timestamps.
-
-## Checkout Workflow
-
-**Fast path (recommended):**
-1. **Search + Quote** — Call `search_and_quote` with origin, destination, date, and payer wallet. Returns flights + ready-to-use quote.
-2. **Pay** — Call `xagent_orchestrate_payment` on XAgent Pay Core with the `QUOTE_JSON` from step 1. Multiple quotes from different merchants can be combined into a single call.
-3. **Verify** — Call `xagent_check_status` to verify. Only confirm booking when status is `PAID`.
+1. **Search** — Call `search_and_quote` with origin, destination, date. Returns flight list with offer IDs. **Free.**
+2. **Purchase** — Call `purchase_flight(offer_id, payer_wallet)` → get payment requirements (price in USDC)
+3. **Pay** — Sign EIP-3009 authorization for the exact price, re-call with `_meta["x402/payment"]`
+4. **Done** — Agent verifies on-chain, returns booking confirmation instantly
 
 ## x402 Payment Protocol
 
-This agent supports the **x402 payment protocol** (v2) for direct on-chain payments via MCP tool calls.
-
-**How it works:**
-1. Call `search_and_quote` without payment → returns search results + `PaymentRequired` (402)
-2. Sign an EIP-3009 `transferWithAuthorization` with the payment details
-3. Call `search_and_quote` again with `_meta["x402/payment"]` containing the signed authorization
-4. Agent verifies signature → settles on-chain → returns results + `_meta["x402/payment-response"]` with TX hash
+This agent uses the **x402 payment protocol** (v2) exclusively for purchases.
 
 **Payment Details:**
 - Network: XLayer (eip155:196)
 - Asset: USDC (`0x74b7F16337b8972027F6196A17a631aC6dE26d22`)
 - Method: EIP-3009 `transferWithAuthorization`
-- Amount: 0.10 USDC (demo)
+- Amount: Exact flight price (varies per offer)
 
-## HTTP REST Endpoint (OKX OnchainOS x402)
+## HTTP REST Endpoints
 
-This agent also exposes a plain HTTP endpoint compatible with the **OKX OnchainOS x402 skill** standard. No MCP client required.
+### Search (FREE)
 
 **Endpoint:** `POST https://xagenpay.com/flight/api/search`
 
-**Flow:**
-
-1. **No payment header** → HTTP 402 response with base64-encoded payment requirements body
-2. **With `PAYMENT-SIGNATURE` header** (base64-encoded x402 payload) → HTTP 200 with flight results
+No payment header needed. Returns flight results directly.
 
 **Request body (JSON):**
 ```json
@@ -155,34 +137,42 @@ This agent also exposes a plain HTTP endpoint compatible with the **OKX OnchainO
 }
 ```
 
-**HTTP 402 response body** (base64-decoded):
-```json
-{
-  "x402Version": 2,
-  "accepts": [{
-    "scheme": "exact",
-    "network": "eip155:196",
-    "asset": "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
-    "amount": "<price_in_atomic_usdc>",
-    "payTo": "<merchant_address>",
-    "maxTimeoutSeconds": 300
-  }]
-}
-```
-
 **HTTP 200 response body:**
 ```json
 {
   "flights": [...],
   "text": "Available Flights:\n...",
-  "payment_tx": "0x...",
   "network": "eip155:196"
 }
 ```
 
-**Headers:**
-- `PAYMENT-SIGNATURE`: base64-encoded JSON containing `accepts` array and `payload` with `signature` and `authorization` fields (EIP-3009)
-- Alternative: `X-PAYMENT` header (same format)
+### Purchase (x402)
+
+**Endpoint:** `POST https://xagenpay.com/flight/api/purchase/flights`
+
+**Request body (JSON):**
+```json
+{
+  "offer_id": "<offer_id from search>",
+  "payer_wallet": "0x..."
+}
+```
+
+**Flow:**
+1. No payment header → HTTP 402 with x402 payment requirements (exact flight price)
+2. With `PAYMENT-SIGNATURE` header → HTTP 200 with booking confirmation
+
+**HTTP 200 response body:**
+```json
+{
+  "status": "booked",
+  "confirmation": "FLT-...",
+  "flight": {...},
+  "price_paid_usdc": "120.00",
+  "payment_tx": "0x...",
+  "network": "eip155:196"
+}
+```
 
 ## Supported Routes
 

@@ -1,9 +1,9 @@
 ---
 name: xagent-esim
 version: "2.0.0"
-description: Global eSIM data plans for 190+ countries. Instant activation, pay with USDC on XLayer. Supports x402 payment protocol.
+description: Global eSIM data plans for 190+ countries. Search for free, purchase with x402 payment. Pure x402 protocol.
 merchant_did: "did:xagent:196:demo_esim"
-protocol: NUPS/1.5
+protocol: x402/2
 category: telecom.esim
 currencies: [USDC]
 chain_id: 196
@@ -13,21 +13,19 @@ x402:
   network: "eip155:196"
   asset: "0x74b7F16337b8972027F6196A17a631aC6dE26d22"
   assetTransferMethod: eip3009
-  description: "Supports x402 payment protocol. Tools accept payment via _meta['x402/payment']."
+  description: "x402 payment on purchase_esim only. Search is free."
 tools:
   - name: search_and_quote
-    role: search+quote+x402
+    role: search (free)
   - name: search_esim_plans
-    role: search
-  - name: xagent_generate_quote
-    role: quote+x402
-  - name: xagent_check_status
-    role: status
+    role: search (free)
+  - name: purchase_esim
+    role: purchase+x402
 ---
 
 # XAgent eSIM Agent — MCP Skill
 
-Global eSIM data plan merchant agent powered by XAgent Pay. Search eSIM plans by country, generate NUPS payment quotes, verify on-chain payments, and deliver activation QR codes.
+Global eSIM data plan merchant agent powered by XAgent Pay. Search eSIM plans by country for free, then purchase with direct x402 on-chain payment and receive instant activation.
 
 ## MCP Connection
 
@@ -45,9 +43,9 @@ Transport: **Streamable HTTP** (stateless, single `POST /mcp` per request).
 
 ## Available Tools
 
-### `search_and_quote` (role: search+quote+x402) — Recommended
+### `search_and_quote` (FREE) — Recommended starting point
 
-Search eSIM plans AND generate a quote in one call. Supports **x402 payment protocol** — include `_meta["x402/payment"]` with a signed EIP-3009 `transferWithAuthorization` to pay and receive the eSIM instantly.
+Search available eSIM data plans by country. Returns a list of plans with data allowance, validity, network, and pricing. **No payment required.**
 
 **Parameters:**
 
@@ -56,21 +54,19 @@ Search eSIM plans AND generate a quote in one call. Supports **x402 payment prot
 | `country` | string | Yes | Country name or code (e.g. `Japan`, `JP`, `Thailand`, `US`) |
 | `days` | number | No | Minimum validity in days (optional filter) |
 | `data_gb` | number | No | Minimum data allowance in GB (optional filter) |
-| `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
-| `offer_index` | number | No | Zero-based index of plan to quote (default: `0`). Call again with a different index to re-quote |
 
-**Returns:** All available plans + a ready-to-use `QUOTE_JSON` for the selected plan.
+**Returns:** All available eSIM plans with offer IDs and prices. Instructions to call `purchase_esim` with a chosen plan.
 
 **Example:**
 ```
-search_and_quote({ country: "Japan", payer_wallet: "0x..." })
+search_and_quote({ country: "Japan" })
 ```
 
 ---
 
-### `search_esim_plans` (role: search)
+### `search_esim_plans` (FREE)
 
-Search available eSIM data plans by country. Use `search_and_quote` instead for faster flow.
+Search available eSIM data plans. Same as `search_and_quote`. No payment required.
 
 **Parameters:**
 
@@ -82,64 +78,50 @@ Search available eSIM data plans by country. Use `search_and_quote` instead for 
 
 ---
 
-### `xagent_generate_quote` (role: quote)
+### `purchase_esim` (x402 payment required)
 
-Generate a NUPS quote for a selected eSIM plan. Use `search_and_quote` instead for faster flow.
+Purchase an eSIM plan using x402 EIP-3009 on-chain payment. The payment amount equals the exact plan price in USDC.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `esim_offer_id` | string | Yes | The `offer_id` from `search_esim_plans` results |
+| `plan_id` | string | Yes | eSIM plan offer ID from `search_and_quote` results |
 | `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
+
+**Flow:**
+1. First call (no payment) → returns `PaymentRequired` (402) with exact USDC amount
+2. Sign EIP-3009 `transferWithAuthorization` for the exact price
+3. Second call with `_meta["x402/payment"]` → agent verifies, settles on-chain, returns activation confirmation + TX hash
+
+**Returns:** eSIM activation confirmation with plan details, TX hash, activation code, and confirmation number.
 
 ---
 
-### `xagent_check_status` (role: status)
+## Purchase Workflow
 
-Checks the payment status of an eSIM order. If paid, returns the eSIM activation QR code.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `order_ref` | string | Yes | The order reference (e.g. `ESIM-...`) |
-
-**Returns:** Order status (`UNPAID` / `PAID` / `EXPIRED`), amount, summary. When `PAID`, also includes eSIM QR code data URL and activation code.
-
-## Checkout Workflow
-
-**Fast path (recommended):**
-1. **Search + Quote** — Call `search_and_quote` with country and payer wallet. Returns plans + ready-to-use quote.
-2. **Pay** — Call `xagent_orchestrate_payment` on XAgent Pay Core with the `QUOTE_JSON` from step 1.
-3. **Verify** — Call `xagent_check_status` to verify. When status is `PAID`, the response includes the eSIM activation QR code.
+1. **Search** — Call `search_and_quote` with country. Returns eSIM plan list with offer IDs. **Free.**
+2. **Purchase** — Call `purchase_esim(plan_id, payer_wallet)` → get payment requirements (exact price in USDC)
+3. **Pay** — Sign EIP-3009 authorization for the exact price, re-call with `_meta["x402/payment"]`
+4. **Done** — Agent verifies on-chain, returns activation details instantly
 
 ## x402 Payment Protocol
 
-This agent supports the **x402 payment protocol** (v2) for direct on-chain payments via MCP tool calls.
-
-**How it works:**
-1. Call `search_and_quote` without payment → returns search results + `PaymentRequired` (402)
-2. Sign an EIP-3009 `transferWithAuthorization` with the payment details
-3. Call `search_and_quote` again with `_meta["x402/payment"]` containing the signed authorization
-4. Agent verifies signature → settles on-chain → returns results + `_meta["x402/payment-response"]` with TX hash
+This agent uses the **x402 payment protocol** (v2) exclusively for purchases.
 
 **Payment Details:**
 - Network: XLayer (eip155:196)
 - Asset: USDC (`0x74b7F16337b8972027F6196A17a631aC6dE26d22`)
 - Method: EIP-3009 `transferWithAuthorization`
-- Amount: 0.10 USDC (demo)
+- Amount: Exact plan price (varies per plan)
 
-## HTTP REST Endpoint (OKX OnchainOS x402)
+## HTTP REST Endpoints
 
-This agent also exposes a plain HTTP endpoint compatible with the **OKX OnchainOS x402 skill** standard. No MCP client required.
+### Search (FREE)
 
 **Endpoint:** `POST https://xagenpay.com/esim/api/search`
 
-**Flow:**
-
-1. **No payment header** → HTTP 402 response with base64-encoded payment requirements body
-2. **With `PAYMENT-SIGNATURE` header** (base64-encoded x402 payload) → HTTP 200 with eSIM plan results
+No payment header needed. Returns eSIM plan results directly.
 
 **Request body (JSON):**
 ```json
@@ -150,34 +132,42 @@ This agent also exposes a plain HTTP endpoint compatible with the **OKX OnchainO
 }
 ```
 
-**HTTP 402 response body** (base64-decoded):
-```json
-{
-  "x402Version": 2,
-  "accepts": [{
-    "scheme": "exact",
-    "network": "eip155:196",
-    "asset": "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
-    "amount": "<price_in_atomic_usdc>",
-    "payTo": "<merchant_address>",
-    "maxTimeoutSeconds": 300
-  }]
-}
-```
-
 **HTTP 200 response body:**
 ```json
 {
   "plans": [...],
   "text": "eSIM Plans for Japan:\n...",
-  "payment_tx": "0x...",
   "network": "eip155:196"
 }
 ```
 
-**Headers:**
-- `PAYMENT-SIGNATURE`: base64-encoded JSON containing `accepts` array and `payload` with `signature` and `authorization` fields (EIP-3009)
-- Alternative: `X-PAYMENT` header (same format)
+### Purchase (x402)
+
+**Endpoint:** `POST https://xagenpay.com/esim/api/purchase/esim`
+
+**Request body (JSON):**
+```json
+{
+  "plan_id": "<offer_id from search>",
+  "payer_wallet": "0x..."
+}
+```
+
+**Flow:**
+1. No payment header → HTTP 402 with x402 payment requirements (exact plan price)
+2. With `PAYMENT-SIGNATURE` header → HTTP 200 with activation confirmation
+
+**HTTP 200 response body:**
+```json
+{
+  "status": "activated",
+  "confirmation": "ESIM-...",
+  "plan": {...},
+  "price_paid_usdc": "12.00",
+  "payment_tx": "0x...",
+  "network": "eip155:196"
+}
+```
 
 ## Supported Countries
 

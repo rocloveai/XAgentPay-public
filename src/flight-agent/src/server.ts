@@ -5,10 +5,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 import { loadConfig } from "./config.js";
 import { searchFlights } from "./services/flight-search.js";
-import { buildQuote } from "./services/quote-builder.js";
-import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
 import { initPool, closePool } from "./services/db/pool.js";
-import { startReconciler, stopReconciler } from "./services/reconciler.js";
 import {
   startPortal,
   registerMcpHandler,
@@ -23,7 +20,6 @@ import {
   buildPaymentRequiredResult,
   buildPaidToolResult,
   processX402Payment,
-  formatUsdcAmount,
   type X402ToolConfig,
   buildHTTP402Body,
   extractHTTPPayment,
@@ -41,12 +37,6 @@ if (config.databaseUrl) {
 } else {
   console.error("Warning: DATABASE_URL not set. Using in-memory storage only.");
 }
-
-// Start reconciler (checks for UNPAID orders that xagent-core shows as paid)
-startReconciler({
-  xagentCoreUrl: config.xagentCoreUrl,
-  merchantDid: config.merchantDid,
-});
 
 // Auto-register with xagent-core so webhooks work immediately on startup
 async function registerWithXAgentCore() {
@@ -127,217 +117,34 @@ async function handleSearchFlights(
     : "Available Flights:\n";
 
   return {
-    text: header + lines.join("\n\n"),
-    data: offers,
-  };
-}
-
-async function handleGenerateQuote(
-  cache: Map<string, FlightOffer>,
-  {
-    flight_offer_id,
-    payer_wallet,
-  }: {
-    flight_offer_id: string;
-    payer_wallet: string;
-  },
-) {
-  const offer = cache.get(flight_offer_id);
-  if (!offer) {
-    throw new Error(
-      `Flight offer "${flight_offer_id}" not found. Please search for flights first.`,
-    );
-  }
-
-  const orderRef = newOrderRef();
-  const taxAmount = (parseFloat(offer.price.amount) * 0.06).toFixed(2);
-  const totalAmount = (
-    parseFloat(offer.price.amount) + parseFloat(taxAmount)
-  ).toFixed(2);
-
-  const quote = await buildQuote({
-    merchantDid: config.merchantDid,
-    orderRef,
-    amount: totalAmount,
-    currency: "USDC",
-    summary: `${offer.airline} ${offer.flight_number} (${offer.origin}-${offer.destination})`,
-    lineItems: [
-      {
-        name: `Flight ${offer.flight_number} ${offer.origin}-${offer.destination}`,
-        qty: 1,
-        amount: offer.price.amount,
-      },
-      { name: "Tax & Fees", qty: 1, amount: taxAmount },
-    ],
-    payerWallet: payer_wallet,
-    signerPrivateKey: config.signerPrivateKey,
-  });
-
-  const order = await createOrder(quote);
-
-  const ucpCheckoutResponse = {
-    ucp: {
-      version: "2026-01-11",
-      payment_handlers: {
-        "urn:ucp:payment:xagent_v1": [
-          {
-            id: "xagent_handler_1",
-            version: "v1",
-            config: quote,
-            xagent_core: {
-              skill_url: `${config.xagentCoreUrl}/skill-user.md`,
-              mcp_endpoint: `${config.xagentCoreUrl}/mcp`,
-              orchestrate_url: `${config.xagentCoreUrl}/api/orchestrate`,
-              orchestrate_body: {
-                quotes: [quote],
-                payer_wallet,
-              },
-              prompt:
-                "REQUIRED: To complete this payment, POST the orchestrate_body to orchestrate_url. " +
-                "The response contains a checkout_url — present ONLY that URL to the user. " +
-                "Do NOT construct URLs yourself or show raw JSON to the user. " +
-                "If you have multiple xagent_v1 quotes, combine all config objects into the quotes array before calling orchestrate.",
-            },
-          },
-        ],
-      },
-    },
-    id: order.order_ref,
-    status: "ready_for_complete",
-    currency: "USDC",
-    totals: [
-      {
-        type: "total",
-        amount: quote.amount,
-      },
-    ],
-  };
-
-  // Compact quote JSON — agent collects these and passes to orchestrate
-  const quoteJson = JSON.stringify(quote);
-
-  return {
     text:
-      `[QUOTE] ${offer.airline} ${offer.flight_number} (${offer.origin}-${offer.destination}) | ${(Number(quote.amount) / 1e6).toFixed(2)} USDC | ref:${order.order_ref}\n` +
-      `QUOTE_JSON: ${quoteJson}\n` +
-      `PAYER: ${payer_wallet}\n\n` +
-      `Collect all QUOTE_JSON values, then call:\n` +
-      `xagent_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
-    data: ucpCheckoutResponse,
-    order_ref: order.order_ref,
+      header +
+      lines.join("\n\n") +
+      "\n\nTo book a flight: call purchase_flight(offer_id=\"<id>\", payer_wallet=\"<wallet>\")",
+    data: offers,
   };
 }
 
 async function handleSearchAndQuote(
   cache: Map<string, FlightOffer>,
-  {
-    origin,
-    destination,
-    date,
-    passengers,
-    payer_wallet,
-    offer_index,
-  }: {
-    origin: string;
-    destination: string;
-    date: string;
-    passengers: number;
-    payer_wallet: string;
-    offer_index?: number;
-  },
+  args: { origin: string; destination: string; date: string; passengers: number },
 ) {
-  // Step 1: Search
-  const { offers, error } = await searchFlights({
-    origin: origin.toUpperCase(),
-    destination: destination.toUpperCase(),
-    date,
-    passengers,
-  });
-
-  if (offers.length === 0) {
-    throw new Error(error ?? "No flights found for this route.");
-  }
-
-  for (const offer of offers) {
-    cache.set(offer.offer_id, offer);
-  }
-
-  // Step 2: Auto-quote the selected (or cheapest) offer
-  const idx = offer_index ?? 0;
-  const selected =
-    idx >= 0 && idx < offers.length
-      ? offers[idx]
-      : [...offers].sort(
-          (a, b) => parseFloat(a.price.amount) - parseFloat(b.price.amount),
-        )[0];
-
-  const orderRef = newOrderRef();
-  const taxAmount = (parseFloat(selected.price.amount) * 0.06).toFixed(2);
-  const totalAmount = (
-    parseFloat(selected.price.amount) + parseFloat(taxAmount)
-  ).toFixed(2);
-
-  const quote = await buildQuote({
-    merchantDid: config.merchantDid,
-    orderRef,
-    amount: totalAmount,
-    currency: "USDC",
-    summary: `${selected.airline} ${selected.flight_number} (${selected.origin}-${selected.destination})`,
-    lineItems: [
-      {
-        name: `Flight ${selected.flight_number} ${selected.origin}-${selected.destination}`,
-        qty: 1,
-        amount: selected.price.amount,
-      },
-      { name: "Tax & Fees", qty: 1, amount: taxAmount },
-    ],
-    payerWallet: payer_wallet,
-    signerPrivateKey: config.signerPrivateKey,
-  });
-
-  // Fire-and-forget — DB insert doesn't block the response
-  createOrder(quote).catch((err) =>
-    console.error(`createOrder failed for ${orderRef}:`, err.message),
-  );
-  const quoteJson = JSON.stringify(quote);
-
-  // Build compact options list + selected quote
-  const optionLines = offers.map(
-    (o, i) =>
-      `${i === idx ? "→" : " "} ${i + 1}. ${o.airline} ${o.flight_number} ${o.origin}-${o.destination} ${o.departure_time.slice(11, 16)} ${o.price.amount} ${o.price.currency}`,
-  );
-
-  return {
-    text:
-      `Flights ${origin.toUpperCase()}-${destination.toUpperCase()} on ${date}:\n` +
-      optionLines.join("\n") +
-      `\n\n[QUOTE] ${selected.airline} ${selected.flight_number} | ${(Number(quote.amount) / 1e6).toFixed(2)} USDC | ref:${orderRef}\n` +
-      `QUOTE_JSON: ${quoteJson}\n` +
-      `PAYER: ${payer_wallet}\n\n` +
-      `To select a different flight, call search_and_quote again with offer_index=N.\n` +
-      `When all quotes are ready, call:\n` +
-      `xagent_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
-    data: { offers, selectedIndex: idx, quote },
-    order_ref: orderRef,
-  };
+  return handleSearchFlights(cache, args);
 }
 
-async function handleCheckStatus({ order_ref }: { order_ref: string }) {
-  const order = await getOrder(order_ref);
-  if (!order) {
-    throw new Error(`Order "${order_ref}" not found.`);
+async function handlePurchaseFlight(
+  cache: Map<string, FlightOffer>,
+  { offer_id, payer_wallet }: { offer_id: string; payer_wallet: string },
+): Promise<{ text: string; priceAtomic: string; offer: FlightOffer }> {
+  const offer = cache.get(offer_id);
+  if (!offer) {
+    throw new Error(`Flight offer "${offer_id}" not found. Please search for flights first.`);
   }
-
+  const priceAtomic = String(Math.round(parseFloat(offer.price.amount) * 1_000_000));
   return {
-    text:
-      `Order Status\n` +
-      `Ref: ${order.order_ref}\n` +
-      `Status: ${order.status}\n` +
-      `Amount: ${order.quote_payload.amount} ${order.quote_payload.currency}\n` +
-      `Summary: ${order.quote_payload.context.summary}\n` +
-      `Created: ${order.created_at}\n` +
-      `Updated: ${order.updated_at}`,
-    data: order,
+    text: `${offer.airline} ${offer.flight_number} ${offer.origin}→${offer.destination} | ${offer.departure_time.slice(0, 16)} | ${offer.price.amount} USDC`,
+    priceAtomic,
+    offer,
   };
 }
 
@@ -350,257 +157,89 @@ function createMcpServer(): McpServer {
     version: "2.0.0",
   });
 
-  // ── x402 config for search tools ─────────────────────────────────────────
-  const x402Config: X402ToolConfig = {
-    toolName: "search_flights",
-    priceUsdcAtomic: config.x402PriceAtomic,
-    payTo: config.paymentAddress,
-    resourceDescription: "Flight search results (x402 pay-per-search)",
-    signerPrivateKey: config.relayerPrivateKey,
-  };
-
-  // ── Tool: search_flights (x402 hard gate) ──────────────────────────────────
-
-  srv.tool(
-    "search_flights",
-    "Search available flights between airports. Returns a list of flight offers with prices. " +
-      `Requires x402 payment of ${formatUsdcAmount(config.x402PriceAtomic)} USDC in _meta['x402/payment'].`,
-    {
-      origin: z
-        .string()
-        .describe("IATA airport code for departure (e.g. PVG, SHA)"),
-      destination: z
-        .string()
-        .describe("IATA airport code for arrival (e.g. NRT, HND)"),
-      date: z.string().describe("Departure date in YYYY-MM-DD format"),
-      passengers: z
-        .number()
-        .int()
-        .min(1)
-        .max(9)
-        .default(1)
-        .describe("Number of passengers (1-9)"),
-    },
-    async ({ origin, destination, date, passengers }, extra) => {
-      const payment = extractX402Payment(
-        (extra as any)?._meta ?? (extra as any)?.meta,
-      );
-      if (!payment) {
-        return buildPaymentRequiredResult(buildPaymentRequired(x402Config));
-      }
-      const payResult = await processX402Payment(payment, x402Config);
-      if ("error" in payResult) {
-        return buildPaymentRequiredResult(payResult.error);
-      }
-      const result = await handleSearchFlights(sessionOfferCache, {
-        origin,
-        destination,
-        date,
-        passengers,
-      });
-      return buildPaidToolResult(result.text, payResult.settled);
-    },
-  );
-
-  // ── Tool: search_and_quote (x402 + ERC-8183 combined) ───────────────────
+  // ── Tool: search_and_quote (FREE) ─────────────────────────────────────────
 
   srv.tool(
     "search_and_quote",
-    "Search flights AND generate a signed ERC-8183 quote in ONE call. " +
-      "Returns flight options with a payment quote for checkout. " +
-      `Requires x402 payment of ${formatUsdcAmount(config.x402PriceAtomic)} USDC in _meta['x402/payment'] for the search step.`,
+    "Search available flights between airports. Returns a list of flight offers with prices. FREE — no payment required for search.",
     {
-      origin: z
-        .string()
-        .describe("IATA airport code for departure (e.g. PVG, SHA)"),
-      destination: z
-        .string()
-        .describe("IATA airport code for arrival (e.g. NRT, HND)"),
+      origin: z.string().describe("IATA airport code for departure (e.g. PVG, SHA)"),
+      destination: z.string().describe("IATA airport code for arrival (e.g. NRT, HND)"),
       date: z.string().describe("Departure date in YYYY-MM-DD format"),
-      passengers: z
-        .number()
-        .int()
-        .min(1)
-        .max(9)
-        .default(1)
-        .describe("Number of passengers (1-9)"),
-      payer_wallet: z
-        .string()
-        .regex(/^0x[a-fA-F0-9]{40}$/)
-        .describe("Payer's EVM wallet address (0x...)"),
-      offer_index: z
-        .number()
-        .int()
-        .min(0)
-        .optional()
-        .describe(
-          "Zero-based index of the flight to quote (default: 0 = cheapest). Use this to pick a different flight after seeing options.",
-        ),
+      passengers: z.number().int().min(1).max(9).default(1).describe("Number of passengers (1-9)"),
     },
-    async (
-      { origin, destination, date, passengers, payer_wallet, offer_index },
-      extra,
-    ) => {
-      // x402 hard gate for search step
-      const payment = extractX402Payment(
-        (extra as any)?._meta ?? (extra as any)?.meta,
-      );
-      if (!payment) {
-        return buildPaymentRequiredResult(
-          buildPaymentRequired({ ...x402Config, toolName: "search_and_quote" }),
-        );
+    async ({ origin, destination, date, passengers }) => {
+      const result = await handleSearchFlights(sessionOfferCache, { origin, destination, date, passengers });
+      return { content: [{ type: "text" as const, text: result.text }] };
+    },
+  );
+
+  // ── Tool: search_flights (FREE) ───────────────────────────────────────────
+
+  srv.tool(
+    "search_flights",
+    "Search available flights. Returns flight offers with offer IDs. FREE — no payment required.",
+    {
+      origin: z.string().describe("IATA airport code for departure"),
+      destination: z.string().describe("IATA airport code for arrival"),
+      date: z.string().describe("Departure date in YYYY-MM-DD format"),
+      passengers: z.number().int().min(1).max(9).default(1).describe("Number of passengers"),
+    },
+    async ({ origin, destination, date, passengers }) => {
+      const result = await handleSearchFlights(sessionOfferCache, { origin, destination, date, passengers });
+      return { content: [{ type: "text" as const, text: result.text }] };
+    },
+  );
+
+  // ── Tool: purchase_flight (x402 payment) ─────────────────────────────────
+
+  srv.tool(
+    "purchase_flight",
+    "Purchase a flight ticket with x402 payment. Requires x402 EIP-3009 payment in _meta['x402/payment'] for the exact flight price in USDC. First call returns payment requirements; include payment on second call to confirm booking.",
+    {
+      offer_id: z.string().describe("Flight offer ID from search_and_quote results"),
+      payer_wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/).describe("Payer's EVM wallet address (0x...)"),
+    },
+    async ({ offer_id, payer_wallet }, extra) => {
+      let info: Awaited<ReturnType<typeof handlePurchaseFlight>>;
+      try {
+        info = await handlePurchaseFlight(sessionOfferCache, { offer_id, payer_wallet });
+      } catch (err: any) {
+        return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
       }
-      const payResult = await processX402Payment(payment, {
-        ...x402Config,
-        toolName: "search_and_quote",
-      });
+
+      const purchaseConfig: X402ToolConfig = {
+        toolName: "purchase_flight",
+        priceUsdcAtomic: info.priceAtomic,
+        payTo: config.paymentAddress,
+        resourceDescription: info.text,
+        signerPrivateKey: config.relayerPrivateKey,
+      };
+
+      const payment = extractX402Payment((extra as any)?._meta ?? (extra as any)?.meta);
+      if (!payment) {
+        return buildPaymentRequiredResult(buildPaymentRequired(purchaseConfig));
+      }
+
+      const payResult = await processX402Payment(payment, purchaseConfig);
       if ("error" in payResult) {
         return buildPaymentRequiredResult(payResult.error);
       }
-      try {
-        const result = await handleSearchAndQuote(sessionOfferCache, {
-          origin,
-          destination,
-          date,
-          passengers,
-          payer_wallet,
-          offer_index,
-        });
 
-        return buildPaidToolResult(result.text, payResult.settled);
-      } catch (err: any) {
-        return {
-          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
-          isError: true,
-        };
-      }
+      const confirmNum = `FLT-${Date.now().toString(36).toUpperCase()}`;
+      return buildPaidToolResult(
+        `✅ Flight Booked!\n` +
+        `${info.offer.airline} ${info.offer.flight_number}\n` +
+        `${info.offer.origin} → ${info.offer.destination}\n` +
+        `Depart: ${info.offer.departure_time}\n` +
+        `Arrive: ${info.offer.arrival_time}\n` +
+        `Price paid: ${info.offer.price.amount} USDC\n` +
+        `TX: ${payResult.settled.transaction}\n` +
+        `Confirmation: ${confirmNum}\n` +
+        `Payer: ${payer_wallet}`,
+        payResult.settled,
+      );
     },
-  );
-
-  // ── Tool: xagent_generate_quote ─────────────────────────────────────────
-
-  srv.tool(
-    "xagent_generate_quote",
-    "Generates a signed ERC-8183 quote for a selected flight offer. " +
-      "Use search_and_quote instead for faster flow.",
-    {
-      flight_offer_id: z
-        .string()
-        .describe("The offer_id from search_flights results"),
-      payer_wallet: z
-        .string()
-        .regex(/^0x[a-fA-F0-9]{40}$/)
-        .describe("Payer's EVM wallet address (0x...)"),
-    },
-    async ({ flight_offer_id, payer_wallet }, extra) => {
-      try {
-        const result = await handleGenerateQuote(sessionOfferCache, {
-          flight_offer_id,
-          payer_wallet,
-        });
-
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-        };
-      } catch (err: any) {
-        return {
-          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // ── Tool: xagent_check_status ────────────────────────────────────────────────
-
-  srv.tool(
-    "xagent_check_status",
-    "Checks the payment status of a flight order. Use this to verify if payment has been completed.",
-    {
-      order_ref: z.string().describe("The order reference (e.g. FLT-...)"),
-    },
-    async ({ order_ref }) => {
-      try {
-        const result = await handleCheckStatus({ order_ref });
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-        };
-      } catch (err: any) {
-        return {
-          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // ── Resource: order state ───────────────────────────────────────────────────
-
-  srv.resource(
-    "order-state",
-    "xagent://orders/{order_ref}/state",
-    { description: "Current state of a flight order (RFC-003 compliant)" },
-    async (uri) => {
-      const orderRef = uri.pathname.split("/")[2] ?? "";
-      const order = await getOrder(orderRef);
-
-      if (!order) {
-        return {
-          contents: [
-            {
-              uri: uri.href,
-              mimeType: "application/json",
-              text: JSON.stringify({ error: "Order not found" }),
-            },
-          ],
-        };
-      }
-
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: "application/json",
-            text: JSON.stringify({
-              order_ref: order.order_ref,
-              payment_status: order.status,
-              xagent_payment_id: null,
-              last_updated: order.updated_at,
-            }),
-          },
-        ],
-      };
-    },
-  );
-
-  // ── Prompt: checkout flow ───────────────────────────────────────────────────
-
-  srv.prompt(
-    "xagent_checkout_flow",
-    "Guided flow for searching flights and generating a XAgent payment quote.",
-    {},
-    async () => ({
-      messages: [
-        {
-          role: "assistant" as const,
-          content: {
-            type: "text" as const,
-            text: [
-              "You are facilitating a flight booking transaction using XAgent Protocol.",
-              "",
-              "Follow this workflow:",
-              "1. Ask the user for their departure city, destination city, and travel date.",
-              "2. Call 'search_flights' with the IATA codes and date.",
-              "3. Present the available flights clearly to the user.",
-              "4. When the user selects a flight, call 'xagent_generate_quote' with the offer_id.",
-              "5. Display the NUPS payment payload to the user.",
-              "6. If the user says they have paid, call 'xagent_check_status' to verify.",
-              "7. Only confirm the booking after verification returns 'PAID'.",
-            ].join("\n"),
-          },
-        },
-      ],
-    }),
   );
 
   return srv;
@@ -630,7 +269,7 @@ async function handleStatelessCall(
 ): Promise<boolean> {
   const reqUrl = new URL(req.url ?? "/", "http://localhost");
 
-  // ── x402 HTTP search endpoint (OKX OnchainOS x402 compatible) ─────────────
+  // ── HTTP search endpoint (FREE — no x402 gate) ────────────────────────────
   if (
     reqUrl.pathname === "/api/search" ||
     reqUrl.pathname === "/api/search/flights"
@@ -647,39 +286,7 @@ async function handleStatelessCall(
       return true;
     }
 
-    const httpConfig = {
-      toolName: "search_flights",
-      priceUsdcAtomic: config.x402PriceAtomic,
-      payTo: config.paymentAddress,
-      resourceDescription: "Search available flights — 0.01 USDC per query",
-      signerPrivateKey: config.relayerPrivateKey,
-    };
-    const http402Body = buildHTTP402Body(httpConfig);
-
-    const payment = extractHTTPPayment(
-      req.headers as Record<string, string | undefined>,
-    );
-    if (!payment) {
-      res.writeHead(402, {
-        "Content-Type": "text/plain",
-        "Access-Control-Allow-Origin": "*",
-      });
-      res.end(http402Body);
-      return true;
-    }
-
-    const payResult = await processHTTPPayment(payment, httpConfig);
-    if (!payResult.success) {
-      console.error(`[Flight] HTTP x402 payment failed: ${payResult.error}`);
-      res.writeHead(402, {
-        "Content-Type": "text/plain",
-        "Access-Control-Allow-Origin": "*",
-      });
-      res.end(http402Body);
-      return true;
-    }
-
-    // Payment verified — run flight search
+    // Free search — no payment required
     try {
       const rawBody = await readBody(req);
       const args = JSON.parse(rawBody);
@@ -687,12 +294,73 @@ async function handleStatelessCall(
       sendJson(res, 200, {
         flights: result.data,
         text: result.text,
-        payment_tx: payResult.settled.transaction,
         network: "eip155:196",
       });
     } catch (err: any) {
       sendJson(res, 400, { error: err.message });
     }
+    return true;
+  }
+
+  // ── HTTP purchase endpoint (x402 payment gate) ────────────────────────────
+  if (
+    reqUrl.pathname === "/api/purchase" ||
+    reqUrl.pathname === "/api/purchase/flights"
+  ) {
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers":
+          "Content-Type, PAYMENT-SIGNATURE, X-PAYMENT",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+      });
+      res.end();
+      return true;
+    }
+
+    const rawBody = await readBody(req);
+    const args = JSON.parse(rawBody);
+
+    let info: Awaited<ReturnType<typeof handlePurchaseFlight>>;
+    try {
+      info = await handlePurchaseFlight(statelessOfferCache, args);
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message });
+      return true;
+    }
+
+    const httpConfig = {
+      toolName: "purchase_flight",
+      priceUsdcAtomic: info.priceAtomic,
+      payTo: config.paymentAddress,
+      resourceDescription: info.text,
+      signerPrivateKey: config.relayerPrivateKey,
+    };
+    const http402Body = buildHTTP402Body(httpConfig);
+
+    const payment = extractHTTPPayment(req.headers as any);
+    if (!payment) {
+      res.writeHead(402, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" });
+      res.end(http402Body);
+      return true;
+    }
+
+    const payResult = await processHTTPPayment(payment, httpConfig);
+    if (!payResult.success) {
+      res.writeHead(402, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" });
+      res.end(http402Body);
+      return true;
+    }
+
+    const confirmNum = `FLT-${Date.now().toString(36).toUpperCase()}`;
+    sendJson(res, 200, {
+      status: "booked",
+      confirmation: confirmNum,
+      flight: info.offer,
+      price_paid_usdc: (Number(info.priceAtomic) / 1e6).toFixed(2),
+      payment_tx: payResult.settled.transaction,
+      network: "eip155:196",
+    });
     return true;
   }
 
@@ -706,10 +374,19 @@ async function handleStatelessCall(
       result = await handleSearchFlights(statelessOfferCache, args);
     } else if (tool === "search_and_quote") {
       result = await handleSearchAndQuote(statelessOfferCache, args);
-    } else if (tool === "xagent_generate_quote") {
-      result = await handleGenerateQuote(statelessOfferCache, args);
-    } else if (tool === "xagent_check_status") {
-      result = await handleCheckStatus(args);
+    } else if (tool === "purchase_flight") {
+      const info = await handlePurchaseFlight(statelessOfferCache, args);
+      // For REST stateless, return the price requirement (no way to attach payment in stateless call)
+      sendJson(res, 402, {
+        message: "Payment required",
+        offer: info.text,
+        price_usdc: (Number(info.priceAtomic) / 1e6).toFixed(2),
+        price_atomic: info.priceAtomic,
+        pay_to: config.paymentAddress,
+        network: "eip155:196",
+        asset: "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
+      });
+      return true;
     } else {
       sendJson(res, 400, { error: `Unknown tool: ${tool}` });
       return true;
@@ -750,7 +427,6 @@ async function startHttpMode() {
 }
 
 process.on("SIGTERM", () => {
-  stopReconciler();
   closePool().catch(() => {});
 });
 
