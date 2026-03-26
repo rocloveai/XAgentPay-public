@@ -837,6 +837,12 @@ async function handleRequest(
     return;
   }
 
+  // Route /api/search and /api/purchase/* to statelessHandler (x402 endpoints)
+  if ((path.startsWith("/api/search") || path.startsWith("/api/purchase")) && statelessHandler) {
+    const handled = await statelessHandler(req, res, url);
+    if (handled) return;
+  }
+
   send404(res);
 }
 

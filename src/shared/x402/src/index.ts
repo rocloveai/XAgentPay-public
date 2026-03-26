@@ -64,3 +64,10 @@ export {
   formatUsdcAmount,
   type X402ToolConfig,
 } from "./middleware.js";
+
+// HTTP-level x402 (OKX OnchainOS compatible)
+export {
+  buildHTTP402Body,
+  extractHTTPPayment,
+  processHTTPPayment,
+} from "./http.js";

@@ -39,11 +39,12 @@ import { translations, Language } from './i18n/translations';
 
 type PageType = 'home' | 'market' | 'privacy' | 'terms';
 
-const Navbar = ({ lang, setLang, page, setPage, theme, setTheme }: {
+const Navbar = ({ lang, setLang, page, setPage, setMarketTab, theme, setTheme }: {
   lang: Language,
   setLang: (l: Language) => void,
   page: PageType,
   setPage: (p: PageType) => void,
+  setMarketTab: (t: 'discover' | 'list') => void,
   theme: 'dark' | 'light',
   setTheme: (t: 'dark' | 'light') => void
 }) => {
@@ -55,9 +56,7 @@ const Navbar = ({ lang, setLang, page, setPage, theme, setTheme }: {
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setPage('home')}>
-            <div className="bg-primary p-1.5 rounded-lg">
-              <Zap className="text-white w-5 h-5 fill-current" />
-            </div>
+            <img src="/LOGO.png" alt="XAgent Pay" className="w-10 h-10 object-contain" />
             <div className="flex flex-col">
               <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{t.logo}</h2>
               <span className="text-[10px] font-bold text-primary tracking-widest leading-none">{t.label}</span>
@@ -71,8 +70,8 @@ const Navbar = ({ lang, setLang, page, setPage, theme, setTheme }: {
             >
               {t.home}
             </button>
-            <button 
-              onClick={() => setPage('market')}
+            <button
+              onClick={() => { setMarketTab('discover'); setPage('market'); }}
               className={`text-sm font-medium transition-colors ${page === 'market' ? 'text-primary' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
             >
               {t.market}
@@ -107,7 +106,7 @@ const Navbar = ({ lang, setLang, page, setPage, theme, setTheme }: {
           </div>
           
           <button
-            onClick={() => setPage('market')}
+            onClick={() => { setMarketTab('list'); setPage('market'); }}
             className="bg-primary hover:bg-primary/90 text-white px-6 py-2 rounded-lg text-sm font-bold transition-all glow-effect hidden md:block"
           >
             {translations[lang].nav.listAgent}
@@ -293,7 +292,10 @@ const ApiKeysSection = ({ lang }: { lang: Language }) => {
                   <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
                     <Icon className="w-6 h-6" />
                   </div>
-                  <span className="px-2 py-1 rounded-md bg-black/5 dark:bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{card.tag}</span>
+                  {i === 2
+                    ? <span className="px-2 py-1 rounded-md bg-slate-200/60 dark:bg-slate-700/60 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">In Development</span>
+                    : <span className="px-2 py-1 rounded-md bg-black/5 dark:bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{card.tag}</span>
+                  }
                 </div>
                 <div>
                   <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white transition-colors">{card.title}</h3>
@@ -585,9 +587,7 @@ const Footer = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => v
         <div className="grid md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-2 flex flex-col gap-6">
             <div className="flex items-center gap-3">
-              <div className="bg-primary p-1.5 rounded-lg">
-                <Zap className="text-white w-5 h-5 fill-current" />
-              </div>
+              <img src="/LOGO.png" alt="XAgent Pay" className="w-10 h-10 object-contain" />
               <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white transition-colors">{nav.logo}</h2>
             </div>
             <p className="text-slate-600 dark:text-slate-400 max-w-xs transition-colors">{t.slogan}</p>
@@ -596,9 +596,8 @@ const Footer = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => v
           <div className="flex flex-col gap-4">
             <h4 className="font-bold text-slate-900 dark:text-white transition-colors">{t.community}</h4>
             <div className="flex flex-col gap-2">
-              <a href="https://x.com/xagentpay" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-primary transition-colors">Twitter</a>
-              <a href="https://discord.gg/xagentpay" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-primary transition-colors">Discord</a>
-              <a href="https://github.com/rocloveai/XAgentPay" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-primary transition-colors">GitHub</a>
+              <a href="https://x.com/xagentpay" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-primary transition-colors">Twitter / X</a>
+              <a href="https://github.com/rocloveai/XAgentPay-public" target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-primary transition-colors">GitHub</a>
             </div>
           </div>
 
@@ -613,11 +612,6 @@ const Footer = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => v
 
         <div className="pt-8 border-t border-black/5 dark:border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 transition-colors">
           <p className="text-sm text-slate-500 dark:text-slate-600 transition-colors">{t.rights}</p>
-          <div className="flex gap-6">
-            <a href="https://xagenpay.com" className="text-slate-400 dark:text-slate-600 hover:text-primary transition-colors"><Globe className="w-4 h-4" /></a>
-            <a href="https://xlayer.tech" target="_blank" rel="noopener noreferrer" className="text-slate-400 dark:text-slate-600 hover:text-primary transition-colors"><Shield className="w-4 h-4" /></a>
-            <a href="https://github.com/rocloveai/XAgentPay" target="_blank" rel="noopener noreferrer" className="text-slate-400 dark:text-slate-600 hover:text-primary transition-colors"><Lock className="w-4 h-4" /></a>
-          </div>
         </div>
       </div>
     </footer>
@@ -670,9 +664,10 @@ const healthColor = (status: string) => {
   }
 };
 
-const MarketPage = ({ lang }: { lang: Language }) => {
+const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initialTab?: 'discover' | 'list' }) => {
   const t = translations[lang].market;
-  const [activeTab, setActiveTab] = useState<'discover' | 'list'>('discover');
+  const [activeTab, setActiveTab] = useState<'discover' | 'list'>(initialTab);
+  useEffect(() => { setActiveTab(initialTab); }, [initialTab]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [agents, setAgents] = useState<MarketAgent[]>([]);
@@ -850,7 +845,7 @@ const MarketPage = ({ lang }: { lang: Language }) => {
   ];
 
   const filteredAgents = agents.filter(a =>
-    (category === 'all' || a.category === category) &&
+    (category === 'all' || a.category === category || a.category.startsWith(category + '.')) &&
     (a.name.toLowerCase().includes(search.toLowerCase()) || a.description.toLowerCase().includes(search.toLowerCase()))
   );
 
@@ -1034,18 +1029,25 @@ const MarketPage = ({ lang }: { lang: Language }) => {
 
                         <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed transition-colors">{agent.description}</p>
 
-                        {/* Currencies */}
-                        {agent.currencies.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {agent.currencies.map((c, j) => (
-                              <span key={j} className="px-2 py-0.5 rounded bg-cyan-500/10 text-[10px] font-bold text-cyan-500 border border-cyan-500/20">{c}</span>
-                            ))}
-                          </div>
-                        )}
+                        {/* Currencies + Payment protocol tag — same row */}
+                        {(() => {
+                          const isTravel = agent.category?.startsWith('travel.');
+                          const hasX402 = isTravel || agent.skill_tools.some(t => (t as any).payment === 'x402');
+                          const hasERC8183 = agent.skill_tools.some(t => (t as any).payment === 'ERC-8183');
+                          return (
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                              {agent.currencies.map((c, j) => (
+                                <span key={j} className="px-2 py-0.5 rounded bg-cyan-500/10 text-[10px] font-bold text-cyan-500 border border-cyan-500/20">{c}</span>
+                              ))}
+                              {hasX402 && <span className="px-2 py-0.5 rounded bg-purple-500/10 text-[10px] font-bold text-purple-500 border border-purple-500/20">x402</span>}
+                              {hasERC8183 && <span className="px-2 py-0.5 rounded bg-green-500/10 text-[10px] font-bold text-green-500 border border-green-500/20">ERC-8183</span>}
+                            </div>
+                          );
+                        })()}
 
                         {/* Tools */}
                         <div className="flex flex-wrap gap-2">
-                          {agent.skill_tools.filter(t => !['MCP','Available','Supported'].includes(t.name)).map((tool, j) => (
+                          {agent.skill_tools.filter(t => !['MCP','Available','Supported','x402','ERC-8183','ERC8183','Step','OKX','Network','REST'].includes(t.name)).map((tool, j) => (
                             <span key={j} className="px-2 py-1 rounded bg-primary/10 text-[10px] font-mono text-primary border border-primary/20 transition-colors">{tool.name.replace(/^nexus_/, 'xagent_')}</span>
                           ))}
                         </div>
@@ -1474,6 +1476,7 @@ export default function App() {
 
   const [page, setPageState] = useState<PageType>(getPageFromHash);
   const [theme, setTheme] = useState<'dark' | 'light'>('light');
+  const [marketTab, setMarketTab] = useState<'discover' | 'list'>('discover');
 
   // Sync page state with URL hash
   const setPage = (p: PageType) => {
@@ -1507,7 +1510,7 @@ export default function App() {
 
   return (
     <div className={`min-h-screen flex flex-col selection:bg-primary selection:text-white transition-colors duration-300 ${theme}`}>
-      <Navbar lang={lang} setLang={setLang} page={page} setPage={setPage} theme={theme} setTheme={setTheme} />
+      <Navbar lang={lang} setLang={setLang} page={page} setPage={setPage} setMarketTab={setMarketTab} theme={theme} setTheme={setTheme} />
       
       <main className="flex-1">
         <AnimatePresence mode="wait">
@@ -1534,7 +1537,7 @@ export default function App() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
-              <MarketPage lang={lang} />
+              <MarketPage lang={lang} initialTab={marketTab} />
             </motion.div>
           ) : page === 'privacy' ? (
             <motion.div

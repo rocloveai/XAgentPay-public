@@ -1,139 +1,194 @@
 ---
 name: xagent-hotel
 version: "2.0.0"
-description: Hotel booking MCP agent — search hotels, generate NUPS quotes, verify on-chain payments. Supports x402 payment protocol.
-merchant_did: "did:xagent:196:demo_hotel"
-protocol: NUPS/1.5
+description: Hotel booking agent — search free, purchase with x402 payment on XLayer
+merchant_did: "did:xagent:20250407:demo_hotel"
+protocol: x402/2
 category: travel.hotels
 currencies: [USDC]
 chain_id: 196
+payment_address: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
 x402:
   version: 2
   scheme: exact
   network: "eip155:196"
   asset: "0x74b7F16337b8972027F6196A17a631aC6dE26d22"
   assetTransferMethod: eip3009
-  description: "Supports x402 payment protocol. Tools accept payment via _meta['x402/payment']."
 tools:
   - name: search_and_quote
-    role: search+quote+x402
+    role: search (free)
   - name: search_hotels
-    role: search
-  - name: xagent_generate_quote
-    role: quote+x402
-  - name: xagent_check_status
-    role: status
+    role: search (free)
+  - name: purchase_hotel
+    role: purchase (x402)
 ---
 
-# XAgent Pay Hotel Agent — MCP Skill
+# XAgent Hotel Booking
 
-Hotel booking merchant agent powered by XAgent Pay. Searches hotels across popular cities (Tokyo, Singapore, Shanghai, Bangkok, Hong Kong), generates NUPS payment quotes, and verifies on-chain payments.
+Hotel booking on XLayer. **Search is free. Purchase uses x402 on-chain payment.**
 
-> For HTTP REST API docs (no MCP client required), see [skill-user.md](https://xagenpay.com/hotel/skill-user.md).
+---
 
-## MCP Connection
+## MCP Connection (Recommended)
+
+Add to your MCP config to use tool calls directly:
 
 ```json
 {
   "mcpServers": {
-    "hotel-agent": {
+    "xagent-hotel": {
       "url": "https://xagenpay.com/hotel/mcp"
     }
   }
 }
 ```
 
-Transport: **Streamable HTTP** (stateless, single `POST /mcp` per request).
+Then call tools: `search_and_quote`, `search_hotels`, `purchase_hotel`
 
-## Available Tools
+---
 
-### `search_and_quote` (role: search+quote+x402) — Recommended
+## OKX Onchain OS — Complete Workflow
 
-Search hotels AND generate a NUPS quote in one call. Fastest way to get a hotel quote. Supports **x402 payment protocol** — include `_meta["x402/payment"]` with a signed EIP-3009 `transferWithAuthorization` to pay and receive the booking confirmation instantly.
+If you have OKX Onchain OS skills loaded, follow this exact sequence:
 
-**Parameters:**
+### Step 1 — Search hotels (FREE, no payment)
 
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `city` | string | Yes | City name (e.g. `Tokyo`, `Singapore`, `Bangkok`, `Shanghai`) |
-| `check_in` | string | Yes | Check-in date in `YYYY-MM-DD` format |
-| `check_out` | string | Yes | Check-out date in `YYYY-MM-DD` format |
-| `guests` | number | No | Number of guests, 1-10. Default: `1` |
-| `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
-| `offer_index` | number | No | Zero-based index of hotel to quote (default: `0`). Call again with a different index to re-quote |
-
-**Returns:** All available hotels + a ready-to-use `QUOTE_JSON` for the selected hotel.
-
-**Example:**
-```
-search_and_quote({ city: "Tokyo", check_in: "2026-04-01", check_out: "2026-04-03", payer_wallet: "0x..." })
+```bash
+curl -X GET "https://xagenpay.com/hotel/api/search?city=Bangkok&checkin=2026-03-26&checkout=2026-03-28&guests=1"
 ```
 
+Or POST:
+```bash
+curl -X POST https://xagenpay.com/hotel/api/search \
+  -H "Content-Type: application/json" \
+  -d '{"city":"Bangkok","check_in":"2026-03-26","check_out":"2026-03-28","guests":1}'
+```
+
+Response:
+```json
+{
+  "hotels": {
+    "offers": [
+      { "offer_id": "HTL-abc123", "hotel_name": "Sukhumvit Grand Hotel",
+        "star_rating": 4, "location": "Sukhumvit, Bangkok",
+        "room_type": "Deluxe Room",
+        "price_per_night": { "amount": "0.10", "currency": "USDC" },
+        "amenities": ["WiFi", "Pool", "Breakfast"] }
+    ],
+    "nights": 2
+  },
+  "text": "Hotels in Bangkok (2026-03-26 to 2026-03-28, 2 nights, 1 guest(s)):\n..."
+}
+```
+
+**Pick an offer_id from the response.**
+
+### Step 2 — Trigger purchase to get payment requirement
+
+```bash
+curl -X POST https://xagenpay.com/hotel/api/purchase/hotels \
+  -H "Content-Type: application/json" \
+  -d '{"hotel_id":"HTL-abc123","payer_wallet":"0xYOUR_WALLET"}'
+```
+
+Response: **HTTP 402** with base64-encoded body:
+```
+eyJ4NDAyVmVyc2lvbiI6MiwiYWNjZXB0cyI6W3sic2NoZW1lIjoiZXhhY3QiLCJuZXR3b3JrIjoiZWlwMTU1OjE5NiIs...
+```
+
+Decode it:
+```json
+{
+  "x402Version": 2,
+  "accepts": [{
+    "scheme": "exact",
+    "network": "eip155:196",
+    "asset": "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
+    "amount": "200000",
+    "payTo": "0xac9d5239b597f8903da93b9b8d92e6cff564e989",
+    "maxTimeoutSeconds": 300
+  }]
+}
+```
+
+### Step 3 — Sign with OKX Onchain OS
+
+```bash
+onchainos payment x402-pay \
+  --network eip155:196 \
+  --amount 200000 \
+  --pay-to 0xac9d5239b597f8903da93b9b8d92e6cff564e989 \
+  --asset 0x74b7F16337b8972027F6196A17a631aC6dE26d22 \
+  --max-timeout-seconds 300
+```
+
+Returns: `{ "signature": "0x...", "authorization": { "from": "0x...", "to": "0x...", ... } }`
+
+### Step 4 — Assemble PAYMENT-SIGNATURE header
+
+```javascript
+const decoded = JSON.parse(atob(http402Body));
+const paymentPayload = { ...decoded, payload: { signature, authorization } };
+const headerValue = btoa(JSON.stringify(paymentPayload));
+```
+
+### Step 5 — Replay with payment
+
+```bash
+curl -X POST https://xagenpay.com/hotel/api/purchase/hotels \
+  -H "Content-Type: application/json" \
+  -H "PAYMENT-SIGNATURE: <headerValue>" \
+  -d '{"hotel_id":"HTL-abc123","payer_wallet":"0xYOUR_WALLET"}'
+```
+
+Response: **HTTP 200**
+```json
+{
+  "status": "booked",
+  "confirmation": "HTL-K3X9P",
+  "hotel": { "hotel_name": "Sukhumvit Grand Hotel", "location": "Sukhumvit, Bangkok" },
+  "nights": 2,
+  "price_paid_usdc": "0.20",
+  "payment_tx": "0xabc...",
+  "network": "eip155:196"
+}
+```
+
 ---
 
-### `search_hotels` (role: search)
+## MCP Tool Reference
 
-Search available hotels. Use `search_and_quote` instead for faster flow.
+### `search_and_quote` / `search_hotels` — FREE
 
-**Parameters:**
+```typescript
+search_and_quote({ city: "Bangkok", check_in: "2026-03-26", check_out: "2026-03-28", guests: 1 })
+```
 
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `city` | string | Yes | City name |
-| `check_in` | string | Yes | Check-in date `YYYY-MM-DD` |
-| `check_out` | string | Yes | Check-out date `YYYY-MM-DD` |
-| `guests` | number | No | Default: `1` |
+Returns hotel list with offer IDs, star ratings, prices, and amenities. No payment required.
 
----
+### `purchase_hotel` — x402 Payment
 
-### `xagent_generate_quote` (role: quote)
+```typescript
+purchase_hotel({ hotel_id: "HTL-abc123", payer_wallet: "0x..." })
+```
 
-Generate a NUPS quote for a selected hotel offer. Use `search_and_quote` instead for faster flow.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `hotel_offer_id` | string | Yes | The `offer_id` from `search_hotels` results |
-| `payer_wallet` | string | Yes | Payer's EVM wallet address (`0x...`, 42 chars) |
+- **First call (no `_meta["x402/payment"]`)** — returns PaymentRequired with exact USDC price (nightly rate × nights)
+- **Second call (with `_meta["x402/payment"]` containing signed EIP-3009)** — on-chain settlement + booking confirmation
 
 ---
-
-### `xagent_check_status` (role: status)
-
-Checks the payment status of a hotel order.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|------|------|----------|-------------|
-| `order_ref` | string | Yes | The order reference (e.g. `HTL-...`) |
-
-**Returns:** Order status (`UNPAID` / `PAID` / `EXPIRED`), amount, summary, timestamps.
-
-## Checkout Workflow
-
-**Fast path (recommended):**
-1. **Search + Quote** — Call `search_and_quote` with city, dates, and payer wallet. Returns hotels + ready-to-use quote.
-2. **Pay** — Call `xagent_orchestrate_payment` on XAgent Pay Core with the `QUOTE_JSON` from step 1. Multiple quotes from different merchants can be combined into a single call.
-3. **Verify** — Call `xagent_check_status` to verify. Only confirm booking when status is `PAID`.
-
-## x402 Payment Protocol
-
-This agent supports the **x402 payment protocol** (v2) for direct on-chain payments via MCP tool calls.
-
-**How it works:**
-1. Call `search_and_quote` without payment → returns search results + `PaymentRequired` (402)
-2. Sign an EIP-3009 `transferWithAuthorization` with the payment details
-3. Call `search_and_quote` again with `_meta["x402/payment"]` containing the signed authorization
-4. Agent verifies signature → settles on-chain → returns results + `_meta["x402/payment-response"]` with TX hash
-
-**Payment Details:**
-- Network: XLayer (eip155:196)
-- Asset: USDC (`0x74b7F16337b8972027F6196A17a631aC6dE26d22`)
-- Method: EIP-3009 `transferWithAuthorization`
-- Amount: 0.10 USDC (demo)
 
 ## Supported Cities
 
 Tokyo, Singapore, Shanghai, Bangkok, Hong Kong, and other major Asia-Pacific destinations.
+
+---
+
+## Network & Payment
+
+| Field | Value |
+|-------|-------|
+| Network | XLayer Mainnet (eip155:196) |
+| Payment Token | USDC `0x74b7F16337b8972027F6196A17a631aC6dE26d22` |
+| Merchant | `0xac9d5239b597f8903da93b9b8d92e6cff564e989` |
+| Method | EIP-3009 `transferWithAuthorization` |
+| Price | 0.10 USDC/night × nights (demo) |

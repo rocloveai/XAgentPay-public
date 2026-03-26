@@ -5,10 +5,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 import { loadConfig } from "./config.js";
 import { searchHotels } from "./services/hotel-search.js";
-import { buildQuote } from "./services/quote-builder.js";
-import { createOrder, getOrder, newOrderRef } from "./services/order-store.js";
 import { initPool, closePool } from "./services/db/pool.js";
-import { startReconciler, stopReconciler } from "./services/reconciler.js";
 import {
   startPortal,
   registerMcpHandler,
@@ -23,8 +20,10 @@ import {
   buildPaymentRequiredResult,
   buildPaidToolResult,
   processX402Payment,
-  formatUsdcAmount,
   type X402ToolConfig,
+  buildHTTP402Body,
+  extractHTTPPayment,
+  processHTTPPayment,
 } from "@xagentpay/x402";
 import type { HotelOffer } from "./types.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
@@ -38,12 +37,6 @@ if (config.databaseUrl) {
 } else {
   console.error("Warning: DATABASE_URL not set. Using in-memory storage only.");
 }
-
-// Start reconciler (checks for UNPAID orders that xagent-core shows as paid)
-startReconciler({
-  xagentCoreUrl: config.xagentCoreUrl,
-  merchantDid: config.merchantDid,
-});
 
 // Auto-register with xagent-core so webhooks work immediately on startup
 async function registerWithXAgentCore() {
@@ -131,235 +124,36 @@ async function handleSearchHotels(
   return {
     text:
       `Hotels in ${city} (${check_in} to ${check_out}, ${nights} nights, ${guests} guest(s)):\n\n` +
-      lines.join("\n\n"),
+      lines.join("\n\n") +
+      "\n\nTo book a hotel: call purchase_hotel(hotel_id=\"<offer_id>\", payer_wallet=\"<wallet>\")",
     data: { offers, nights },
-  };
-}
-
-async function handleGenerateQuote(
-  cache: Map<string, HotelCacheEntry>,
-  {
-    hotel_offer_id,
-    payer_wallet,
-  }: {
-    hotel_offer_id: string;
-    payer_wallet: string;
-  },
-) {
-  const cached = cache.get(hotel_offer_id);
-  if (!cached) {
-    throw new Error(
-      `Hotel offer "${hotel_offer_id}" not found. Please search for hotels first.`,
-    );
-  }
-
-  const { offer, nights } = cached;
-  const orderRef = newOrderRef();
-  const roomTotal = (parseFloat(offer.price_per_night.amount) * nights).toFixed(
-    2,
-  );
-  const taxAmount = (parseFloat(roomTotal) * 0.1).toFixed(2);
-  const serviceCharge = (parseFloat(roomTotal) * 0.05).toFixed(2);
-  const totalAmount = (
-    parseFloat(roomTotal) +
-    parseFloat(taxAmount) +
-    parseFloat(serviceCharge)
-  ).toFixed(2);
-
-  const quote = await buildQuote({
-    merchantDid: config.merchantDid,
-    orderRef,
-    amount: totalAmount,
-    currency: "USDC",
-    summary: `${offer.hotel_name} (${offer.city}) - ${nights} night(s)`,
-    lineItems: [
-      {
-        name: `${offer.room_type} x ${nights} night(s)`,
-        qty: nights,
-        amount: offer.price_per_night.amount,
-      },
-      { name: "Tax (10%)", qty: 1, amount: taxAmount },
-      { name: "Service Charge (5%)", qty: 1, amount: serviceCharge },
-    ],
-    payerWallet: payer_wallet,
-    signerPrivateKey: config.signerPrivateKey,
-  });
-
-  const order = await createOrder(quote);
-
-  const ucpCheckoutResponse = {
-    ucp: {
-      version: "2026-01-11",
-      payment_handlers: {
-        "urn:ucp:payment:xagent_v1": [
-          {
-            id: "xagent_handler_1",
-            version: "v1",
-            config: quote,
-            xagent_core: {
-              skill_url: `${config.xagentCoreUrl}/skill-user.md`,
-              mcp_endpoint: `${config.xagentCoreUrl}/mcp`,
-              orchestrate_url: `${config.xagentCoreUrl}/api/orchestrate`,
-              orchestrate_body: {
-                quotes: [quote],
-                payer_wallet,
-              },
-              prompt:
-                "REQUIRED: To complete this payment, POST the orchestrate_body to orchestrate_url. " +
-                "The response contains a checkout_url — present ONLY that URL to the user. " +
-                "Do NOT construct URLs yourself or show raw JSON to the user. " +
-                "If you have multiple xagent_v1 quotes, combine all config objects into the quotes array before calling orchestrate.",
-            },
-          },
-        ],
-      },
-    },
-    id: order.order_ref,
-    status: "ready_for_complete",
-    currency: "USDC",
-    totals: [
-      {
-        type: "total",
-        amount: quote.amount,
-      },
-    ],
-  };
-
-  // Compact quote JSON — agent collects these and passes to orchestrate
-  const quoteJson = JSON.stringify(quote);
-
-  return {
-    text:
-      `[QUOTE] ${offer.hotel_name} (${offer.city}) - ${nights} night(s) | ${(Number(quote.amount) / 1e6).toFixed(2)} USDC | ref:${order.order_ref}\n` +
-      `QUOTE_JSON: ${quoteJson}\n` +
-      `PAYER: ${payer_wallet}\n\n` +
-      `Collect all QUOTE_JSON values, then call:\n` +
-      `xagent_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
-    data: ucpCheckoutResponse,
-    order_ref: order.order_ref,
   };
 }
 
 async function handleSearchAndQuote(
   cache: Map<string, HotelCacheEntry>,
-  {
-    city,
-    check_in,
-    check_out,
-    guests,
-    payer_wallet,
-    offer_index,
-  }: {
-    city: string;
-    check_in: string;
-    check_out: string;
-    guests: number;
-    payer_wallet: string;
-    offer_index?: number;
-  },
+  args: { city: string; check_in: string; check_out: string; guests: number },
 ) {
-  // Step 1: Search
-  const { offers, nights, error } = await searchHotels({
-    city,
-    check_in,
-    check_out,
-    guests,
-  });
-
-  if (offers.length === 0) {
-    throw new Error(error ?? "No hotels found for this city.");
-  }
-
-  for (const offer of offers) {
-    cache.set(offer.offer_id, { offer, nights });
-  }
-
-  // Step 2: Auto-quote the selected (or cheapest) offer
-  const idx = offer_index ?? 0;
-  const selected =
-    idx >= 0 && idx < offers.length
-      ? offers[idx]
-      : [...offers].sort(
-          (a, b) =>
-            parseFloat(a.price_per_night.amount) -
-            parseFloat(b.price_per_night.amount),
-        )[0];
-
-  const orderRef = newOrderRef();
-  const roomTotal = (
-    parseFloat(selected.price_per_night.amount) * nights
-  ).toFixed(2);
-  const taxAmount = (parseFloat(roomTotal) * 0.1).toFixed(2);
-  const serviceCharge = (parseFloat(roomTotal) * 0.05).toFixed(2);
-  const totalAmount = (
-    parseFloat(roomTotal) +
-    parseFloat(taxAmount) +
-    parseFloat(serviceCharge)
-  ).toFixed(2);
-
-  const quote = await buildQuote({
-    merchantDid: config.merchantDid,
-    orderRef,
-    amount: totalAmount,
-    currency: "USDC",
-    summary: `${selected.hotel_name} (${selected.city}) - ${nights} night(s)`,
-    lineItems: [
-      {
-        name: `${selected.room_type} x ${nights} night(s)`,
-        qty: nights,
-        amount: selected.price_per_night.amount,
-      },
-      { name: "Tax (10%)", qty: 1, amount: taxAmount },
-      { name: "Service Charge (5%)", qty: 1, amount: serviceCharge },
-    ],
-    payerWallet: payer_wallet,
-    signerPrivateKey: config.signerPrivateKey,
-  });
-
-  // Fire-and-forget — DB insert doesn't block the response
-  createOrder(quote).catch((err) =>
-    console.error(`createOrder failed for ${orderRef}:`, err.message),
-  );
-  const quoteJson = JSON.stringify(quote);
-
-  // Build compact options list + selected quote
-  const stars = (n: number) => "\u2605".repeat(n) + "\u2606".repeat(5 - n);
-  const optionLines = offers.map(
-    (o, i) =>
-      `${i === idx ? "→" : " "} ${i + 1}. ${o.hotel_name} ${stars(o.star_rating)} ${o.price_per_night.amount} ${o.price_per_night.currency}/night`,
-  );
-
-  return {
-    text:
-      `Hotels in ${city} (${check_in} to ${check_out}, ${nights} nights):\n` +
-      optionLines.join("\n") +
-      `\n\n[QUOTE] ${selected.hotel_name} (${nights} nights) | ${(Number(quote.amount) / 1e6).toFixed(2)} USDC | ref:${orderRef}\n` +
-      `QUOTE_JSON: ${quoteJson}\n` +
-      `PAYER: ${payer_wallet}\n\n` +
-      `To select a different hotel, call search_and_quote again with offer_index=N.\n` +
-      `When all quotes are ready, call:\n` +
-      `xagent_orchestrate_payment({ quotes_json: "[" + all_quotes_joined_by_comma + "]", payer_wallet: "${payer_wallet}" })`,
-    data: { offers, nights, selectedIndex: idx, quote },
-    order_ref: orderRef,
-  };
+  return handleSearchHotels(cache, args);
 }
 
-async function handleCheckStatus({ order_ref }: { order_ref: string }) {
-  const order = await getOrder(order_ref);
-  if (!order) {
-    throw new Error(`Order "${order_ref}" not found.`);
+async function handlePurchaseHotel(
+  cache: Map<string, HotelCacheEntry>,
+  { hotel_id, payer_wallet }: { hotel_id: string; payer_wallet: string },
+): Promise<{ text: string; priceAtomic: string; offer: HotelOffer; nights: number; totalAmount: string }> {
+  const cached = cache.get(hotel_id);
+  if (!cached) {
+    throw new Error(`Hotel offer "${hotel_id}" not found. Please search for hotels first.`);
   }
-
+  const { offer, nights } = cached;
+  const totalAmount = (parseFloat(offer.price_per_night.amount) * nights).toFixed(2);
+  const priceAtomic = String(Math.round(parseFloat(totalAmount) * 1_000_000));
   return {
-    text:
-      `Order Status\n` +
-      `Ref: ${order.order_ref}\n` +
-      `Status: ${order.status}\n` +
-      `Amount: ${order.quote_payload.amount} ${order.quote_payload.currency}\n` +
-      `Summary: ${order.quote_payload.context.summary}\n` +
-      `Created: ${order.created_at}\n` +
-      `Updated: ${order.updated_at}`,
-    data: order,
+    text: `${offer.hotel_name} ${offer.location} | ${offer.city} | ${nights} nights | ${totalAmount} USDC`,
+    priceAtomic,
+    offer,
+    nights,
+    totalAmount,
   };
 }
 
@@ -372,284 +166,96 @@ function createMcpServer(): McpServer {
     version: "2.0.0",
   });
 
-  // ── x402 Payment Configuration ──────────────────────────────────────────
-  const x402Config: X402ToolConfig = {
-    toolName: "search_and_quote",
-    priceUsdcAtomic: config.x402PriceAtomic,
-    payTo: config.paymentAddress,
-    resourceDescription: "Hotel booking on XLayer",
-    signerPrivateKey: config.relayerPrivateKey,
-  };
-
-  // ── Tool: search_hotels ─────────────────────────────────────────────────────
-
-  srv.tool(
-    "search_hotels",
-    "Search available hotels in a city. Returns a list of hotel offers with nightly rates.",
-    {
-      city: z
-        .string()
-        .describe("City name (e.g. Tokyo, Singapore, Bangkok, Shanghai)"),
-      check_in: z.string().describe("Check-in date in YYYY-MM-DD format"),
-      check_out: z.string().describe("Check-out date in YYYY-MM-DD format"),
-      guests: z
-        .number()
-        .int()
-        .min(1)
-        .max(10)
-        .default(1)
-        .describe("Number of guests (1-10)"),
-    },
-    async ({ city, check_in, check_out, guests }) => {
-      try {
-        const result = await handleSearchHotels(sessionOfferCache, {
-          city,
-          check_in,
-          check_out,
-          guests,
-        });
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-        };
-      } catch (err: any) {
-        return {
-          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // ── Tool: search_and_quote (FAST PATH + x402 Payment) ───────────────────
+  // ── Tool: search_and_quote (FREE) ─────────────────────────────────────────
 
   srv.tool(
     "search_and_quote",
-    "Search hotels AND generate a quote in ONE call. " +
-      "Supports x402 payment protocol — include _meta['x402/payment'] with a signed EIP-3009 " +
-      "transferWithAuthorization to pay and book instantly. " +
-      "Without payment, returns hotels + PaymentRequired info.",
+    "Search available hotels in a city. Returns a list of hotel offers with nightly rates. FREE — no payment required for search.",
     {
-      city: z
-        .string()
-        .describe("City name (e.g. Tokyo, Singapore, Bangkok, Shanghai)"),
+      city: z.string().describe("City name (e.g. Tokyo, Singapore, Bangkok, Shanghai)"),
       check_in: z.string().describe("Check-in date in YYYY-MM-DD format"),
       check_out: z.string().describe("Check-out date in YYYY-MM-DD format"),
-      guests: z
-        .number()
-        .int()
-        .min(1)
-        .max(10)
-        .default(1)
-        .describe("Number of guests (1-10)"),
-      payer_wallet: z
-        .string()
-        .regex(/^0x[a-fA-F0-9]{40}$/)
-        .describe("Payer's EVM wallet address (0x...)"),
-      offer_index: z
-        .number()
-        .int()
-        .min(0)
-        .optional()
-        .describe(
-          "Zero-based index of the hotel to quote (default: 0 = cheapest). Use this to pick a different hotel after seeing options.",
-        ),
+      guests: z.number().int().min(1).max(10).default(1).describe("Number of guests (1-10)"),
     },
-    async (
-      { city, check_in, check_out, guests, payer_wallet, offer_index },
-      extra,
-    ) => {
+    async ({ city, check_in, check_out, guests }) => {
       try {
-        const result = await handleSearchAndQuote(sessionOfferCache, {
-          city,
-          check_in,
-          check_out,
-          guests,
-          payer_wallet,
-          offer_index,
-        });
-
-        // Check for x402 payment
-        const payment = extractX402Payment(
-          (extra as any)?._meta ?? (extra as any)?.meta,
-        );
-
-        if (!payment) {
-          const pr = buildPaymentRequired(x402Config);
-          return buildPaymentRequiredResult(pr, result.text);
-        }
-
-        // Payment present — verify + settle
-        const payResult = await processX402Payment(payment, x402Config);
-        if ("error" in payResult) {
-          return buildPaymentRequiredResult(payResult.error, result.text);
-        }
-
-        const paidText =
-          `✅ Payment settled on XLayer!\n` +
-          `TX: ${payResult.settled.transaction}\n` +
-          `Amount: ${formatUsdcAmount(x402Config.priceUsdcAtomic)}\n` +
-          `Payer: ${payResult.settled.payer ?? payer_wallet}\n\n` +
-          result.text;
-
-        return buildPaidToolResult(paidText, payResult.settled);
+        const result = await handleSearchHotels(sessionOfferCache, { city, check_in, check_out, guests });
+        return { content: [{ type: "text" as const, text: result.text }] };
       } catch (err: any) {
-        return {
-          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
-          isError: true,
-        };
+        return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
       }
     },
   );
 
-  // ── Tool: xagent_generate_quote (+ x402 Payment) ────────────────────────
+  // ── Tool: search_hotels (FREE) ────────────────────────────────────────────
 
   srv.tool(
-    "xagent_generate_quote",
-    "Generates a XAgent Payment (NUPS) quote for a selected hotel offer. " +
-      "Supports x402 payment — include _meta['x402/payment'] to pay instantly. " +
-      "Use search_and_quote instead for faster flow.",
+    "search_hotels",
+    "Search available hotels. Returns hotel offers with offer IDs. FREE — no payment required.",
     {
-      hotel_offer_id: z
-        .string()
-        .describe("The offer_id from search_hotels results"),
-      payer_wallet: z
-        .string()
-        .regex(/^0x[a-fA-F0-9]{40}$/)
-        .describe("Payer's EVM wallet address (0x...)"),
+      city: z.string().describe("City name (e.g. Tokyo, Singapore, Bangkok, Shanghai)"),
+      check_in: z.string().describe("Check-in date in YYYY-MM-DD format"),
+      check_out: z.string().describe("Check-out date in YYYY-MM-DD format"),
+      guests: z.number().int().min(1).max(10).default(1).describe("Number of guests (1-10)"),
     },
-    async ({ hotel_offer_id, payer_wallet }, extra) => {
+    async ({ city, check_in, check_out, guests }) => {
       try {
-        const result = await handleGenerateQuote(sessionOfferCache, {
-          hotel_offer_id,
-          payer_wallet,
-        });
-
-        const payment = extractX402Payment(
-          (extra as any)?._meta ?? (extra as any)?.meta,
-        );
-
-        if (!payment) {
-          const quoteConfig: X402ToolConfig = { ...x402Config, toolName: "xagent_generate_quote" };
-          const pr = buildPaymentRequired(quoteConfig);
-          return buildPaymentRequiredResult(pr, result.text);
-        }
-
-        const payResult = await processX402Payment(payment, {
-          ...x402Config,
-          toolName: "xagent_generate_quote",
-        });
-
-        if ("error" in payResult) {
-          return buildPaymentRequiredResult(payResult.error, result.text);
-        }
-
-        const paidText =
-          `✅ Payment settled on XLayer!\n` +
-          `TX: ${payResult.settled.transaction}\n` +
-          `Amount: ${formatUsdcAmount(x402Config.priceUsdcAtomic)}\n` +
-          `Payer: ${payResult.settled.payer ?? payer_wallet}\n\n` +
-          result.text;
-
-        return buildPaidToolResult(paidText, payResult.settled);
+        const result = await handleSearchHotels(sessionOfferCache, { city, check_in, check_out, guests });
+        return { content: [{ type: "text" as const, text: result.text }] };
       } catch (err: any) {
-        return {
-          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
-          isError: true,
-        };
+        return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
       }
     },
   );
 
-  // ── Tool: xagent_check_status ────────────────────────────────────────────────
+  // ── Tool: purchase_hotel (x402 payment) ──────────────────────────────────
 
   srv.tool(
-    "xagent_check_status",
-    "Checks the payment status of a hotel order. Use this to verify if payment has been completed.",
+    "purchase_hotel",
+    "Purchase a hotel booking with x402 payment. Requires x402 EIP-3009 payment in _meta['x402/payment'] for the exact hotel price in USDC. First call returns payment requirements; include payment on second call to confirm booking.",
     {
-      order_ref: z.string().describe("The order reference (e.g. HTL-...)"),
+      hotel_id: z.string().describe("Hotel offer ID from search_and_quote results"),
+      payer_wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/).describe("Payer's EVM wallet address (0x...)"),
     },
-    async ({ order_ref }) => {
+    async ({ hotel_id, payer_wallet }, extra) => {
+      let info: Awaited<ReturnType<typeof handlePurchaseHotel>>;
       try {
-        const result = await handleCheckStatus({ order_ref });
-        return {
-          content: [{ type: "text" as const, text: result.text }],
-        };
+        info = await handlePurchaseHotel(sessionOfferCache, { hotel_id, payer_wallet });
       } catch (err: any) {
-        return {
-          content: [{ type: "text" as const, text: `Error: ${err.message}` }],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // ── Resource: order state ───────────────────────────────────────────────────
-
-  srv.resource(
-    "order-state",
-    "xagent://orders/{order_ref}/state",
-    { description: "Current state of a hotel order (RFC-003 compliant)" },
-    async (uri) => {
-      const orderRef = uri.pathname.split("/")[2] ?? "";
-      const order = await getOrder(orderRef);
-
-      if (!order) {
-        return {
-          contents: [
-            {
-              uri: uri.href,
-              mimeType: "application/json",
-              text: JSON.stringify({ error: "Order not found" }),
-            },
-          ],
-        };
+        return { content: [{ type: "text" as const, text: `Error: ${err.message}` }], isError: true };
       }
 
-      return {
-        contents: [
-          {
-            uri: uri.href,
-            mimeType: "application/json",
-            text: JSON.stringify({
-              order_ref: order.order_ref,
-              payment_status: order.status,
-              xagent_payment_id: null,
-              last_updated: order.updated_at,
-            }),
-          },
-        ],
+      const purchaseConfig: X402ToolConfig = {
+        toolName: "purchase_hotel",
+        priceUsdcAtomic: info.priceAtomic,
+        payTo: config.paymentAddress,
+        resourceDescription: info.text,
+        signerPrivateKey: config.relayerPrivateKey,
       };
+
+      const payment = extractX402Payment((extra as any)?._meta ?? (extra as any)?.meta);
+      if (!payment) {
+        return buildPaymentRequiredResult(buildPaymentRequired(purchaseConfig));
+      }
+
+      const payResult = await processX402Payment(payment, purchaseConfig);
+      if ("error" in payResult) {
+        return buildPaymentRequiredResult(payResult.error);
+      }
+
+      const confirmNum = `HTL-${Date.now().toString(36).toUpperCase()}`;
+      return buildPaidToolResult(
+        `✅ Hotel Booked!\n` +
+        `${info.offer.hotel_name}\n` +
+        `${info.offer.location}\n` +
+        `Check-in: ${info.offer.city} | Nights: ${info.nights}\n` +
+        `Price paid: ${info.totalAmount} USDC\n` +
+        `TX: ${payResult.settled.transaction}\n` +
+        `Confirmation: ${confirmNum}\n` +
+        `Payer: ${payer_wallet}`,
+        payResult.settled,
+      );
     },
-  );
-
-  // ── Prompt: checkout flow ───────────────────────────────────────────────────
-
-  srv.prompt(
-    "xagent_checkout_flow",
-    "Guided flow for searching hotels and generating a XAgent payment quote.",
-    {},
-    async () => ({
-      messages: [
-        {
-          role: "assistant" as const,
-          content: {
-            type: "text" as const,
-            text: [
-              "You are facilitating a hotel booking transaction using XAgent Protocol.",
-              "",
-              "Follow this workflow:",
-              "1. Ask the user for their destination city, check-in date, check-out date, and number of guests.",
-              "2. Call 'search_hotels' with the provided details.",
-              "3. Present the available hotels clearly to the user.",
-              "4. When the user selects a hotel, call 'xagent_generate_quote' with the offer_id.",
-              "5. Display the NUPS payment payload to the user.",
-              "6. If the user says they have paid, call 'xagent_check_status' to verify.",
-              "7. Only confirm the booking after verification returns 'PAID'.",
-            ].join("\n"),
-          },
-        },
-      ],
-    }),
   );
 
   return srv;
@@ -677,6 +283,121 @@ async function handleStatelessCall(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<boolean> {
+  const reqUrl = new URL(req.url ?? "/", "http://localhost");
+
+  // ── HTTP search endpoint (FREE — no x402 gate) ────────────────────────────
+  if (
+    reqUrl.pathname === "/api/search" ||
+    reqUrl.pathname === "/api/search/hotels"
+  ) {
+    // CORS preflight
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers":
+          "Content-Type, PAYMENT-SIGNATURE, X-PAYMENT",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      });
+      res.end();
+      return true;
+    }
+
+    let args: any;
+    if (req.method === "GET") {
+      // Support GET with query params: ?city=Bangkok&checkin=2026-03-26&checkout=2026-03-28&guests=1
+      args = {
+        city: reqUrl.searchParams.get("city") || "",
+        check_in: reqUrl.searchParams.get("checkin") || reqUrl.searchParams.get("check_in") || "",
+        check_out: reqUrl.searchParams.get("checkout") || reqUrl.searchParams.get("check_out") || "",
+        guests: parseInt(reqUrl.searchParams.get("guests") || "1"),
+      };
+    } else {
+      // POST with JSON body
+      const rawBody = await readBody(req);
+      args = JSON.parse(rawBody);
+    }
+
+    // Free search — no payment required
+    try {
+      const result = await handleSearchHotels(statelessOfferCache, args);
+      sendJson(res, 200, {
+        hotels: result.data,
+        text: result.text,
+        network: "eip155:196",
+      });
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message });
+    }
+    return true;
+  }
+
+  // ── HTTP purchase endpoint (x402 payment gate) ────────────────────────────
+  if (
+    reqUrl.pathname === "/api/purchase" ||
+    reqUrl.pathname === "/api/purchase/hotels"
+  ) {
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers":
+          "Content-Type, PAYMENT-SIGNATURE, X-PAYMENT",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+      });
+      res.end();
+      return true;
+    }
+
+    const rawBody = await readBody(req);
+    const args = JSON.parse(rawBody);
+
+    let info: Awaited<ReturnType<typeof handlePurchaseHotel>>;
+    try {
+      info = await handlePurchaseHotel(statelessOfferCache, args);
+    } catch (err: any) {
+      sendJson(res, 400, { error: err.message });
+      return true;
+    }
+
+    const httpConfig = {
+      toolName: "purchase_hotel",
+      priceUsdcAtomic: info.priceAtomic,
+      payTo: config.paymentAddress,
+      resourceDescription: info.text,
+      signerPrivateKey: config.relayerPrivateKey,
+    };
+    const http402Body = buildHTTP402Body(httpConfig);
+
+    const payment = extractHTTPPayment(req.headers as any);
+    if (!payment) {
+      console.error("[purchase_hotel] No payment header found. Headers:", JSON.stringify(Object.keys(req.headers)));
+      res.writeHead(402, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*", "X-402-Reason": "no-payment-header" });
+      res.end(http402Body);
+      return true;
+    }
+
+    console.error("[purchase_hotel] Payment header found, processing...");
+    const payResult = await processHTTPPayment(payment, httpConfig);
+    if (!payResult.success) {
+      console.error("[purchase_hotel] Payment failed:", payResult.error);
+      res.writeHead(402, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*", "X-402-Reason": payResult.error ?? "payment-failed" });
+      res.end(http402Body);
+      return true;
+    }
+
+    const confirmNum = `HTL-${Date.now().toString(36).toUpperCase()}`;
+    sendJson(res, 200, {
+      status: "booked",
+      confirmation: confirmNum,
+      hotel: info.offer,
+      nights: info.nights,
+      price_paid_usdc: (Number(info.priceAtomic) / 1e6).toFixed(2),
+      payment_tx: payResult.settled.transaction,
+      network: "eip155:196",
+    });
+    return true;
+  }
+
+  // ── existing stateless handler ─────────────────────────────────────────────
   try {
     const rawBody = await readBody(req);
     const { tool, arguments: args } = JSON.parse(rawBody);
@@ -686,10 +407,18 @@ async function handleStatelessCall(
       result = await handleSearchHotels(statelessOfferCache, args);
     } else if (tool === "search_and_quote") {
       result = await handleSearchAndQuote(statelessOfferCache, args);
-    } else if (tool === "xagent_generate_quote") {
-      result = await handleGenerateQuote(statelessOfferCache, args);
-    } else if (tool === "xagent_check_status") {
-      result = await handleCheckStatus(args);
+    } else if (tool === "purchase_hotel") {
+      const info = await handlePurchaseHotel(statelessOfferCache, args);
+      sendJson(res, 402, {
+        message: "Payment required",
+        offer: info.text,
+        price_usdc: (Number(info.priceAtomic) / 1e6).toFixed(2),
+        price_atomic: info.priceAtomic,
+        pay_to: config.paymentAddress,
+        network: "eip155:196",
+        asset: "0x74b7F16337b8972027F6196A17a631aC6dE26d22",
+      });
+      return true;
     } else {
       sendJson(res, 400, { error: `Unknown tool: ${tool}` });
       return true;
@@ -730,7 +459,6 @@ async function startHttpMode() {
 }
 
 process.on("SIGTERM", () => {
-  stopReconciler();
   closePool().catch(() => {});
 });
 
