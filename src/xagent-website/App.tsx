@@ -292,7 +292,10 @@ const ApiKeysSection = ({ lang }: { lang: Language }) => {
                   <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
                     <Icon className="w-6 h-6" />
                   </div>
-                  <span className="px-2 py-1 rounded-md bg-black/5 dark:bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{card.tag}</span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="px-2 py-1 rounded-md bg-black/5 dark:bg-white/5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">{card.tag}</span>
+                    {i === 2 && <span className="px-2 py-1 rounded-md bg-slate-200/60 dark:bg-slate-700/60 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">In Development</span>}
+                  </div>
                 </div>
                 <div>
                   <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white transition-colors">{card.title}</h3>
