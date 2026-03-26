@@ -8,6 +8,10 @@ XAgent Pay is a payment infrastructure protocol that lets AI agents transact aut
 
 ## Proven Demo
 
+[![XAgent Pay Demo — OKX AI Agent books a full trip with x402 on XLayer](https://img.youtube.com/vi/HtaIoYbf2uo/maxresdefault.jpg)](https://youtu.be/HtaIoYbf2uo)
+
+> **0:00** — XAgent Pay overview &nbsp;|&nbsp; **2:15** — Live demo: OKX Onchain OS × x402 payment
+
 An OKX AI Agent (Eva) completed a full Bangkok travel itinerary — search, payment, and confirmation — with zero human interaction:
 
 | Item | Confirmation | Status |
