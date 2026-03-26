@@ -38,7 +38,7 @@ export const translations = {
       },
       card3: {
         title: "ERC-8183 Escrow",
-        tag: "In Development",
+        tag: "Agentic Commerce",
         desc: "Beyond identity — agents lock funds in on-chain escrow, deliver services, and settle only after third-party verification. Trustless commerce between machines.",
       }
     },
@@ -439,7 +439,7 @@ export const translations = {
       },
       card3: {
         title: "ERC-8183 托管",
-        tag: "开发中",
+        tag: "代理商务",
         desc: "超越身份认证 — 代理将资金锁入链上托管，交付服务后经第三方验证才释放。机器之间的无信任商务。",
       }
     },
@@ -840,7 +840,7 @@ export const translations = {
       },
       card3: {
         title: "ERC-8183 エスクロー",
-        tag: "開発中",
+        tag: "エージェントコマース",
         desc: "ID を超えて — エージェントがオンチェーンエスクローに資金をロックし、サービス提供後に第三者検証を経て初めて決済。マシン間のトラストレスコマース。",
       }
     },
@@ -1241,7 +1241,7 @@ export const translations = {
       },
       card3: {
         title: "ERC-8183 เอสโครว์",
-        tag: "กำลังพัฒนา",
+        tag: "เอเยนต์คอมเมิร์ซ",
         desc: "มากกว่าตัวตน — เอเยนต์ล็อกเงินในเอสโครว์ออนเชน ส่งมอบบริการ และชำระเงินหลังจากผ่านการตรวจสอบจากบุคคลที่สามเท่านั้น คอมเมิร์ซไร้ความไว้วางใจระหว่างเครื่องจักร",
       }
     },
