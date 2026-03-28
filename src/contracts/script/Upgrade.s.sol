@@ -6,20 +6,26 @@ import {XAgentPayEscrow} from "../src/XAgentPayEscrow.sol";
 
 /**
  * @title Upgrade
- * @notice Upgrades XAgentPayEscrow proxy to v4.0.0 and configures new storage.
+ * @notice Upgrades XAgentPayEscrow proxy to v4.1.0 with security fixes.
  *
- * v4.0.0 adds:
- *   - arbitrationTimeout (H-01 fix)
- *   - requireGroupSig + group signature verification
- *   - feeBps snapshot (L-04 fix)
- *   - MAX_BATCH_SIZE (M-02 fix)
- *   - RESOLVED_SPLIT status (M-03 fix)
+ * v4.1.0 adds:
+ *   - H8: arbitrationTimeout in initialize()
+ *   - M7: __gap storage slots
+ *   - M8: 48-hour timelock on upgrades
+ *   - 4b: release() blocked during dispute window
+ *   - 4c: requireGroupSig defaults to true
+ *
+ * IMPORTANT: v4.1.0 introduces upgrade timelock. This script is a
+ * two-step process:
+ *   Step 1: Run with MODE=schedule to deploy new impl and schedule upgrade
+ *   Step 2: Wait 48 hours, then run with MODE=execute to finalize
  *
  * Usage:
  *   DEPLOYER_PRIVATE_KEY=0x...
  *   PROXY_ADDRESS=0x...
+ *   MODE=schedule  # or "execute"
  *   forge script script/Upgrade.s.sol:Upgrade \
- *     --rpc-url platon_devnet \
+ *     --rpc-url xlayer_mainnet \
  *     --broadcast
  */
 contract Upgrade is Script {
@@ -32,31 +38,42 @@ contract Upgrade is Script {
     function run() external {
         uint256 deployerPk = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address proxyAddr = vm.envAddress("PROXY_ADDRESS");
+        string memory mode = vm.envOr("MODE", string("schedule"));
 
         vm.startBroadcast(deployerPk);
 
-        // 1. Deploy new implementation
-        XAgentPayEscrow newImpl = new XAgentPayEscrow();
-
-        // 2. Upgrade proxy to new implementation
         XAgentPayEscrow proxy = XAgentPayEscrow(proxyAddr);
-        proxy.upgradeToAndCall(address(newImpl), "");
 
-        // 3. Configure new v4 storage (not in initialize, set via admin calls)
-        proxy.setArbitrationTimeout(ARBITRATION_TIMEOUT);
+        if (keccak256(bytes(mode)) == keccak256("schedule")) {
+            // Step 1: Deploy new implementation and schedule upgrade
+            XAgentPayEscrow newImpl = new XAgentPayEscrow();
 
-        // 4. Fix M-01: correct timeout values for PlatON ms timestamps
-        proxy.setDefaultReleaseTimeout(RELEASE_TIMEOUT_MS);
-        proxy.setDefaultDisputeWindow(DISPUTE_WINDOW_MS);
+            // Set arbitrationTimeout if not already set (H8 fix for existing deployment)
+            if (proxy.arbitrationTimeout() == 0) {
+                proxy.setArbitrationTimeout(ARBITRATION_TIMEOUT);
+                console.log("Set arbitrationTimeout:", ARBITRATION_TIMEOUT);
+            }
 
-        console.log("=== XAgentPayEscrow v4.0.0 Upgrade Complete ===");
-        console.log("Proxy:", proxyAddr);
-        console.log("New implementation:", address(newImpl));
-        console.log("Version:", proxy.VERSION());
-        console.log("arbitrationTimeout:", proxy.arbitrationTimeout());
-        console.log("defaultReleaseTimeout:", proxy.defaultReleaseTimeout());
-        console.log("defaultDisputeWindow:", proxy.defaultDisputeWindow());
-        console.log("requireGroupSig:", proxy.requireGroupSig());
+            // Schedule upgrade with 48-hour timelock
+            proxy.scheduleUpgrade(address(newImpl));
+
+            console.log("=== Upgrade Scheduled (48h timelock) ===");
+            console.log("Proxy:", proxyAddr);
+            console.log("New implementation:", address(newImpl));
+            console.log("Ready at:", proxy.pendingUpgradeReadyAt());
+        } else {
+            // Step 2: Execute the upgrade after timelock
+            address pendingImpl = proxy.pendingUpgradeImplementation();
+            require(pendingImpl != address(0), "No upgrade scheduled");
+
+            proxy.upgradeToAndCall(pendingImpl, "");
+
+            console.log("=== XAgentPayEscrow v4.1.0 Upgrade Complete ===");
+            console.log("Proxy:", proxyAddr);
+            console.log("Version:", proxy.VERSION());
+            console.log("arbitrationTimeout:", proxy.arbitrationTimeout());
+            console.log("requireGroupSig:", proxy.requireGroupSig());
+        }
 
         vm.stopBroadcast();
     }

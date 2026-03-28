@@ -30,7 +30,12 @@ import {
   Moon,
   FileText,
   Sparkles,
-  Copy
+  Copy,
+  Plane,
+  Car,
+  TrendingUp,
+  Bot,
+  Wallet
 } from 'lucide-react';
 import RevenueFlowAnimation from './components/RevenueFlowAnimation';
 import { translations, Language } from './i18n/translations';
@@ -56,7 +61,7 @@ const Navbar = ({ lang, setLang, page, setPage, setMarketTab, theme, setTheme }:
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setPage('home')}>
-            <img src="/LOGO.png" alt="XAgent Pay" className="w-10 h-10 object-contain" />
+            <img src="/LOGO.png" alt="XAgent Pay" className="w-12 h-12 flex-shrink-0 object-contain" />
             <div className="flex flex-col">
               <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{t.logo}</h2>
               <span className="text-[10px] font-bold text-primary tracking-widest leading-none">{t.label}</span>
@@ -147,10 +152,269 @@ const Navbar = ({ lang, setLang, page, setPage, setMarketTab, theme, setTheme }:
   );
 };
 
+// ─── Autonomous Settlement Simulation (ported from WEB2) ───────────────────
+const agentMerchants = [
+  { type: "TRAVEL API",  name: "FlightBook.io",  price: "150.00 USDC / booking", color: "text-primary",    bg: "bg-primary/10",    icon: Plane,      merchantId: "FB_9921_X", address: "0x71C...4e21" },
+  { type: "TRANSPORT",   name: "RideAPI.pro",    price: "18.50 USDC / ride",     color: "text-purple-500", bg: "bg-purple-500/10", icon: Car,        merchantId: "RA_3847_P", address: "0x3cA...b847" },
+  { type: "MARKET DATA", name: "PriceOracle.ai", price: "0.80 USDC / call",      color: "text-green-500",  bg: "bg-green-500/10",  icon: TrendingUp, merchantId: "PO_2193_Q", address: "0xb2E...e193" },
+];
+
+const agentScenarios = [
+  { merchantIndex: 0, userAgent: "TravelBot_AI",  lookingFor: "flight-booking",  budget: "200.00 USDC", settlement: "150.00 USDC", txn: "0x7a...f291" },
+  { merchantIndex: 1, userAgent: "RideAgent_7",   lookingFor: "ride-booking",    budget: "20.00 USDC",  settlement: "18.50 USDC",  txn: "0x3c...a847" },
+  { merchantIndex: 2, userAgent: "ResearchBot_X", lookingFor: "market-summary",  budget: "1.00 USDC",   settlement: "0.80 USDC",   txn: "0xb2...e193" },
+];
+
+const AutonomousSimulation = () => {
+  const [scenarioIdx, setScenarioIdx] = useState(0);
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const timings = [800, 1500, 1200, 1200, 3500, 800];
+    const timer = setTimeout(() => {
+      if (step === 5) {
+        setStep(0);
+        setScenarioIdx((prev) => (prev + 1) % agentScenarios.length);
+      } else {
+        setStep((prev) => prev + 1);
+      }
+    }, timings[step]);
+    return () => clearTimeout(timer);
+  }, [step]);
+
+  const phases = ["idle", "ua-enter", "merchant-match", "connecting", "settled", "exit"];
+  const currentPhase = phases[step];
+  const sc = agentScenarios[scenarioIdx];
+
+  const merchantVariants: Record<string, any> = {
+    idle:       { opacity: 0.4, borderColor: "rgba(11,80,218,0.1)", scale: 1, boxShadow: "none" },
+    "ua-enter": { opacity: 0.4, borderColor: "rgba(11,80,218,0.1)", scale: 1, boxShadow: "none" },
+    "merchant-match": (i: number) => ({
+      opacity:     i === sc.merchantIndex ? 1 : 0.3,
+      borderColor: i === sc.merchantIndex ? "#0b50da" : "rgba(11,80,218,0.1)",
+      scale:       i === sc.merchantIndex ? 1.04 : 0.97,
+      boxShadow:   i === sc.merchantIndex ? "0 0 20px rgba(11,80,218,0.2)" : "none",
+      transition: { duration: 0.6, ease: "easeOut" },
+    }),
+    connecting: (i: number) => ({
+      opacity:     i === sc.merchantIndex ? 1 : 0.3,
+      borderColor: i === sc.merchantIndex ? "#0b50da" : "rgba(11,80,218,0.1)",
+      scale:       i === sc.merchantIndex ? 1.04 : 0.97,
+      boxShadow:   i === sc.merchantIndex ? "0 0 20px rgba(11,80,218,0.2)" : "none",
+    }),
+    settled: (i: number) => ({
+      opacity:     i === sc.merchantIndex ? 1 : 0.3,
+      borderColor: i === sc.merchantIndex ? "#0b50da" : "rgba(11,80,218,0.1)",
+      scale:       i === sc.merchantIndex ? 1.04 : 0.97,
+      boxShadow:   i === sc.merchantIndex ? "0 0 20px rgba(11,80,218,0.2)" : "none",
+    }),
+    exit: { opacity: 0.4, borderColor: "rgba(11,80,218,0.1)", scale: 1, boxShadow: "none", transition: { duration: 0.6, ease: "easeIn" } },
+  };
+
+  const priceVariants: Record<string, any> = {
+    idle:       { opacity: 0, y: 10 },
+    "ua-enter": { opacity: 0, y: 10 },
+    "merchant-match": (i: number) => ({ opacity: i === sc.merchantIndex ? 1 : 0, y: i === sc.merchantIndex ? 0 : 10, transition: { duration: 0.5 } }),
+    connecting: (i: number) => ({ opacity: i === sc.merchantIndex ? 1 : 0, y: i === sc.merchantIndex ? 0 : 10 }),
+    settled:    (i: number) => ({ opacity: i === sc.merchantIndex ? 1 : 0, y: i === sc.merchantIndex ? 0 : 10 }),
+    exit: { opacity: 0, y: 10, transition: { duration: 0.4 } },
+  };
+
+  const uaVariants: Record<string, any> = {
+    idle:       { opacity: 0, x: 50 },
+    "ua-enter": { opacity: 1, x: 0, transition: { duration: 0.8, ease: "easeOut" } },
+    "merchant-match": { opacity: 1, x: 0 },
+    connecting: { opacity: 1, x: 0 },
+    settled:    { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: 20, transition: { duration: 0.6, ease: "easeIn" } },
+  };
+
+  const settlementVariants: Record<string, any> = {
+    idle:       { opacity: 0, scale: 0.5, y: "-50%", x: "-50%" },
+    "ua-enter": { opacity: 0, scale: 0.5, y: "-50%", x: "-50%" },
+    "merchant-match": { opacity: 0, scale: 0.5, y: "-50%", x: "-50%" },
+    connecting: { opacity: 0, scale: 0.5, y: "-50%", x: "-50%" },
+    settled:    { opacity: 1, scale: 1, y: "-50%", x: "-50%", transition: { type: "spring", damping: 15, stiffness: 200 } },
+    exit: { opacity: 0, scale: 0.8, y: "-50%", x: "-50%", transition: { duration: 0.6, ease: "easeIn" } },
+  };
+
+  return (
+    <div className="overflow-hidden h-[312px] sm:h-[416px] lg:h-[520px]">
+    <div className="relative grid grid-cols-2 gap-5 h-[520px] origin-top-left"
+      style={{ transform: 'scale(0.6)', width: '167%' }}
+      ref={(el) => {
+        if (!el) return;
+        const update = () => {
+          const w = window.innerWidth;
+          if (w >= 1024) { el.style.transform = 'scale(1)'; el.style.width = '100%'; }
+          else if (w >= 640) { el.style.transform = 'scale(0.8)'; el.style.width = '125%'; }
+          else { el.style.transform = 'scale(0.6)'; el.style.width = '167%'; }
+        };
+        update();
+        window.addEventListener('resize', update);
+      }}
+    >
+      {/* Merchant Agents Column */}
+      <div className="flex flex-col justify-center gap-3 relative z-10">
+        {agentMerchants.map((merchant, i) => {
+          const Icon = merchant.icon;
+          return (
+            <motion.div
+              key={i}
+              custom={i}
+              variants={merchantVariants}
+              initial="idle"
+              animate={currentPhase}
+              style={{ transformOrigin: 'left center' }}
+              className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-white/8 shadow-md overflow-hidden relative"
+            >
+              {/* Background icon watermark */}
+              <Icon className="absolute right-3 top-3 w-14 h-14 opacity-[0.06] text-slate-500 dark:text-slate-400" />
+
+              {/* Header */}
+              <div className="px-4 pt-4 pb-3">
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{merchant.type}</div>
+                <div className="font-bold text-slate-900 dark:text-white text-sm leading-tight">{merchant.name}</div>
+              </div>
+
+              <div className="border-t border-slate-100 dark:border-white/5" />
+
+              {/* Recipient Address */}
+              <div className="px-4 py-2 flex justify-between items-center">
+                <span className="text-[10px] text-slate-400">Recipient Address</span>
+                <span className={`text-[11px] font-mono font-medium ${merchant.color}`}>{merchant.address}</span>
+              </div>
+
+              <div className="border-t border-slate-100 dark:border-white/5" />
+
+              {/* Network */}
+              <div className="px-4 py-2 flex justify-between items-center">
+                <span className="text-[10px] text-slate-400">Network</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  <span className="text-[11px] font-medium text-slate-700 dark:text-slate-200">XLayer Mainnet</span>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              {i === sc.merchantIndex && step >= 3 && step < 5 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <div className="h-0.5 w-full bg-slate-100 dark:bg-slate-800">
+                    <motion.div
+                      className={`h-full ${i === 0 ? 'bg-primary' : i === 1 ? 'bg-purple-500' : 'bg-green-500'}`}
+                      initial={{ width: "0%" }} animate={{ width: "100%" }}
+                      transition={{ duration: 1.2, ease: "easeInOut" }}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* User Agent Column */}
+      <div className="flex flex-col justify-center relative z-10">
+        <motion.div
+          variants={uaVariants}
+          initial="idle"
+          animate={currentPhase}
+          className="p-6 rounded-2xl bg-white dark:bg-slate-900/80 border border-purple-400/30 dark:border-purple-500/20 shadow-[0_8px_32px_rgba(139,92,246,0.15)] relative overflow-hidden"
+        >
+          {/* Background icon watermark */}
+          <Bot className="absolute -right-4 -bottom-4 w-24 h-24 opacity-[0.06] text-slate-500" />
+
+          {/* Header */}
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">USER AGENT</div>
+              <div className="text-[10px] text-slate-400">Autonomous Agent</div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[10px] text-green-500 font-bold uppercase">ONLINE</span>
+            </div>
+          </div>
+
+          <h3 className="font-mono text-xl font-bold text-slate-900 dark:text-white mb-5">{sc.userAgent}</h3>
+
+          <div className="space-y-3">
+            <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3.5 border border-slate-200/60 dark:border-white/5">
+              <span className="text-[10px] text-slate-400 uppercase tracking-widest block mb-1">LOOKING FOR</span>
+              <span className="font-mono text-sm text-primary font-medium">{sc.lookingFor}</span>
+            </div>
+            <div className="bg-slate-50 dark:bg-white/5 rounded-xl p-3.5 border border-slate-200/60 dark:border-white/5">
+              <span className="text-[10px] text-slate-400 uppercase tracking-widest block mb-1">BUDGET</span>
+              <span className="font-mono text-sm text-slate-800 dark:text-slate-100 font-medium">{sc.budget}</span>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Settlement Overlay */}
+      <motion.div
+        variants={settlementVariants}
+        initial="idle"
+        animate={currentPhase}
+        className="absolute top-1/2 left-1/2 z-20 w-62 origin-center"
+      >
+        <div className="p-[1.5px] rounded-2xl bg-gradient-to-br from-primary via-purple-500 to-green-400 shadow-[0_16px_48px_rgba(11,80,218,0.25)] rotate-[-2deg]">
+          <div className="bg-white dark:bg-slate-950 rounded-[calc(1rem-1px)] overflow-hidden relative">
+
+            {/* Background icon watermark */}
+            <Wallet className="absolute -right-4 -bottom-4 w-24 h-24 opacity-[0.06] text-slate-500" />
+
+            {/* Header */}
+            <div className="px-4 pt-4 pb-3 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SETTLEMENT</div>
+                <div className="font-bold text-slate-900 dark:text-white text-sm leading-tight mt-0.5">Auto-matched · x402</div>
+              </div>
+              <div className="ml-auto">
+                <span className="text-[10px] font-bold text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-0.5 rounded-md">✦ MATCHED</span>
+              </div>
+            </div>
+
+            <div className="border-t border-slate-100 dark:border-white/5" />
+
+            {/* Amount */}
+            <div className="px-4 py-2 flex justify-between items-center">
+              <span className="text-[10px] text-slate-400">Amount</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">{sc.settlement}</span>
+            </div>
+
+            <div className="border-t border-slate-100 dark:border-white/5" />
+
+            {/* TXN */}
+            <div className="px-4 py-2 flex justify-between items-center">
+              <span className="text-[10px] text-slate-400">Transaction</span>
+              <span className="text-[11px] font-mono font-medium text-primary">{sc.txn}</span>
+            </div>
+
+            <div className="border-t border-slate-100 dark:border-white/5" />
+
+            {/* Status */}
+            <div className="px-4 py-2 flex justify-between items-center">
+              <span className="text-[10px] text-slate-400">Status</span>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                <span className="text-[11px] font-bold text-green-600 dark:text-green-400">SETTLED ON-CHAIN</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </motion.div>
+    </div>
+    </div>
+  );
+};
+// ────────────────────────────────────────────────────────────────────────────
+
 const Hero = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => void }) => {
   const t = translations[lang].hero;
   return (
-    <section className="relative pt-20 pb-32 px-6 overflow-hidden">
+    <section className="relative pt-20 pb-16 lg:pb-32 px-6 overflow-hidden">
       <div className="absolute inset-0 grid-overlay -z-10" />
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[120px] -z-10" />
       
@@ -170,11 +434,11 @@ const Hero = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => voi
           </div>
 
           <div className="flex flex-col gap-4">
-            <h1 className="text-5xl lg:text-7xl font-bold leading-[1.1] tracking-tight text-slate-900 dark:text-white transition-colors">
+            <h1 className="text-3xl sm:text-4xl lg:text-6xl font-bold leading-[1.15] tracking-tight text-slate-900 dark:text-white transition-colors">
               {t.title1} <br />
               <span className="text-gradient">{t.title2}</span>
             </h1>
-            <p className="text-lg text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed transition-colors">
+            <p className="text-base lg:text-lg text-slate-600 dark:text-slate-400 max-w-xl leading-relaxed transition-colors">
               {t.subtitle}
             </p>
           </div>
@@ -190,76 +454,14 @@ const Hero = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => voi
           </div>
         </motion.div>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="relative flex justify-center"
+          className="relative"
         >
-          <div className="w-full max-w-md aspect-[4/3] bg-white dark:bg-slate-900/50 rounded-3xl border border-black/5 dark:border-white/10 backdrop-blur-xl p-8 flex flex-col gap-6 shadow-2xl relative overflow-hidden transition-colors">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50" />
-            
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Activity className="w-4 h-4 text-primary" />
-                </div>
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Transaction_Live</span>
-              </div>
-              <div className="px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-                <span className="text-[10px] font-bold text-green-600 dark:text-green-500 uppercase tracking-wider">{t.demo.status}</span>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 flex justify-between items-center transition-colors">
-                <div className="flex flex-col">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold">Payer</span>
-                  <span className="font-mono text-sm text-slate-700 dark:text-slate-200">{t.demo.payer}</span>
-                </div>
-                
-                <div className="flex-1 flex items-center justify-center px-4">
-                  <div className="relative w-full h-4 flex items-center justify-center">
-                    <div className="absolute w-full h-[1px] bg-slate-300 dark:bg-slate-700 opacity-20" />
-                    {[0, 1, 2].map((i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 20, opacity: [0, 1, 0] }}
-                        transition={{ 
-                          duration: 2, 
-                          repeat: Infinity, 
-                          delay: i * 0.6,
-                          ease: "easeInOut" 
-                        }}
-                        className="absolute w-1 h-1 rounded-full bg-primary shadow-[0_0_8px_rgba(11,80,218,0.8)]"
-                      />
-                    ))}
-                    <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-600 z-10" />
-                  </div>
-                </div>
-
-                <div className="flex flex-col text-right">
-                  <span className="text-[10px] text-slate-500 uppercase font-bold">Merchant</span>
-                  <span className="font-mono text-sm text-slate-700 dark:text-slate-200">{t.demo.merchant}</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center py-4">
-                <span className="text-4xl font-bold text-slate-900 dark:text-white mb-1 transition-colors">{t.demo.amount}</span>
-                <span className="text-xs text-slate-500 uppercase tracking-widest font-bold">{t.demo.type}</span>
-              </div>
-            </div>
-
-            <div className="mt-auto pt-4 border-t border-black/5 dark:border-white/5 flex justify-between items-center transition-colors">
-              <div className="flex -space-x-2">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="w-6 h-6 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 dark:bg-slate-800 transition-colors" />
-                ))}
-              </div>
-              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">0x7a...f291</span>
-            </div>
-          </div>
+          <div className="absolute inset-0 bg-primary/5 blur-3xl rounded-full pointer-events-none" />
+          <AutonomousSimulation />
         </motion.div>
       </div>
     </section>
@@ -587,7 +789,7 @@ const Footer = ({ lang, setPage }: { lang: Language; setPage: (p: PageType) => v
         <div className="grid md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-2 flex flex-col gap-6">
             <div className="flex items-center gap-3">
-              <img src="/LOGO.png" alt="XAgent Pay" className="w-10 h-10 object-contain" />
+              <img src="/LOGO.png" alt="XAgent Pay" className="w-12 h-12 flex-shrink-0 object-contain" />
               <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white transition-colors">{nav.logo}</h2>
             </div>
             <p className="text-slate-600 dark:text-slate-400 max-w-xs transition-colors">{t.slogan}</p>

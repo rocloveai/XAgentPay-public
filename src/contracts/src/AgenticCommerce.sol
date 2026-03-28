@@ -31,8 +31,9 @@ contract AgenticCommerce is Ownable, ReentrancyGuard {
     // Constants
     // -----------------------------------------------------------------------
 
-    string public constant VERSION = "1.0.0";
+    string public constant VERSION = "1.1.0";
     uint16 public constant MAX_FEE_BPS = 500; // 5% hard cap
+    uint256 public constant MAX_BATCH_SIZE = 20; // 5c: batch size limit
 
     // -----------------------------------------------------------------------
     // Types
@@ -131,6 +132,7 @@ contract AgenticCommerce is Ownable, ReentrancyGuard {
     error NotProviderOrOperator(address caller);
     error NotEvaluator(address caller, address expected);
     error NotExpired(uint256 expiredAt, uint256 current);
+    error BatchTooLarge(uint256 size);
 
     // -----------------------------------------------------------------------
     // Modifiers
@@ -260,6 +262,7 @@ contract AgenticCommerce is Ownable, ReentrancyGuard {
             "Array length mismatch"
         );
         require(len > 0, "Empty batch");
+        if (len > MAX_BATCH_SIZE) revert BatchTooLarge(len);
 
         jobIds = new uint256[](len);
         uint256 totalBudget = 0;

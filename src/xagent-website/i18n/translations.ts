@@ -11,9 +11,9 @@ export const translations = {
     },
     hero: {
       badge: "The Settlement Layer for Agentic Commerce",
-      title1: "AI Agents Can Now",
-      title2: "Pay Other Machines.",
-      subtitle: "Stablecoin settlement powered by the x402 HTTP payment standard. No credit cards, no human intervention — agents discover, pay, and settle autonomously.",
+      title1: "Where Merchant Agents Meet",
+      title2: "User Agents.",
+      subtitle: "Agents discover, connect, and settle autonomously — powered by the x402 HTTP payment standard. No credit cards, no human intervention.",
       poweredBy: "Powered by XLayer Network",
       demo: {
         status: "Settled",

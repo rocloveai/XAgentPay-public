@@ -108,7 +108,10 @@ contract AutoEvaluator is Ownable {
     // Admin functions (onlyOwner)
     // -----------------------------------------------------------------------
 
+    error ZeroAddress();
+
     function setOperator(address newOperator) external onlyOwner {
+        if (newOperator == address(0)) revert ZeroAddress();
         emit OperatorUpdated(evaluatorOperator, newOperator);
         evaluatorOperator = newOperator;
     }

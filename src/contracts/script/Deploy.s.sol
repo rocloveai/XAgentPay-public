@@ -23,9 +23,10 @@ contract Deploy is Script {
     address constant USDC = 0xFF8dEe9983768D0399673014cf77826896F97e4d;
 
     // Defaults
-    uint256 constant RELEASE_TIMEOUT = 86_400;   // 24 hours
-    uint256 constant DISPUTE_WINDOW  = 259_200;  // 72 hours
-    uint16  constant FEE_BPS         = 30;       // 0.3%
+    uint256 constant RELEASE_TIMEOUT     = 86_400;   // 24 hours
+    uint256 constant DISPUTE_WINDOW      = 259_200;  // 72 hours
+    uint16  constant FEE_BPS             = 30;       // 0.3%
+    uint256 constant ARBITRATION_TIMEOUT = 86_400;   // 24 hours
 
     function run() external {
         uint256 deployerPk = vm.envUint("DEPLOYER_PRIVATE_KEY");
@@ -40,7 +41,7 @@ contract Deploy is Script {
         // 2. Encode initialize() calldata
         bytes memory initData = abi.encodeCall(
             XAgentPayEscrow.initialize,
-            (USDC, RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, xagentOperator)
+            (USDC, RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, xagentOperator, ARBITRATION_TIMEOUT)
         );
 
         // 3. Deploy ERC1967Proxy

@@ -51,13 +51,10 @@ contract XAgentPayEscrowTest is Test {
         // Deploy proxy with initialize calldata
         bytes memory initData = abi.encodeCall(
             XAgentPayEscrow.initialize,
-            (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator)
+            (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator, ARBITRATION_TIMEOUT)
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
         escrow = XAgentPayEscrow(address(proxy));
-
-        // Set arbitration timeout (new storage, not in initialize)
-        escrow.setArbitrationTimeout(ARBITRATION_TIMEOUT);
 
         // Fund payer
         usdc.mint(payer, 1_000_000_000); // 1000 USDC
@@ -154,7 +151,7 @@ contract XAgentPayEscrowTest is Test {
         XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
             XAgentPayEscrow.initialize,
-            (_usdc, _releaseTimeout, _disputeWindow, _feeBps, _feeRecipient, _operator)
+            (_usdc, _releaseTimeout, _disputeWindow, _feeBps, _feeRecipient, _operator, ARBITRATION_TIMEOUT)
         );
         ERC1967Proxy proxy = new ERC1967Proxy(address(impl), initData);
         return XAgentPayEscrow(address(proxy));
@@ -178,7 +175,7 @@ contract XAgentPayEscrowTest is Test {
         XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
             XAgentPayEscrow.initialize,
-            (address(0), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator)
+            (address(0), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator, ARBITRATION_TIMEOUT)
         );
         vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         new ERC1967Proxy(address(impl), initData);
@@ -188,7 +185,7 @@ contract XAgentPayEscrowTest is Test {
         XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
             XAgentPayEscrow.initialize,
-            (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, address(0), operator)
+            (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, address(0), operator, ARBITRATION_TIMEOUT)
         );
         vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         new ERC1967Proxy(address(impl), initData);
@@ -198,7 +195,7 @@ contract XAgentPayEscrowTest is Test {
         XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
             XAgentPayEscrow.initialize,
-            (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, address(0))
+            (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, address(0), ARBITRATION_TIMEOUT)
         );
         vm.expectRevert(XAgentPayEscrow.ZeroAddress.selector);
         new ERC1967Proxy(address(impl), initData);
@@ -208,7 +205,7 @@ contract XAgentPayEscrowTest is Test {
         XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
             XAgentPayEscrow.initialize,
-            (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, 501, feeRecipient, operator)
+            (address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, 501, feeRecipient, operator, ARBITRATION_TIMEOUT)
         );
         vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.FeeTooHigh.selector, 501));
         new ERC1967Proxy(address(impl), initData);
@@ -218,7 +215,7 @@ contract XAgentPayEscrowTest is Test {
         XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
             XAgentPayEscrow.initialize,
-            (address(usdc), 0, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator)
+            (address(usdc), 0, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator, ARBITRATION_TIMEOUT)
         );
         vm.expectRevert(XAgentPayEscrow.ZeroTimeout.selector);
         new ERC1967Proxy(address(impl), initData);
@@ -228,7 +225,7 @@ contract XAgentPayEscrowTest is Test {
         XAgentPayEscrow impl = new XAgentPayEscrow();
         bytes memory initData = abi.encodeCall(
             XAgentPayEscrow.initialize,
-            (address(usdc), RELEASE_TIMEOUT, 0, FEE_BPS, feeRecipient, operator)
+            (address(usdc), RELEASE_TIMEOUT, 0, FEE_BPS, feeRecipient, operator, ARBITRATION_TIMEOUT)
         );
         vm.expectRevert(XAgentPayEscrow.ZeroTimeout.selector);
         new ERC1967Proxy(address(impl), initData);
@@ -242,12 +239,32 @@ contract XAgentPayEscrowTest is Test {
         // Deploy a new implementation
         XAgentPayEscrow newImpl = new XAgentPayEscrow();
 
-        // Owner upgrades
+        // M8: must schedule upgrade first, then wait for timelock
+        escrow.scheduleUpgrade(address(newImpl));
+        vm.warp(block.timestamp + 48 hours);
+
+        // Owner upgrades after timelock
         escrow.upgradeToAndCall(address(newImpl), "");
 
         // Verify proxy still works
         assertEq(address(escrow.usdc()), address(usdc));
         assertEq(escrow.defaultReleaseTimeout(), RELEASE_TIMEOUT);
+    }
+
+    function test_upgrade_revertsWithoutSchedule() public {
+        XAgentPayEscrow newImpl = new XAgentPayEscrow();
+
+        vm.expectRevert(XAgentPayEscrow.UpgradeNotScheduled.selector);
+        escrow.upgradeToAndCall(address(newImpl), "");
+    }
+
+    function test_upgrade_revertsBeforeTimelock() public {
+        XAgentPayEscrow newImpl = new XAgentPayEscrow();
+        escrow.scheduleUpgrade(address(newImpl));
+
+        // Try to upgrade before timelock expires
+        vm.expectRevert();
+        escrow.upgradeToAndCall(address(newImpl), "");
     }
 
     function test_upgrade_revertsNonOwner() public {
@@ -261,7 +278,7 @@ contract XAgentPayEscrowTest is Test {
     function test_cannotInitializeTwice() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         escrow.initialize(
-            address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator
+            address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator, ARBITRATION_TIMEOUT
         );
     }
 
@@ -270,7 +287,7 @@ contract XAgentPayEscrowTest is Test {
 
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         impl.initialize(
-            address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator
+            address(usdc), RELEASE_TIMEOUT, DISPUTE_WINDOW, FEE_BPS, feeRecipient, operator, ARBITRATION_TIMEOUT
         );
     }
 
@@ -483,6 +500,9 @@ contract XAgentPayEscrowTest is Test {
         uint256 fee = (AMOUNT * FEE_BPS) / 10_000;
         uint256 merchantAmount = AMOUNT - fee;
 
+        // 4b: must wait for dispute window to close before release
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
+
         vm.prank(merchant);
         escrow.release(pid);
 
@@ -498,6 +518,8 @@ contract XAgentPayEscrowTest is Test {
         bytes32 pid = _paymentId("rel-operator");
         _depositTraditional(pid);
 
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
+
         vm.prank(operator);
         escrow.release(pid);
 
@@ -511,6 +533,8 @@ contract XAgentPayEscrowTest is Test {
 
         uint256 fee = (AMOUNT * FEE_BPS) / 10_000;
         uint256 merchantAmount = AMOUNT - fee;
+
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
 
         vm.expectEmit(true, true, false, true);
         emit XAgentPayEscrow.Released(pid, merchant, merchantAmount, fee);
@@ -529,6 +553,8 @@ contract XAgentPayEscrowTest is Test {
 
         uint256 feeRecipBalBefore = usdc.balanceOf(feeRecipient);
 
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
+
         vm.prank(merchant);
         escrow.release(pid);
 
@@ -541,8 +567,20 @@ contract XAgentPayEscrowTest is Test {
         bytes32 pid = _paymentId("rel-unauth");
         _depositTraditional(pid);
 
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
+
         vm.prank(stranger);
         vm.expectRevert(abi.encodeWithSelector(XAgentPayEscrow.NotCoreOrMerchant.selector, stranger));
+        escrow.release(pid);
+    }
+
+    function test_release_revertsDuringDisputeWindow() public {
+        bytes32 pid = _paymentId("rel-dispute-window");
+        _depositTraditional(pid);
+
+        // Try to release during dispute window — should fail
+        vm.prank(merchant);
+        vm.expectRevert();
         escrow.release(pid);
     }
 
@@ -600,6 +638,8 @@ contract XAgentPayEscrowTest is Test {
     function test_refund_revertsIfAlreadyReleased() public {
         bytes32 pid = _paymentId("ref-released");
         _depositTraditional(pid);
+
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
 
         vm.prank(merchant);
         escrow.release(pid);
@@ -667,6 +707,8 @@ contract XAgentPayEscrowTest is Test {
     function test_dispute_revertsIfNotDeposited() public {
         bytes32 pid = _paymentId("disp-released");
         _depositTraditional(pid);
+
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
 
         vm.prank(merchant);
         escrow.release(pid);
@@ -791,6 +833,8 @@ contract XAgentPayEscrowTest is Test {
     function test_isRefundable_falseAfterRelease() public {
         bytes32 pid = _paymentId("view-ref-released");
         _depositTraditional(pid);
+
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
 
         vm.prank(merchant);
         escrow.release(pid);
@@ -929,6 +973,9 @@ contract XAgentPayEscrowTest is Test {
         XAgentPayEscrow.BatchEntry[] memory entries,
         uint256 totalAmount
     ) internal {
+        // Temporarily disable group sig requirement for legacy batch deposit tests
+        escrow.setRequireGroupSig(false);
+
         bytes32 nonce = keccak256(abi.encodePacked("batch-nonce", totalAmount));
         uint256 validAfter = 0;
         uint256 validBefore = block.timestamp + 1 hours;
@@ -941,6 +988,9 @@ contract XAgentPayEscrowTest is Test {
         escrow.batchDepositWithAuthorization(
             entries, totalAmount, validAfter, validBefore, nonce, v, r, s
         );
+
+        // Re-enable group sig requirement
+        escrow.setRequireGroupSig(true);
     }
 
     function test_batchDeposit_singleEntry() public {
@@ -1007,6 +1057,7 @@ contract XAgentPayEscrowTest is Test {
     }
 
     function test_batchDeposit_emitsBatchEvent() public {
+        escrow.setRequireGroupSig(false);
         bytes32 pid = _paymentId("batch-event");
         XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
@@ -1028,6 +1079,7 @@ contract XAgentPayEscrowTest is Test {
     }
 
     function test_batchDeposit_emitsPerEntryDepositedEvents() public {
+        escrow.setRequireGroupSig(false);
         address merchant2 = makeAddr("merchant2");
         bytes32 pid1 = _paymentId("batch-evt-1");
         bytes32 pid2 = _paymentId("batch-evt-2");
@@ -1061,6 +1113,7 @@ contract XAgentPayEscrowTest is Test {
     }
 
     function test_batchDeposit_revertsEmptyBatch() public {
+        escrow.setRequireGroupSig(false);
         XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](0);
 
         vm.prank(payer);
@@ -1071,6 +1124,7 @@ contract XAgentPayEscrowTest is Test {
     }
 
     function test_batchDeposit_revertsAmountMismatch() public {
+        escrow.setRequireGroupSig(false);
         bytes32 pid = _paymentId("batch-mismatch");
         XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT);
@@ -1093,6 +1147,7 @@ contract XAgentPayEscrowTest is Test {
     }
 
     function test_batchDeposit_revertsDuplicatePaymentId() public {
+        escrow.setRequireGroupSig(false);
         bytes32 pid = _paymentId("batch-dup-pid");
         XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](2);
         entries[0] = _buildBatchEntry(pid, merchant, AMOUNT / 2);
@@ -1113,6 +1168,7 @@ contract XAgentPayEscrowTest is Test {
     }
 
     function test_batchDeposit_revertsZeroAmountEntry() public {
+        escrow.setRequireGroupSig(false);
         bytes32 pid = _paymentId("batch-zero-amt");
         XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](1);
         entries[0] = _buildBatchEntry(pid, merchant, 0);
@@ -1148,6 +1204,7 @@ contract XAgentPayEscrowTest is Test {
         _batchDepositWithAuth(entries, total);
 
         // Release only the first entry
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
         uint256 merchantBalBefore = usdc.balanceOf(merchant);
         uint256 fee = (amount1 * FEE_BPS) / 10_000;
 
@@ -1214,6 +1271,8 @@ contract XAgentPayEscrowTest is Test {
         bytes32 pid = _paymentId("trans-ref-after-rel");
         _depositTraditional(pid);
 
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
+
         vm.prank(merchant);
         escrow.release(pid);
 
@@ -1231,6 +1290,8 @@ contract XAgentPayEscrowTest is Test {
     function test_cannotDisputeAfterRelease() public {
         bytes32 pid = _paymentId("trans-disp-after-rel");
         _depositTraditional(pid);
+
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
 
         vm.prank(merchant);
         escrow.release(pid);
@@ -1679,6 +1740,7 @@ contract XAgentPayEscrowTest is Test {
     // =======================================================================
 
     function test_batchTooLarge() public {
+        escrow.setRequireGroupSig(false);
         XAgentPayEscrow.BatchEntry[] memory entries = new XAgentPayEscrow.BatchEntry[](21);
         for (uint256 i = 0; i < 21; i++) {
             entries[i] = _buildBatchEntry(
@@ -1729,6 +1791,7 @@ contract XAgentPayEscrowTest is Test {
         escrow.setProtocolFeeBps(100); // 1%
 
         // Release should use the snapshotted fee (30 bps), not the new 100 bps
+        vm.warp(block.timestamp + DISPUTE_WINDOW + 1);
         uint256 merchantBalBefore = usdc.balanceOf(merchant);
         uint256 expectedFee = (AMOUNT * FEE_BPS) / 10_000;
         uint256 expectedMerchantAmount = AMOUNT - expectedFee;

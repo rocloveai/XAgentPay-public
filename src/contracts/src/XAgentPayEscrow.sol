@@ -32,9 +32,10 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
     // Constants
     // -----------------------------------------------------------------------
 
-    string public constant VERSION = "4.0.0";
+    string public constant VERSION = "4.1.0";
     uint16 public constant MAX_FEE_BPS = 500; // 5% hard cap
     uint256 public constant MAX_BATCH_SIZE = 20;
+    uint256 public constant UPGRADE_DELAY = 48 hours; // M8: timelock for upgrades
 
     // EIP-712 constants for group signature verification
     bytes32 public constant XAGENT_GROUP_APPROVAL_TYPEHASH =
@@ -109,6 +110,10 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
     /// @notice When true, all batch deposits must use batchDepositWithGroupApproval
     bool public requireGroupSig;
 
+    /// @notice M8: Pending upgrade for timelock
+    address public pendingUpgradeImplementation;
+    uint256 public pendingUpgradeReadyAt;
+
     // -----------------------------------------------------------------------
     // Events
     // -----------------------------------------------------------------------
@@ -163,6 +168,8 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
     event DisputeAutoResolved(bytes32 indexed paymentId, address indexed payer, uint256 amount);
     event GroupSigVerified(bytes32 indexed groupId, address indexed coreOperator);
     event RequireGroupSigUpdated(bool oldValue, bool newValue);
+    event UpgradeScheduled(address indexed implementation, uint256 readyAt);
+    event UpgradeCancelled(address indexed implementation);
 
     // -----------------------------------------------------------------------
     // Errors
@@ -189,6 +196,10 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
     error InvalidGroupSignature();
     error GroupIdAlreadyUsed(bytes32 groupId);
     error GroupSignatureRequired();
+    error DisputeWindowStillActive(uint256 deadline, uint256 current);
+    error UpgradeNotScheduled();
+    error UpgradeTimelockNotExpired(uint256 readyAt, uint256 current);
+    error UpgradeImplementationMismatch(address expected, address provided);
 
     // -----------------------------------------------------------------------
     // Modifiers
@@ -231,7 +242,8 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
      * @param _defaultDisputeWindow  Default seconds (from deposit) within which payer can dispute
      * @param _protocolFeeBps        Protocol fee in basis points (max 500 = 5%)
      * @param _protocolFeeRecipient  Address receiving protocol fees
-     * @param _xagentOperator         Address acting as both arbiter and coreOperator initially
+     * @param _xagentOperator        Address acting as both arbiter and coreOperator initially
+     * @param _arbitrationTimeout    Seconds arbiter has to resolve disputes (H8 fix)
      */
     function initialize(
         address _usdc,
@@ -239,7 +251,8 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
         uint256 _defaultDisputeWindow,
         uint16 _protocolFeeBps,
         address _protocolFeeRecipient,
-        address _xagentOperator
+        address _xagentOperator,
+        uint256 _arbitrationTimeout
     ) external initializer {
         _transferOwnership(msg.sender);
 
@@ -249,6 +262,7 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
         if (_protocolFeeBps > MAX_FEE_BPS) revert FeeTooHigh(_protocolFeeBps);
         if (_defaultReleaseTimeout == 0) revert ZeroTimeout();
         if (_defaultDisputeWindow == 0) revert ZeroTimeout();
+        if (_arbitrationTimeout == 0) revert ZeroTimeout();
 
         usdc = IERC3009(_usdc);
         defaultReleaseTimeout = _defaultReleaseTimeout;
@@ -257,6 +271,8 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
         protocolFeeRecipient = _protocolFeeRecipient;
         arbiter = _xagentOperator;
         coreOperator = _xagentOperator;
+        arbitrationTimeout = _arbitrationTimeout;
+        requireGroupSig = true; // 4c: require group signatures by default
     }
 
     // -----------------------------------------------------------------------
@@ -472,6 +488,10 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
         Escrow storage e = _escrows[paymentId];
         if (e.status != EscrowStatus.DEPOSITED) {
             revert InvalidStatus(e.status, EscrowStatus.DEPOSITED);
+        }
+        // 4b: block release while dispute window is still open to prevent front-running
+        if (block.timestamp <= e.disputeDeadline) {
+            revert DisputeWindowStillActive(e.disputeDeadline, block.timestamp);
         }
 
         e.status = EscrowStatus.RELEASED;
@@ -758,10 +778,41 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
     }
 
     // -----------------------------------------------------------------------
-    // UUPS upgrade authorization
+    // UUPS upgrade authorization (M8: timelock)
     // -----------------------------------------------------------------------
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    /**
+     * @notice Schedule an upgrade with a 48-hour timelock.
+     */
+    function scheduleUpgrade(address newImplementation) external onlyOwner {
+        if (newImplementation == address(0)) revert ZeroAddress();
+        pendingUpgradeImplementation = newImplementation;
+        pendingUpgradeReadyAt = block.timestamp + UPGRADE_DELAY;
+        emit UpgradeScheduled(newImplementation, pendingUpgradeReadyAt);
+    }
+
+    /**
+     * @notice Cancel a pending upgrade.
+     */
+    function cancelUpgrade() external onlyOwner {
+        address impl = pendingUpgradeImplementation;
+        if (impl == address(0)) revert UpgradeNotScheduled();
+        delete pendingUpgradeImplementation;
+        delete pendingUpgradeReadyAt;
+        emit UpgradeCancelled(impl);
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
+        if (pendingUpgradeImplementation == address(0)) revert UpgradeNotScheduled();
+        if (pendingUpgradeImplementation != newImplementation) {
+            revert UpgradeImplementationMismatch(pendingUpgradeImplementation, newImplementation);
+        }
+        if (block.timestamp < pendingUpgradeReadyAt) {
+            revert UpgradeTimelockNotExpired(pendingUpgradeReadyAt, block.timestamp);
+        }
+        delete pendingUpgradeImplementation;
+        delete pendingUpgradeReadyAt;
+    }
 
     // -----------------------------------------------------------------------
     // Internal helpers
@@ -857,4 +908,10 @@ contract XAgentPayEscrow is Initializable, Ownable, ReentrancyGuard, UUPSUpgrade
 
         emit Deposited(paymentId, payer, merchant, amount, orderRef);
     }
+
+    // -----------------------------------------------------------------------
+    // M7: Storage gap for future upgrades
+    // -----------------------------------------------------------------------
+
+    uint256[50] private __gap;
 }

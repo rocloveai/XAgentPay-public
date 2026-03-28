@@ -29,39 +29,70 @@ const RevenueFlowAnimation = ({ lang = 'zh' }: { lang?: Language }) => {
       const agentRect = agentRef.current.getBoundingClientRect();
       const hubRect = hubRef.current.getBoundingClientRect();
 
-      // Agent connection point (right center)
-      const agentX = agentRect.right - containerRect.left;
-      const agentY = agentRect.top + agentRect.height / 2 - containerRect.top;
-      
-      // Hub connection points
       const hubCenterX = hubRect.left + hubRect.width / 2 - containerRect.left;
-      const hubY = hubRect.top + hubRect.height / 2 - containerRect.top;
-      const hubRadius = (hubRect.width / 2) * 0.6;
-      
-      const hubLeftX = hubCenterX - hubRadius;
+      const hubCenterY = hubRect.top + hubRect.height / 2 - containerRect.top;
+      const hubRadius = (Math.min(hubRect.width, hubRect.height) / 2) * 0.6;
 
-      const toHub = `M ${agentX} ${agentY} L ${hubLeftX} ${hubY}`;
-      
-      // Find the common target X (the leftmost edge of the provider cards)
+      // Detect layout: vertical (mobile) or horizontal (desktop)
+      const isVertical = agentRect.bottom < hubRect.top - 10;
+
+      let toHub: string;
+      if (isVertical) {
+        // Agent bottom-center → Hub top
+        const agentX = agentRect.left + agentRect.width / 2 - containerRect.left;
+        const agentY = agentRect.bottom - containerRect.top;
+        const hubTopY = hubCenterY - hubRadius;
+        toHub = `M ${agentX} ${agentY} C ${agentX} ${agentY + 40}, ${hubCenterX} ${hubTopY - 40}, ${hubCenterX} ${hubTopY}`;
+      } else {
+        const agentX = agentRect.right - containerRect.left;
+        const agentY = agentRect.top + agentRect.height / 2 - containerRect.top;
+        const hubLeftX = hubCenterX - hubRadius;
+        toHub = `M ${agentX} ${agentY} L ${hubLeftX} ${hubCenterY}`;
+      }
+
       const providerRects = providerRefs.current.map(ref => ref?.getBoundingClientRect());
-      const commonTargetX = Math.min(...providerRects.filter(Boolean).map(r => r!.left)) - containerRect.left + 10;
-      
-      const toProviders = providerRefs.current.map((ref, i) => {
-        if (!ref) return '';
-        const rect = ref.getBoundingClientRect();
-        const targetY = rect.top + rect.height / 2 - containerRect.top;
-        
-        // Fan out the start points on the hub's right edge
-        const startOffsetY = (i - 1) * 20; 
-        const startY = hubY + startOffsetY;
-        const startX = hubCenterX + Math.sqrt(Math.max(0, Math.pow(hubRadius, 2) - Math.pow(startOffsetY, 2)));
 
-        const dx = commonTargetX - startX;
-        // Use more pronounced control points for a smoother S-curve
-        const cp1x = startX + dx * 0.5;
-        const cp2x = commonTargetX - dx * 0.5;
-        return `M ${startX} ${startY} C ${cp1x} ${startY}, ${cp2x} ${targetY}, ${commonTargetX} ${targetY}`;
-      });
+      let toProviders: string[];
+      if (isVertical) {
+        // Hub bottom → each card's top-center: middle=straight, sides=symmetric curves
+        const hubBottomY = hubCenterY + hubRadius;
+        // Pre-calculate all rects for symmetry
+        const provRects = providerRefs.current.map(ref => ref?.getBoundingClientRect());
+        const leftX = provRects[0] ? provRects[0].left + provRects[0].width / 2 - containerRect.left : hubCenterX;
+        const rightX = provRects[2] ? provRects[2].left + provRects[2].width / 2 - containerRect.left : hubCenterX;
+        // Force symmetric offset around hub center
+        const avgOffset = ((hubCenterX - leftX) + (rightX - hubCenterX)) / 2;
+        const symLeftX = hubCenterX - avgOffset;
+        const symRightX = hubCenterX + avgOffset;
+        toProviders = providerRefs.current.map((ref, i) => {
+          if (!ref) return '';
+          const rect = provRects[i];
+          if (!rect) return '';
+          const targetY = rect.top - containerRect.top;
+          if (i === 1) {
+            // Middle: force vertical
+            return `M ${hubCenterX} ${hubBottomY} L ${hubCenterX} ${targetY}`;
+          }
+          // Left (i=0) and right (i=2): guaranteed symmetric curves
+          const symX = i === 0 ? symLeftX : symRightX;
+          const midY = hubBottomY + (targetY - hubBottomY) * 0.5;
+          return `M ${hubCenterX} ${hubBottomY} C ${hubCenterX} ${midY}, ${symX} ${midY}, ${symX} ${targetY}`;
+        });
+      } else {
+        const commonTargetX = Math.min(...providerRects.filter(Boolean).map(r => r!.left)) - containerRect.left + 10;
+        toProviders = providerRefs.current.map((ref, i) => {
+          if (!ref) return '';
+          const rect = ref.getBoundingClientRect();
+          const targetY = rect.top + rect.height / 2 - containerRect.top;
+          const startOffsetY = (i - 1) * 20;
+          const startY = hubCenterY + startOffsetY;
+          const startX = hubCenterX + Math.sqrt(Math.max(0, Math.pow(hubRadius, 2) - Math.pow(startOffsetY, 2)));
+          const dx = commonTargetX - startX;
+          const cp1x = startX + dx * 0.5;
+          const cp2x = commonTargetX - dx * 0.5;
+          return `M ${startX} ${startY} C ${cp1x} ${startY}, ${cp2x} ${targetY}, ${commonTargetX} ${targetY}`;
+        });
+      }
 
       setPaths({ toHub, toProviders });
     };
@@ -92,25 +123,20 @@ const RevenueFlowAnimation = ({ lang = 'zh' }: { lang?: Language }) => {
   ];
 
   return (
-    <div className="w-full max-w-5xl mx-auto py-12 px-6 overflow-hidden relative">
-      <div ref={containerRef} className="flex flex-col md:flex-row items-center justify-between gap-12 relative">
+    <div className="w-full max-w-5xl mx-auto py-6 md:py-12 px-6 overflow-hidden relative">
+      <div ref={containerRef} className="flex flex-col md:flex-row items-center justify-between gap-6 md:gap-12 relative">
         
         {/* Left: AI Agent */}
         <motion.div 
           ref={agentRef}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="relative z-10 w-full md:w-64 p-8 rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-slate-900 shadow-2xl transition-colors"
+          className="relative z-10 w-48 md:w-64 p-4 md:p-8 rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-slate-900 shadow-2xl transition-colors mx-auto"
         >
-          {/* Badge "1" */}
-          <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-primary/40 z-20">
-            1
-          </div>
-
-          <div className="flex flex-col items-center text-center gap-6">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center relative">
+          <div className="flex flex-col items-center text-center gap-3 md:gap-6">
+            <div className="w-10 h-10 md:w-20 md:h-20 rounded-full bg-primary/10 flex items-center justify-center relative">
               <div className="absolute inset-0 rounded-full border border-primary/20 animate-ping" />
-              <Zap className="w-10 h-10 text-primary fill-current" />
+              <Zap className="w-5 h-5 md:w-10 md:h-10 text-primary fill-current" />
             </div>
             <div>
               <h3 className="text-xl font-bold dark:text-white text-slate-900 transition-colors">{t.flow.agent}</h3>
@@ -123,7 +149,7 @@ const RevenueFlowAnimation = ({ lang = 'zh' }: { lang?: Language }) => {
         </motion.div>
 
         {/* Middle: XAgent Pay Hub */}
-        <div ref={hubRef} className="relative flex items-center justify-center w-72 h-72">
+        <div ref={hubRef} className="relative flex items-center justify-center w-36 h-36 md:w-72 md:h-72">
           {/* Animated Rings */}
           <motion.div 
             animate={{ rotate: 360 }}
@@ -144,22 +170,22 @@ const RevenueFlowAnimation = ({ lang = 'zh' }: { lang?: Language }) => {
           {/* Hub Core */}
           <motion.div 
             animate={step === 2 ? { scale: [1, 1.05, 1], boxShadow: ["0 0 20px rgba(11,80,218,0.2)", "0 0 40px rgba(11,80,218,0.4)", "0 0 20px rgba(11,80,218,0.2)"] } : {}}
-            className="relative z-10 w-44 h-44 rounded-full bg-white dark:bg-slate-900 border-2 border-primary/50 shadow-[0_0_30px_rgba(11,80,218,0.3)] flex flex-col items-center justify-center text-center p-4 transition-colors"
+            className="relative z-10 w-20 h-20 md:w-44 md:h-44 rounded-full bg-white dark:bg-slate-900 border-2 border-primary/50 shadow-[0_0_30px_rgba(11,80,218,0.3)] flex flex-col items-center justify-center text-center p-2 md:p-4 transition-colors"
           >
-            <Share2 className="w-12 h-12 text-primary mb-2" />
-            <h4 className="text-sm font-bold dark:text-white text-slate-900 transition-colors">XAgent Pay</h4>
-            <div className="mt-1 px-3 py-1 rounded-md bg-primary/10 border border-primary/30">
-              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">CLEARING</span>
+            <Share2 className="w-5 h-5 md:w-12 md:h-12 text-primary md:mb-2" />
+            <h4 className="text-[10px] md:text-sm font-bold dark:text-white text-slate-900 transition-colors">XAgent Pay</h4>
+            <div className="mt-0.5 md:mt-1 px-2 py-0.5 md:px-3 md:py-1 rounded-md bg-primary/10 border border-primary/30">
+              <span className="text-[8px] md:text-[10px] font-bold text-primary uppercase tracking-widest">CLEARING</span>
             </div>
             
             {/* Status Indicators */}
-            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-1.5 backdrop-blur-sm">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">{t.flow.settle}</span>
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-2 py-0.5 md:px-3 md:py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-1 md:gap-1.5 backdrop-blur-sm">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[9px] md:text-[10px] font-bold text-emerald-500 uppercase tracking-wider">{t.flow.settle}</span>
             </div>
-            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center gap-1.5 backdrop-blur-sm">
-              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-              <span className="text-[10px] font-bold text-purple-500 uppercase tracking-wider">{t.flow.split}</span>
+            <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 px-2 py-0.5 md:px-3 md:py-1 rounded-full bg-purple-500/10 border border-purple-500/30 flex items-center gap-1 md:gap-1.5 backdrop-blur-sm">
+              <div className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse" />
+              <span className="text-[9px] md:text-[10px] font-bold text-purple-500 uppercase tracking-wider">{t.flow.split}</span>
             </div>
           </motion.div>
         </div>
@@ -171,15 +197,14 @@ const RevenueFlowAnimation = ({ lang = 'zh' }: { lang?: Language }) => {
               initial={{ offsetDistance: "0%", opacity: 0 }}
               animate={{ offsetDistance: "100%", opacity: 1 }}
               exit={{ opacity: 0 }}
-              style={{ 
+              style={{
                 offsetPath: `path("${paths.toHub}")`,
+                offsetAnchor: 'center',
                 position: 'absolute',
                 top: 0,
                 left: 0,
-                x: "-50%",
-                y: "-50%"
               }}
-              className="w-4 h-4 rounded-full bg-primary shadow-[0_0_15px_rgba(11,80,218,1)] z-20"
+              className="hidden md:block w-4 h-4 rounded-full bg-primary shadow-[0_0_15px_rgba(11,80,218,1)] z-20"
             />
           )}
         </AnimatePresence>
@@ -193,17 +218,16 @@ const RevenueFlowAnimation = ({ lang = 'zh' }: { lang?: Language }) => {
                   initial={{ offsetDistance: "0%", opacity: 0 }}
                   animate={{ offsetDistance: "100%", opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  style={{ 
+                  style={{
                     offsetPath: `path("${paths.toProviders[i]}")`,
+                    offsetAnchor: 'center',
                     position: 'absolute',
                     top: 0,
                     left: 0,
-                    x: "-50%",
-                    y: "-50%",
                     backgroundColor: p.particleColor,
                     boxShadow: `0 0 12px ${p.particleColor}`
                   }}
-                  className="w-3 h-3 rounded-full z-20"
+                  className="hidden md:block w-3 h-3 rounded-full z-20"
                 />
               ))}
             </>
@@ -211,7 +235,7 @@ const RevenueFlowAnimation = ({ lang = 'zh' }: { lang?: Language }) => {
         </AnimatePresence>
 
         {/* Right: Recipients */}
-        <div className="flex flex-col gap-6 w-full md:w-80 relative z-10">
+        <div className="grid grid-cols-3 gap-2 md:flex md:flex-col md:gap-6 w-full md:w-80 relative z-10">
           {providers.map((p, i) => (
             <motion.div
               key={p.id}
@@ -219,28 +243,27 @@ const RevenueFlowAnimation = ({ lang = 'zh' }: { lang?: Language }) => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.1 }}
-              className={`p-5 rounded-2xl border ${p.border} ${p.bg} dark:bg-slate-900/50 backdrop-blur-sm shadow-xl flex items-center justify-between group hover:scale-[1.03] transition-all duration-300`}
+              className={`rounded-2xl border ${p.border} ${p.bg} dark:bg-slate-900/50 backdrop-blur-sm shadow-xl group hover:scale-[1.03] transition-all duration-300
+                p-2 flex flex-col items-center text-center gap-1
+                md:p-5 md:flex-row md:items-center md:justify-between md:text-left md:gap-4`}
             >
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl bg-white dark:bg-slate-800 shadow-sm ${p.color}`}>
-                  {p.icon}
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold dark:text-white text-slate-900 transition-colors">{p.name}</h4>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Merchant {String.fromCharCode(65 + i)}</p>
-                </div>
+              {/* Mobile: vertical layout */}
+              <div className={`p-2 rounded-xl bg-white dark:bg-slate-800 shadow-sm ${p.color} md:p-3`}>
+                {p.icon}
               </div>
-              <div className="text-right">
-                <span className={`text-lg font-mono font-bold ${p.color}`}>{p.amount}</span>
+              <div className="md:flex-1">
+                <h4 className="text-[10px] md:text-sm font-bold dark:text-white text-slate-900 transition-colors leading-tight">{p.name}</h4>
+                <p className="text-[8px] md:text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Merchant {String.fromCharCode(65 + i)}</p>
               </div>
+              <span className={`text-xs md:text-lg font-mono font-bold ${p.color}`}>{p.amount}</span>
             </motion.div>
           ))}
         </div>
 
         {/* Background Connecting Lines (Desktop) */}
-        <svg className="absolute inset-0 w-full h-full -z-10 hidden md:block" style={{ pointerEvents: 'none' }}>
+        <svg className="absolute inset-0 w-full h-full -z-10" style={{ pointerEvents: 'none' }}>
           <defs>
-            <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <linearGradient id="lineGradient" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="500" y2="500">
               <stop offset="0%" stopColor="#0B50DA" stopOpacity="0.2" />
               <stop offset="50%" stopColor="#0B50DA" stopOpacity="1" />
               <stop offset="100%" stopColor="#0B50DA" stopOpacity="0.2" />
@@ -292,7 +315,7 @@ const RevenueFlowAnimation = ({ lang = 'zh' }: { lang?: Language }) => {
       </div>
 
       {/* Legend / Description */}
-      <div className="mt-20 text-center">
+      <div className="mt-8 md:mt-20 text-center">
         <p className="text-base text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed transition-colors">
           {t.subtitle}
           <br />

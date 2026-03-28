@@ -361,7 +361,12 @@ export class ChainWatcher {
    * If the relayer is configured and every payment in a group is ESCROWED,
    * submit a release() tx for each one.  This enables full auto-settlement
    * in the demo/coreOperator flow without needing merchant confirmation.
+   *
+   * 4b fix: contract release() now requires dispute window to have passed.
+   * We delay the release by DISPUTE_WINDOW_DELAY_MS before attempting.
    */
+  private static readonly DISPUTE_WINDOW_DELAY_MS = 310_000; // 5min 10s (dispute window = 5min + buffer)
+
   private async maybeAutoRelease(groupId: string): Promise<void> {
     if (!this.relayer) return;
 
@@ -373,7 +378,37 @@ export class ChainWatcher {
       const allEscrowed = payments.every((p) => p.status === "ESCROWED");
       if (!allEscrowed) return;
 
-      cwLog.info("auto-release: all payments ESCROWED, releasing group", {
+      cwLog.info("auto-release: all payments ESCROWED, scheduling delayed release", {
+        groupId,
+        count: payments.length,
+        delayMs: ChainWatcher.DISPUTE_WINDOW_DELAY_MS,
+      });
+
+      // Delay release until after dispute window closes
+      setTimeout(() => {
+        this.executeAutoRelease(groupId).catch((err) => {
+          cwLog.error("auto-release: delayed release failed", {
+            groupId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }, ChainWatcher.DISPUTE_WINDOW_DELAY_MS);
+    } catch (err) {
+      cwLog.error("auto-release: unexpected error", {
+        groupId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  private async executeAutoRelease(groupId: string): Promise<void> {
+    if (!this.relayer) return;
+
+    try {
+      const payments = await this.paymentRepo.findByGroupId(groupId);
+      if (payments.length === 0) return;
+
+      cwLog.info("auto-release: executing delayed release", {
         groupId,
         count: payments.length,
       });
