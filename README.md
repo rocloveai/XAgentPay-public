@@ -253,4 +253,4 @@ src/
 
 ## License
 
-Copyright (c) 2026. All rights reserved.
+MIT License — see [LICENSE](LICENSE) for details.
