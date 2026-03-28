@@ -93,10 +93,13 @@ function checkRateLimit(ip: string): {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const CORS_ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com";
+
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": CORS_ALLOWED_ORIGIN,
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Vary": "Origin",
 } as const;
 
 function jsonResponse(
@@ -114,9 +117,13 @@ function jsonResponse(
   res.end(JSON.stringify(envelope, null, 2));
 }
 
+const TRUST_PROXY = (process.env.TRUST_PROXY ?? "true") === "true";
+
 function getClientIp(req: IncomingMessage): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
+  if (TRUST_PROXY) {
+    const forwarded = req.headers["x-forwarded-for"];
+    if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
+  }
   return req.socket.remoteAddress ?? "unknown";
 }
 
@@ -318,10 +325,10 @@ async function handlePaymentStatus(
 
     jsonResponse(res, 200, { payment, group, group_payments: groupPayments });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    log.error("GET /api/payments error", { error: message });
+    const detail = err instanceof Error ? err.message : "Unknown error";
+    log.error("GET /api/payments error", { error: detail });
     jsonResponse(res, 500, {
-      error: { code: "INTERNAL_ERROR", message },
+      error: { code: "INTERNAL_ERROR", message: "Internal server error" },
     });
   }
   return true;
@@ -405,10 +412,10 @@ async function handleAgentDiscovery(
       offset: 0,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    log.error("GET /api/agents error", { error: message });
+    const detail = err instanceof Error ? err.message : "Unknown error";
+    log.error("GET /api/agents error", { error: detail });
     jsonResponse(res, 500, {
-      error: { code: "INTERNAL_ERROR", message },
+      error: { code: "INTERNAL_ERROR", message: "Internal server error" },
     });
   }
   return true;
@@ -445,6 +452,22 @@ async function handleAgentSkill(
       return true;
     }
 
+    // SSRF protection: only allow HTTPS URLs to public hosts
+    const skillUrl = new URL(merchant.skill_md_url);
+    if (skillUrl.protocol !== "https:") {
+      jsonResponse(res, 400, {
+        error: { code: "INVALID_SKILL_URL", message: "skill_md_url must use HTTPS" },
+      });
+      return true;
+    }
+    const blockedHosts = ["localhost", "127.0.0.1", "0.0.0.0", "[::1]", "169.254.169.254", "metadata.google.internal"];
+    if (blockedHosts.includes(skillUrl.hostname)) {
+      jsonResponse(res, 400, {
+        error: { code: "INVALID_SKILL_URL", message: "skill_md_url points to a blocked host" },
+      });
+      return true;
+    }
+
     const response = await fetch(merchant.skill_md_url, {
       signal: AbortSignal.timeout(10_000),
     });
@@ -468,10 +491,10 @@ async function handleAgentSkill(
     });
     res.end(skillContent);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    log.error("GET /api/agents/:did/skill error", { error: message });
+    const detail = err instanceof Error ? err.message : "Unknown error";
+    log.error("GET /api/agents/:did/skill error", { error: detail });
     jsonResponse(res, 500, {
-      error: { code: "INTERNAL_ERROR", message },
+      error: { code: "INTERNAL_ERROR", message: "Internal server error" },
     });
   }
   return true;
@@ -563,10 +586,10 @@ async function handleMerchantPayments(
       since: since ?? null,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    log.error("GET /api/merchant/payments error", { error: message });
+    const detail = err instanceof Error ? err.message : "Unknown error";
+    log.error("GET /api/merchant/payments error", { error: detail });
     jsonResponse(res, 500, {
-      error: { code: "INTERNAL_ERROR", message },
+      error: { code: "INTERNAL_ERROR", message: "Internal server error" },
     });
   }
   return true;
@@ -576,10 +599,21 @@ async function handleMerchantPayments(
 // POST /api/acp/submit-deliverable — ACP Deliverable Submission
 // ---------------------------------------------------------------------------
 
+const MAX_BODY_BYTES = 1_048_576; // 1 MB
+
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    let totalSize = 0;
+    req.on("data", (chunk: Buffer) => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_BODY_BYTES) {
+        req.destroy();
+        reject(new Error("Request body too large"));
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on("end", () => resolve(Buffer.concat(chunks).toString()));
     req.on("error", reject);
   });
@@ -590,6 +624,18 @@ async function handleACPSubmitDeliverable(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<true> {
+  // Merchant API key authentication
+  const merchantApiKey = process.env.MERCHANT_API_KEY ?? "";
+  if (merchantApiKey) {
+    const authHeader = req.headers.authorization ?? "";
+    if (authHeader !== `Bearer ${merchantApiKey}`) {
+      jsonResponse(res, 403, {
+        error: { code: "FORBIDDEN", message: "Invalid or missing API key" },
+      });
+      return true;
+    }
+  }
+
   try {
     if (!deps.relayer) {
       jsonResponse(res, 503, {
@@ -706,10 +752,10 @@ async function handleACPSubmitDeliverable(
       status: "submitted",
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    log.error("POST /api/acp/submit-deliverable error", { error: message });
+    const detail = err instanceof Error ? err.message : "Unknown error";
+    log.error("POST /api/acp/submit-deliverable error", { error: detail });
     jsonResponse(res, 500, {
-      error: { code: "INTERNAL_ERROR", message },
+      error: { code: "INTERNAL_ERROR", message: "Internal server error" },
     });
   }
   return true;

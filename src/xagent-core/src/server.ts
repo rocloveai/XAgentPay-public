@@ -1108,9 +1108,15 @@ async function main(): Promise<void> {
           // POST /api/orchestrate — HTTP 402 Payment Required endpoint
           if (url.pathname === "/api/orchestrate" && req.method === "POST") {
             try {
+              const MAX_BODY = 1_048_576; // 1 MB
               const chunks: Buffer[] = [];
+              let totalSize = 0;
               await new Promise<void>((resolve, reject) => {
-                req.on("data", (chunk: Buffer) => chunks.push(chunk));
+                req.on("data", (chunk: Buffer) => {
+                  totalSize += chunk.length;
+                  if (totalSize > MAX_BODY) { req.destroy(); reject(new Error("Request body too large")); return; }
+                  chunks.push(chunk);
+                });
                 req.on("end", resolve);
                 req.on("error", reject);
               });
@@ -1135,7 +1141,7 @@ async function main(): Promise<void> {
               if (!payerWallet || !/^0x[a-fA-F0-9]{40}$/.test(payerWallet)) {
                 res.writeHead(400, {
                   "Content-Type": "application/json",
-                  "Access-Control-Allow-Origin": "*",
+                  "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
                 });
                 res.end(
                   JSON.stringify({
@@ -1154,7 +1160,7 @@ async function main(): Promise<void> {
 
               res.writeHead(402, {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
                 "Access-Control-Allow-Headers": "Content-Type",
               });
               res.end(
@@ -1165,14 +1171,12 @@ async function main(): Promise<void> {
                 ),
               );
             } catch (err) {
-              const message =
-                err instanceof Error ? err.message : "Unknown error";
               console.error("[Orchestrate Error]", err);
               res.writeHead(500, {
                 "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
               });
-              res.end(JSON.stringify({ http_status: 500, error: message }));
+              res.end(JSON.stringify({ http_status: 500, error: "Internal server error" }));
             }
             return;
           }
@@ -1188,13 +1192,19 @@ async function main(): Promise<void> {
           ) {
             const corsHeaders = {
               "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
               "Access-Control-Allow-Headers": "Content-Type",
             } as const;
             try {
+              const MAX_BODY = 1_048_576; // 1 MB
               const chunks: Buffer[] = [];
+              let totalSize = 0;
               await new Promise<void>((resolve, reject) => {
-                req.on("data", (chunk: Buffer) => chunks.push(chunk));
+                req.on("data", (chunk: Buffer) => {
+                  totalSize += chunk.length;
+                  if (totalSize > MAX_BODY) { req.destroy(); reject(new Error("Request body too large")); return; }
+                  chunks.push(chunk);
+                });
                 req.on("end", resolve);
                 req.on("error", reject);
               });
@@ -1307,7 +1317,7 @@ async function main(): Promise<void> {
           // OPTIONS preflight for /api/agent-pay/build-tx
           if (url.pathname === "/api/agent-pay/build-tx" && req.method === "OPTIONS") {
             res.writeHead(204, {
-              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
               "Access-Control-Allow-Methods": "POST, OPTIONS",
               "Access-Control-Allow-Headers": "Content-Type",
             });
@@ -1322,13 +1332,30 @@ async function main(): Promise<void> {
           ) {
             const corsHeaders = {
               "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
             } as const;
 
+            // Merchant API key authentication
+            const merchantApiKey = process.env.MERCHANT_API_KEY ?? "";
+            if (merchantApiKey) {
+              const authHeader = req.headers.authorization ?? "";
+              if (authHeader !== `Bearer ${merchantApiKey}`) {
+                res.writeHead(403, corsHeaders);
+                res.end(JSON.stringify({ http_status: 403, error: "Forbidden: invalid or missing API key" }));
+                return;
+              }
+            }
+
             try {
+              const MAX_BODY = 1_048_576; // 1 MB
               const chunks: Buffer[] = [];
+              let totalSize = 0;
               await new Promise<void>((resolve, reject) => {
-                req.on("data", (chunk: Buffer) => chunks.push(chunk));
+                req.on("data", (chunk: Buffer) => {
+                  totalSize += chunk.length;
+                  if (totalSize > MAX_BODY) { req.destroy(); reject(new Error("Request body too large")); return; }
+                  chunks.push(chunk);
+                });
                 req.on("end", resolve);
                 req.on("error", reject);
               });
@@ -1446,11 +1473,10 @@ async function main(): Promise<void> {
                 }),
               );
             } catch (err) {
-              const message =
-                err instanceof Error ? err.message : "Unknown error";
-              serverLog.error("confirm-fulfillment error", { error: message });
+              const detail = err instanceof Error ? err.message : "Unknown error";
+              serverLog.error("confirm-fulfillment error", { error: detail });
               res.writeHead(500, corsHeaders);
-              res.end(JSON.stringify({ http_status: 500, error: message }));
+              res.end(JSON.stringify({ http_status: 500, error: "Internal server error" }));
             }
             return;
           }
@@ -1461,7 +1487,7 @@ async function main(): Promise<void> {
             req.method === "OPTIONS"
           ) {
             res.writeHead(204, {
-              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
               "Access-Control-Allow-Headers": "Content-Type",
               "Access-Control-Allow-Methods": "POST, OPTIONS",
             });
@@ -1472,7 +1498,7 @@ async function main(): Promise<void> {
           // CORS preflight for /api/orchestrate
           if (url.pathname === "/api/orchestrate" && req.method === "OPTIONS") {
             res.writeHead(204, {
-              "Access-Control-Allow-Origin": "*",
+              "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
               "Access-Control-Allow-Headers": "Content-Type",
               "Access-Control-Allow-Methods": "POST, OPTIONS",
             });
@@ -1480,11 +1506,18 @@ async function main(): Promise<void> {
             return;
           }
 
-          // Debug: last orchestration errors
+          // Debug: last orchestration errors (requires portal token)
           if (
             url.pathname === "/api/debug/last-errors" &&
             req.method === "GET"
           ) {
+            const authHeader = req.headers.authorization ?? "";
+            const expectedToken = config.portalToken;
+            if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
+              res.writeHead(403, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ http_status: 403, error: "Forbidden" }));
+              return;
+            }
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(
               JSON.stringify(

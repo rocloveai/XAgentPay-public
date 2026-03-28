@@ -130,9 +130,10 @@ export class PaymentStateMachine {
       input.xagentPaymentId,
       input.toStatus,
       input.fields,
+      payment.status, // atomic CAS: only update if status still matches
     );
     if (!updated) {
-      throw new XAgentError("UPDATE_FAILED", "Status update failed", {
+      throw new XAgentError("UPDATE_FAILED", "Status update failed (concurrent modification)", {
         xagentPaymentId: input.xagentPaymentId,
       });
     }

@@ -50,9 +50,12 @@ function pushTelegramNotifyCheckout(
     status: payment.status,
     event_type: eventType,
   });
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const internalKey = process.env.INTERNAL_API_KEY;
+  if (internalKey) headers["Authorization"] = `Bearer ${internalKey}`;
   fetch(telegramNotifyUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body,
     signal: AbortSignal.timeout(8_000),
   }).catch(() => {});
@@ -72,7 +75,7 @@ function sendJson(
     "Content-Type": "application/json",
   };
   if (cors) {
-    headers["Access-Control-Allow-Origin"] = "*";
+    headers["Access-Control-Allow-Origin"] = process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com";
     headers["Access-Control-Allow-Headers"] = "Content-Type";
     headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
   }
@@ -85,10 +88,21 @@ function sendHtml(res: ServerResponse, html: string): void {
   res.end(html);
 }
 
+const MAX_BODY_BYTES = 1_048_576; // 1 MB
+
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    let totalSize = 0;
+    req.on("data", (chunk: Buffer) => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_BODY_BYTES) {
+        req.destroy();
+        reject(new Error("Request body too large"));
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on("end", () => resolve(Buffer.concat(chunks).toString()));
     req.on("error", reject);
   });

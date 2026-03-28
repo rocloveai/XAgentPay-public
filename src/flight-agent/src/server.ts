@@ -79,7 +79,17 @@ registerWithXAgentCore();
 
 // Stateless REST calls share a process-level cache (offer_id contains unique
 // timestamp prefix so there's no cross-user collision risk)
+const CACHE_MAX_SIZE = 10_000;
 const statelessOfferCache = new Map<string, FlightOffer>();
+
+function cacheSet<K, V>(cache: Map<K, V>, key: K, value: V, maxSize = CACHE_MAX_SIZE): void {
+  if (cache.size >= maxSize) {
+    // Evict oldest entry (first inserted)
+    const firstKey = cache.keys().next().value;
+    if (firstKey !== undefined) cache.delete(firstKey);
+  }
+  cache.set(key, value);
+}
 
 // ── Tool Implementations (accept offerCache as parameter) ───────────────────
 
@@ -100,7 +110,7 @@ async function handleSearchFlights(
   });
 
   for (const offer of offers) {
-    cache.set(offer.offer_id, offer);
+    cacheSet(cache, offer.offer_id, offer);
   }
 
   const lines = offers.map(

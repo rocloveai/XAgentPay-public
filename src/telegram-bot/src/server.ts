@@ -173,9 +173,10 @@ const RenderOrderSchema = z.object({
 // ---------------------------------------------------------------------------
 
 function setCorsHeaders(res: ServerResponse): void {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Vary", "Origin");
 }
 
 function jsonResponse(
@@ -188,12 +189,35 @@ function jsonResponse(
   res.end(JSON.stringify(body));
 }
 
+const MAX_BODY_BYTES = 1_048_576; // 1 MB
+
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
+  let totalSize = 0;
   for await (const chunk of req) {
-    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+    const buf = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
+    totalSize += buf.length;
+    if (totalSize > MAX_BODY_BYTES) {
+      req.destroy();
+      throw new Error("Request body too large");
+    }
+    chunks.push(buf);
   }
   return Buffer.concat(chunks).toString("utf-8");
+}
+
+// ---------------------------------------------------------------------------
+// Internal API key check
+// ---------------------------------------------------------------------------
+
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY ?? "";
+
+function checkInternalAuth(req: IncomingMessage, res: ServerResponse): boolean {
+  if (!INTERNAL_API_KEY) return true; // not configured — allow (dev mode)
+  const auth = req.headers.authorization ?? "";
+  if (auth === `Bearer ${INTERNAL_API_KEY}`) return true;
+  jsonResponse(res, 403, { error: "Forbidden" });
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -244,14 +268,16 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Render order (group-status mode)
+  // Render order (group-status mode) — internal only
   if (method === "POST" && url === "/api/render-order") {
+    if (!checkInternalAuth(req, res)) return;
     await handleRenderOrder(req, res);
     return;
   }
 
-  // Start order panel (merchant PAID/UNPAID mode)
+  // Start order panel (merchant PAID/UNPAID mode) — internal only
   if (method === "POST" && url === "/start-order-panel") {
+    if (!checkInternalAuth(req, res)) return;
     await handleStartOrderPanel(req, res);
     return;
   }
@@ -262,8 +288,9 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // Payment notify — pushed by xagent-core on state changes (no polling needed)
+  // Payment notify — pushed by xagent-core on state changes — internal only
   if (method === "POST" && url === "/api/payment-notify") {
+    if (!checkInternalAuth(req, res)) return;
     await handlePaymentNotify(req, res);
     return;
   }
@@ -382,8 +409,16 @@ async function handleStartOrderPanel(
   const prev = panelJobs.get(groupId);
   if (prev) { clearInterval(prev.timer); panelJobs.delete(groupId); }
 
-  // If Eva passes her own bot token, use a dedicated client for this job
-  const customTgClient = botToken ? new TelegramClient(botToken) : null;
+  // If Eva passes her own bot token, validate it against whitelist
+  const ALLOWED_BOT_TOKENS = (process.env.ALLOWED_BOT_TOKENS ?? "").split(",").filter(Boolean);
+  let customTgClient: TelegramClient | null = null;
+  if (botToken) {
+    if (ALLOWED_BOT_TOKENS.length > 0 && !ALLOWED_BOT_TOKENS.includes(botToken)) {
+      jsonResponse(res, 403, { error: "Bot token not in whitelist" });
+      return;
+    }
+    customTgClient = new TelegramClient(botToken);
+  }
 
   const state: OrderPanelState = {
     chatId, groupId, checkoutUrl,

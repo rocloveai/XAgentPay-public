@@ -16,9 +16,13 @@ export async function requestSettlement(
   const timeout = setTimeout(() => controller.abort(), 10_000);
 
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const apiKey = process.env.MERCHANT_API_KEY;
+    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+
     const resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         xagent_payment_id: xagentPaymentId,
         merchant_did: merchantDid,
@@ -48,9 +52,13 @@ export async function submitDeliverable(
   const timeout = setTimeout(() => controller.abort(), 15_000);
 
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const apiKey = process.env.MERCHANT_API_KEY;
+    if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+
     const resp = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         xagent_payment_id: xagentPaymentId,
         merchant_did: merchantDid,

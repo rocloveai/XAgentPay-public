@@ -27,7 +27,10 @@ export interface PortalDeps {
 }
 
 function isAuthorized(deps: PortalDeps, req: IncomingMessage): boolean {
-  if (!deps.portalToken) return true;
+  if (!deps.portalToken) {
+    console.warn("[Portal] PORTAL_TOKEN is not set — access denied by default");
+    return false;
+  }
   const authHeader = req.headers.authorization ?? "";
   return authHeader === `Bearer ${deps.portalToken}`;
 }
@@ -43,7 +46,7 @@ function sendJson(res: ServerResponse, status: number, data: unknown): void {
   const body = JSON.stringify(envelope, null, 2);
   res.writeHead(status, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
   });
   res.end(body);
 }

@@ -27,8 +27,10 @@ export function loadConfig(): Config {
     process.env.MERCHANT_DID ?? "did:xagent:196:demo_flight";
   const portalPort = parsePort(process.env.PORTAL_PORT, 3001);
   const databaseUrl = process.env.DATABASE_URL ?? "";
-  const webhookSecret =
-    process.env.XAGENT_WEBHOOK_SECRET ?? "REDACTED_WEBHOOK_SECRET";
+  const webhookSecret = process.env.XAGENT_WEBHOOK_SECRET ?? "";
+  if (!webhookSecret) {
+    console.warn("[Config] XAGENT_WEBHOOK_SECRET is not set — webhook verification will reject all requests");
+  }
   const paymentAddress =
     process.env.MERCHANT_PAYMENT_ADDRESS ||
     "0xac9d5239b597f8903da93b9b8d92e6cff564e989";

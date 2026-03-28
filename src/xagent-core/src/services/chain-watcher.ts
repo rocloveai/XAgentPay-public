@@ -470,9 +470,12 @@ export class ChainWatcher {
 
           // Push real-time notification to Telegram order panel (Eva's bot)
           if (this.config.telegramNotifyUrl) {
+            const _notifyHeaders: Record<string, string> = { "Content-Type": "application/json" };
+            const _intKey = process.env.INTERNAL_API_KEY;
+            if (_intKey) _notifyHeaders["Authorization"] = `Bearer ${_intKey}`;
             fetch(this.config.telegramNotifyUrl, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: _notifyHeaders,
               body: JSON.stringify({
                 group_id: updated.group_id,
                 merchant_order_ref: updated.merchant_order_ref,
@@ -653,9 +656,12 @@ export class ChainWatcher {
             );
 
           if (this.config.telegramNotifyUrl) {
+            const _notifyHeaders: Record<string, string> = { "Content-Type": "application/json" };
+            const _intKey = process.env.INTERNAL_API_KEY;
+            if (_intKey) _notifyHeaders["Authorization"] = `Bearer ${_intKey}`;
             fetch(this.config.telegramNotifyUrl, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: _notifyHeaders,
               body: JSON.stringify({
                 group_id: updated.group_id,
                 merchant_order_ref: updated.merchant_order_ref,

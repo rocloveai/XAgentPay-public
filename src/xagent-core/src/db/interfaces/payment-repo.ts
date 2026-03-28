@@ -22,7 +22,9 @@ export interface PaymentRepository {
 
   /**
    * Transition payment status atomically.
-   * Returns new record on success, null if payment not found.
+   * When `expectedStatus` is provided, uses compare-and-swap
+   * (WHERE status = expectedStatus) to prevent race conditions.
+   * Returns new record on success, null if payment not found or status mismatch.
    */
   updateStatus(
     xagentPaymentId: string,
@@ -53,6 +55,7 @@ export interface PaymentRepository {
         | "acp_complete_tx_hash"
       >
     >,
+    expectedStatus?: PaymentStatus,
   ): Promise<PaymentRecord | null>;
 
   /** Find payments in AWAITING_TX that have expired. */

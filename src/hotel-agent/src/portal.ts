@@ -105,7 +105,7 @@ export function sendJson(
   const body = JSON.stringify(data, null, 2);
   res.writeHead(status, {
     "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
   });
   res.end(body);
 }
@@ -122,7 +122,7 @@ function sendText(
 ): void {
   res.writeHead(200, {
     "Content-Type": contentType,
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN ?? "https://xagenpay.com",
   });
   res.end(text);
 }
@@ -717,10 +717,21 @@ setInterval(refresh, 5000);
 
 // ── Webhook handler ─────────────────────────────────────────────────────────
 
+const MAX_BODY_BYTES = 1_048_576; // 1 MB
+
 export function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    let totalSize = 0;
+    req.on("data", (chunk: Buffer) => {
+      totalSize += chunk.length;
+      if (totalSize > MAX_BODY_BYTES) {
+        req.destroy();
+        reject(new Error("Request body too large"));
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
     req.on("error", reject);
   });

@@ -40,6 +40,11 @@ services:
       USDC_ADDRESS: "0x74b7F16337b8972027F6196A17a631aC6dE26d22"
       BASE_URL: "https://xagenpay.com/api"
       TELEGRAM_NOTIFY_URL: "http://telegram-bot:10000/api/payment-notify"
+      # Security: CORS, Portal auth, Merchant API key
+      ALLOWED_ORIGIN: "https://xagenpay.com"
+      PORTAL_TOKEN: ${PORTAL_TOKEN:?PORTAL_TOKEN is required}
+      MERCHANT_API_KEY: ${MERCHANT_API_KEY:?MERCHANT_API_KEY is required}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
       # ACP (ERC-8183) — fill after deployment
       ACP_CONTRACT: ${ACP_CONTRACT:-}
       AUTO_EVALUATOR_CONTRACT: ${AUTO_EVALUATOR_CONTRACT:-}
@@ -66,8 +71,10 @@ services:
       MERCHANT_PAYMENT_ADDRESS: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
       MERCHANT_DID: "did:xagent:20250407:demo_flight"
       XAGENT_CORE_URL: "http://xagent-core:10000"
-      XAGENT_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
+      XAGENT_WEBHOOK_SECRET: ${XAGENT_WEBHOOK_SECRET:?XAGENT_WEBHOOK_SECRET is required}
       PORTAL_BASE_URL: "https://xagenpay.com/flight"
+      ALLOWED_ORIGIN: "https://xagenpay.com"
+      MERCHANT_API_KEY: ${MERCHANT_API_KEY:?MERCHANT_API_KEY is required}
 
   # ── Hotel Agent ──
   hotel-agent:
@@ -92,8 +99,10 @@ services:
       MERCHANT_PAYMENT_ADDRESS: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
       MERCHANT_DID: "did:xagent:20250407:demo_hotel"
       XAGENT_CORE_URL: "http://xagent-core:10000"
-      XAGENT_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
+      XAGENT_WEBHOOK_SECRET: ${XAGENT_WEBHOOK_SECRET:?XAGENT_WEBHOOK_SECRET is required}
       PORTAL_BASE_URL: "https://xagenpay.com/hotel"
+      ALLOWED_ORIGIN: "https://xagenpay.com"
+      MERCHANT_API_KEY: ${MERCHANT_API_KEY:?MERCHANT_API_KEY is required}
 
   # ── eSIM Agent ──
   esim-agent:
@@ -116,8 +125,10 @@ services:
       MERCHANT_PAYMENT_ADDRESS: "0xac9d5239b597f8903da93b9b8d92e6cff564e989"
       MERCHANT_DID: "did:xagent:196:demo_esim"
       XAGENT_CORE_URL: "http://xagent-core:10000"
-      XAGENT_WEBHOOK_SECRET: "REDACTED_WEBHOOK_SECRET"
+      XAGENT_WEBHOOK_SECRET: ${XAGENT_WEBHOOK_SECRET:?XAGENT_WEBHOOK_SECRET is required}
       PORTAL_BASE_URL: "https://xagenpay.com/esim"
+      ALLOWED_ORIGIN: "https://xagenpay.com"
+      MERCHANT_API_KEY: ${MERCHANT_API_KEY:?MERCHANT_API_KEY is required}
 
   # ── Telegram Bot ──
   telegram-bot:
@@ -132,6 +143,9 @@ services:
       XAGENT_CORE_URL: "http://xagent-core:10000"
       PORT: "10000"
       BASE_URL: "https://xagenpay.com/tg-bot"
+      ALLOWED_ORIGIN: "https://xagenpay.com"
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      ALLOWED_BOT_TOKENS: ${ALLOWED_BOT_TOKENS:-}
 
   # ── Telegram Order Panel ──
   telegram-order-panel:

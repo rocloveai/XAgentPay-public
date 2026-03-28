@@ -190,6 +190,7 @@ export class NeonPaymentRepository implements PaymentRepository {
         | "acp_complete_tx_hash"
       >
     >,
+    expectedStatus?: PaymentStatus,
   ): Promise<PaymentRecord | null> {
     const sql = getPool();
     const now = new Date().toISOString();
@@ -218,10 +219,18 @@ export class NeonPaymentRepository implements PaymentRepository {
     }
 
     values.push(xagentPaymentId);
+    let whereClause = `WHERE xagent_payment_id = $${paramIdx}`;
+
+    // Atomic compare-and-swap: only update if current status matches expected
+    if (expectedStatus) {
+      paramIdx++;
+      values.push(expectedStatus);
+      whereClause += ` AND status = $${paramIdx}`;
+    }
 
     const rows = await sql(
       `UPDATE payments SET ${setClauses.join(", ")}
-       WHERE xagent_payment_id = $${paramIdx}
+       ${whereClause}
        RETURNING *`,
       values,
     );
