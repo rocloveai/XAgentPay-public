@@ -385,6 +385,16 @@ export class ChainWatcher {
           });
           continue;
         }
+        // Re-check status before each release to prevent double-release
+        // (another process may have already transitioned this payment)
+        const fresh = await this.paymentRepo.findById(payment.xagent_payment_id);
+        if (!fresh || fresh.status !== "ESCROWED") {
+          cwLog.info("auto-release: payment no longer ESCROWED, skipping", {
+            paymentId: payment.xagent_payment_id,
+            currentStatus: fresh?.status,
+          });
+          continue;
+        }
         try {
           const result = await this.relayer.submitRelease(
             payment.payment_id_bytes32 as Hex,

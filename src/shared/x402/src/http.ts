@@ -62,14 +62,20 @@ export function extractHTTPPayment(
     const { signature, authorization } = decoded?.payload ?? {};
     if (!option || !signature || !authorization) return null;
 
+    const amount = option.amount ?? option.maxAmountRequired;
+    const payTo = option.payTo;
+
+    // Reject payments with missing critical fields
+    if (!amount || amount === "0" || !payTo) return null;
+
     return {
       x402Version: decoded.x402Version ?? X402_VERSION,
       accepted: {
         scheme: option.scheme ?? PAYMENT_SCHEME,
         network: option.network ?? XLAYER_NETWORK,
         asset: option.asset ?? XLAYER_USDC,
-        amount: option.amount ?? option.maxAmountRequired ?? "0",
-        payTo: option.payTo ?? "",
+        amount,
+        payTo,
         maxTimeoutSeconds: option.maxTimeoutSeconds ?? MAX_TIMEOUT_SECONDS,
         extra: {
           name: USDC_NAME,

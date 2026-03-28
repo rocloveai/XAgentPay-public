@@ -278,7 +278,7 @@ export async function verifyEIP3009Payment(
     }
   } catch (err) {
     console.error("[x402 Facilitator] On-chain verification error:", err);
-    // Don't block on read errors — the settlement will catch issues
+    return { isValid: false, invalidReason: Errors.InsufficientBalance, payer };
   }
 
   // Simulate the transfer

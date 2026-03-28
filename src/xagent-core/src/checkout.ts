@@ -15,7 +15,8 @@ import type { WebhookNotifier } from "./services/webhook-notifier.js";
 import type { KVRepository } from "./db/interfaces/kv-repo.js";
 import type { XAgentCoreConfig } from "./config.js";
 import type { Hex } from "./types.js";
-import { createPublicClient, http } from "viem";
+import { createPublicClient, http, decodeEventLog } from "viem";
+import { XAGENT_PAY_ESCROW_EVENTS } from "./abi/xagent-pay-escrow.js";
 import { createLogger } from "./logger.js";
 
 const checkoutLog = createLogger("Checkout");
@@ -109,20 +110,15 @@ function readBody(req: IncomingMessage): Promise<string> {
 }
 
 /**
- * Resolves a token (e.g. `tok_123`) to its underlying `group_id`.
- * If it's already a `GRP-` or `grp_` ID, returns it directly as a fallback.
+ * Resolves a checkout token (e.g. `tok_123`) to its underlying `group_id`.
+ * Direct group ID access is no longer allowed — all checkout access must go
+ * through short-lived tokens to prevent enumeration and expired-quote reuse.
  * Returns null if the token is invalid or expired.
  */
 async function resolveTokenOrGroupId(
   kvRepo: KVRepository | null,
   tokenOrId: string,
 ): Promise<string | null> {
-  if (
-    tokenOrId.toLowerCase().startsWith("grp_") ||
-    tokenOrId.startsWith("GRP-")
-  ) {
-    return tokenOrId;
-  }
   if ((!tokenOrId.startsWith("tok-") && !tokenOrId.startsWith("tok_")) || !kvRepo) {
     return null;
   }
@@ -297,6 +293,43 @@ async function handleCheckoutConfirm(
       group_id: groupId,
     });
     return;
+  }
+
+  // Verify that this transaction actually contains Deposited events for payments in this group
+  try {
+    const receipt = await client.getTransactionReceipt({ hash: txHash });
+    const expectedPaymentIds = new Set(
+      payments.map((p) => p.payment_id_bytes32).filter(Boolean),
+    );
+    let matchCount = 0;
+    for (const log of receipt.logs) {
+      try {
+        const decoded = decodeEventLog({
+          abi: XAGENT_PAY_ESCROW_EVENTS,
+          data: log.data,
+          topics: log.topics,
+        });
+        if (decoded.eventName === "Deposited" && expectedPaymentIds.has((decoded.args as { paymentId: string }).paymentId)) {
+          matchCount++;
+        }
+      } catch {
+        // Not a matching event, skip
+      }
+    }
+    if (expectedPaymentIds.size > 0 && matchCount === 0) {
+      checkoutLog.warn("tx_hash does not contain Deposited events for this group", {
+        group_id: groupId,
+        tx_hash: txHash,
+      });
+      sendJson(res, 422, {
+        error: "Transaction does not contain deposit events for this payment group",
+        tx_hash: txHash,
+        group_id: groupId,
+      });
+      return;
+    }
+  } catch {
+    // If we can't parse logs, fall through to the existing receipt status check
   }
 
   if (receiptStatus === "reverted") {
