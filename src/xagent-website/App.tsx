@@ -1321,50 +1321,99 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
                 exit={{ opacity: 0, y: -10 }}
                 className="grid lg:grid-cols-2 gap-16"
               >
-                <div className="space-y-12">
-                  <div className="flex flex-col gap-4">
-                    <h3 className="text-3xl font-bold text-slate-900 dark:text-white transition-colors">{t.list.title}</h3>
-                    <div className="space-y-6">
-                      {t.list.steps.map((step, i) => (
-                        <div key={i} className="flex gap-4 items-center">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm">
-                            {i + 1}
-                          </div>
-                          <span className="text-lg text-slate-700 dark:text-slate-300 transition-colors">{step}</span>
-                        </div>
-                      ))}
+                <div className="space-y-6">
+                  <h3 className="text-3xl font-bold text-slate-900 dark:text-white transition-colors">{t.list.title}</h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">Follow these steps to list your AI agent on the XAgent Pay marketplace and start receiving USDC payments.</p>
+
+                  {/* Step 1 */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-black/5 dark:border-white/10 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs">1</div>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">Build your MCP Agent</h4>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Create an MCP-compatible agent server. Use our template to get started in minutes:</p>
+                    <a href="https://github.com/rocloveai/XAgentPay-public" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-xs font-bold text-primary hover:text-primary/80 transition-colors">
+                      <Code className="w-3.5 h-3.5" /> View Template on GitHub <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-black/5 dark:border-white/10 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs">2</div>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">Add x402 Payment</h4>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Make your paid tools return HTTP 402 with a payment requirement. Free tools (search, browse) need no changes.</p>
+                    <div className="bg-black/5 dark:bg-black/40 rounded-lg p-3 font-mono text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                      <span className="text-slate-400">// Paid endpoint returns 402</span><br/>
+                      POST /api/purchase → <span className="text-primary">HTTP 402</span> + payment requirement<br/>
+                      <span className="text-slate-400">// After payment signature</span><br/>
+                      POST /api/purchase + header → <span className="text-green-500">HTTP 200</span> + confirmation
                     </div>
                   </div>
 
-                  <div className="p-8 rounded-3xl bg-white dark:bg-slate-900 border border-black/5 dark:border-white/10 transition-colors shadow-sm dark:shadow-none">
-                    <div className="flex items-center gap-3 mb-6">
-                      <Code className="text-primary w-6 h-6" />
-                      <h4 className="text-xl font-bold text-slate-900 dark:text-white transition-colors">{t.list.api}</h4>
+                  {/* Step 3 */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-black/5 dark:border-white/10 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs">3</div>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">Write skill.md</h4>
                     </div>
-                    <div className="bg-black/5 dark:bg-black/50 rounded-xl p-4 font-mono text-xs text-primary mb-6 transition-colors">
-                      POST /api/market/register
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Publish a skill.md at your agent's root URL. This is how other AI agents discover and use your service.</p>
+                    <div className="bg-black/5 dark:bg-black/40 rounded-lg p-3 font-mono text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                      <span className="text-slate-400">---</span><br/>
+                      <span className="text-primary">name</span>: My eSIM Agent<br/>
+                      <span className="text-primary">description</span>: Buy eSIM data plans with USDC<br/>
+                      <span className="text-primary">category</span>: telecom<br/>
+                      <span className="text-slate-400">---</span><br/>
+                      <span className="text-slate-400"># Tools</span><br/>
+                      ## search_plans (FREE)<br/>
+                      ## purchase_plan (x402 — 0.50 USDC)
                     </div>
-                    <div className="grid sm:grid-cols-2 gap-8">
-                      <div>
-                        <h5 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 transition-colors">{t.list.required}</h5>
-                        <ul className="space-y-2 text-xs text-slate-500 dark:text-slate-400 transition-colors">
-                          <li>• skill_md_url</li>
-                          <li>• name</li>
-                          <li>• description</li>
-                          <li>• category</li>
-                          <li>• wallet_address</li>
-                        </ul>
+                  </div>
+
+                  {/* Step 4 */}
+                  <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-black/5 dark:border-white/10 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs">4</div>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">Deploy & Health Check</h4>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Deploy your agent to any hosting provider. Ensure these endpoints are publicly accessible:</p>
+                    <div className="flex flex-col gap-1.5 text-xs">
+                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                        <code className="bg-black/5 dark:bg-black/40 px-2 py-0.5 rounded text-[10px]">GET /skill.md</code>
+                        <span className="text-slate-400">— agent capabilities</span>
                       </div>
-                      <div>
-                        <h5 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 transition-colors">{t.list.optional}</h5>
-                        <ul className="space-y-2 text-xs text-slate-500 dark:text-slate-400 transition-colors">
-                          <li>• merchant_did</li>
-                          <li>• health_url</li>
-                          <li>• webhook_url</li>
-                          <li>• webhook_secret</li>
-                        </ul>
+                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                        <code className="bg-black/5 dark:bg-black/40 px-2 py-0.5 rounded text-[10px]">GET /health</code>
+                        <span className="text-slate-400">— returns 200 when online</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                        <code className="bg-black/5 dark:bg-black/40 px-2 py-0.5 rounded text-[10px]">POST /mcp</code>
+                        <span className="text-slate-400">— MCP streamable HTTP</span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Step 5 */}
+                  <div className="p-5 rounded-2xl bg-primary/5 border border-primary/20 transition-colors">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center font-bold text-xs">5</div>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">Register on XAgent Pay</h4>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Fill in the form on the right with your skill.md URL, agent info, and XLayer wallet address. Your agent will go live once the health check passes.</p>
+                  </div>
+
+                  {/* Requirements */}
+                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-black/5 dark:border-white/5">
+                    <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Prerequisites</h5>
+                    <ul className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                      <li className="flex items-center gap-2"><Wallet className="w-3.5 h-3.5 text-primary" /> An XLayer Mainnet wallet with a small OKB balance for gas</li>
+                      <li className="flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-primary" /> A publicly accessible HTTPS endpoint</li>
+                      <li className="flex items-center gap-2"><FileText className="w-3.5 h-3.5 text-primary" /> A valid skill.md file describing your agent's tools</li>
+                    </ul>
                   </div>
                 </div>
 
