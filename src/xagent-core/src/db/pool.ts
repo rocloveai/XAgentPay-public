@@ -10,7 +10,12 @@ export function initPool(databaseUrl: string): void {
   pool = new pg.Pool({
     connectionString: databaseUrl,
     max: 5,
-    ssl: isLocal ? false : { rejectUnauthorized: false },
+    ssl: isLocal
+      ? false
+      : {
+          rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false",
+          ...(process.env.DB_CA_CERT ? { ca: process.env.DB_CA_CERT } : {}),
+        },
   });
   // pg returns int4 as string by default — parse as JS number
   pg.types.setTypeParser(23, parseInt);

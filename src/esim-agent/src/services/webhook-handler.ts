@@ -108,6 +108,9 @@ export function verifyWebhookSignature(
   signatureHeader: string | undefined,
   timestampHeader: string | undefined,
 ): VerifyResult {
+  if (!secret) {
+    return { valid: false, reason: "Webhook secret not configured" };
+  }
   if (!signatureHeader || !timestampHeader) {
     return { valid: false, reason: "Missing signature or timestamp header" };
   }

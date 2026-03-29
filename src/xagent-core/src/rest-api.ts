@@ -117,7 +117,7 @@ function jsonResponse(
   res.end(JSON.stringify(envelope, null, 2));
 }
 
-const TRUST_PROXY = (process.env.TRUST_PROXY ?? "true") === "true";
+const TRUST_PROXY = (process.env.TRUST_PROXY ?? "false") === "true";
 
 function getClientIp(req: IncomingMessage): string {
   if (TRUST_PROXY) {
@@ -624,9 +624,15 @@ async function handleACPSubmitDeliverable(
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<true> {
-  // Merchant API key authentication
+  // Merchant API key authentication (required)
   const merchantApiKey = process.env.MERCHANT_API_KEY ?? "";
-  if (merchantApiKey) {
+  if (!merchantApiKey) {
+    jsonResponse(res, 503, {
+      error: { code: "NOT_CONFIGURED", message: "MERCHANT_API_KEY not configured" },
+    });
+    return true;
+  }
+  {
     const authHeader = req.headers.authorization ?? "";
     if (authHeader !== `Bearer ${merchantApiKey}`) {
       jsonResponse(res, 403, {
