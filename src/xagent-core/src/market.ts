@@ -265,32 +265,56 @@ async function handleRegister(
   }
 
   const {
-    merchant_did,
     name,
     description,
     category,
-    signer_address,
-    payment_address,
     skill_md_url,
     skill_user_url,
-    health_url,
     webhook_url,
     webhook_secret,
   } = body as Record<string, string>;
 
+  // Accept wallet_address as unified field, fall back to separate fields
+  const wallet_address = (body as Record<string, string>).wallet_address ?? "";
+  const signer_address =
+    (body as Record<string, string>).signer_address || wallet_address;
+  const payment_address =
+    (body as Record<string, string>).payment_address || wallet_address;
+
+  // Auto-generate DID from name if not provided
+  let merchant_did = (body as Record<string, string>).merchant_did ?? "";
+  if (!merchant_did && name) {
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_|_$/g, "")
+      .slice(0, 40);
+    merchant_did = `did:xagent:196:${slug}`;
+  }
+
+  // Auto-derive health_url from skill_md_url if not provided
+  let health_url = (body as Record<string, string>).health_url ?? "";
+  if (!health_url && skill_md_url) {
+    try {
+      const u = new URL(skill_md_url);
+      u.pathname = "/health";
+      health_url = u.toString();
+    } catch {
+      /* ignore invalid URL */
+    }
+  }
+
   if (
-    !merchant_did ||
     !name ||
     !description ||
     !category ||
     !signer_address ||
     !payment_address ||
-    !skill_md_url ||
-    !health_url
+    !skill_md_url
   ) {
     sendJson(res, 400, {
       error:
-        "Missing required fields: merchant_did, name, description, category, signer_address, payment_address, skill_md_url, health_url",
+        "Missing required fields: name, description, category, wallet_address (or signer_address + payment_address), skill_md_url",
     });
     return;
   }

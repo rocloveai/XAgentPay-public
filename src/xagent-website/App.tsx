@@ -882,8 +882,10 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
 
   // --- Registration form state ---
   const [formData, setFormData] = useState({
-    skill_md_url: '', merchant_did: '', name: '', description: '',
-    category: '', signer_address: '', payment_address: '', health_url: '',
+    skill_md_url: '', name: '', description: '',
+    category: '', wallet_address: '',
+    // Advanced fields (optional, hidden by default)
+    merchant_did: '', signer_address: '', payment_address: '', health_url: '',
     skill_user_url: '', webhook_url: '', webhook_secret: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -905,13 +907,15 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
   const tf = t.list.form as Record<string, any>;
   const validators: Record<string, (v: string) => string> = {
     skill_md_url: (v) => !v ? tf.errors.required : !/^https?:\/\/.+/.test(v) ? tf.errors.invalidUrl : '',
-    merchant_did: (v) => !v ? tf.errors.required : !/^did:xagent:\d+:\w+$/.test(v) ? tf.errors.invalidDid : '',
     name: (v) => !v ? tf.errors.required : (v.length < 2 || v.length > 100) ? tf.errors.nameLength : '',
     description: (v) => !v ? tf.errors.required : (v.length < 10 || v.length > 500) ? tf.errors.descLength : '',
     category: (v) => !v ? tf.errors.required : '',
-    signer_address: (v) => !v ? tf.errors.required : !/^0x[a-fA-F0-9]{40}$/.test(v) ? tf.errors.invalidAddress : '',
-    payment_address: (v) => !v ? tf.errors.required : !/^0x[a-fA-F0-9]{40}$/.test(v) ? tf.errors.invalidAddress : '',
-    health_url: (v) => !v ? tf.errors.required : !/^https?:\/\/.+/.test(v) ? tf.errors.invalidUrl : '',
+    wallet_address: (v) => !v ? tf.errors.required : !/^0x[a-fA-F0-9]{40}$/.test(v) ? tf.errors.invalidAddress : '',
+    // Advanced optional validators
+    merchant_did: (v) => v && !/^did:xagent:\d+:\w+$/.test(v) ? tf.errors.invalidDid : '',
+    signer_address: (v) => v && !/^0x[a-fA-F0-9]{40}$/.test(v) ? tf.errors.invalidAddress : '',
+    payment_address: (v) => v && !/^0x[a-fA-F0-9]{40}$/.test(v) ? tf.errors.invalidAddress : '',
+    health_url: (v) => v && !/^https?:\/\/.+/.test(v) ? tf.errors.invalidUrl : '',
     skill_user_url: (v) => v && !/^https?:\/\/.+/.test(v) ? tf.errors.invalidUrl : '',
     webhook_url: (v) => v && !/^https?:\/\/.+/.test(v) ? tf.errors.invalidUrl : '',
     webhook_secret: () => '',
@@ -940,10 +944,10 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
       }
       setFormData(prev => ({
         ...prev,
-        merchant_did: prev.merchant_did || kvMap.get('merchant_did') || '',
         name: prev.name || kvMap.get('name') || '',
         description: prev.description || kvMap.get('description') || '',
         category: prev.category || kvMap.get('category')?.split('.')[0] || '',
+        wallet_address: prev.wallet_address || kvMap.get('payment_address') || kvMap.get('signer_address') || '',
       }));
       setAutoFillStatus('success');
     } catch {
@@ -955,11 +959,13 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
 
   const handleRegisterSubmit = async () => {
     const errors: Record<string, string> = {};
-    for (const field of ['skill_md_url','merchant_did','name','description','category','signer_address','payment_address','health_url']) {
+    // Validate 5 required fields
+    for (const field of ['skill_md_url','name','description','category','wallet_address']) {
       const err = validators[field](formData[field as keyof typeof formData]);
       if (err) errors[field] = err;
     }
-    for (const field of ['skill_user_url','webhook_url']) {
+    // Validate optional fields only if filled
+    for (const field of ['merchant_did','signer_address','payment_address','health_url','skill_user_url','webhook_url']) {
       const val = formData[field as keyof typeof formData];
       if (val) { const err = validators[field](val); if (err) errors[field] = err; }
     }
@@ -995,7 +1001,7 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
   };
 
   const resetForm = () => {
-    setFormData({ skill_md_url: '', merchant_did: '', name: '', description: '', category: '', signer_address: '', payment_address: '', health_url: '', skill_user_url: '', webhook_url: '', webhook_secret: '' });
+    setFormData({ skill_md_url: '', name: '', description: '', category: '', wallet_address: '', merchant_did: '', signer_address: '', payment_address: '', health_url: '', skill_user_url: '', webhook_url: '', webhook_secret: '' });
     setFormErrors({});
     setSubmitResult(null);
     setAutoFillStatus('idle');
@@ -1342,19 +1348,18 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
                       <div>
                         <h5 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 transition-colors">{t.list.required}</h5>
                         <ul className="space-y-2 text-xs text-slate-500 dark:text-slate-400 transition-colors">
-                          <li>• merchant_did</li>
+                          <li>• skill_md_url</li>
                           <li>• name</li>
                           <li>• description</li>
                           <li>• category</li>
-                          <li>• signer_address</li>
-                          <li>• payment_address</li>
-                          <li>• skill_md_url</li>
-                          <li>• health_url</li>
+                          <li>• wallet_address</li>
                         </ul>
                       </div>
                       <div>
                         <h5 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 transition-colors">{t.list.optional}</h5>
                         <ul className="space-y-2 text-xs text-slate-500 dark:text-slate-400 transition-colors">
+                          <li>• merchant_did</li>
+                          <li>• health_url</li>
                           <li>• webhook_url</li>
                           <li>• webhook_secret</li>
                         </ul>
@@ -1421,11 +1426,6 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
                         <div className="space-y-3">
                           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tf.sectionIdentity}</p>
                           <div className="flex flex-col gap-2">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.merchantDid} *</label>
-                            <input type="text" placeholder={tf.placeholders.merchantDid} value={formData.merchant_did} onChange={(e) => updateField('merchant_did', e.target.value)} onBlur={() => validateField('merchant_did')} className={`bg-white dark:bg-slate-900 border ${formErrors.merchant_did ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
-                            {formErrors.merchant_did && <p className="text-xs text-red-500">{formErrors.merchant_did}</p>}
-                          </div>
-                          <div className="flex flex-col gap-2">
                             <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.name} *</label>
                             <input type="text" placeholder={tf.placeholders.name} value={formData.name} onChange={(e) => updateField('name', e.target.value)} onBlur={() => validateField('name')} className={`bg-white dark:bg-slate-900 border ${formErrors.name ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
                             {formErrors.name && <p className="text-xs text-red-500">{formErrors.name}</p>}
@@ -1451,33 +1451,36 @@ const MarketPage = ({ lang, initialTab = 'discover' }: { lang: Language; initial
                           </div>
                         </div>
 
-                        {/* Section 3: Blockchain & Endpoints */}
+                        {/* Section 3: Wallet */}
                         <div className="space-y-3">
                           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tf.sectionBlockchain}</p>
                           <div className="flex flex-col gap-2">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.signerAddress} *</label>
-                            <input type="text" placeholder={tf.placeholders.signerAddress} value={formData.signer_address} onChange={(e) => updateField('signer_address', e.target.value)} onBlur={() => validateField('signer_address')} className={`bg-white dark:bg-slate-900 border ${formErrors.signer_address ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm font-mono`} />
-                            {formErrors.signer_address && <p className="text-xs text-red-500">{formErrors.signer_address}</p>}
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.paymentAddress} *</label>
-                            <input type="text" placeholder={tf.placeholders.paymentAddress} value={formData.payment_address} onChange={(e) => updateField('payment_address', e.target.value)} onBlur={() => validateField('payment_address')} className={`bg-white dark:bg-slate-900 border ${formErrors.payment_address ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm font-mono`} />
-                            {formErrors.payment_address && <p className="text-xs text-red-500">{formErrors.payment_address}</p>}
-                          </div>
-                          <div className="flex flex-col gap-2">
-                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.healthUrl} *</label>
-                            <input type="text" placeholder={tf.placeholders.healthUrl} value={formData.health_url} onChange={(e) => updateField('health_url', e.target.value)} onBlur={() => validateField('health_url')} className={`bg-white dark:bg-slate-900 border ${formErrors.health_url ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
-                            {formErrors.health_url && <p className="text-xs text-red-500">{formErrors.health_url}</p>}
+                            <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.walletAddress} *</label>
+                            <input type="text" placeholder={tf.placeholders.walletAddress} value={formData.wallet_address} onChange={(e) => updateField('wallet_address', e.target.value)} onBlur={() => validateField('wallet_address')} className={`bg-white dark:bg-slate-900 border ${formErrors.wallet_address ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm font-mono`} />
+                            {formErrors.wallet_address && <p className="text-xs text-red-500">{formErrors.wallet_address}</p>}
+                            <p className="text-[10px] text-slate-400">{tf.walletHint}</p>
                           </div>
                         </div>
 
-                        {/* Section 4: Optional (collapsible) */}
+                        {/* Section 4: Advanced (collapsible) */}
                         <button type="button" onClick={() => setShowOptional(!showOptional)} className="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-primary transition-colors">
                           <ChevronRight className={`w-4 h-4 transition-transform ${showOptional ? 'rotate-90' : ''}`} />
                           {showOptional ? tf.hideOptional : tf.showOptional}
                         </button>
                         {showOptional && (
                           <div className="space-y-3">
+                            <div className="flex flex-col gap-2">
+                              <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.merchantDid}</label>
+                              <input type="text" placeholder={tf.placeholders.merchantDid} value={formData.merchant_did} onChange={(e) => updateField('merchant_did', e.target.value)} onBlur={() => validateField('merchant_did')} className={`bg-white dark:bg-slate-900 border ${formErrors.merchant_did ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm font-mono`} />
+                              <p className="text-[10px] text-slate-400">{tf.didHint}</p>
+                              {formErrors.merchant_did && <p className="text-xs text-red-500">{formErrors.merchant_did}</p>}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.healthUrl}</label>
+                              <input type="text" placeholder={tf.placeholders.healthUrl} value={formData.health_url} onChange={(e) => updateField('health_url', e.target.value)} onBlur={() => validateField('health_url')} className={`bg-white dark:bg-slate-900 border ${formErrors.health_url ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
+                              <p className="text-[10px] text-slate-400">{tf.healthHint}</p>
+                              {formErrors.health_url && <p className="text-xs text-red-500">{formErrors.health_url}</p>}
+                            </div>
                             <div className="flex flex-col gap-2">
                               <label className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase transition-colors">{tf.skillUserUrl}</label>
                               <input type="text" placeholder={tf.placeholders.skillUserUrl} value={formData.skill_user_url} onChange={(e) => updateField('skill_user_url', e.target.value)} onBlur={() => validateField('skill_user_url')} className={`bg-white dark:bg-slate-900 border ${formErrors.skill_user_url ? 'border-red-500/50' : 'border-black/10 dark:border-white/10'} rounded-xl p-3 focus:outline-none focus:border-primary transition-all text-slate-900 dark:text-white text-sm`} />
